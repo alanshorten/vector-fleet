@@ -9,7 +9,6 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   try {
-    const body = req.body;
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -17,17 +16,18 @@ export default async function handler(req, res) {
         'x-api-key': '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',
         'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(req.body)
     });
     
-    const text = await response.text();
-    if (!text) return res.status(200).json({ error: 'Empty response from Anthropic', status: response.status });
-    try {
-      return res.status(200).json(JSON.parse(text));
-    } catch {
-      return res.status(200).json({ error: 'Non-JSON response', raw: text.slice(0, 500), status: response.status });
+    const data = await response.json();
+    
+    // Strip input messages from response to reduce size
+    if (data.content) {
+      return res.status(200).json({ content: data.content });
     }
+    return res.status(200).json(data);
+    
   } catch (err) {
-    return res.status(200).json({ error: err.message, stack: err.stack });
+    return res.status(200).json({ error: err.message });
   }
 }
