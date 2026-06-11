@@ -9,21 +9,6 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   try {
-    const body = JSON.parse(JSON.stringify(req.body));
-    if (body.messages) {
-      body.messages = body.messages.map(msg => {
-        if (Array.isArray(msg.content)) {
-          return {
-            ...msg,
-            content: msg.content.map(c => 
-              c.type === 'document' ? { ...c, source: { ...c.source, data: '[STRIPPED]' } } : c
-            )
-          };
-        }
-        return msg;
-      });
-    }
-
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -31,20 +16,24 @@ export default async function handler(req, res) {
         'x-api-key': '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',
         'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(req.body)
     });
+
+    const text = await response.text();
     
-    const data = await response.json();
-    const text = data.content?.map(c => c.text || '').join('') || '';
-    const clean = text.replace(/```json|```/g, '').trim();
+    // Find just the content array using regex to avoid parsing 245MB
+    const match = text.match(/"content"\s*:\s*(\[.*?\])/s);
+    if (!match) return res.status(200).json({ error: 'No content in response', preview: text.slice(0, 500) });
+    
+    const content = JSON.parse(match[1]);
+    const extracted = content.map(c => c.text || '').join('').replace(/```json|```/g, '').trim();
     
     try {
-      const parsed = JSON.parse(clean);
-      return res.status(200).json({ ok: true, data: parsed });
+      return res.status(200).json({ ok: true, data: JSON.parse(extracted) });
     } catch {
-      return res.status(200).json({ ok: false, raw: clean.slice(0, 2000) });
+      return res.status(200).json({ ok: false, raw: extracted.slice(0, 2000) });
     }
-    
+
   } catch (err) {
     return res.status(200).json({ error: err.message });
   }
