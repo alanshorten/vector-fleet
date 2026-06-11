@@ -13,19 +13,23 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': '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',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify(req.body)
     });
 
     const text = await response.text();
-    return res.status(200).json({ 
-      ok: false, 
-      preview: text.slice(0, 1000),
-      end: text.slice(-500),
-      length: text.length
-    });
+    const match = text.match(/"type":"text","text":"([\s\S]*?)"\s*\}/);
+    if (match) {
+      const extracted = match[1].replace(/\\n/g,'\n').replace(/\\"/g,'"').replace(/```json|```/g,'').trim();
+      try {
+        return res.status(200).json({ ok: true, data: JSON.parse(extracted) });
+      } catch {
+        return res.status(200).json({ ok: false, raw: extracted.slice(0, 2000) });
+      }
+    }
+    return res.status(200).json({ ok: false, preview: text.slice(0, 500) });
 
   } catch (err) {
     return res.status(200).json({ error: err.message });
