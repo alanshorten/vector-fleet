@@ -9,15 +9,20 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   try {
-    // Remove document from body before sending to reduce response size
-    const body = req.body;
+    const body = JSON.parse(JSON.stringify(req.body));
+    // Strip document data from messages to keep response small
     if (body.messages) {
-      body.messages = body.messages.map(msg => ({
-        ...msg,
-        content: Array.isArray(msg.content) 
-          ? msg.content.filter(c => c.type === 'text')
-          : msg.content
-      }));
+      body.messages = body.messages.map(msg => {
+        if (Array.isArray(msg.content)) {
+          return {
+            ...msg,
+            content: msg.content.map(c => 
+              c.type === 'document' ? { ...c, source: { ...c.source, data: '[STRIPPED]' } } : c
+            )
+          };
+        }
+        return msg;
+      });
     }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
