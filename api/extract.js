@@ -20,19 +20,12 @@ export default async function handler(req, res) {
     });
 
     const text = await response.text();
-    
-    // Find just the content array using regex to avoid parsing 245MB
-    const match = text.match(/"content"\s*:\s*(\[.*?\])/s);
-    if (!match) return res.status(200).json({ error: 'No content in response', preview: text.slice(0, 500) });
-    
-    const content = JSON.parse(match[1]);
-    const extracted = content.map(c => c.text || '').join('').replace(/```json|```/g, '').trim();
-    
-    try {
-      return res.status(200).json({ ok: true, data: JSON.parse(extracted) });
-    } catch {
-      return res.status(200).json({ ok: false, raw: extracted.slice(0, 2000) });
-    }
+    return res.status(200).json({ 
+      ok: false, 
+      preview: text.slice(0, 1000),
+      end: text.slice(-500),
+      length: text.length
+    });
 
   } catch (err) {
     return res.status(200).json({ error: err.message });
