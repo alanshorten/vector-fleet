@@ -10,7 +10,6 @@ export default async function handler(req, res) {
 
   try {
     const body = JSON.parse(JSON.stringify(req.body));
-    // Strip document data from messages to keep response small
     if (body.messages) {
       body.messages = body.messages.map(msg => {
         if (Array.isArray(msg.content)) {
@@ -32,7 +31,7 @@ export default async function handler(req, res) {
         'x-api-key': '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',
         'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify(body)
     });
     
     const data = await response.json();
