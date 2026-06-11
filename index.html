@@ -620,6 +620,7 @@ function UploadView({assets,saveAsset,notify}){
       const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:isPDF?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",data:base64}},{type:"text",text:`Extract all data from this aircraft utilisation report. Return ONLY valid JSON, no markdown:\n{"month_year":"e.g. May 2026","operator":"string","msn":"string","registration":"string","airframe":{"fh_period":"HH:MM","fc_period":number,"tsn":"HH:MM","csn":number},"engine1":{"model":"string","sn":"string","tsn":"HH:MM","csn":number},"engine2":{"model":"string","sn":"string","tsn":"HH:MM","csn":number},"apu":{"sn":"string","tsn":"HH:MM","csn":number}}`}]}]})});
       const result=await resp.json();
       if(result.error)throw new Error(result.error);
+      if(!result.ok&&result.preview)throw new Error("Preview: "+result.preview);
       const parsed=result.ok?result.data:JSON.parse((result.raw||"").replace(/```json|```/g,"").trim());
       setExtracted({parsed,fileName:file.name});
     }catch(err){setError("Extraction failed: "+err.message);}
