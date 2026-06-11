@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Vector Fleet Manager</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter','Segoe UI',sans-serif;background:#0f1923;color:#e2e8f0;min-height:100vh}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:#1a2535}::-webkit-scrollbar-thumb{background:#2d3f55;border-radius:3px}
+.btn{cursor:pointer;border:none;border-radius:6px;font-family:inherit;font-weight:600;transition:all 0.15s}
+.btn-gold{background:#C9A84C;color:#0a1520;padding:7px 14px;font-size:12px;font-weight:700}.btn-gold:hover{background:#b8963d}
+.btn-primary{background:#1e3a5f;color:#60a5fa;padding:7px 14px;font-size:12px}.btn-primary:hover{background:#1B3A6B}
+.btn-ghost{background:transparent;border:1px solid #2d3f55;color:#94a3b8;padding:6px 12px;font-size:12px}.btn-ghost:hover{border-color:#60a5fa;color:#60a5fa}
+.btn-danger{background:#2a0e0e;color:#f87171;border:1px solid #7f1d1d;padding:5px 10px;font-size:11px;cursor:pointer;border-radius:6px;font-family:inherit;font-weight:600}.btn-danger:hover{background:#3a1010}
+.card{background:#0d1e2e;border:1px solid #1e3048;border-radius:10px}
+.section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#C9A84C;border-bottom:1px solid #1e3048;padding-bottom:6px;margin-bottom:12px}
+input,select,textarea{background:#0a1520;border:1px solid #2d3f55;color:#e2e8f0;border-radius:6px;padding:7px 10px;font-size:13px;font-family:inherit;outline:none;width:100%}
+input:focus,select:focus,textarea:focus{border-color:#C9A84C}
+input.amber:not(:focus){background:#2a1f0a;border-color:#78350f}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#0a1520;color:#475569;font-weight:700;text-align:left;padding:7px 10px;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #1e3048}
+td{padding:7px 10px;border-bottom:1px solid #0f2030;color:#cbd5e1;vertical-align:top}
+tr:last-child td{border-bottom:none}tr:hover td{background:#0f2030}
+.nav-btn{padding:7px 14px;border-radius:5px;border:none;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;background:transparent;color:#64748b}
+.nav-btn:hover{color:#e2e8f0;background:#1a2535}.nav-btn.active{background:#1e3048;color:#C9A84C}
+.tag{padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.04em}
+.pill{padding:3px 9px;border-radius:4px;font-size:11px;font-weight:600}
+.tab-btn{padding:8px 16px;cursor:pointer;border:none;background:none;font-family:inherit;font-size:13px;font-weight:600;color:#475569;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color 0.15s;text-transform:capitalize}
+.tab-btn.active{color:#C9A84C;border-bottom-color:#C9A84C}
+.row-hover:hover{background:#1a2a3a!important;cursor:pointer}
+.card-hover{transition:transform 0.15s,box-shadow 0.15s;cursor:pointer}.card-hover:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.fl{display:flex}.flab{display:flex;align-items:center}.flj{display:flex;justify-content:space-between;align-items:center}
+.g8{gap:8px}.g12{gap:12px}
+.form-label{font-size:11px;color:#64748b;font-weight:500;margin-bottom:4px;display:block}
+.form-group{margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+const API = "https://script.google.com/macros/s/AKfycbw71L9NSmM3kMjw3VXQFeRD5CY6jA7J_7hkfX95cAKBJ0j9JgPlHBBqvYwyHOMDMCv1RQ/exec";
+
+const db = {
+  async get(action, params={}) {
+    const p = new URLSearchParams({action, ...params});
+    const res = await fetch(`${API}?${p}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+  async post(action, data) {
+    const res = await fetch(`${API}?action=${action}`, {
+      method: "POST",
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+  async getAssets() { return db.get("getAssets"); },
+  async saveAsset(asset) {
+    const { _dbId, _updatedAt, ...data } = asset;
+    return db.post("saveAsset", { id: asset.id, data, updated_at: new Date().toISOString() });
+  },
+  async deleteAsset(id) { return db.get("deleteAsset", { id }); },
+  async getSetting(key) {
+    try { const r = await db.get("getSetting", { key }); return r?.value || null; } catch { return null; }
+  },
+  async setSetting(key, value) { return db.post("setSetting", { key, value }); },
+  async getUtilisation(asset_id) { return db.get("getUtilisation", { asset_id }); },
+  async saveUtilisation(data) { return db.post("saveUtilisation", data); },
+  async deleteUtilisation(id) { return db.get("deleteUtilisation", { id }); }
+};
+
+const calcLLPRem=(llp,fc)=>llp.startFCRem-(fc-llp.refFC);
+const lowestLimiter=(eng)=>{if(!eng?.llps?.length)return null;return Math.min(...eng.llps.map(l=>calcLLPRem(l,eng.currentFC)));};
+const daysFromNow=(d)=>d?Math.ceil((new Date(d)-new Date())/86400000):null;
+const fmtDate=(s)=>{try{return s?new Date(s).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}):"—";}catch{return s||"—";}};
+const fmtHHMM=(dec)=>{if(!dec&&dec!==0)return"—";return`${Math.floor(dec)}:${String(Math.round((dec%1)*60)).padStart(2,"0")}`;};
+const parseHHMM=(s)=>{if(!s)return 0;const p=s.toString().split(":");return parseFloat(p[0])+(parseFloat(p[1]||0)/60);};
+const isCFM=(asset)=>asset?.engines?.some(e=>e.type?.toUpperCase().includes("CFM"));
+const isEmpty=(v)=>!v&&v!==0;
+
+function assetStatus(asset){
+  const llpVals=(asset.engines||[]).flatMap(e=>(e.llps||[]).map(l=>calcLLPRem(l,e.currentFC)));
+  if(asset.apu?.llps)llpVals.push(...asset.apu.llps.map(l=>calcLLPRem(l,asset.apu.currentFC)));
+  const minLLP=llpVals.length?Math.min(...llpVals):null;
+  const lgDays=["nose","left","right"].map(k=>daysFromNow(asset.landingGear?.[k]?.nextDue)).filter(x=>x!=null);
+  const minLG=lgDays.length?Math.min(...lgDays):null;
+  if((minLLP!==null&&minLLP<1000)||(minLG!==null&&minLG<0))return"critical";
+  if((minLLP!==null&&minLLP<3000)||(minLG!==null&&minLG<365))return"warn";
+  return"ok";
+}
+const SC={critical:{dot:"#f87171",border:"#dc2626"},warn:{dot:"#fbbf24",border:"#d97706"},ok:{dot:"#34d399",border:"#1e3048"}};
+
+function App(){
+  const[assets,setAssets]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[error,setError]=useState(null);
+  const[view,setView]=useState("dashboard");
+  const[selectedId,setSelectedId]=useState(null);
+  const[isAdmin,setIsAdmin]=useState(false);
+  const[pinModal,setPinModal]=useState(false);
+  const[pinInput,setPinInput]=useState("");
+  const[pinError,setPinError]=useState("");
+  const[notification,setNotification]=useState(null);
+  const[adminPin,setAdminPin]=useState("1234");
+
+  const loadAssets=useCallback(async()=>{
+    try{
+      const rows=await db.getAssets();
+      setAssets(rows.map(r=>({...r.data,_dbId:r.id,_updatedAt:r.updated_at})));
+      const pin=await db.getSetting("admin_pin");
+      if(pin)setAdminPin(pin);
+      setError(null);
+    }catch(e){setError(e.message);}
+    setLoading(false);
+  },[]);
+
+  useEffect(()=>{loadAssets();},[loadAssets]);
+
+  const saveAsset=useCallback(async(asset)=>{
+    await db.saveAsset(asset);
+    await loadAssets();
+  },[loadAssets]);
+
+  const notify=(msg,type="success")=>{setNotification({msg,type});setTimeout(()=>setNotification(null),3500);};
+  const selectedAsset=assets.find(a=>a.id===selectedId);
+
+  if(loading)return(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{width:32,height:32,border:"3px solid #C9A84C",borderTop:"3px solid transparent",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 12px"}}/>
+        <p style={{color:"#64748b",fontSize:13}}>Loading fleet data…</p>
+      </div>
+    </div>
+  );
+
+  if(error)return(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh"}}>
+      <div style={{textAlign:"center",maxWidth:400,padding:32}}>
+        <div style={{color:"#f87171",fontSize:14,fontWeight:700,marginBottom:8}}>Connection Error</div>
+        <p style={{color:"#64748b",fontSize:12,marginBottom:16}}>{error}</p>
+        <button onClick={loadAssets} style={{padding:"8px 20px",background:"#1e3a5f",border:"none",borderRadius:6,color:"#60a5fa",cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>Retry</button>
+      </div>
+    </div>
+  );
+
+  return(
+    <div>
+      <header style={{background:"#0a1520",borderBottom:"1px solid #1e3048",padding:"0 20px",height:52,display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 8px rgba(0,0,0,0.3)"}}>
+        <span style={{color:"#C9A84C",fontWeight:700,fontSize:16,letterSpacing:"0.04em"}}>✈ Vector Fleet</span>
+        <nav style={{display:"flex",gap:2,alignItems:"center"}}>
+          {[["dashboard","Dashboard"],["upload","Upload"]].map(([v,l])=>(
+            <button key={v} className={`nav-btn${view===v?" active":""}`} onClick={()=>{setView(v);setSelectedId(null);}}>{l}</button>
+          ))}
+          <button className={`nav-btn${view==="admin"?" active":""}`} style={isAdmin?{color:"#C9A84C",background:"#1e3048"}:{}}
+            onClick={()=>{if(!isAdmin){setPinModal(true);setPinInput("");setPinError("");}else{setView("admin");setSelectedId(null);}}}>
+            {isAdmin?"⚙ Admin":"Admin"}
+          </button>
+          {isAdmin&&<button className="btn btn-ghost" style={{fontSize:11,marginLeft:4,padding:"4px 8px"}} onClick={()=>setIsAdmin(false)}>Lock</button>}
+        </nav>
+      </header>
+
+      {notification&&(
+        <div style={{position:"fixed",top:60,right:18,zIndex:300,padding:"10px 16px",borderRadius:8,
+          background:notification.type==="error"?"#2a0e0e":"#0d2818",
+          border:`1px solid ${notification.type==="error"?"#7f1d1d":"#166534"}`,
+          color:notification.type==="error"?"#f87171":"#34d399",
+          fontWeight:600,fontSize:13,animation:"fadeIn 0.2s ease",boxShadow:"0 4px 16px rgba(0,0,0,0.4)"}}>
+          {notification.msg}
+        </div>
+      )}
+
+      {pinModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div className="card" style={{padding:32,width:300,textAlign:"center"}}>
+            <div style={{fontSize:28,marginBottom:8}}>🔒</div>
+            <h3 style={{color:"#C9A84C",marginBottom:6,fontSize:16}}>Admin Access</h3>
+            <p style={{color:"#64748b",fontSize:12,marginBottom:14}}>Enter your PIN to continue</p>
+            <input type="password" placeholder="PIN" value={pinInput} onChange={e=>setPinInput(e.target.value)}
+              onKeyDown={e=>{if(e.key==="Enter"){if(pinInput===adminPin){setIsAdmin(true);setPinModal(false);setView("admin");notify("Admin access granted");}else setPinError("Incorrect PIN");}}}
+              style={{textAlign:"center",letterSpacing:8,fontSize:20,marginBottom:6}}/>
+            {pinError&&<p style={{color:"#f87171",fontSize:12,marginBottom:6}}>{pinError}</p>}
+            <div style={{display:"flex",gap:8,marginTop:10}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setPinModal(false)}>Cancel</button>
+              <button className="btn btn-gold" style={{flex:1}} onClick={()=>{if(pinInput===adminPin){setIsAdmin(true);setPinModal(false);setView("admin");notify("Admin access granted");}else setPinError("Incorrect PIN");}}>Unlock</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <main style={{padding:"20px 22px",maxWidth:1480,margin:"0 auto"}}>
+        {view==="dashboard"&&!selectedId&&<Dashboard assets={assets} onSelect={id=>{setSelectedId(id);setView("asset");}}/>}
+        {view==="asset"&&selectedId&&selectedAsset&&<AssetView asset={selectedAsset} saveAsset={saveAsset} isAdmin={isAdmin} notify={notify} onBack={()=>{setView("dashboard");setSelectedId(null);}} loadAssets={loadAssets}/>}
+        {view==="upload"&&isAdmin&&<UploadView assets={assets} saveAsset={saveAsset} notify={notify}/>}
+        {view==="upload"&&!isAdmin&&(
+          <div style={{padding:60,textAlign:"center",color:"#475569"}}>
+            <div style={{fontSize:32,marginBottom:12}}>🔒</div>
+            <p>Admin access required.</p>
+            <button className="btn btn-gold" style={{marginTop:14}} onClick={()=>{setPinModal(true);setPinInput("");setPinError("");}}>Unlock Admin</button>
+          </div>
+        )}
+        {view==="admin"&&isAdmin&&<AdminView assets={assets} saveAsset={saveAsset} notify={notify} loadAssets={loadAssets} adminPin={adminPin} setAdminPin={setAdminPin}/>}
+        {view==="admin"&&!isAdmin&&<div style={{padding:60,textAlign:"center",color:"#475569"}}>Admin access required.</div>}
+      </main>
+    </div>
+  );
+}
+
+function Dashboard({assets,onSelect}){
+  const[viewMode,setViewMode]=useState("list");
+  const[filter,setFilter]=useState("");
+  const[sortCol,setSortCol]=useState("msn");
+  const[sortDir,setSortDir]=useState("asc");
+  const filtered=assets.filter(a=>[a.msn,a.registration,a.operator,a.model].some(v=>v?.toLowerCase().includes(filter.toLowerCase())));
+  const sorted=[...filtered].sort((a,b)=>{const av=String(a[sortCol]||""),bv=String(b[sortCol]||"");return sortDir==="asc"?av.localeCompare(bv):bv.localeCompare(av);});
+  const stats={total:assets.length,ok:assets.filter(a=>assetStatus(a)==="ok").length,warn:assets.filter(a=>assetStatus(a)==="warn").length,critical:assets.filter(a=>assetStatus(a)==="critical").length};
+  const toggleSort=col=>{if(sortCol===col)setSortDir(d=>d==="asc"?"desc":"asc");else{setSortCol(col);setSortDir("asc");}};
+  const LLPCell=({eng})=>{if(!eng)return<td style={{color:"#475569"}}>—</td>;if(eng.atShop)return<td><span style={{fontSize:11,color:"#94a3b8"}}>🔧</span></td>;const ll=lowestLimiter(eng);if(ll===null)return<td style={{color:"#475569",fontSize:11}}>No data</td>;const col=ll<1000?"#f87171":ll<3000?"#fbbf24":"#34d399";return<td><span className="pill" style={{background:ll<1000?"#2a0e0e":ll<3000?"#2a1f0a":"#0d2818",color:col}}>{ll.toLocaleString()}</span></td>;};
+  const LGCell=({g})=>{if(!g||!g.nextDue)return<td style={{color:"#475569"}}>—</td>;if(g.atShop)return<td><span style={{fontSize:11,color:"#94a3b8"}}>🔧</span></td>;const d=daysFromNow(g.nextDue);const col=d<0?"#f87171":d<365?"#fbbf24":"#64748b";return<td><span className="pill" style={{background:d<0?"#2a0e0e":d<365?"#2a1f0a":"transparent",color:col}}>{fmtDate(g.nextDue)}</span></td>;};
+  const APUCell=({apu})=>{if(!apu?.llps?.length)return<td style={{color:"#475569"}}>—</td>;const ll=Math.min(...apu.llps.map(l=>calcLLPRem(l,apu.currentFC)));const col=ll<1000?"#f87171":ll<3000?"#fbbf24":"#34d399";return<td><span className="pill" style={{background:ll<1000?"#2a0e0e":ll<3000?"#2a1f0a":"#0d2818",color:col}}>{ll.toLocaleString()}</span></td>;};
+  return(
+    <div style={{animation:"fadeIn 0.2s ease"}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}}>
+        {[["Total Assets",stats.total,"#60a5fa","#1e3048"],["All Clear",stats.ok,"#34d399","#0d2818"],["Attention",stats.warn,"#fbbf24","#2a1f0a"],["Critical",stats.critical,"#f87171","#2a0e0e"]].map(([l,v,c,bg])=>(
+          <div key={l} style={{background:bg,border:`1px solid ${c}22`,borderRadius:8,padding:"10px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontSize:11,color:"#64748b",fontWeight:500}}>{l}</span><span style={{fontSize:22,fontWeight:700,color:c}}>{v}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flj" style={{marginBottom:12}}>
+        <div className="flab g8">
+          <input placeholder="Search MSN, registration, operator…" value={filter} onChange={e=>setFilter(e.target.value)} style={{width:290}}/>
+          <span style={{fontSize:12,color:"#475569"}}>{sorted.length} assets</span>
+        </div>
+        <div style={{display:"flex",gap:4,background:"#1a2535",padding:3,borderRadius:6}}>
+          {[["list","☰ List"],["card","⊞ Cards"]].map(([m,l])=>(
+            <button key={m} className="btn" onClick={()=>setViewMode(m)} style={{padding:"5px 12px",fontSize:12,background:viewMode===m?"#1e3048":"transparent",color:viewMode===m?"#C9A84C":"#64748b"}}>{l}</button>
+          ))}
+        </div>
+      </div>
+      {viewMode==="list"&&(
+        <div className="card" style={{overflow:"auto"}}>
+          <table>
+            <thead><tr>
+              <th style={{width:24}}></th>
+              {[["MSN","msn"],["Reg","registration"],["Model","model"],["Operator","operator"]].map(([l,k])=>(
+                <th key={k}><button onClick={()=>toggleSort(k)} style={{background:"none",border:"none",color:sortCol===k?"#C9A84C":"#475569",fontFamily:"inherit",fontSize:10,fontWeight:700,cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",whiteSpace:"nowrap"}}>{l}{sortCol===k?(sortDir==="asc"?" ↑":" ↓"):""}</button></th>
+              ))}
+              <th>AF TSN</th><th>AF CSN</th><th>Eng 1</th><th>Eng 2</th><th>APU</th><th>NLG</th><th>LLG</th><th>RLG</th><th>Last Report</th><th></th>
+            </tr></thead>
+            <tbody>
+              {sorted.map((a,i)=>{const st=assetStatus(a);const af=a.airframe||{};return(
+                <tr key={a.id} className="row-hover" onClick={()=>onSelect(a.id)} style={{background:i%2===0?"#0d1e2e":"#0f2030"}}>
+                  <td style={{textAlign:"center"}}><div style={{width:8,height:8,borderRadius:"50%",background:SC[st].dot,margin:"0 auto",boxShadow:st!=="ok"?`0 0 5px ${SC[st].dot}`:"none"}}/></td>
+                  <td style={{fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{a.msn}</td>
+                  <td style={{fontWeight:600}}>{a.registration||"—"}</td>
+                  <td><span style={{color:"#94a3b8"}}>{a.model||"—"}</span>{isCFM(a)?<span className="tag" style={{background:"#1e3a5f",color:"#60a5fa",marginLeft:5}}>CFM</span>:<span className="tag" style={{background:"#1e2a4a",color:"#a78bfa",marginLeft:5}}>V2500</span>}</td>
+                  <td style={{color:"#94a3b8"}}>{a.operator||"—"}</td>
+                  <td style={{fontFamily:"monospace"}}>{fmtHHMM(af.currentFH)}</td>
+                  <td style={{fontFamily:"monospace"}}>{af.currentFC?.toLocaleString()||"—"}</td>
+                  <LLPCell eng={a.engines?.[0]}/><LLPCell eng={a.engines?.[1]}/><APUCell apu={a.apu}/>
+                  <LGCell g={a.landingGear?.nose}/><LGCell g={a.landingGear?.left}/><LGCell g={a.landingGear?.right}/>
+                  <td style={{fontSize:11,color:a._lastPeriod?"#64748b":"#f87171"}}>{a._lastPeriod||"No report"}</td>
+                  <td onClick={e=>e.stopPropagation()}><button className="btn btn-gold" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>onSelect(a.id)}>View</button></td>
+                </tr>
+              );})}
+              {sorted.length===0&&<tr><td colSpan={15} style={{textAlign:"center",padding:48,color:"#475569"}}>{assets.length===0?"No assets yet — go to Admin to add your first aircraft.":"No results."}</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {viewMode==="card"&&(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:12}}>
+          {sorted.map(a=>{const st=assetStatus(a);const af=a.airframe||{};return(
+            <div key={a.id} className="card card-hover" onClick={()=>onSelect(a.id)} style={{borderLeft:`3px solid ${SC[st].border}`,padding:16}}>
+              <div className="flj" style={{marginBottom:10}}>
+                <div>
+                  <div className="flab g8"><span style={{fontWeight:700,fontSize:15,color:"#C9A84C",fontFamily:"monospace"}}>MSN {a.msn}</span>{isCFM(a)?<span className="tag" style={{background:"#1e3a5f",color:"#60a5fa"}}>CFM</span>:<span className="tag" style={{background:"#1e2a4a",color:"#a78bfa"}}>V2500</span>}</div>
+                  <div style={{fontSize:14,fontWeight:600,color:"#e2e8f0",marginTop:2}}>{a.registration||"—"}</div>
+                  <div style={{fontSize:11,color:"#475569"}}>{a.model} · {a.operator||"—"}</div>
+                </div>
+                <div style={{width:10,height:10,borderRadius:"50%",background:SC[st].dot,boxShadow:st!=="ok"?`0 0 8px ${SC[st].dot}`:"none"}}/>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,background:"#0a1520",borderRadius:6,padding:"8px 10px",marginBottom:10}}>
+                {[["AF TSN",fmtHHMM(af.currentFH)],["AF CSN",af.currentFC?.toLocaleString()||"—"]].map(([l,v])=>(
+                  <div key={l}><div style={{fontSize:9,color:"#475569",fontWeight:700,textTransform:"uppercase"}}>{l}</div><div style={{fontSize:13,fontWeight:700,color:"#e2e8f0",fontFamily:"monospace"}}>{v}</div></div>
+                ))}
+              </div>
+              <button className="btn btn-gold" style={{width:"100%",padding:"7px 0",fontSize:12}} onClick={e=>{e.stopPropagation();onSelect(a.id);}}>View Details</button>
+            </div>
+          );})}
+        </div>
+      )}
+      <div className="flab" style={{gap:16,marginTop:14,fontSize:11,color:"#334155",flexWrap:"wrap"}}>
+        {[["#f87171","Critical"],["#fbbf24","Attention"],["#34d399","All clear"]].map(([c,l])=>(
+          <div key={l} className="flab" style={{gap:5}}><div style={{width:8,height:8,borderRadius:"50%",background:c}}/>{l}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AssetView({asset,saveAsset,isAdmin,notify,onBack,loadAssets}){
+  const[tab,setTab]=useState("overview");
+  return(
+    <div style={{animation:"fadeIn 0.2s ease"}}>
+      <div className="flab g12" style={{marginBottom:16}}>
+        <button className="btn btn-ghost" onClick={onBack}>← Fleet</button>
+        <div style={{flex:1}}>
+          <h1 style={{fontSize:18,color:"#C9A84C",fontWeight:700}}>MSN {asset.msn} — {asset.registration||"—"}</h1>
+          <p style={{color:"#475569",fontSize:12}}>{asset.model} · {asset.operator||"—"}</p>
+        </div>
+      </div>
+      <div style={{display:"flex",borderBottom:"2px solid #1e3048",marginBottom:20,gap:2}}>
+        {["overview","engines","landing gear","apu","history","documents"].map(t=>(
+          <button key={t} className={`tab-btn${tab===t?" active":""}`} onClick={()=>setTab(t)}>{t}</button>
+        ))}
+      </div>
+      {tab==="overview"&&<OverviewTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
+      {tab==="engines"&&<EnginesTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
+      {tab==="landing gear"&&<LandingGearTab asset={asset}/>}
+      {tab==="apu"&&<APUTab asset={asset}/>}
+      {tab==="history"&&<HistoryTab asset={asset} isAdmin={isAdmin} notify={notify} loadAssets={loadAssets}/>}
+      {tab==="documents"&&<DocumentsTab asset={asset}/>}
+    </div>
+  );
+}
+
+function OverviewTab({asset,isAdmin,saveAsset,notify}){
+  const[editing,setEditing]=useState(false);
+  const[form,setForm]=useState(null);
+  const startEdit=()=>{setForm(JSON.parse(JSON.stringify(asset)));setEditing(true);};
+  const cancel=()=>{setForm(null);setEditing(false);};
+  const save=async()=>{await saveAsset(form);setEditing(false);setForm(null);notify("Saved");};
+  const d=editing?form:asset;
+  const set=(path,val)=>{const f=JSON.parse(JSON.stringify(form));const parts=path.split(".");let obj=f;for(let i=0;i<parts.length-1;i++){if(!obj[parts[i]])obj[parts[i]]={};obj=obj[parts[i]];}obj[parts[parts.length-1]]=val;setForm(f);};
+  const Field=({label,path,type="text"})=>{
+    const parts=path.split(".");const val=parts.reduce((o,k)=>o?.[k],d);
+    return<div className="form-group"><label className="form-label">{label}</label>
+      {editing&&isAdmin?<input type={type} value={val||""} onChange={e=>set(path,e.target.value)} className={isEmpty(val)?"amber":""}/>
+      :<div style={{fontSize:13,fontWeight:500,color:isEmpty(val)?"#475569":"#e2e8f0",fontStyle:isEmpty(val)?"italic":"normal"}}>{type==="date"?fmtDate(val):val||"Not entered"}</div>}
+    </div>;
+  };
+  return(
+    <div className="grid2">
+      <div className="card" style={{padding:18}}>
+        <div className="flj" style={{marginBottom:12}}>
+          <div className="section-title" style={{margin:0}}>Asset Details</div>
+          {!isAdmin?null:!editing?<button className="btn btn-ghost" onClick={startEdit}>Edit</button>:<div className="flab g8"><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save</button></div>}
+        </div>
+        <div className="grid2" style={{gap:"0 16px"}}>
+          <Field label="MSN" path="msn"/><Field label="Registration" path="registration"/>
+          <Field label="Operator" path="operator"/><Field label="Model" path="model"/>
+          <Field label="Manufacturer" path="manufacturer"/><Field label="Date of Manufacture" path="dom" type="date"/>
+        </div>
+        <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid #1e3048"}}>
+          <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Current Airframe</div>
+          <div className="grid2" style={{gap:8}}>
+            {[["TSN",fmtHHMM(d.airframe?.currentFH)],["CSN",d.airframe?.currentFC?.toLocaleString()||"—"]].map(([l,v])=>(
+              <div key={l} style={{background:"#0a1520",borderRadius:6,padding:"8px 10px"}}>
+                <div style={{fontSize:9,color:"#475569"}}>{l}</div>
+                <div style={{fontSize:15,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="card" style={{padding:18}}>
+        <div className="section-title">Operating Weights</div>
+        <table><thead><tr><th>Parameter</th><th>kg</th><th>lb</th></tr></thead><tbody>
+          {[["MTOW","mtow","mtow_lb"],["Max Taxi","mtw","mtw_lb"],["MZFW","mzfw","mzfw_lb"],["MLW","mlw","mlw_lb"]].map(([l,k,klb])=>(
+            <tr key={k}><td style={{color:"#64748b"}}>{l}</td><td>{d.weights?.[k]?.toLocaleString()||"—"}</td><td style={{color:"#475569"}}>{d.weights?.[klb]?.toLocaleString()||"—"}</td></tr>
+          ))}
+        </tbody></table>
+      </div>
+      <div className="card" style={{padding:18}}>
+        <div className="section-title">Check History</div>
+        {(d.checks||[]).map((c,i)=>(
+          <div key={i} style={{marginBottom:12,paddingBottom:12,borderBottom:i<(d.checks.length-1)?"1px solid #1e3048":"none"}}>
+            <div style={{fontSize:11,fontWeight:600,color:"#94a3b8",marginBottom:6}}>{c.name}</div>
+            <div className="grid2" style={{gap:"4px 10px"}}>
+              {[["Last Date",c.lastDate,"date"],["Next Due",c.nextDate,"date"]].map(([l,v,t])=>(
+                <div key={l}><div style={{fontSize:10,color:"#475569"}}>{l}</div><div style={{fontSize:12,fontWeight:500,color:isEmpty(v)?"#475569":"#e2e8f0"}}>{t==="date"?fmtDate(v):v||"—"}</div></div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="card" style={{padding:18}}>
+        <div className="section-title">Specifications</div>
+        {[["Configuration","specs.config"],["Seating","specs.seating"],["Galleys","specs.galleys"],["Lavatories","specs.lavs"]].map(([l,p])=><Field key={p} label={l} path={p}/>)}
+        <div style={{marginTop:10}}>
+          {[["ADS-B","specs.adsb"],["CPDLC","specs.cpdlc"],["TCAS 7.1","specs.tcas"]].map(([l,p])=>{
+            const parts=p.split(".");const val=parts.reduce((o,k)=>o?.[k],d);
+            return<div key={p} className="flj" style={{padding:"5px 0",borderBottom:"1px solid #0f2030"}}>
+              <span style={{fontSize:12,color:"#64748b"}}>{l}</span>
+              <span className="pill" style={{background:val?"#0d2818":"#2a0e0e",color:val?"#34d399":"#f87171",fontSize:10}}>{val?"Installed":"Not Installed"}</span>
+            </div>;
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EnginesTab({asset,isAdmin,saveAsset,notify}){
+  const[editIdx,setEditIdx]=useState(null);
+  const[form,setForm]=useState(null);
+  const[addLLPIdx,setAddLLPIdx]=useState(null);
+  const[newLLP,setNewLLP]=useState({desc:"",pn:"",sn:"",startFCRem:0,refFC:0});
+  const patchEngines=async(engines)=>{await saveAsset({...asset,engines});};
+  const saveEngineEdit=async()=>{const engines=[...asset.engines];engines[editIdx]=form;await patchEngines(engines);setEditIdx(null);setForm(null);notify("Engine saved");};
+  const doAddLLP=async(ei)=>{const engines=JSON.parse(JSON.stringify(asset.engines));engines[ei].llps=[...(engines[ei].llps||[]),{...newLLP,startFCRem:+newLLP.startFCRem,refFC:+newLLP.refFC}];await patchEngines(engines);setAddLLPIdx(null);setNewLLP({desc:"",pn:"",sn:"",startFCRem:0,refFC:0});notify("LLP added");};
+  const delLLP=async(ei,li)=>{if(!confirm("Delete?"))return;const engines=JSON.parse(JSON.stringify(asset.engines));engines[ei].llps.splice(li,1);await patchEngines(engines);notify("LLP deleted");};
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:20}}>
+      {(asset.engines||[]).map((eng,ei)=>{
+        const ll=lowestLimiter(eng);const isEditing=editIdx===ei;const ed=isEditing?form:eng;
+        return(
+          <div key={ei} className="card" style={{padding:20}}>
+            <div className="flj" style={{marginBottom:14}}>
+              <div className="flab" style={{gap:10}}>
+                <div className="section-title" style={{margin:0}}>Engine #{eng.position||ei+1} — ESN {eng.sn||"TBD"}</div>
+                {eng.atShop&&<span style={{fontSize:11,color:"#f87171"}}>🔧 At shop</span>}
+              </div>
+              <div className="flab g8">
+                {isAdmin&&!isEditing&&<button className="btn btn-ghost" onClick={()=>{setForm(JSON.parse(JSON.stringify(eng)));setEditIdx(ei);}}>Edit</button>}
+                {isAdmin&&isEditing&&<><button className="btn btn-ghost" onClick={()=>{setEditIdx(null);setForm(null);}}>Cancel</button><button className="btn btn-gold" onClick={saveEngineEdit}>Save</button></>}
+              </div>
+            </div>
+            <div className="grid4" style={{marginBottom:14}}>
+              {[["S/N","sn"],["Type","type"],["Thrust","thrust"],["Status","status"]].map(([l,k])=>(
+                <div key={k} style={{background:"#0a1520",borderRadius:6,padding:"8px 10px"}}>
+                  <div style={{fontSize:9,color:"#475569"}}>{l}</div>
+                  {isEditing&&isAdmin?<input value={ed[k]||""} onChange={e=>setForm({...form,[k]:e.target.value})} style={{marginTop:3}}/>
+                  :<div style={{fontSize:12,fontWeight:600,color:isEmpty(eng[k])?"#475569":"#e2e8f0",marginTop:3}}>{eng[k]||"—"}</div>}
+                </div>
+              ))}
+            </div>
+            <div className="grid4" style={{marginBottom:14}}>
+              {[["TSN",fmtHHMM(eng.currentFH)],["CSN",(eng.currentFC||0).toLocaleString()],["FH/FC",eng.currentFH&&eng.currentFC?(eng.currentFH/eng.currentFC).toFixed(2):"—"],["Lowest LLP",ll!==null?`${ll.toLocaleString()} FC`:"No data"]].map(([l,v])=>(
+                <div key={l} style={{background:"#0a1520",borderRadius:6,padding:"8px 10px"}}>
+                  <div style={{fontSize:9,color:"#475569"}}>{l}</div>
+                  <div style={{fontSize:14,fontWeight:700,fontFamily:"monospace",color:l==="Lowest LLP"?(ll===null?"#475569":ll<1000?"#f87171":ll<3000?"#fbbf24":"#34d399"):"#C9A84C"}}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{marginBottom:16}}>
+              <div className="flj" style={{marginBottom:8}}>
+                <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em"}}>Life Limited Parts</div>
+                {isAdmin&&<button className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setAddLLPIdx(ei)}>+ Add LLP</button>}
+              </div>
+              {eng.llps?.length?(
+                <table><thead><tr><th>Descriptor</th><th>P/N</th><th>S/N</th><th>Start FC Rem</th><th>Ref FC</th><th>FC Remaining</th>{isAdmin&&<th></th>}</tr></thead>
+                <tbody>{eng.llps.map((llp,li)=>{const rem=calcLLPRem(llp,eng.currentFC);return(
+                  <tr key={li} style={{background:rem<1000?"#1a0a0a":rem<3000?"#1a150a":"transparent"}}>
+                    <td style={{fontWeight:500}}>{llp.desc}</td><td style={{fontFamily:"monospace",fontSize:11}}>{llp.pn}</td><td style={{fontFamily:"monospace",fontSize:11}}>{llp.sn}</td>
+                    <td>{llp.startFCRem?.toLocaleString()}</td><td>{llp.refFC?.toLocaleString()}</td>
+                    <td style={{fontWeight:700,color:rem<1000?"#f87171":rem<3000?"#fbbf24":"#34d399"}}>{rem.toLocaleString()}</td>
+                    {isAdmin&&<td><button className="btn-danger btn" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>delLLP(ei,li)}>✕</button></td>}
+                  </tr>
+                );})}</tbody></table>
+              ):<div style={{color:"#475569",fontSize:12,fontStyle:"italic",padding:"6px 0"}}>No LLP data entered yet.</div>}
+              {addLLPIdx===ei&&(
+                <div style={{background:"#0a1520",borderRadius:6,padding:12,marginTop:8,border:"1px solid #1e3048"}}>
+                  <div className="grid3" style={{gap:6,marginBottom:8}}>
+                    {[["Descriptor","desc","text"],["P/N","pn","text"],["S/N","sn","text"],["Starting FC Rem","startFCRem","number"],["Reference FC","refFC","number"]].map(([l,k,t])=>(
+                      <div key={k}><label className="form-label">{l}</label><input type={t} value={newLLP[k]} onChange={e=>setNewLLP({...newLLP,[k]:e.target.value})}/></div>
+                    ))}
+                  </div>
+                  <div className="flab g8"><button className="btn btn-ghost" onClick={()=>setAddLLPIdx(null)}>Cancel</button><button className="btn btn-gold" onClick={()=>doAddLLP(ei)}>Add LLP</button></div>
+                </div>
+              )}
+            </div>
+            <div>
+              <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Shop Visit History</div>
+              <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>Days</th><th>MRO</th></tr></thead>
+              <tbody>{eng.shopVisits?.length?eng.shopVisits.map((sv,si)=>(
+                <tr key={si}><td>{sv.details}</td><td>{fmtDate(sv.date)}</td><td>{sv.fh?.toLocaleString()}</td><td>{sv.fc?.toLocaleString()}</td><td>{sv.days}</td><td>{sv.mro}</td></tr>
+              )):<tr><td colSpan={6} style={{color:"#475569",fontStyle:"italic"}}>No shop visits recorded</td></tr>}</tbody></table>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function LandingGearTab({asset}){
+  const af=asset.airframe||{};const lg=asset.landingGear||{};
+  const calcGear=(g)=>({tsn:(g?.startFH||0)+((af.currentFH||0)-(g?.refAirframeFH||0)),csn:(g?.startFC||0)+((af.currentFC||0)-(g?.refAirframeFC||0))});
+  return(
+    <div className="grid3">
+      {[["Nose Landing Gear","nose"],["LH Main Landing Gear","left"],["RH Main Landing Gear","right"]].map(([title,gkey])=>{
+        const g=lg[gkey]||{};const{tsn,csn}=calcGear(g);const days=daysFromNow(g.nextDue);
+        return(
+          <div key={gkey} className="card" style={{padding:18}}>
+            <div className="section-title">{title}{g.atShop&&" 🔧"}</div>
+            {[["P/N",g.pn],["S/N",g.sn]].map(([l,v])=>(
+              <div key={l} className="form-group"><label className="form-label">{l}</label><div style={{fontSize:13,fontWeight:500,color:isEmpty(v)?"#475569":"#e2e8f0"}}>{v||"Not entered"}</div></div>
+            ))}
+            <div style={{background:days!==null&&days<0?"#2a0e0e":days!==null&&days<365?"#2a1f0a":"#0a1520",borderRadius:6,padding:"8px 10px",marginBottom:10,textAlign:"center"}}>
+              <div style={{fontSize:9,color:"#475569",textTransform:"uppercase"}}>Next Overhaul</div>
+              <div style={{fontSize:14,fontWeight:700,color:days!==null&&days<0?"#f87171":days!==null&&days<365?"#fbbf24":"#34d399"}}>{fmtDate(g.nextDue)}</div>
+              {days!==null&&<div style={{fontSize:10,color:"#64748b"}}>{days<0?`${Math.abs(days)}d overdue`:`${days}d`}</div>}
+            </div>
+            <div className="grid2" style={{gap:6}}>
+              {[["Calc TSN",fmtHHMM(tsn)],["Calc CSN",Math.round(csn).toLocaleString()]].map(([l,v])=>(
+                <div key={l} style={{background:"#0a1520",borderRadius:5,padding:"6px 8px"}}>
+                  <div style={{fontSize:9,color:"#475569"}}>{l}</div>
+                  <div style={{fontSize:12,fontWeight:600,color:"#C9A84C",fontFamily:"monospace"}}>{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function APUTab({asset}){
+  const apu=asset.apu||{};
+  return(
+    <div className="grid2">
+      <div className="card" style={{padding:18}}>
+        <div className="section-title">APU Details{apu.atShop&&" 🔧"}</div>
+        {[["Part Number",apu.pn],["Serial Number",apu.sn]].map(([l,v])=>(
+          <div key={l} className="form-group"><label className="form-label">{l}</label><div style={{fontSize:13,fontWeight:500,color:isEmpty(v)?"#475569":"#e2e8f0"}}>{v||"Not entered"}</div></div>
+        ))}
+        <div className="grid2" style={{gap:8}}>
+          {[["TSN",fmtHHMM(apu.currentFH)],["CSN",(apu.currentFC||0).toLocaleString()]].map(([l,v])=>(
+            <div key={l} style={{background:"#0a1520",borderRadius:6,padding:"8px 10px"}}>
+              <div style={{fontSize:9,color:"#475569"}}>{l}</div>
+              <div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{v}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="card" style={{padding:18}}>
+        <div className="section-title">APU Life Limited Parts</div>
+        {apu.llps?.length?(
+          <table><thead><tr><th>Descriptor</th><th>P/N</th><th>S/N</th><th>FC Remaining</th></tr></thead>
+          <tbody>{apu.llps.map((llp,li)=>{const rem=calcLLPRem(llp,apu.currentFC);return(
+            <tr key={li} style={{background:rem<1000?"#1a0a0a":rem<3000?"#1a150a":"transparent"}}>
+              <td style={{fontWeight:500}}>{llp.desc}</td><td style={{fontFamily:"monospace",fontSize:11}}>{llp.pn}</td>
+              <td style={{fontFamily:"monospace",fontSize:11}}>{llp.sn}</td>
+              <td style={{fontWeight:700,color:rem<1000?"#f87171":rem<3000?"#fbbf24":"#34d399"}}>{rem.toLocaleString()}</td>
+            </tr>
+          );})}</tbody></table>
+        ):<div style={{color:"#475569",fontSize:12,fontStyle:"italic"}}>No LLP data entered</div>}
+      </div>
+    </div>
+  );
+}
+
+function HistoryTab({asset,isAdmin,notify}){
+  const[history,setHistory]=useState([]);
+  const[loading,setLoading]=useState(true);
+  useEffect(()=>{db.getUtilisation(asset.id).then(rows=>{setHistory(rows);setLoading(false);}).catch(()=>setLoading(false));},[asset.id]);
+  const del=async(id)=>{if(!confirm("Delete?"))return;await db.deleteUtilisation(id);setHistory(h=>h.filter(r=>r.id!==id));notify("Deleted");};
+  if(loading)return<div style={{padding:20,color:"#475569"}}>Loading…</div>;
+  return(
+    <div className="card" style={{padding:18}}>
+      <div className="section-title">Utilisation History</div>
+      {history.length===0?<div style={{textAlign:"center",padding:48,color:"#475569"}}>No history yet.</div>:(
+        <table><thead><tr><th>Period</th><th>AF TSN</th><th>AF CSN</th><th>Eng 1 CSN</th><th>Eng 2 CSN</th><th>APU CSN</th><th>Uploaded</th>{isAdmin&&<th></th>}</tr></thead>
+        <tbody>{history.map(r=>(
+          <tr key={r.id}>
+            <td style={{fontWeight:600,color:"#C9A84C"}}>{r.period}</td>
+            <td style={{fontFamily:"monospace"}}>{r.data?.afFH||"—"}</td><td style={{fontFamily:"monospace"}}>{r.data?.afFC?.toLocaleString()||"—"}</td>
+            <td style={{fontFamily:"monospace"}}>{r.data?.eng1FC?.toLocaleString()||"—"}</td><td style={{fontFamily:"monospace"}}>{r.data?.eng2FC?.toLocaleString()||"—"}</td>
+            <td style={{fontFamily:"monospace"}}>{r.data?.apuFC?.toLocaleString()||"—"}</td>
+            <td style={{fontSize:11,color:"#475569"}}>{fmtDate(r.created_at)}</td>
+            {isAdmin&&<td><button className="btn-danger btn" style={{fontSize:10,padding:"2px 7px"}} onClick={()=>del(r.id)}>Delete</button></td>}
+          </tr>
+        ))}</tbody></table>
+      )}
+    </div>
+  );
+}
+
+function DocumentsTab({asset}){
+  const view=doc=>{const win=window.open();win.document.write(`<iframe src="${doc.data}" style="width:100%;height:100vh;border:none"/>`)};
+  return(
+    <div className="card" style={{padding:18}}>
+      <div className="section-title">Documents</div>
+      {(asset.documents||[]).length===0?<div style={{textAlign:"center",padding:48,color:"#475569"}}>No documents uploaded yet.</div>:(
+        <table><thead><tr><th>Label</th><th>Category</th><th>Date</th><th></th></tr></thead>
+        <tbody>{(asset.documents||[]).map((d,i)=>(
+          <tr key={i}><td style={{fontWeight:500}}>{d.label}</td><td><span className="tag" style={{background:"#1e3048",color:"#94a3b8"}}>{d.category}</span></td><td>{fmtDate(d.date)}</td>
+          <td><button className="btn btn-ghost" style={{fontSize:11,padding:"3px 8px"}} onClick={()=>view(d)}>View</button></td></tr>
+        ))}</tbody></table>
+      )}
+    </div>
+  );
+}
+
+function UploadView({assets,saveAsset,notify}){
+  const[file,setFile]=useState(null);const[extracting,setExtracting]=useState(false);
+  const[extracted,setExtracted]=useState(null);const[error,setError]=useState(null);const[done,setDone]=useState(false);
+  const handleFile=e=>{const f=e.target.files?.[0];if(f){setFile(f);setExtracted(null);setError(null);setDone(false);}};
+  const extract=async()=>{
+    if(!file)return;setExtracting(true);setError(null);
+    try{
+      const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Read failed"));r.readAsDataURL(file);});
+      const isPDF=file.type==="application/pdf";
+      const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:isPDF?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",data:base64}},{type:"text",text:`Extract all data from this aircraft utilisation report. Return ONLY valid JSON, no markdown:\n{"month_year":"e.g. May 2026","operator":"string","msn":"string","registration":"string","airframe":{"fh_period":"HH:MM","fc_period":number,"tsn":"HH:MM","csn":number},"engine1":{"model":"string","sn":"string","tsn":"HH:MM","csn":number},"engine2":{"model":"string","sn":"string","tsn":"HH:MM","csn":number},"apu":{"sn":"string","tsn":"HH:MM","csn":number}}`}]}]})});
+      const result=await resp.json();
+      if(result.error)throw new Error(result.error);
+      const parsed=result.ok?result.data:JSON.parse((result.raw||"").replace(/```json|```/g,"").trim());
+      setExtracted({parsed,fileName:file.name});
+    }catch(err){setError("Extraction failed: "+err.message);}
+    setExtracting(false);
+  };
+  const confirmSave=async()=>{
+    const d=extracted.parsed;const msn=d.msn?.toString().replace(/^0+/,"");
+    let asset=assets.find(a=>a.msn?.toString().replace(/^0+/,"")===msn);
+    if(!asset){
+      // Auto-create asset from report data
+      asset={
+        id:msn,type:"aircraft",msn,
+        registration:d.registration||"",
+        model:d.engine1?.model?.includes("CFM")||d.engine2?.model?.includes("CFM")?"A320-214":"A320-214",
+        operator:d.operator||"",manufacturer:"Airbus S.A.S.",dom:"",
+        weights:{},specs:{adsb:false,cpdlc:false,tcas:false},
+        checks:[{name:"6 Year Check",lastDate:"",lastFH:0,lastFC:0,nextDate:""},{name:"12 Year Check",lastDate:"",lastFH:0,lastFC:0,nextDate:""}],
+        engines:[
+          {position:1,sn:d.engine1?.sn||"",type:d.engine1?.model||"",thrust:"",status:"Title",currentFH:parseHHMM(d.engine1?.tsn),currentFC:d.engine1?.csn||0,llps:[],shopVisits:[]},
+          {position:2,sn:d.engine2?.sn||"",type:d.engine2?.model||"",thrust:"",status:"Title",currentFH:parseHHMM(d.engine2?.tsn),currentFC:d.engine2?.csn||0,llps:[],shopVisits:[]}
+        ],
+        landingGear:{
+          nose:{pn:"",sn:"",startFH:0,startFC:0,refAirframeFH:0,refAirframeFC:0,nextDue:"",shopVisits:[]},
+          left:{pn:"",sn:"",startFH:0,startFC:0,refAirframeFH:0,refAirframeFC:0,nextDue:"",shopVisits:[]},
+          right:{pn:"",sn:"",startFH:0,startFC:0,refAirframeFH:0,refAirframeFC:0,nextDue:"",shopVisits:[]}
+        },
+        apu:{pn:"",sn:d.apu?.sn||"",currentFH:parseHHMM(d.apu?.tsn),currentFC:d.apu?.csn||0,llps:[],shopVisits:[]},
+        airframe:{currentFH:parseHHMM(d.airframe?.tsn),currentFC:d.airframe?.csn||0},
+        photos:[],documents:[],
+        disclaimer:"This outline specification has been prepared based on the information available to Vector Group at the relevant time.",
+        _lastPeriod:d.month_year
+      };
+      await saveAsset(asset);
+      await db.saveUtilisation({asset_id:msn,period:d.month_year,data:{afFH:d.airframe?.tsn,afFC:d.airframe?.csn,eng1FC:d.engine1?.csn,eng2FC:d.engine2?.csn,apuFC:d.apu?.csn}});
+      setDone(true);notify(`MSN ${msn} created and populated from ${d.month_year} report`);
+      return;
+    }
+    await saveAsset({...asset,_lastPeriod:d.month_year,airframe:{...(asset.airframe||{}),currentFH:parseHHMM(d.airframe?.tsn),currentFC:d.airframe?.csn},engines:(asset.engines||[]).map((e,i)=>{const src=i===0?d.engine1:d.engine2;return src?{...e,currentFH:parseHHMM(src.tsn),currentFC:src.csn}:e;}),apu:asset.apu?{...asset.apu,currentFH:parseHHMM(d.apu?.tsn),currentFC:d.apu?.csn}:asset.apu});
+    await db.saveUtilisation({asset_id:asset.id,period:d.month_year,data:{afFH:d.airframe?.tsn,afFC:d.airframe?.csn,eng1FC:d.engine1?.csn,eng2FC:d.engine2?.csn,apuFC:d.apu?.csn}});
+    setDone(true);notify(`MSN ${msn} updated for ${d.month_year}`);
+  };
+  return(
+    <div style={{maxWidth:860,margin:"0 auto"}}>
+      <h1 style={{fontSize:20,color:"#C9A84C",fontWeight:700,marginBottom:6}}>Upload Utilisation Report</h1>
+      <p style={{color:"#64748b",marginBottom:20,fontSize:13}}>Upload a monthly utilisation report (PDF or Excel). Claude AI extracts data for your review.</p>
+      <div className="card" style={{padding:32,textAlign:"center",marginBottom:16,border:"2px dashed #1e3048"}}>
+        <div style={{fontSize:36,marginBottom:10}}>📁</div>
+        <input type="file" accept=".pdf,.xlsx" id="upfile" onChange={handleFile} style={{display:"none"}}/>
+        <label htmlFor="upfile" style={{cursor:"pointer"}}>
+          <div style={{fontWeight:600,color:file?"#C9A84C":"#64748b",marginBottom:4}}>{file?file.name:"Click to select file"}</div>
+          <div style={{fontSize:12,color:"#475569"}}>PDF or Excel (.xlsx)</div>
+        </label>
+        {file&&!done&&<button className="btn btn-gold" style={{marginTop:14}} onClick={extract} disabled={extracting}>{extracting?"Extracting…":"Extract with AI"}</button>}
+      </div>
+      {extracting&&<div className="card" style={{padding:32,textAlign:"center"}}><div style={{width:32,height:32,border:"3px solid #C9A84C",borderTop:"3px solid transparent",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 14px"}}/><p style={{color:"#94a3b8"}}>Reading document…</p></div>}
+      {error&&<div style={{background:"#2a0e0e",border:"1px solid #7f1d1d",borderRadius:8,padding:14,color:"#f87171",marginBottom:14,fontSize:13}}>⚠ {error}</div>}
+      {extracted&&!done&&(
+        <div className="card" style={{padding:20}}>
+          <div className="section-title">Extracted Data — Review Before Saving</div>
+          <div className="grid2" style={{marginTop:14,gap:12}}>
+            <div style={{background:"#0a1520",borderRadius:8,padding:12}}>
+              <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>Airframe</div>
+              {[["MSN",extracted.parsed.msn],["Registration",extracted.parsed.registration],["Period",extracted.parsed.month_year],["TSN",extracted.parsed.airframe?.tsn],["CSN",extracted.parsed.airframe?.csn]].map(([l,v])=>(
+                <div key={l} className="flj" style={{padding:"3px 0",borderBottom:"1px solid #1e3048"}}><span style={{fontSize:11,color:"#475569"}}>{l}</span><span style={{fontSize:11,fontWeight:600,color:"#e2e8f0"}}>{v?.toString()||"—"}</span></div>
+              ))}
+            </div>
+            <div style={{background:"#0a1520",borderRadius:8,padding:12}}>
+              <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>Engines & APU</div>
+              {[["Eng 1 TSN",extracted.parsed.engine1?.tsn],["Eng 1 CSN",extracted.parsed.engine1?.csn],["Eng 2 TSN",extracted.parsed.engine2?.tsn],["Eng 2 CSN",extracted.parsed.engine2?.csn],["APU CSN",extracted.parsed.apu?.csn]].map(([l,v])=>(
+                <div key={l} className="flj" style={{padding:"3px 0",borderBottom:"1px solid #1e3048"}}><span style={{fontSize:11,color:"#475569"}}>{l}</span><span style={{fontSize:11,fontWeight:600,color:"#e2e8f0"}}>{v?.toString()||"—"}</span></div>
+              ))}
+            </div>
+          </div>
+          <div className="flj" style={{marginTop:16,paddingTop:14,borderTop:"1px solid #1e3048"}}>
+            <button className="btn btn-ghost" onClick={()=>{setExtracted(null);setFile(null);}}>Discard</button>
+            <button className="btn btn-gold" onClick={confirmSave}>✓ Confirm & Save</button>
+          </div>
+        </div>
+      )}
+      {done&&<div style={{background:"#0d2818",border:"1px solid #166534",borderRadius:8,padding:32,textAlign:"center"}}><div style={{fontSize:36,marginBottom:8}}>✅</div><div style={{fontWeight:700,color:"#34d399",fontSize:16,marginBottom:14}}>Saved successfully</div><button className="btn btn-ghost" onClick={()=>{setFile(null);setExtracted(null);setDone(false);}}>Upload Another</button></div>}
+    </div>
+  );
+}
+
+function AdminView({assets,saveAsset,notify,loadAssets,adminPin,setAdminPin}){
+  const[tab,setTab]=useState("assets");
+  const[showNew,setShowNew]=useState(false);
+  const[newA,setNewA]=useState({msn:"",registration:"",model:"A320-214",operator:"",manufacturer:"Airbus S.A.S.",dom:""});
+  const createAsset=async()=>{
+    if(!newA.msn){notify("MSN required","error");return;}
+    const blank={id:newA.msn,type:"aircraft",msn:newA.msn,registration:newA.registration,model:newA.model,operator:newA.operator,manufacturer:newA.manufacturer,dom:newA.dom,weights:{},specs:{adsb:false,cpdlc:false,tcas:false},checks:[{name:"6 Year Check",lastDate:"",lastFH:0,lastFC:0,nextDate:""},{name:"12 Year Check",lastDate:"",lastFH:0,lastFC:0,nextDate:""}],engines:[{position:1,sn:"",type:"",thrust:"",status:"Title",currentFH:0,currentFC:0,llps:[],shopVisits:[]},{position:2,sn:"",type:"",thrust:"",status:"Title",currentFH:0,currentFC:0,llps:[],shopVisits:[]}],landingGear:{nose:{pn:"",sn:"",startFH:0,startFC:0,refAirframeFH:0,refAirframeFC:0,nextDue:"",shopVisits:[]},left:{pn:"",sn:"",startFH:0,startFC:0,refAirframeFH:0,refAirframeFC:0,nextDue:"",shopVisits:[]},right:{pn:"",sn:"",startFH:0,startFC:0,refAirframeFH:0,refAirframeFC:0,nextDue:"",shopVisits:[]}},apu:{pn:"",sn:"",currentFH:0,currentFC:0,llps:[],shopVisits:[]},airframe:{currentFH:0,currentFC:0},photos:[],documents:[],disclaimer:"This outline specification has been prepared based on the information available to Vector Group at the relevant time."};
+    await saveAsset(blank);setShowNew(false);setNewA({msn:"",registration:"",model:"A320-214",operator:"",manufacturer:"Airbus S.A.S.",dom:""});notify(`Asset MSN ${blank.msn} created`);
+  };
+  const deleteAsset=async(id)=>{if(!confirm(`Delete asset MSN ${id}?`))return;await db.deleteAsset(id);await loadAssets();notify("Asset deleted");};
+  return(
+    <div>
+      <h1 style={{fontSize:20,color:"#C9A84C",fontWeight:700,marginBottom:18}}>Admin Panel</h1>
+      <div style={{display:"flex",borderBottom:"2px solid #1e3048",marginBottom:20,gap:2}}>
+        {["assets","settings"].map(t=><button key={t} className={`tab-btn${tab===t?" active":""}`} onClick={()=>setTab(t)}>{t}</button>)}
+      </div>
+      {tab==="assets"&&(
+        <div>
+          <div className="flj" style={{marginBottom:14}}>
+            <span style={{color:"#475569",fontSize:13}}>{assets.length} aircraft in system</span>
+            <button className="btn btn-gold" onClick={()=>setShowNew(true)}>+ New Asset</button>
+          </div>
+          {showNew&&(
+            <div className="card" style={{padding:20,marginBottom:16}}>
+              <div className="section-title">New Aircraft</div>
+              <div className="grid3" style={{gap:10,marginBottom:12}}>
+                {[["MSN *","msn"],["Registration","registration"],["Model","model"],["Operator","operator"],["Manufacturer","manufacturer"]].map(([l,k])=>(
+                  <div key={k}><label className="form-label">{l}</label><input value={newA[k]||""} onChange={e=>setNewA({...newA,[k]:e.target.value})} className={!newA[k]&&k==="msn"?"amber":""}/></div>
+                ))}
+                <div><label className="form-label">Date of Manufacture</label><input type="date" value={newA.dom} onChange={e=>setNewA({...newA,dom:e.target.value})}/></div>
+              </div>
+              <div className="flab g8"><button className="btn btn-ghost" onClick={()=>setShowNew(false)}>Cancel</button><button className="btn btn-gold" onClick={createAsset}>Create Asset</button></div>
+            </div>
+          )}
+          <div className="card" style={{overflow:"hidden"}}>
+            <table><thead><tr><th>MSN</th><th>Registration</th><th>Model</th><th>Operator</th><th>Engine S/Ns</th><th></th></tr></thead>
+            <tbody>
+              {assets.length===0&&<tr><td colSpan={6} style={{textAlign:"center",padding:40,color:"#475569"}}>No assets yet.</td></tr>}
+              {assets.map(a=>(
+                <tr key={a.id}>
+                  <td style={{fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{a.msn}</td>
+                  <td style={{fontWeight:600}}>{a.registration||"—"}</td>
+                  <td style={{color:"#94a3b8"}}>{a.model||"—"}</td>
+                  <td style={{color:"#94a3b8"}}>{a.operator||"—"}</td>
+                  <td style={{fontFamily:"monospace",fontSize:11,color:"#64748b"}}>{a.engines?.map(e=>e.sn||"TBD").join(" / ")||"—"}</td>
+                  <td><button className="btn-danger btn" style={{fontSize:10,padding:"3px 8px"}} onClick={()=>deleteAsset(a.id)}>Delete</button></td>
+                </tr>
+              ))}
+            </tbody></table>
+          </div>
+        </div>
+      )}
+      {tab==="settings"&&(
+        <div style={{maxWidth:380}}>
+          <div className="card" style={{padding:20}}>
+            <div className="section-title">Change Admin PIN</div>
+            <PINChanger onSave={async pin=>{await db.setSetting("admin_pin",pin);setAdminPin(pin);notify("PIN updated");}}/>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PINChanger({onSave}){
+  const[pin,setPin]=useState("");const[conf,setConf]=useState("");const[err,setErr]=useState("");
+  const save=()=>{if(pin.length<4){setErr("Min 4 characters");return;}if(pin!==conf){setErr("PINs do not match");return;}onSave(pin);setPin("");setConf("");setErr("");};
+  return<div style={{display:"flex",flexDirection:"column",gap:10}}>
+    <div><label className="form-label">New PIN</label><input type="password" value={pin} onChange={e=>setPin(e.target.value)}/></div>
+    <div><label className="form-label">Confirm PIN</label><input type="password" value={conf} onChange={e=>setConf(e.target.value)}/></div>
+    {err&&<p style={{color:"#f87171",fontSize:12}}>{err}</p>}
+    <button className="btn btn-gold" onClick={save}>Update PIN</button>
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
