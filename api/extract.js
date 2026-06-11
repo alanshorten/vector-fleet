@@ -20,12 +20,15 @@ export default async function handler(req, res) {
     });
     
     const data = await response.json();
+    const text = data.content?.map(c => c.text || '').join('') || '';
+    const clean = text.replace(/```json|```/g, '').trim();
     
-    // Strip input messages from response to reduce size
-    if (data.content) {
-      return res.status(200).json({ content: data.content });
+    try {
+      const parsed = JSON.parse(clean);
+      return res.status(200).json({ ok: true, data: parsed });
+    } catch {
+      return res.status(200).json({ ok: false, raw: clean.slice(0, 2000) });
     }
-    return res.status(200).json(data);
     
   } catch (err) {
     return res.status(200).json({ error: err.message });
