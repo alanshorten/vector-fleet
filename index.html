@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Vector Fleet Manager</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="module" id="firebase-init">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+  import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+  
+  const firebaseConfig = {
+    apiKey: "AIzaSyDkhfG3b3u4pwWQTTnXFEykJZaVncK_6bY",
+    authDomain: "vector-fleet.firebaseapp.com",
+    projectId: "vector-fleet",
+    storageBucket: "vector-fleet.firebasestorage.app",
+    messagingSenderId: "1047074349759",
+    appId: "1:1047074349759:web:fcc4c11b47e04b82cd1c0a"
+  };
+  
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  window._firestore = { db, collection, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, query, where, orderBy };
+  window._firebaseReady = true;
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter','Segoe UI',sans-serif;background:#0b1520;color:#e2e8f0;min-height:100vh}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:#1a2535}::-webkit-scrollbar-thumb{background:#2d3f55;border-radius:3px}
+.btn{cursor:pointer;border:none;border-radius:6px;font-family:inherit;font-weight:600;transition:all 0.15s}
+.btn-gold{background:#C9A84C;color:#0a1520;padding:7px 14px;font-size:12px;font-weight:700}.btn-gold:hover{background:#b8963d}
+.btn-primary{background:#1e3a5f;color:#60a5fa;padding:7px 14px;font-size:12px}.btn-primary:hover{background:#1B3A6B}
+.btn-ghost{background:transparent;border:1px solid #2d3f55;color:#94a3b8;padding:6px 12px;font-size:12px}.btn-ghost:hover{border-color:#60a5fa;color:#60a5fa}
+.btn-danger{background:#2a0e0e;color:#f87171;border:1px solid #7f1d1d;padding:5px 10px;font-size:11px;cursor:pointer;border-radius:6px;font-family:inherit;font-weight:600}.btn-danger:hover{background:#3a1010}
+.card{background:#111f30;border:1px solid #1e3048;border-radius:10px}
+.section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#C9A84C;border-bottom:1px solid #1e3048;padding-bottom:6px;margin-bottom:12px}
+input,select,textarea{background:#0d1925;border:1px solid #2d3f55;color:#e2e8f0;border-radius:6px;padding:7px 10px;font-size:13px;font-family:inherit;outline:none;width:100%}
+input:focus,select:focus,textarea:focus{border-color:#C9A84C}
+input.amber:not(:focus){background:#2a1f0a;border-color:#78350f}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#070f18;color:#475569;font-weight:700;text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid #1e3048}
+td{padding:8px 10px;border-bottom:1px solid #0d1c2a;color:#cbd5e1;vertical-align:middle}
+tr:last-child td{border-bottom:none}tr:hover td{background:#0f2030}
+.nav-btn{padding:7px 14px;border-radius:5px;border:none;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;background:transparent;color:#64748b}
+.nav-btn:hover{color:#e2e8f0;background:#1a2535}.nav-btn.active{background:#1e3048;color:#C9A84C}
+.tag{padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.04em}
+.pill{padding:3px 9px;border-radius:4px;font-size:11px;font-weight:600}
+.tab-btn{padding:9px 14px;cursor:pointer;border:none;background:none;font-family:inherit;font-size:11px;font-weight:700;color:#475569;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s;text-transform:uppercase;letter-spacing:0.06em}
+.tab-btn.active{color:#C9A84C;border-bottom-color:#C9A84C}
+.row-hover:hover{background:#1a2a3a!important;cursor:pointer}
+.card-hover{transition:transform 0.15s,box-shadow 0.15s;cursor:pointer}.card-hover:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.fl{display:flex}.flab{display:flex;align-items:center}.flj{display:flex;justify-content:space-between;align-items:center}
+.g8{gap:8px}.g12{gap:12px}
+.form-label{font-size:10px;color:#64748b;font-weight:600;margin-bottom:4px;display:block;text-transform:uppercase;letter-spacing:0.04em}
+.form-group{margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat-box{background:#070f18;border:1px solid #162030;border-radius:8px;padding:12px 14px}
+.stat-val{font-size:20px;font-weight:700;font-family:monospace;margin-top:3px;letter-spacing:0.02em}
+.stat-label{font-size:10px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:0.06em}
+.data-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #0d1c2a}
+.data-row:last-child{border-bottom:none}
+.data-key{font-size:11px;color:#64748b;font-weight:500}
+.data-val{font-size:12px;font-weight:600;color:#e2e8f0}
+  @media(min-width:769px){
+    .header-logo{height:120px!important;max-width:none!important}
+    header{padding:16px 32px!important}
+  }
+  @media(max-width:768px){.grid2{grid-template-columns:1fr!important}.grid3{grid-template-columns:1fr!important}.grid4{grid-template-columns:1fr 1fr!important}main{padding:12px!important}.tab-btn{padding:6px 8px!important;font-size:11px!important}table{font-size:11px!important}th,td{padding:5px 6px!important}.nav-btn{padding:5px 7px!important;font-size:11px!important}.btn-ghost{padding:4px 6px!important;font-size:10px!important}}
+  @media(max-width:480px){.grid4{grid-template-columns:1fr!important}.nav-btn{padding:4px 5px!important;font-size:10px!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+const CLOUD_NAME = "dgo3buxcy";
+const UPLOAD_PRESET = "fs7bezpu";
+
+const getFS = () => {
+  if (window._firestore) return window._firestore;
+  throw new Error("Firebase not ready");
+};
+
+const db = {
+  async getAssets() {
+    const { db: fs, collection, getDocs } = getFS();
+    const snap = await getDocs(collection(fs, "assets"));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async saveAsset(asset) {
+    const { db: fs, doc, setDoc } = getFS();
+    const { _dbId, _updatedAt, ...data } = asset;
+    await setDoc(doc(fs, "assets", String(asset.id)), { ...data, updatedAt: new Date().toISOString() });
+  },
+  async deleteAsset(id) {
+    const { db: fs, doc, deleteDoc } = getFS();
+    await deleteDoc(doc(fs, "assets", String(id)));
+  },
+  async getSetting(key) {
+    try {
+      const { db: fs, doc, getDoc } = getFS();
+      const snap = await getDoc(doc(fs, "settings", key));
+      return snap.exists() ? snap.data().value : null;
+    } catch { return null; }
+  },
+  async setSetting(key, value) {
+    const { db: fs, doc, setDoc } = getFS();
+    await setDoc(doc(fs, "settings", key), { value });
+  },
+  async getUtilisation(asset_id) {
+    const { db: fs, collection, query, where, getDocs } = getFS();
+    const q = query(collection(fs, "utilisation"), where("asset_id", "==", String(asset_id)));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+  },
+  async saveUtilisation(data) {
+    const { db: fs, collection, addDoc } = getFS();
+    await addDoc(collection(fs, "utilisation"), { ...data, asset_id: String(data.asset_id), created_at: new Date().toISOString() });
+  },
+  async deleteUtilisation(id) {
+    const { db: fs, doc, deleteDoc } = getFS();
+    await deleteDoc(doc(fs, "utilisation", id));
+  }
+};
+
+const calcLLPRem=(llp,fc)=>llp.startFCRem-(fc-llp.refFC);
+const lowestLimiter=(eng)=>{if(!eng?.llps?.length)return null;return Math.min(...eng.llps.map(l=>calcLLPRem(l,eng.currentFC)));};
+const daysFromNow=(d)=>d?Math.ceil((new Date(d)-new Date())/86400000):null;
+const fmtDate=(s)=>{try{return s?new Date(s).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}):"—";}catch{return s||"—";}};
+const fmtHHMM=(dec)=>{if(!dec&&dec!==0)return"—";return`${Math.floor(dec)}:${String(Math.round((dec%1)*60)).padStart(2,"0")}`;};
+const parseHHMM=(s)=>{if(!s)return 0;const p=s.toString().split(":");return parseFloat(p[0])+(parseFloat(p[1]||0)/60);};
+const isCFM=(asset)=>asset?.engines?.some(e=>e.type?.toUpperCase().includes("CFM"));
+const isEmpty=(v)=>!v&&v!==0;
+
+function assetStatus(asset){
+  const llpVals=(asset.engines||[]).flatMap(e=>(e.llps||[]).map(l=>calcLLPRem(l,e.currentFC)));
+  if(asset.apu?.llps)llpVals.push(...asset.apu.llps.map(l=>calcLLPRem(l,asset.apu.currentFC)));
+  const minLLP=llpVals.length?Math.min(...llpVals):null;
+  const lgDays=["nose","left","right"].map(k=>daysFromNow(asset.landingGear?.[k]?.nextDue)).filter(x=>x!=null);
+  const minLG=lgDays.length?Math.min(...lgDays):null;
+  if((minLLP!==null&&minLLP<1000)||(minLG!==null&&minLG<0))return"critical";
+  if((minLLP!==null&&minLLP<3000)||(minLG!==null&&minLG<365))return"warn";
+  return"ok";
+}
+const SC={critical:{dot:"#f87171",border:"#dc2626"},warn:{dot:"#fbbf24",border:"#d97706"},ok:{dot:"#34d399",border:"#1e3348"}};
+
+function App(){
+  const[assets,setAssets]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[error,setError]=useState(null);
+  const[view,setView]=useState("dashboard");
+  const[selectedId,setSelectedId]=useState(null);
+  const[isAdmin,setIsAdmin]=useState(false);
+  const[pinModal,setPinModal]=useState(false);
+  const[pinInput,setPinInput]=useState("");
+  const[pinError,setPinError]=useState("");
+  const[notification,setNotification]=useState(null);
+  const[adminPin,setAdminPin]=useState("1234");
+
+  const loadAssets=useCallback(async()=>{
+    try{
+      const assets=await db.getAssets();
+      setAssets(assets);
+      const pin=await db.getSetting("admin_pin");
+      if(pin)setAdminPin(pin);
+      setError(null);
+    }catch(e){setError(e.message);}
+    setLoading(false);
+  },[]);
+
+  useEffect(()=>{
+    const doLoad=()=>loadAssets();
+    if(window._firebaseReady){
+      doLoad();
+    } else {
+      window.addEventListener('firebase-ready', doLoad, {once:true});
+    }
+  },[loadAssets]);
+
+  const saveAsset=useCallback(async(asset)=>{
+    await db.saveAsset(asset);
+    await loadAssets();
+  },[loadAssets]);
+
+  const notify=(msg,type="success")=>{setNotification({msg,type});setTimeout(()=>setNotification(null),3500);};
+  const selectedAsset=assets.find(a=>a.id===selectedId);
+
+  if(loading)return(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{width:32,height:32,border:"3px solid #C9A84C",borderTop:"3px solid transparent",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 12px"}}/>
+        <p style={{color:"#64748b",fontSize:13}}>Loading fleet data…</p>
+      </div>
+    </div>
+  );
+
+  if(error)return(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh"}}>
+      <div style={{textAlign:"center",maxWidth:400,padding:32}}>
+        <div style={{color:"#f87171",fontSize:14,fontWeight:700,marginBottom:8}}>Connection Error</div>
+        <p style={{color:"#64748b",fontSize:12,marginBottom:16}}>{error}</p>
+        <button onClick={loadAssets} style={{padding:"8px 20px",background:"#1e3a5f",border:"none",borderRadius:6,color:"#60a5fa",cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>Retry</button>
+      </div>
+    </div>
+  );
+
+  return(
+    <div>
+      <header style={{background:"#0d1c2c",borderBottom:"1px solid #1e3348",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 8px rgba(0,0,0,0.3)",padding:"8px 16px"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"nowrap"}}>
+          <img src="data:image/png;base64,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" alt="Vector Group" style={{height:60,maxWidth:"40vw",objectFit:"contain",borderRadius:4}} className="header-logo"/>
+          {/* Right side: Fleet button above nav pill */}
+          <div style={{display:"flex",flexDirection:"column",gap:5,alignItems:"stretch"}}>
+            {/* Fleet button - full width, colour coded to white theme */}
+            <button onClick={()=>{setView("portfolio");setSelectedId(null);}}
+              style={{padding:"7px 20px",background:view==="portfolio"?"#f1f5f9":"transparent",border:`1px solid ${view==="portfolio"?"#e2e8f0":"#2a4060"}`,borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:view==="portfolio"?"#0f172a":"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center"}}>
+              ✈ Fleet Portfolio
+            </button>
+            {/* Nav pill */}
+            <nav style={{display:"flex",alignItems:"center",gap:4,background:"rgba(13,25,37,0.8)",border:"1px solid #1e3348",borderRadius:8,padding:"5px 6px"}}>
+              {[["dashboard","Dashboard"],["upload","Upload"]].map(([v,l])=>(
+                <button key={v} onClick={()=>{setView(v);setSelectedId(null);}}
+                  style={{padding:"7px 14px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:13,fontWeight:600,cursor:"pointer",transition:"all 0.15s",background:view===v?"#1a3050":"transparent",color:view===v?"#C9A84C":"#6a8aaa",letterSpacing:"0.02em",flex:1}}>
+                  {l}
+                </button>
+              ))}
+              <div style={{width:1,height:22,background:"#1e3348",margin:"0 4px"}}/>
+              <button onClick={()=>{setIsAdmin(true);setView("admin");setSelectedId(null);}}
+                style={{padding:"7px 14px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:13,fontWeight:600,cursor:"pointer",transition:"all 0.15s",background:view==="admin"?"#2a1f00":"transparent",color:view==="admin"?"#C9A84C":"#6a8aaa",letterSpacing:"0.02em"}}>
+                ⚙ Admin
+              </button>
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      {notification&&(
+        <div style={{position:"fixed",bottom:24,right:18,zIndex:300,padding:"10px 16px",borderRadius:8,
+          background:notification.type==="error"?"#2a0e0e":"#0d2818",
+          border:`1px solid ${notification.type==="error"?"#7f1d1d":"#166534"}`,
+          color:notification.type==="error"?"#f87171":"#34d399",
+          fontWeight:600,fontSize:13,animation:"fadeIn 0.2s ease",boxShadow:"0 4px 16px rgba(0,0,0,0.4)"}}>
+          {notification.msg}
+        </div>
+      )}
+
+      {pinModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div className="card" style={{padding:32,width:300,textAlign:"center"}}>
+            <div style={{fontSize:28,marginBottom:8}}>🔒</div>
+            <h3 style={{color:"#C9A84C",marginBottom:6,fontSize:16}}>Admin Access</h3>
+            <p style={{color:"#64748b",fontSize:12,marginBottom:14}}>Enter your PIN to continue</p>
+            <input type="password" placeholder="PIN" value={pinInput} onChange={e=>setPinInput(e.target.value)}
+              onKeyDown={e=>{if(e.key==="Enter"){if(pinInput===adminPin){setIsAdmin(true);setPinModal(false);setView("admin");notify("Admin access granted");}else setPinError("Incorrect PIN");}}}
+              style={{textAlign:"center",letterSpacing:8,fontSize:20,marginBottom:6}}/>
+            {pinError&&<p style={{color:"#f87171",fontSize:12,marginBottom:6}}>{pinError}</p>}
+            <div style={{display:"flex",gap:8,marginTop:10}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setPinModal(false)}>Cancel</button>
+              <button className="btn btn-gold" style={{flex:1}} onClick={()=>{if(pinInput===adminPin){setIsAdmin(true);setPinModal(false);setView("admin");notify("Admin access granted");}else setPinError("Incorrect PIN");}}>Unlock</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <main style={{padding:"20px 22px",maxWidth:1480,margin:"0 auto"}}>
+        {view==="dashboard"&&!selectedId&&<Dashboard assets={assets} onSelect={id=>{setSelectedId(id);setView("asset");}}/>}
+        {view==="asset"&&selectedId&&selectedAsset&&<AssetView asset={selectedAsset} saveAsset={saveAsset} isAdmin={isAdmin} notify={notify} onBack={()=>{setView("dashboard");setSelectedId(null);}} loadAssets={loadAssets}/>}
+        {view==="upload"&&<UploadView assets={assets} saveAsset={saveAsset} notify={notify}/>}
+        {view==="guide"&&<GuideView/>}
+        {view==="portfolio"&&<PortfolioView assets={assets} onSelect={(id)=>{setSelectedId(id);setView("asset");}}/>}
+        {view==="admin"&&isAdmin&&<AdminView assets={assets} saveAsset={saveAsset} notify={notify} loadAssets={loadAssets} adminPin={adminPin} setAdminPin={setAdminPin}/>}
+        {view==="admin"&&!isAdmin&&<div style={{padding:60,textAlign:"center",color:"#475569"}}>Admin access required.</div>}
+      </main>
+    </div>
+  );
+}
+
+function Dashboard({assets,onSelect}){
+  const[viewMode,setViewMode]=useState("list");
+  const[filter,setFilter]=useState("");
+  const[sortCol,setSortCol]=useState("msn");
+  const[sortDir,setSortDir]=useState("asc");
+  const filtered=assets.filter(a=>[a.msn,a.registration,a.operator,a.model].some(v=>v?.toLowerCase().includes(filter.toLowerCase())));
+  const sorted=[...filtered].sort((a,b)=>{const av=String(a[sortCol]||""),bv=String(b[sortCol]||"");return sortDir==="asc"?av.localeCompare(bv):bv.localeCompare(av);});
+  const stats={total:assets.length,ok:assets.filter(a=>assetStatus(a)==="ok").length,warn:assets.filter(a=>assetStatus(a)==="warn").length,critical:assets.filter(a=>assetStatus(a)==="critical").length};
+  const toggleSort=col=>{if(sortCol===col)setSortDir(d=>d==="asc"?"desc":"asc");else{setSortCol(col);setSortDir("asc");}};
+  const LLPCell=({eng})=>{if(!eng)return<td style={{color:"#475569"}}>—</td>;if(eng.atShop)return<td><span style={{fontSize:11,color:"#94a3b8"}}>🔧</span></td>;const ll=lowestLimiter(eng);if(ll===null)return<td style={{color:"#475569",fontSize:11}}>No data</td>;const col=ll<1000?"#f87171":ll<3000?"#fbbf24":"#34d399";return<td><span className="pill" style={{background:ll<1000?"#2a0e0e":ll<3000?"#2a1f0a":"#0d2818",color:col}}>{ll.toLocaleString()}</span></td>;};
+  const LGCell=({g})=>{if(!g||!g.nextDue)return<td style={{color:"#475569"}}>—</td>;if(g.atShop)return<td><span style={{fontSize:11,color:"#94a3b8"}}>🔧</span></td>;const d=daysFromNow(g.nextDue);const col=d<0?"#f87171":d<365?"#fbbf24":"#64748b";return<td><span className="pill" style={{background:d<0?"#2a0e0e":d<365?"#2a1f0a":"transparent",color:col}}>{fmtDate(g.nextDue)}</span></td>;};
+  const APUCell=({apu})=>{if(!apu?.llps?.length)return<td style={{color:"#475569"}}>—</td>;const ll=Math.min(...apu.llps.map(l=>calcLLPRem(l,apu.currentFC)));const col=ll<1000?"#f87171":ll<3000?"#fbbf24":"#34d399";return<td><span className="pill" style={{background:ll<1000?"#2a0e0e":ll<3000?"#2a1f0a":"#0d2818",color:col}}>{ll.toLocaleString()}</span></td>;};
+  return(
+    <div style={{animation:"fadeIn 0.2s ease"}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10,marginBottom:18}}>
+        {[["Total Assets",stats.total,"#60a5fa","#0d1e2e","#1e3a5f"],["All Clear",stats.ok,"#34d399","#0d2818","#166534"],["Attention",stats.warn,"#fbbf24","#2a1f0a","#78350f"],["Critical",stats.critical,"#f87171","#2a0e0e","#7f1d1d"]].map(([l,v,c,bg,border])=>(
+          <div key={l} style={{background:bg,border:`1px solid ${border}`,borderRadius:6,padding:"8px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontSize:10,color:"#475569",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.06em"}}>{l}</span>
+            <span style={{fontSize:20,fontWeight:700,color:c,fontFamily:"monospace"}}>{v}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,gap:8,flexWrap:"wrap"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0}}>
+          <input placeholder="Search MSN, reg, operator…" value={filter} onChange={e=>setFilter(e.target.value)} style={{minWidth:0,flex:1}}/>
+          <span style={{fontSize:12,color:"#475569",whiteSpace:"nowrap"}}>{sorted.length}</span>
+        </div>
+        <div style={{display:"flex",gap:4,background:"#152030",padding:3,borderRadius:6,flexShrink:0}}>
+          {[["list","☰"],["card","⊞"]].map(([m,l])=>(
+            <button key={m} className="btn" onClick={()=>setViewMode(m)} style={{padding:"5px 10px",fontSize:14,background:viewMode===m?"#1e3348":"transparent",color:viewMode===m?"#C9A84C":"#64748b"}}>{l}</button>
+          ))}
+        </div>
+      </div>
+      {viewMode==="list"&&(
+        <div className="card" style={{overflow:"auto"}}>
+          <table>
+            <thead><tr>
+              <th style={{width:24}}></th>
+              {[["MSN","msn"],["Reg","registration"],["Model","model"],["Operator","operator"]].map(([l,k])=>(
+                <th key={k}><button onClick={()=>toggleSort(k)} style={{background:"none",border:"none",color:sortCol===k?"#C9A84C":"#475569",fontFamily:"inherit",fontSize:10,fontWeight:700,cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",whiteSpace:"nowrap"}}>{l}{sortCol===k?(sortDir==="asc"?" ↑":" ↓"):""}</button></th>
+              ))}
+              <th>AF TSN</th><th>AF CSN</th><th>Eng 1</th><th>Eng 2</th><th>APU</th><th>NLG</th><th>LLG</th><th>RLG</th><th>Last Report</th><th></th>
+            </tr></thead>
+            <tbody>
+              {sorted.map((a,i)=>{const st=assetStatus(a);const af=a.airframe||{};return(
+                <tr key={a.id} className="row-hover" onClick={()=>onSelect(a.id)} style={{background:i%2===0?"#0d1e2e":"#152535"}}>
+                  <td style={{textAlign:"center"}}><div style={{width:8,height:8,borderRadius:"50%",background:SC[st].dot,margin:"0 auto",boxShadow:st!=="ok"?`0 0 7px ${SC[st].dot},0 0 14px ${SC[st].dot}44`:"none"}}/></td>
+                  <td style={{fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{a.msn}</td>
+                  <td style={{fontWeight:600}}>{a.registration||"—"}</td>
+                  <td><span style={{color:"#94a3b8"}}>{a.model||"—"}</span>{isCFM(a)?<span className="tag" style={{background:"#1e3a5f",color:"#60a5fa",marginLeft:5}}>CFM</span>:<span className="tag" style={{background:"#1e2a4a",color:"#a78bfa",marginLeft:5}}>V2500</span>}</td>
+                  <td style={{color:"#94a3b8"}}>{a.operator||"—"}</td>
+                  <td style={{fontFamily:"monospace"}}>{fmtHHMM(af.currentFH)}</td>
+                  <td style={{fontFamily:"monospace"}}>{af.currentFC?.toLocaleString()||"—"}</td>
+                  <LLPCell eng={a.engines?.[0]}/><LLPCell eng={a.engines?.[1]}/><APUCell apu={a.apu}/>
+                  <LGCell g={a.landingGear?.nose}/><LGCell g={a.landingGear?.left}/><LGCell g={a.landingGear?.right}/>
+                  <td style={{fontSize:11,color:a._lastPeriod?"#64748b":"#f87171"}}>{a._lastPeriod||"No report"}</td>
+                  <td onClick={e=>e.stopPropagation()}><button className="btn btn-gold" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>onSelect(a.id)}>View</button></td>
+                </tr>
+              );})}
+              {sorted.length===0&&<tr><td colSpan={15} style={{textAlign:"center",padding:48,color:"#475569"}}>{assets.length===0?"No assets yet — go to Admin to add your first aircraft.":"No results."}</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {viewMode==="card"&&(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:12}}>
+          {sorted.map(a=>{const st=assetStatus(a);const af=a.airframe||{};return(
+            <div key={a.id} className="card card-hover" onClick={()=>onSelect(a.id)} style={{borderLeft:`3px solid ${SC[st].border}`,padding:16}}>
+              <div className="flj" style={{marginBottom:10}}>
+                <div>
+                  <div className="flab g8"><span style={{fontWeight:700,fontSize:15,color:"#C9A84C",fontFamily:"monospace"}}>MSN {a.msn}</span>{isCFM(a)?<span className="tag" style={{background:"#1e3a5f",color:"#60a5fa"}}>CFM</span>:<span className="tag" style={{background:"#1e2a4a",color:"#a78bfa"}}>V2500</span>}</div>
+                  <div style={{fontSize:14,fontWeight:600,color:"#f1f5f9",marginTop:2}}>{a.registration||"—"}</div>
+                  <div style={{fontSize:11,color:"#475569"}}>{a.model} · {a.operator||"—"}</div>
+                </div>
+                <div style={{width:10,height:10,borderRadius:"50%",background:SC[st].dot,boxShadow:st!=="ok"?`0 0 8px ${SC[st].dot}`:"none"}}/>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,background:"#0d1925",borderRadius:6,padding:"8px 10px",marginBottom:10}}>
+                {[["AF TSN",fmtHHMM(af.currentFH)],["AF CSN",af.currentFC?.toLocaleString()||"—"]].map(([l,v])=>(
+                  <div key={l}><div style={{fontSize:9,color:"#475569",fontWeight:700,textTransform:"uppercase"}}>{l}</div><div style={{fontSize:13,fontWeight:700,color:"#f1f5f9",fontFamily:"monospace"}}>{v}</div></div>
+                ))}
+              </div>
+              <div style={{marginBottom:10}}>
+                {(a.engines||[]).map((eng,ei)=>{const ll=lowestLimiter(eng);const col=ll===null?"#475569":ll<1000?"#f87171":ll<3000?"#fbbf24":"#34d399";return<div key={ei} className="flj" style={{padding:"3px 0",borderBottom:"1px solid #0f2030"}}><span style={{fontSize:11,color:"#64748b"}}>Eng {ei+1} LLP</span><span style={{fontSize:11,fontWeight:700,color:col}}>{ll!==null?`${ll.toLocaleString()} FC`:"No data"}</span></div>;})}
+                {(()=>{const ll=a.apu?.llps?.length?Math.min(...a.apu.llps.map(l=>calcLLPRem(l,a.apu.currentFC))):null;const col=ll===null?"#475569":ll<1000?"#f87171":ll<3000?"#fbbf24":"#34d399";return<div className="flj" style={{padding:"3px 0",borderBottom:"1px solid #0f2030"}}><span style={{fontSize:11,color:"#64748b"}}>APU LLP</span><span style={{fontSize:11,fontWeight:700,color:col}}>{ll!==null?`${ll.toLocaleString()} FC`:"N/A"}</span></div>;})()}
+                {["nose","left","right"].map(k=>{const g=a.landingGear?.[k];const days=g?.nextDue?daysFromNow(g.nextDue):null;const col=days===null?"#475569":days<0?"#f87171":days<365?"#fbbf24":"#64748b";const label=k==="nose"?"NLG":k==="left"?"LLG":"RLG";return<div key={k} className="flj" style={{padding:"3px 0",borderBottom:"1px solid #0f2030"}}><span style={{fontSize:11,color:"#64748b"}}>{label}</span><span style={{fontSize:11,fontWeight:600,color:col}}>{g?.nextDue?fmtDate(g.nextDue):"N/A"}</span></div>;})}
+              </div>
+              <button className="btn btn-gold" style={{width:"100%",padding:"7px 0",fontSize:12}} onClick={e=>{e.stopPropagation();onSelect(a.id);}}>View Details</button>
+            </div>
+          );})}
+        </div>
+      )}
+      <div className="flab" style={{gap:16,marginTop:14,fontSize:11,color:"#334155",flexWrap:"wrap"}}>
+        {[["#f87171","Critical"],["#fbbf24","Attention"],["#34d399","All clear"]].map(([c,l])=>(
+          <div key={l} className="flab" style={{gap:5}}><div style={{width:8,height:8,borderRadius:"50%",background:c}}/>{l}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function openTechSpec(html){
+  const withBar=html.replace('<body>',`<body><div style="position:fixed;top:0;left:0;right:0;background:#1B3A6B;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.3)"><span style="color:#C9A84C;font-weight:700;font-size:14px;flex:1">Vector Fleet Manager</span><button onclick="window.print()" style="background:#C9A84C;color:#0a1520;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button><button onclick="window.close()" style="background:transparent;color:#94a3b8;border:1px solid #2d3f55;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">✕ Close</button></div><div style="height:52px"></div>`);
+  const withPrint=withBar.replace('</style>','@media print{body>div:first-child{display:none!important}div[style*="height:52px"]{display:none!important}}</style>');
+  const win=window.open();win.document.write(withPrint);win.document.close();
+}
+
+
+function buildTechSpecHTML(asset,engPhoto=""){
+  const today=new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"});
+  const af=asset.airframe||{};const lg=asset.landingGear||{};const apu=asset.apu||{};
+  const engineOnly=asset._engineOnly;
+  const enginePos=asset._enginePos||1;
+  const specCSS=`@page{size:A4;margin:14mm 18mm}body{font-family:Arial,sans-serif;color:#111;font-size:11px;line-height:1.45;margin:0}
+.cover{text-align:center;page-break-after:always;padding:46px 30px}.cover h1{color:#1B3A6B;font-size:24px;margin:0 0 5px}.cover h2{color:#1B3A6B;font-size:17px;margin:0 0 18px}
+.cover .meta{color:#374151;font-size:13px;line-height:2.2}.cover .disc{font-size:9px;color:#6b7280;max-width:460px;margin:24px auto 0;line-height:1.6;text-align:left}
+.cover .dt{margin-top:14px;font-size:12px;color:#374151}
+h3{background:#1B3A6B;color:#C9A84C;font-size:11.5px;padding:5px 10px;border-radius:4px;margin:18px 0 7px;letter-spacing:0.04em}
+table{width:100%;border-collapse:collapse;margin-bottom:9px;font-size:10.5px}
+th{background:#f1f5f9;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0}
+td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
+.kv td:first-child{color:#6b7280;font-weight:600;width:180px}
+.pb{page-break-before:always;height:0;margin:0;padding:0}
+.footer{text-align:center;font-size:8px;color:#aaa;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:7px}`;
+  const llpRows=(llps,csn)=>!llps?.length?'<tr><td colspan="4" style="color:#aaa;font-style:italic">No LLP data entered</td></tr>':llps.map(l=>{const r=calcLLPRem(l,csn);return`<tr><td>${l.desc||""}</td><td style="font-family:monospace">${l.pn||""}</td><td style="font-family:monospace">${l.sn||""}</td><td style="font-weight:700;color:${r<1000?"#dc2626":r<3000?"#d97706":"#111"}">${r.toLocaleString()}</td></tr>`;}).join("");
+  const svRows=visits=>!visits?.length?'<tr><td colspan="5" style="color:#aaa;font-style:italic">No shop visits recorded</td></tr>':visits.map(sv=>`<tr><td>${sv.details||""}</td><td>${fmtDate(sv.date)}</td><td>${sv.fh?.toLocaleString()||""}</td><td>${sv.fc?.toLocaleString()||""}</td><td>${sv.mro||""}</td></tr>`).join("");
+  const engSec=(eng,pos)=>{if(!eng)return"";const ll=lowestLimiter(eng);return`<div class="pb"></div><h3>Engine #${pos} — ESN ${eng.sn||"—"}</h3>
+<table class="kv"><tr><td>Engine Type</td><td>${eng.type||"—"}</td><td style="color:#6b7280;font-weight:600;width:120px">Thrust</td><td>${eng.thrust||"—"}</td></tr>
+<tr><td>TSN</td><td>${fmtHHMM(eng.currentFH)}</td><td style="color:#6b7280;font-weight:600">CSN</td><td>${(eng.currentFC||0).toLocaleString()}</td></tr>
+<tr><td>Lowest LLP Limiter</td><td colspan="3" style="font-weight:700;color:${ll!==null&&ll<1000?"#dc2626":ll!==null&&ll<3000?"#d97706":"#111"}">${ll!==null?ll.toLocaleString()+" FC":"No LLP data"}</td></tr></table>
+<p style="font-weight:700;font-size:10px;margin:8px 0 4px">Life Limited Parts</p>
+<table><thead><tr><th>LLP Descriptor</th><th>P/N</th><th>S/N</th><th>FC Remaining</th></tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>
+<p style="font-weight:700;font-size:10px;margin:8px 0 4px">Shop Visit History</p>
+<table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th></tr></thead><tbody>${svRows(eng.shopVisits)}</tbody></table>`;};
+  const lgSec=(g,title)=>{if(!g)return"";const calcCSN=(g.startFC||0)+((af.currentFC||0)-(g.refAirframeFC||0));const calcFH=(g.startFH||0)+((af.currentFH||0)-(g.refAirframeFH||0));return`<table><thead><tr><th colspan="5">${title}</th></tr><tr><th>P/N</th><th>S/N</th><th>Calc TSN</th><th>Calc CSN</th><th>Next Overhaul Due</th></tr></thead><tbody><tr><td>${g.pn||"—"}</td><td>${g.sn||"—"}</td><td>${fmtHHMM(calcFH)}</td><td>${Math.round(calcCSN).toLocaleString()}</td><td style="font-weight:700">${fmtDate(g.nextDue)}</td></tr></tbody></table>`;};
+  if(engineOnly){
+    const eng=asset.engines?.[0];
+    const ll=lowestLimiter(eng);
+    return`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Engine Spec ESN ${eng?.sn}</title><style>${specCSS}</style></head><body>
+<div class="cover">
+  <img src="data:image/png;base64,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" alt="Vector Group" style="width:320px;border-radius:5px;margin-bottom:24px"/><br>
+  <h1>Engine Technical Specification</h1>
+  <h2>Engine Serial Number: ${eng?.sn||"—"}</h2>
+  <div class="meta">Aircraft MSN: <b>${asset.msn}</b><br>Registration: <b>${asset.registration||"—"}</b><br>Engine Type: <b>${eng?.type||"—"}</b><br>Position: <b>Engine #${enginePos}</b><br>Operator: <b>${asset.operator||"—"}</b></div>
+  ${engPhoto?`<img src="${engPhoto}" style="width:420px;max-height:220px;object-fit:cover;border-radius:6px;margin:18px auto 0;display:block;box-shadow:0 4px 16px rgba(0,0,0,0.2)"/>`:""}
+  <div class="dt">Date: ${today}</div>
+</div>
+${engSec(eng,enginePos)}
+<div class="footer">Vector Group · Synergy in Aviation — Engine Technical Specification · ESN ${eng?.sn||"—"} · ${today}</div>
+</body></html>`;
+  }
+  return`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Tech Spec MSN ${asset.msn}</title><style>${specCSS}</style></head><body>
+<div class="cover">
+  <img src="data:image/png;base64,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" alt="Vector Group" style="width:320px;border-radius:5px;margin-bottom:24px"/><br>
+  <h1>Asset Technical Specification</h1>
+  <h2>Manufacturer Serial Number: ${asset.msn}</h2>
+  <div class="meta">Manufacturer: <b>${asset.manufacturer||"—"}</b><br>Model: <b>${asset.model||"—"}</b><br>Registration: <b>${asset.registration||"—"}</b><br>Operator: <b>${asset.operator||"—"}</b></div>
+  ${asset.photos?.[0]?.url?`<img src="${asset.photos[0].url}" style="width:420px;max-height:200px;object-fit:cover;border-radius:6px;margin:18px auto 0;display:block;box-shadow:0 4px 16px rgba(0,0,0,0.2)"/>`:""}
+  <div class="disc">${asset.disclaimer||"This outline specification has been prepared based on the information available to Vector Group at the relevant time. The recipient must verify the information provided independently."}</div>
+  <div class="dt">Date: ${today}</div>
+</div>
+<h3>Asset Details</h3>
+<table class="kv">
+  <tr><td>Date of Manufacture</td><td>${fmtDate(asset.dom)}</td></tr>
+  <tr><td>Current Operator</td><td>${asset.operator||"—"}</td></tr>
+  <tr><td>Airframe TSN</td><td>${fmtHHMM(af.currentFH)}</td></tr>
+  <tr><td>Airframe CSN</td><td>${(af.currentFC||0).toLocaleString()}</td></tr>
+  <tr><td>Data Current As Of</td><td>${asset._lastPeriod||"—"}</td></tr>
+</table>
+<h3>Operating Weights</h3>
+<table><thead><tr><th>Parameter</th><th>kg</th><th>lb</th></tr></thead><tbody>
+${[["MTOW","mtow","mtow_lb"],["Max Taxi Weight","mtw","mtw_lb"],["MZFW","mzfw","mzfw_lb"],["MLW","mlw","mlw_lb"]].map(([l,k,klb])=>`<tr><td>${l}</td><td>${asset.weights?.[k]?.toLocaleString()||"—"}</td><td>${asset.weights?.[klb]?.toLocaleString()||"—"}</td></tr>`).join("")}
+</tbody></table>
+<h3>Check History</h3>
+<table><thead><tr><th>Check</th><th>Last Date</th><th>Last TSN</th><th>Last CSN</th><th>Next Due</th></tr></thead><tbody>
+${(asset.checks||[]).map(c=>`<tr><td>${c.name}</td><td>${fmtDate(c.lastDate)}</td><td>${c.lastFH?.toLocaleString()||"—"}</td><td>${c.lastFC?.toLocaleString()||"—"}</td><td style="font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("")}
+</tbody></table>
+<h3>Specifications</h3>
+<table class="kv"><tbody>
+<tr><td>Configuration</td><td>${asset.specs?.config||"—"}</td></tr>
+<tr><td>Passenger Seating</td><td>${asset.specs?.seating||"—"}</td></tr>
+<tr><td>Galleys</td><td>${asset.specs?.galleys||"—"}</td></tr>
+<tr><td>Lavatories</td><td>${asset.specs?.lavs||"—"}</td></tr>
+<tr><td>ADS-B</td><td>${asset.specs?.adsb?"Installed":"Not Installed"}</td></tr>
+<tr><td>CPDLC</td><td>${asset.specs?.cpdlc?"Installed":"Not Installed"}</td></tr>
+<tr><td>TCAS 7.1</td><td>${asset.specs?.tcas?"Installed":"Not Installed"}</td></tr>
+</tbody></table>
+${engSec(asset.engines?.[0],1)}
+${engSec(asset.engines?.[1],2)}
+<div class="pb"></div>
+<h3>Landing Gear</h3>
+${lgSec(lg.nose,"Nose Landing Gear")}
+${lgSec(lg.left,"LH Main Landing Gear")}
+${lgSec(lg.right,"RH Main Landing Gear")}
+<h3>APU — ${apu.sn||"—"}</h3>
+<table class="kv">
+  <tr><td>Part Number</td><td>${apu.pn||"—"}</td><td style="color:#6b7280;font-weight:600;width:120px">Serial Number</td><td>${apu.sn||"—"}</td></tr>
+  <tr><td>TSN</td><td>${fmtHHMM(apu.currentFH)}</td><td style="color:#6b7280;font-weight:600">CSN</td><td>${(apu.currentFC||0).toLocaleString()}</td></tr>
+</table>
+<table><thead><tr><th>LLP Descriptor</th><th>P/N</th><th>S/N</th><th>FC Remaining</th></tr></thead><tbody>${llpRows(apu.llps,apu.currentFC)}</tbody></table>
+${(()=>{
+    const galleryPhotos=(asset.photos||[]).slice(1);
+    if(!galleryPhotos.length)return"";
+    const photoHtml=galleryPhotos.map(p=>`
+      <div style="break-inside:avoid">
+        <img src="${p.url}" style="width:100%;height:160px;object-fit:cover;border-radius:4px;display:block"/>
+        <div style="text-align:center;font-size:10px;color:#6b7280;margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">${p.label||""}</div>
+      </div>`).join("");
+    return`<div class="pb"></div>
+<h3>Photo Gallery</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px">${photoHtml}</div>`;
+  })()}
+<div class="footer">Vector Group · Synergy in Aviation — Asset Technical Specification · MSN ${asset.msn} · ${today}</div>
+</body></html>`;
+}
+
+function AssetView({asset,saveAsset,isAdmin,notify,onBack,loadAssets}){
+  const[tab,setTab]=useState("overview");
+  const genSpec=async()=>{
+    const isCFMAsset=isCFM(asset);
+    const photoKey=isCFMAsset?"engine_photo_cfm56":"engine_photo_v2500";
+    const engPhoto=await db.getSetting(photoKey).catch(()=>null);
+    const base=buildTechSpecHTML(asset,engPhoto);
+    const withBar=base.replace('<body>',`<body><div style="position:fixed;top:0;left:0;right:0;background:#1B3A6B;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.3);print-color-adjust:exact;-webkit-print-color-adjust:exact"><span style="color:#C9A84C;font-weight:700;font-size:14px;flex:1">Vector Fleet — Tech Spec MSN ${asset.msn}</span><button onclick="window.print()" style="background:#C9A84C;color:#0a1520;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button><button onclick="window.close()" style="background:transparent;color:#94a3b8;border:1px solid #2d3f55;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">✕ Close</button></div><div style="height:52px"></div>`);
+    const withPrint=withBar.replace('</style>','@media print{body>div:first-child{display:none!important}div[style*="height:52px"]{display:none!important}}</style>');
+    const win=window.open();
+    win.document.write(withPrint);
+    win.document.close();
+  };
+  return(
+    <div style={{animation:"fadeIn 0.2s ease"}}>
+      <div className="flab g12" style={{marginBottom:16}}>
+        <button className="btn btn-ghost" onClick={onBack}>← Fleet</button>
+        <div style={{flex:1}}>
+          <h1 style={{fontSize:18,color:"#C9A84C",fontWeight:700}}>MSN {asset.msn} — {asset.registration||"—"}</h1>
+          <p style={{color:"#475569",fontSize:12}}>{asset.model} · {asset.operator||"—"}</p>
+        </div>
+        <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={genSpec}>📋 Generate Tech Spec</button>
+      </div>
+      <div style={{display:"flex",borderBottom:"2px solid #1e3048",marginBottom:20,gap:2}}>
+        {["overview","engines","landing gear","apu","specs","history","documents"].map(t=>(
+          <button key={t} className={`tab-btn${tab===t?" active":""}`} onClick={()=>setTab(t)}>{t}</button>
+        ))}
+      </div>
+      {tab==="overview"&&<OverviewTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
+      {tab==="engines"&&<EnginesTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
+      {tab==="landing gear"&&<LandingGearTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
+      {tab==="apu"&&<APUTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
+      {tab==="specs"&&<SpecsTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
+      {tab==="history"&&<HistoryTab asset={asset} isAdmin={isAdmin} notify={notify} loadAssets={loadAssets}/>}
+      {tab==="documents"&&<DocumentsTab asset={asset}/>}
+    </div>
+  );
+}
+
+function OverviewTab({asset,isAdmin,saveAsset,notify}){
+  const[editing,setEditing]=useState(false);
+  const[form,setForm]=useState(null);
+  const startEdit=()=>{setForm(JSON.parse(JSON.stringify(asset)));setEditing(true);};
+  const cancel=()=>{setForm(null);setEditing(false);};
+  const save=async()=>{await saveAsset(form);setEditing(false);setForm(null);notify("Saved");};
+  const d=editing?form:asset;
+  const af=asset.airframe||{};
+  const set=(path,val)=>{const f=JSON.parse(JSON.stringify(form));const parts=path.split(".");let obj=f;for(let i=0;i<parts.length-1;i++){if(!obj[parts[i]])obj[parts[i]]={};obj=obj[parts[i]];}obj[parts[parts.length-1]]=val;setForm(f);};
+  const Field=({label,path,type="text"})=>{
+    const parts=path.split(".");const val=parts.reduce((o,k)=>o?.[k],d);
+    return<div className="form-group"><label className="form-label">{label}</label>
+      {editing&&isAdmin?<input type={type} value={val||""} onChange={e=>set(path,e.target.value)} className={isEmpty(val)?"amber":""}/>
+      :<div style={{fontSize:13,fontWeight:500,color:isEmpty(val)?"#475569":"#e2e8f0",fontStyle:isEmpty(val)?"italic":"normal"}}>{type==="date"?fmtDate(val):val||"Not entered"}</div>}
+    </div>;
+  };
+  // Status calcs
+  const llpVals=(asset.engines||[]).map(e=>{const ll=lowestLimiter(e);return{label:`Engine #${e.position||1}`,val:ll,csn:e.currentFC};});
+  if(asset.apu?.llps?.length){const ll=Math.min(...asset.apu.llps.map(l=>calcLLPRem(l,asset.apu.currentFC)));llpVals.push({label:"APU",val:ll});}
+  const lgItems=[["NLG",asset.landingGear?.nose],["LLG",asset.landingGear?.left],["RLG",asset.landingGear?.right]];
+  return(
+    <div className="grid2">
+      <div className="card" style={{padding:18}}>
+        <div className="flj" style={{marginBottom:12}}>
+          <div className="section-title" style={{margin:0}}>Asset Details</div>
+          {!isAdmin?null:!editing?<button className="btn btn-ghost" onClick={startEdit}>Edit</button>:<div className="flab g8"><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save</button></div>}
+        </div>
+        <div className="grid2" style={{gap:"0 16px"}}>
+          <Field label="MSN" path="msn"/><Field label="Registration" path="registration"/>
+          <Field label="Operator" path="operator"/><Field label="Model" path="model"/>
+          <Field label="Manufacturer" path="manufacturer"/><Field label="Date of Manufacture" path="dom" type="date"/>
+        </div>
+        <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid #1e3048"}}>
+          <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Current Airframe</div>
+          <div className="grid2" style={{gap:8}}>
+            {[["AIRFRAME TSN",fmtHHMM(af.currentFH)],["AIRFRAME CSN",af.currentFC?.toLocaleString()||"—"]].map(([l,v])=>(
+              <div key={l} style={{background:"#070f18",border:"1px solid #1B3A6B",borderRadius:8,padding:"12px 14px"}}>
+                <div style={{fontSize:9,color:"#475569",fontWeight:700,letterSpacing:"0.08em"}}>{l}</div>
+                <div style={{fontSize:20,fontWeight:700,color:"#C9A84C",fontFamily:"monospace",marginTop:4}}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <div className="card" style={{padding:18}}>
+          <div className="section-title">Status Summary</div>
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6}}>LLP Limiters</div>
+            {llpVals.map(({label,val})=>{
+              const col=val===null?"#475569":val<1000?"#f87171":val<3000?"#fbbf24":"#34d399";
+              const bg=val===null?"transparent":val<1000?"#2a0e0e":val<3000?"#2a1f0a":"#0d2818";
+              return<div key={label} className="flj" style={{padding:"5px 0",borderBottom:"1px solid #0f2030"}}>
+                <span style={{fontSize:12,color:"#94a3b8"}}>{label}</span>
+                <span className="pill" style={{background:bg,color:col,fontSize:11}}>{val!==null?`${val.toLocaleString()} FC`:"No data"}</span>
+              </div>;
+            })}
+            {llpVals.length===0&&<div style={{fontSize:12,color:"#475569",fontStyle:"italic"}}>No LLP data</div>}
+          </div>
+          <div>
+            <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6}}>Landing Gear Overhauls</div>
+            {lgItems.map(([label,g])=>{
+              const days=daysFromNow(g?.nextDue);
+              const col=days===null?"#475569":days<0?"#f87171":days<365?"#fbbf24":"#64748b";
+              return<div key={label} className="flj" style={{padding:"5px 0",borderBottom:"1px solid #0f2030"}}>
+                <span style={{fontSize:12,color:"#94a3b8"}}>{label}</span>
+                <span style={{fontSize:11,fontWeight:600,color:col}}>{g?.nextDue?`${fmtDate(g.nextDue)}${days!==null?` (${days<0?Math.abs(days)+"d overdue":days+"d"})`:""}`:"Not entered"}</span>
+              </div>;
+            })}
+          </div>
+          <div style={{marginTop:10,paddingTop:8,borderTop:"1px solid #1e3048"}}>
+            <div className="flj"><span style={{fontSize:11,color:"#475569"}}>Last Report</span><span style={{fontSize:11,fontWeight:600,color:asset._lastPeriod?"#e2e8f0":"#f87171"}}>{asset._lastPeriod||"None"}</span></div>
+          </div>
+        </div>
+        <div className="card" style={{padding:18}}>
+          <div className="section-title">Check History</div>
+          {(asset.checks||[]).map((c,i)=>(
+            <div key={i} style={{marginBottom:10,paddingBottom:10,borderBottom:i<(asset.checks.length-1)?"1px solid #1e3048":"none"}}>
+              <div style={{fontSize:11,fontWeight:600,color:"#94a3b8",marginBottom:6}}>{c.name}</div>
+              <div className="grid2" style={{gap:"4px 10px"}}>
+                {[["Last Date",c.lastDate,"date"],["Next Due",c.nextDate,"date"]].map(([l,v,t])=>(
+                  <div key={l}><div style={{fontSize:10,color:"#475569"}}>{l}</div><div style={{fontSize:12,fontWeight:500,color:isEmpty(v)?"#475569":"#e2e8f0"}}>{t==="date"?fmtDate(v):v||"—"}</div></div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
+  const[adding,setAdding]=useState(false);
+  const[newSV,setNewSV]=useState({details:"",date:"",fh:"",fc:"",days:"",mro:""});
+  const saveSV=async()=>{
+    const engines=JSON.parse(JSON.stringify(asset.engines||[]));
+    engines[engIdx].shopVisits=[...(engines[engIdx].shopVisits||[]),{...newSV,fh:parseHHMM(newSV.fh),fc:+newSV.fc,days:+newSV.days}];
+    await saveAsset({...asset,engines});
+    setAdding(false);setNewSV({details:"",date:"",fh:"",fc:"",days:"",mro:""});notify("Shop visit added");
+  };
+  const delSV=async(si)=>{
+    if(!confirm("Delete shop visit?"))return;
+    const engines=JSON.parse(JSON.stringify(asset.engines||[]));
+    engines[engIdx].shopVisits.splice(si,1);
+    await saveAsset({...asset,engines});notify("Deleted");
+  };
+  return(
+    <div>
+      <div className="flj" style={{marginBottom:8}}>
+        <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em"}}>Shop Visit History</div>
+        <button className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setAdding(true)}>+ Add Visit</button>
+      </div>
+      <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>Days</th><th>MRO</th><th></th></tr></thead>
+      <tbody>{eng.shopVisits?.length?eng.shopVisits.map((sv,si)=>(
+        <tr key={si}>
+          <td style={{fontWeight:500}}>{sv.details}</td><td>{fmtDate(sv.date)}</td>
+          <td style={{fontFamily:"monospace"}}>{fmtHHMM(sv.fh)}</td><td style={{fontFamily:"monospace"}}>{sv.fc?.toLocaleString()}</td>
+          <td>{sv.days}</td><td style={{color:"#94a3b8"}}>{sv.mro}</td>
+          <td><button className="btn-danger btn" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>delSV(si)}>✕</button></td>
+        </tr>
+      )):<tr><td colSpan={isAdmin?7:6} style={{color:"#475569",fontStyle:"italic"}}>No shop visits recorded</td></tr>}</tbody></table>
+      {adding&&(
+        <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #1e3048"}}>
+          <div className="grid3" style={{gap:6,marginBottom:8}}>
+            <div style={{gridColumn:"1/-1"}}><label className="form-label">Details / Description</label><input value={newSV.details} onChange={e=>setNewSV({...newSV,details:e.target.value})}/></div>
+            {[["Date","date","date"],["TSN (HH:MM)","fh","text"],["CSN","fc","number"],["Days at Shop","days","number"],["MRO Facility","mro","text"]].map(([l,k,t])=>(
+              <div key={k}><label className="form-label">{l}</label><input type={t} value={newSV[k]} onChange={e=>setNewSV({...newSV,[k]:e.target.value})}/></div>
+            ))}
+          </div>
+          <div className="flab g8"><button className="btn btn-ghost" onClick={()=>setAdding(false)}>Cancel</button><button className="btn btn-gold" onClick={saveSV}>Add Visit</button></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function EnginesTab({asset,isAdmin,saveAsset,notify}){
+  const[editIdx,setEditIdx]=useState(null);
+  const[form,setForm]=useState(null);
+  const[addLLPIdx,setAddLLPIdx]=useState(null);
+  const[newLLP,setNewLLP]=useState({desc:"",pn:"",sn:"",startFCRem:0,refFC:0});
+  const patchEngines=async(engines)=>{await saveAsset({...asset,engines});};
+  const saveEngineEdit=async()=>{const engines=[...asset.engines];engines[editIdx]=form;await patchEngines(engines);setEditIdx(null);setForm(null);notify("Engine saved");};
+  const doAddLLP=async(ei)=>{const engines=JSON.parse(JSON.stringify(asset.engines));engines[ei].llps=[...(engines[ei].llps||[]),{...newLLP,startFCRem:+newLLP.startFCRem,refFC:+newLLP.refFC}];await patchEngines(engines);setAddLLPIdx(null);setNewLLP({desc:"",pn:"",sn:"",startFCRem:0,refFC:0});notify("LLP added");};
+  const delLLP=async(ei,li)=>{if(!confirm("Delete?"))return;const engines=JSON.parse(JSON.stringify(asset.engines));engines[ei].llps.splice(li,1);await patchEngines(engines);notify("LLP deleted");};
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:20}}>
+      {(asset.engines||[]).map((eng,ei)=>{
+        const ll=lowestLimiter(eng);const isEditing=editIdx===ei;const ed=isEditing?form:eng;
+        return(
+          <div key={ei} className="card" style={{padding:20}}>
+            <div className="flj" style={{marginBottom:14}}>
+              <div className="flab" style={{gap:10}}>
+                <div className="section-title" style={{margin:0}}>Engine #{eng.position||ei+1} — ESN {eng.sn||"TBD"}</div>
+                {eng.atShop&&<span style={{fontSize:11,color:"#f87171"}}>🔧 At shop</span>}
+              </div>
+              <div className="flab g8">
+                <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={async()=>{
+                  const isCFMEng=(eng.type||"").toUpperCase().includes("CFM");
+                  const photoKey=isCFMEng?"engine_photo_cfm56":"engine_photo_v2500";
+                  const engPhoto=await db.getSetting(photoKey).catch(()=>null)||"";
+                  const base=buildTechSpecHTML({...asset,engines:[eng],_engineOnly:true,_enginePos:eng.position||ei+1},engPhoto);
+                  const withBar=base.replace('<body>',`<body><div style="position:fixed;top:0;left:0;right:0;background:#1B3A6B;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.3)"><span style="color:#C9A84C;font-weight:700;font-size:14px;flex:1">Vector Fleet — Engine Spec ESN ${eng.sn||"—"}</span><button onclick="window.print()" style="background:#C9A84C;color:#0a1520;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button><button onclick="window.close()" style="background:transparent;color:#94a3b8;border:1px solid #2d3f55;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">✕ Close</button></div><div style="height:52px"></div>`);
+                  const withPrint=withBar.replace('</style>','@media print{body>div:first-child{display:none!important}div[style*="height:52px"]{display:none!important}}</style>');
+                  const win=window.open();win.document.write(withPrint);win.document.close();
+                }}>📋 Generate Tech Spec</button>
+                {isAdmin&&!isEditing&&<button className="btn btn-ghost" onClick={()=>{setForm(JSON.parse(JSON.stringify(eng)));setEditIdx(ei);}}>Edit</button>}
+                {isAdmin&&isEditing&&<><button className="btn btn-ghost" onClick={()=>{setEditIdx(null);setForm(null);}}>Cancel</button><button className="btn btn-gold" onClick={saveEngineEdit}>Save</button></>}
+              </div>
+            </div>
+            <div className="grid4" style={{marginBottom:14}}>
+              {[["S/N","sn"],["Type","type"],["Thrust","thrust"],["Status","status"]].map(([l,k])=>(
+                <div key={k} style={{background:"#0d1925",borderRadius:6,padding:"8px 10px"}}>
+                  <div style={{fontSize:9,color:"#475569"}}>{l}</div>
+                  {isEditing&&isAdmin?<input value={ed[k]||""} onChange={e=>setForm({...form,[k]:e.target.value})} style={{marginTop:3}}/>
+                  :<div style={{fontSize:12,fontWeight:600,color:isEmpty(eng[k])?"#475569":"#e2e8f0",marginTop:3}}>{eng[k]||"—"}</div>}
+                </div>
+              ))}
+
+            </div>
+            <div className="grid4" style={{marginBottom:14}}>
+              {[["TSN",fmtHHMM(eng.currentFH)],["CSN",(eng.currentFC||0).toLocaleString()],["FH/FC",eng.currentFH&&eng.currentFC?(eng.currentFH/eng.currentFC).toFixed(2):"—"],["Lowest LLP",ll!==null?`${ll.toLocaleString()} FC`:"No data"]].map(([l,v])=>(
+                <div key={l} style={{background:"#0d1925",borderRadius:6,padding:"8px 10px"}}>
+                  <div style={{fontSize:9,color:"#475569"}}>{l}</div>
+                  <div style={{fontSize:14,fontWeight:700,fontFamily:"monospace",color:l==="Lowest LLP"?(ll===null?"#475569":ll<1000?"#f87171":ll<3000?"#fbbf24":"#34d399"):"#C9A84C"}}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{marginBottom:16}}>
+              <div className="flj" style={{marginBottom:8}}>
+                <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em"}}>Life Limited Parts</div>
+                {isAdmin&&<button className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setAddLLPIdx(ei)}>+ Add LLP</button>}
+              </div>
+              {eng.llps?.length?(
+                <table><thead><tr><th>Descriptor</th><th>P/N</th><th>S/N</th><th>FC Remaining</th><th></th></tr></thead>
+                <tbody>{eng.llps.map((llp,li)=>{const rem=calcLLPRem(llp,eng.currentFC);return(
+                  <tr key={li} style={{background:rem<1000?"#1a0a0a":rem<3000?"#1a150a":"transparent"}}>
+                    <td style={{fontWeight:500}}>{llp.desc}</td><td style={{fontFamily:"monospace",fontSize:11}}>{llp.pn}</td><td style={{fontFamily:"monospace",fontSize:11}}>{llp.sn}</td>
+                    <td style={{fontWeight:700,color:rem<1000?"#f87171":rem<3000?"#fbbf24":"#34d399"}}>{rem.toLocaleString()}</td>
+                    {isAdmin&&<td><button className="btn-danger btn" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>delLLP(ei,li)}>✕</button></td>}
+                  </tr>
+                );})}</tbody></table>
+              ):<div style={{color:"#475569",fontSize:12,fontStyle:"italic",padding:"6px 0"}}>No LLP data entered yet.</div>}
+              {addLLPIdx===ei&&(
+                <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #1e3048"}}>
+                  <div className="grid3" style={{gap:6,marginBottom:8}}>
+                    {[["Descriptor","desc","text"],["P/N","pn","text"],["S/N","sn","text"],["Starting FC Rem","startFCRem","number"],["Reference FC","refFC","number"]].map(([l,k,t])=>(
+                      <div key={k}><label className="form-label">{l}</label><input type={t} value={newLLP[k]} onChange={e=>setNewLLP({...newLLP,[k]:e.target.value})}/></div>
+                    ))}
+                  </div>
+                  <div className="flab g8"><button className="btn btn-ghost" onClick={()=>setAddLLPIdx(null)}>Cancel</button><button className="btn btn-gold" onClick={()=>doAddLLP(ei)}>Add LLP</button></div>
+                </div>
+              )}
+            </div>
+            <ShopVisitEditor eng={eng} engIdx={ei} asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function LandingGearTab({asset,isAdmin,saveAsset,notify}){
+  const[editing,setEditing]=useState(false);
+  const[form,setForm]=useState(null);
+  const af=asset.airframe||{};
+  const startEdit=()=>{setForm(JSON.parse(JSON.stringify(asset)));setEditing(true);};
+  const cancel=()=>{setForm(null);setEditing(false);};
+  const save=async()=>{await saveAsset(form);setEditing(false);setForm(null);notify("Saved");};
+  const set=(path,val)=>{const f=JSON.parse(JSON.stringify(form));const parts=path.split(".");let obj=f;for(let i=0;i<parts.length-1;i++){if(!obj[parts[i]])obj[parts[i]]={};obj=obj[parts[i]];}obj[parts[parts.length-1]]=val;setForm(f);};
+  const d=editing?form:asset;
+  const calcGear=(g)=>({
+    tsn:(g?.startFH||0)+((af.currentFH||0)-(g?.refAirframeFH||0)),
+    csn:(g?.startFC||0)+((af.currentFC||0)-(g?.refAirframeFC||0))
+  });
+  const sinceOverhaul=(g)=>({
+    fh:(af.currentFH||0)-(g?.lastOverhaulFH||0),
+    fc:(af.currentFC||0)-(g?.lastOverhaulFC||0)
+  });
+  const Field=({label,path,type="text"})=>{
+    const parts=path.split(".");const val=parts.reduce((o,k)=>o?.[k],d);
+    return<div className="form-group"><label className="form-label">{label}</label>
+      {editing&&isAdmin?<input type={type} value={val||""} onChange={e=>set(path,e.target.value)}/>
+      :<div style={{fontSize:13,fontWeight:500,color:isEmpty(val)?"#475569":"#e2e8f0"}}>{type==="date"?fmtDate(val):val||"Not entered"}</div>}
+    </div>;
+  };
+  return(
+    <div>
+      <div className="flj" style={{marginBottom:14}}>
+        <div/>
+        {isAdmin&&!editing&&<button className="btn btn-ghost" onClick={startEdit}>Edit</button>}
+        {isAdmin&&editing&&<div className="flab g8"><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save</button></div>}
+      </div>
+      <div className="grid3">
+        {[["Nose Landing Gear","nose"],["LH Main Landing Gear","left"],["RH Main Landing Gear","right"]].map(([title,gkey])=>{
+          const g=(editing?form:asset).landingGear?.[gkey]||{};
+          const{tsn,csn}=calcGear(g);
+          const since=sinceOverhaul(g);
+          const days=daysFromNow(g.nextDue);
+          return(
+            <div key={gkey} className="card" style={{padding:18}}>
+              <div className="section-title">{title}{g.atShop&&" 🔧"}</div>
+              <Field label="P/N" path={`landingGear.${gkey}.pn`}/>
+              <Field label="S/N" path={`landingGear.${gkey}.sn`}/>
+              <div style={{background:days!==null&&days<0?"#2a0e0e":days!==null&&days<365?"#2a1f0a":"#0a1520",borderRadius:6,padding:"8px 10px",marginBottom:10,textAlign:"center"}}>
+                <div style={{fontSize:9,color:"#475569",textTransform:"uppercase"}}>Next Overhaul</div>
+                <div style={{fontSize:14,fontWeight:700,color:days!==null&&days<0?"#f87171":days!==null&&days<365?"#fbbf24":"#34d399"}}>{fmtDate(g.nextDue)||"Not entered"}</div>
+                {days!==null&&<div style={{fontSize:10,color:"#64748b"}}>{days<0?`${Math.abs(days)}d overdue`:`${days}d remaining`}</div>}
+              </div>
+              <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6}}>Last Overhaul</div>
+              <div className="grid2" style={{gap:6,marginBottom:10}}>
+                <Field label="Date" path={`landingGear.${gkey}.lastOverhaulDate`} type="date"/>
+                <div/>
+                <div><label className="form-label">TSN at Overhaul</label>
+                  {editing&&isAdmin?<input type="number" value={g.lastOverhaulFH||""} onChange={e=>set(`landingGear.${gkey}.lastOverhaulFH`,+e.target.value)}/>
+                  :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.lastOverhaulFH)?"#475569":"#e2e8f0"}}>{fmtHHMM(g.lastOverhaulFH)||"Not entered"}</div>}
+                </div>
+                <div><label className="form-label">CSN at Overhaul</label>
+                  {editing&&isAdmin?<input type="number" value={g.lastOverhaulFC||""} onChange={e=>set(`landingGear.${gkey}.lastOverhaulFC`,+e.target.value)}/>
+                  :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.lastOverhaulFC)?"#475569":"#e2e8f0"}}>{g.lastOverhaulFC?.toLocaleString()||"Not entered"}</div>}
+                </div>
+              </div>
+              {g.lastOverhaulFC&&<div style={{background:"#0d1925",borderRadius:6,padding:"8px 10px",marginBottom:10}}>
+                <div style={{fontSize:9,color:"#475569",textTransform:"uppercase",marginBottom:4}}>Since Last Overhaul</div>
+                <div className="grid2" style={{gap:4}}>
+                  <div><div style={{fontSize:9,color:"#475569"}}>FH</div><div style={{fontSize:12,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{fmtHHMM(since.fh)}</div></div>
+                  <div><div style={{fontSize:9,color:"#475569"}}>FC</div><div style={{fontSize:12,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{Math.round(since.fc).toLocaleString()}</div></div>
+                </div>
+              </div>}
+              <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6}}>Calculated Current</div>
+              <div className="grid2" style={{gap:6}}>
+                {[["Calc TSN",fmtHHMM(tsn)],["Calc CSN",Math.round(csn).toLocaleString()]].map(([l,v])=>(
+                  <div key={l} style={{background:"#0d1925",borderRadius:5,padding:"6px 8px"}}>
+                    <div style={{fontSize:9,color:"#475569"}}>{l}</div>
+                    <div style={{fontSize:12,fontWeight:600,color:"#C9A84C",fontFamily:"monospace"}}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+function APUTab({asset,isAdmin,saveAsset,notify}){
+  const[editing,setEditing]=useState(false);
+  const[form,setForm]=useState(null);
+  const[addLLP,setAddLLP]=useState(false);
+  const[newLLP,setNewLLP]=useState({desc:"",pn:"",sn:"",startFCRem:0,refFC:0});
+  const apu=asset.apu||{};
+  const startEdit=()=>{setForm(JSON.parse(JSON.stringify(asset)));setEditing(true);};
+  const cancel=()=>{setForm(null);setEditing(false);};
+  const save=async()=>{await saveAsset(form);setEditing(false);setForm(null);notify("Saved");};
+  const set=(path,val)=>{const f=JSON.parse(JSON.stringify(form));const parts=path.split(".");let obj=f;for(let i=0;i<parts.length-1;i++){if(!obj[parts[i]])obj[parts[i]]={};obj=obj[parts[i]];}obj[parts[parts.length-1]]=val;setForm(f);};
+  const doAddLLP=async()=>{const updated={...asset,apu:{...apu,llps:[...(apu.llps||[]),{...newLLP,startFCRem:+newLLP.startFCRem,refFC:+newLLP.refFC}]}};await saveAsset(updated);setAddLLP(false);setNewLLP({desc:"",pn:"",sn:"",startFCRem:0,refFC:0});notify("LLP added");};
+  const delLLP=async(li)=>{if(!confirm("Delete?"))return;const llps=[...(apu.llps||[])];llps.splice(li,1);await saveAsset({...asset,apu:{...apu,llps}});notify("LLP deleted");};
+  const ll=apu.llps?.length?Math.min(...apu.llps.map(l=>calcLLPRem(l,apu.currentFC))):null;
+  const ed=editing?form.apu||{}:apu;
+  return(
+    <div className="card" style={{padding:20}}>
+      <div className="flj" style={{marginBottom:14}}>
+        <div className="section-title" style={{margin:0}}>APU — S/N {apu.sn||"TBD"}</div>
+        <div className="flab g8">
+          {isAdmin&&!editing&&<button className="btn btn-ghost" onClick={startEdit}>Edit</button>}
+          {isAdmin&&editing&&<><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save</button></>}
+        </div>
+      </div>
+      <div className="grid4" style={{marginBottom:14}}>
+        {[["P/N","pn"],["S/N","sn"]].map(([l,k])=>(
+          <div key={k} style={{background:"#0d1925",borderRadius:6,padding:"8px 10px"}}>
+            <div style={{fontSize:9,color:"#475569"}}>{l}</div>
+            {editing&&isAdmin?<input value={ed[k]||""} onChange={e=>set(`apu.${k}`,e.target.value)} style={{marginTop:3}}/>
+            :<div style={{fontSize:12,fontWeight:600,color:isEmpty(apu[k])?"#475569":"#e2e8f0",marginTop:3}}>{apu[k]||"—"}</div>}
+          </div>
+        ))}
+        <div style={{background:"#0d1925",borderRadius:6,padding:"8px 10px"}}>
+          <div style={{fontSize:9,color:"#475569"}}>TSN</div>
+          <div style={{fontSize:14,fontWeight:700,fontFamily:"monospace",color:"#C9A84C"}}>{fmtHHMM(apu.currentFH)}</div>
+        </div>
+        <div style={{background:"#0d1925",borderRadius:6,padding:"8px 10px"}}>
+          <div style={{fontSize:9,color:"#475569"}}>CSN</div>
+          <div style={{fontSize:14,fontWeight:700,fontFamily:"monospace",color:"#C9A84C"}}>{(apu.currentFC||0).toLocaleString()}</div>
+        </div>
+      </div>
+      <div style={{background:"#0d1925",borderRadius:6,padding:"8px 10px",marginBottom:14,display:"inline-block"}}>
+        <div style={{fontSize:9,color:"#475569"}}>Lowest LLP Limiter</div>
+        <div style={{fontSize:14,fontWeight:700,color:ll===null?"#475569":ll<1000?"#f87171":ll<3000?"#fbbf24":"#34d399",fontFamily:"monospace"}}>{ll!==null?`${ll.toLocaleString()} FC`:"No data"}</div>
+      </div>
+      <div style={{marginBottom:16}}>
+        <div className="flj" style={{marginBottom:8}}>
+          <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em"}}>Life Limited Parts</div>
+          {isAdmin&&<button className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setAddLLP(true)}>+ Add LLP</button>}
+        </div>
+        {apu.llps?.length?(
+          <table><thead><tr><th>Descriptor</th><th>P/N</th><th>S/N</th><th>FC Remaining</th><th></th></tr></thead>
+          <tbody>{apu.llps.map((llp,li)=>{const rem=calcLLPRem(llp,apu.currentFC);return(
+            <tr key={li} style={{background:rem<1000?"#1a0a0a":rem<3000?"#1a150a":"transparent"}}>
+              <td style={{fontWeight:500}}>{llp.desc}</td><td style={{fontFamily:"monospace",fontSize:11}}>{llp.pn}</td><td style={{fontFamily:"monospace",fontSize:11}}>{llp.sn}</td>
+              <td style={{fontWeight:700,color:rem<1000?"#f87171":rem<3000?"#fbbf24":"#34d399"}}>{rem.toLocaleString()}</td>
+              {isAdmin&&<td><button className="btn-danger btn" onClick={()=>delLLP(li)}>✕</button></td>}
+            </tr>
+          );})}</tbody></table>
+        ):<div style={{color:"#475569",fontSize:12,fontStyle:"italic",padding:"6px 0"}}>No LLP data entered.</div>}
+        {addLLP&&(
+          <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #1e3048"}}>
+            <div className="grid3" style={{gap:6,marginBottom:8}}>
+              {[["Descriptor","desc","text"],["P/N","pn","text"],["S/N","sn","text"],["Starting FC Rem","startFCRem","number"],["Reference FC","refFC","number"]].map(([l,k,t])=>(
+                <div key={k}><label className="form-label">{l}</label><input type={t} value={newLLP[k]} onChange={e=>setNewLLP({...newLLP,[k]:e.target.value})}/></div>
+              ))}
+            </div>
+            <div className="flab g8"><button className="btn btn-ghost" onClick={()=>setAddLLP(false)}>Cancel</button><button className="btn btn-gold" onClick={doAddLLP}>Add LLP</button></div>
+          </div>
+        )}
+      </div>
+      <div>
+        <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Shop Visit History</div>
+        <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>Days</th><th>MRO</th></tr></thead>
+        <tbody>{apu.shopVisits?.length?apu.shopVisits.map((sv,si)=>(
+          <tr key={si}><td>{sv.details}</td><td>{fmtDate(sv.date)}</td><td>{sv.fh?.toLocaleString()}</td><td>{sv.fc?.toLocaleString()}</td><td>{sv.days}</td><td>{sv.mro}</td></tr>
+        )):<tr><td colSpan={6} style={{color:"#475569",fontStyle:"italic"}}>No shop visits recorded</td></tr>}</tbody></table>
+      </div>
+    </div>
+  );
+}
+
+
+async function uploadToCloudinary(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', UPLOAD_PRESET);
+  formData.append('folder', 'vector-fleet');
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+    method: 'POST',
+    body: formData
+  });
+  if (!res.ok) throw new Error('Upload failed');
+  const data = await res.json();
+  return data.secure_url;
+}
+
+function PhotoManager({asset, saveAsset, notify, label="photos", field="photos"}) {
+  const [uploading, setUploading] = useState(false);
+  const [photoLabel, setPhotoLabel] = useState('Airframe');
+  const photos = asset[field] || [];
+
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadToCloudinary(file);
+      const updated = [...photos, {label: photoLabel, url, date: new Date().toISOString().split('T')[0]}];
+      await saveAsset({...asset, [field]: updated});
+      notify(`${photoLabel} photo uploaded`);
+    } catch(err) {
+      notify('Upload failed: ' + err.message, 'error');
+    }
+    setUploading(false);
+  };
+
+  const deletePhoto = async (i) => {
+    if (!confirm('Delete photo?')) return;
+    const updated = photos.filter((_,idx) => idx !== i);
+    await saveAsset({...asset, [field]: updated});
+    notify('Photo deleted');
+  };
+
+  return (
+    <div>
+      <div className="flab g8" style={{marginBottom:12,flexWrap:'wrap'}}>
+        <select value={photoLabel} onChange={e=>setPhotoLabel(e.target.value)} style={{width:160}}>
+          {['Airframe','Cabin','Flight Deck','Engine','Landing Gear','Documents','Other'].map(l=>(
+            <option key={l}>{l}</option>
+          ))}
+        </select>
+        <label style={{cursor:'pointer'}}>
+          <input type="file" accept="image/*" onChange={handleUpload} style={{display:'none'}}/>
+          <span className="btn btn-primary" style={{padding:'7px 14px',fontSize:12}}>
+            {uploading ? '⏳ Uploading…' : '+ Upload Photo'}
+          </span>
+        </label>
+      </div>
+      {photos.length === 0 && <div style={{color:'#475569',fontSize:12,fontStyle:'italic',padding:'8px 0'}}>No photos uploaded yet.</div>}
+      <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+        {photos.map((p,i) => (
+          <div key={i} style={{background:'#0d1925',borderRadius:6,overflow:'hidden',border:'1px solid #1e3348',width:120}}>
+            <img src={p.url} alt={p.label} style={{width:'100%',height:70,objectFit:'cover',display:'block'}}/>
+            <div style={{padding:'5px 7px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div style={{fontSize:10,color:'#94a3b8',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:70}}>{p.label}</div>
+              <button className="btn-danger btn" style={{fontSize:9,padding:'1px 5px'}} onClick={()=>deletePhoto(i)}>✕</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+function SpecsTab({asset,isAdmin,saveAsset,notify}){
+  const[editing,setEditing]=useState(false);
+  const[form,setForm]=useState(null);
+  const startEdit=()=>{setForm(JSON.parse(JSON.stringify(asset)));setEditing(true);};
+  const cancel=()=>{setForm(null);setEditing(false);};
+  const save=async()=>{await saveAsset(form);setEditing(false);setForm(null);notify("Saved");};
+  const d=editing?form:asset;
+  const set=(path,val)=>{const f=JSON.parse(JSON.stringify(form));const parts=path.split(".");let obj=f;for(let i=0;i<parts.length-1;i++){if(!obj[parts[i]])obj[parts[i]]={};obj=obj[parts[i]];}obj[parts[parts.length-1]]=val;setForm(f);};
+  const Field=({label,path,type="text"})=>{
+    const parts=path.split(".");const val=parts.reduce((o,k)=>o?.[k],d);
+    return<div className="form-group"><label className="form-label">{label}</label>
+      {editing&&isAdmin?<input type={type} value={val||""} onChange={e=>set(path,e.target.value)}/>
+      :<div style={{fontSize:13,fontWeight:500,color:isEmpty(val)?"#475569":"#e2e8f0"}}>{type==="date"?fmtDate(val):val||"Not entered"}</div>}
+    </div>;
+  };
+  return(
+    <div>
+      <div className="flj" style={{marginBottom:14}}>
+        <span style={{color:"#64748b",fontSize:12}}></span>
+        {!editing?<button className="btn btn-ghost" onClick={startEdit}>Edit All</button>:<div className="flab g8"><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save All</button></div>}
+      </div>
+    <div className="grid2">
+      <div className="card" style={{padding:18}}>
+        <div className="section-title">Operating Weights</div>
+        <table><thead><tr><th>Parameter</th><th>kg</th><th>lb</th></tr></thead><tbody>
+          {[["MTOW","mtow","mtow_lb"],["Max Taxi","mtw","mtw_lb"],["MZFW","mzfw","mzfw_lb"],["MLW","mlw","mlw_lb"]].map(([l,k,klb])=>(
+            <tr key={k}><td style={{color:"#64748b"}}>{l}</td>
+            <td>{editing&&isAdmin?<input type="number" value={d.weights?.[k]||""} onChange={e=>set(`weights.${k}`,+e.target.value)} style={{width:100}}/>:d.weights?.[k]?.toLocaleString()||"—"}</td>
+            <td style={{color:"#475569"}}>{editing&&isAdmin?<input type="number" value={d.weights?.[klb]||""} onChange={e=>set(`weights.${klb}`,+e.target.value)} style={{width:100}}/>:d.weights?.[klb]?.toLocaleString()||"—"}</td></tr>
+          ))}
+        </tbody></table>
+      </div>
+      <div className="card" style={{padding:18}}>
+        <div className="section-title">Specifications</div>
+        {[["Configuration","specs.config"],["Seating","specs.seating"],["Galleys","specs.galleys"],["Lavatories","specs.lavs"]].map(([l,p])=><Field key={p} label={l} path={p}/>)}
+        <div style={{marginTop:10}}>
+          {[["ADS-B","specs.adsb"],["CPDLC","specs.cpdlc"],["TCAS 7.1","specs.tcas"]].map(([l,p])=>{
+            const parts=p.split(".");const val=parts.reduce((o,k)=>o?.[k],d);
+            return<div key={p} className="flj" style={{padding:"5px 0",borderBottom:"1px solid #0f2030"}}>
+              <span style={{fontSize:12,color:"#64748b"}}>{l}</span>
+              {editing&&isAdmin
+                ?<button onClick={()=>set(p,!val)} className="pill" style={{background:val?"#0d2818":"#2a0e0e",color:val?"#34d399":"#f87171",border:"none",cursor:"pointer",fontSize:11}}>{val?"Installed":"Not Installed"}</button>
+                :<span className="pill" style={{background:val?"#0d2818":"#2a0e0e",color:val?"#34d399":"#f87171",fontSize:10}}>{val?"Installed":"Not Installed"}</span>}
+            </div>;
+          })}
+        </div>
+      </div>
+      <div className="card" style={{padding:18,gridColumn:"1/-1"}}>
+        <div className="section-title">Check History</div>
+        <table><thead><tr><th>Check</th><th>Last Date</th><th>Last TSN</th><th>Last CSN</th><th>Next Due</th></tr></thead>
+        <tbody>{(asset.checks||[]).map((c,i)=>(
+          <tr key={i}>
+            <td style={{fontWeight:600,color:"#94a3b8"}}>{c.name}</td>
+            <td>{fmtDate(c.lastDate)}</td>
+            <td style={{fontFamily:"monospace"}}>{c.lastFH?.toLocaleString()||"—"}</td>
+            <td style={{fontFamily:"monospace"}}>{c.lastFC?.toLocaleString()||"—"}</td>
+            <td style={{fontWeight:700,color:daysFromNow(c.nextDate)<365?"#fbbf24":"#34d399"}}>{fmtDate(c.nextDate)||"—"}</td>
+          </tr>
+        ))}</tbody></table>
+      </div>
+      <div className="card" style={{padding:18,marginTop:16}}>
+        <div className="section-title">Asset Photos</div>
+        <PhotoManager asset={asset} saveAsset={saveAsset} notify={notify} field="photos"/>
+      </div>
+    </div>
+    </div>
+  );
+}
+
+
+function HistoryTab({asset,isAdmin,notify}){
+  const[history,setHistory]=useState([]);
+  const[loading,setLoading]=useState(true);
+  useEffect(()=>{db.getUtilisation(asset.id).then(rows=>{setHistory(rows);setLoading(false);}).catch(()=>setLoading(false));},[asset.id]);
+  const del=async(id)=>{if(!confirm("Delete?"))return;await db.deleteUtilisation(id);setHistory(h=>h.filter(r=>r.id!==id));notify("Deleted");};
+  if(loading)return<div style={{padding:20,color:"#475569"}}>Loading…</div>;
+  return(
+    <div className="card" style={{padding:18}}>
+      <div className="section-title">Utilisation History</div>
+      {history.length===0?<div style={{textAlign:"center",padding:48,color:"#475569"}}>No history yet.</div>:(
+        <table><thead><tr><th>Period</th><th>AF TSN</th><th>AF CSN</th><th>Eng 1 CSN</th><th>Eng 2 CSN</th><th>APU CSN</th><th>Uploaded</th><th></th></tr></thead>
+        <tbody>{history.map(r=>(
+          <tr key={r.id}>
+            <td style={{fontWeight:600,color:"#C9A84C"}}>{r.period}</td>
+            <td style={{fontFamily:"monospace"}}>{r.data?.afFH||"—"}</td><td style={{fontFamily:"monospace"}}>{r.data?.afFC?.toLocaleString()||"—"}</td>
+            <td style={{fontFamily:"monospace"}}>{r.data?.eng1FC?.toLocaleString()||"—"}</td><td style={{fontFamily:"monospace"}}>{r.data?.eng2FC?.toLocaleString()||"—"}</td>
+            <td style={{fontFamily:"monospace"}}>{r.data?.apuFC?.toLocaleString()||"—"}</td>
+            <td style={{fontSize:11,color:"#475569"}}>{fmtDate(r.created_at)}</td>
+            <td><button className="btn-danger btn" style={{fontSize:10,padding:"2px 7px"}} onClick={()=>del(r.id)}>Delete</button></td>
+          </tr>
+        ))}</tbody></table>
+      )}
+    </div>
+  );
+}
+
+function DocumentsTab({asset}){
+  const view=doc=>{const win=window.open();win.document.write(`<iframe src="${doc.data}" style="width:100%;height:100vh;border:none"/>`)};
+  return(
+    <div className="card" style={{padding:18}}>
+      <div className="section-title">Documents</div>
+      {(asset.documents||[]).length===0?<div style={{textAlign:"center",padding:48,color:"#475569"}}>No documents uploaded yet.</div>:(
+        <table><thead><tr><th>Label</th><th>Category</th><th>Date</th><th></th></tr></thead>
+        <tbody>{(asset.documents||[]).map((d,i)=>(
+          <tr key={i}><td style={{fontWeight:500}}>{d.label}</td><td><span className="tag" style={{background:"#1e3348",color:"#94a3b8"}}>{d.category}</span></td><td>{fmtDate(d.date)}</td>
+          <td><button className="btn btn-ghost" style={{fontSize:11,padding:"3px 8px"}} onClick={()=>view(d)}>View</button></td></tr>
+        ))}</tbody></table>
+      )}
+    </div>
+  );
+}
+
+function UploadView({assets,saveAsset,notify}){
+  const[uploadType,setUploadType]=useState("util");
+  const[file,setFile]=useState(null);
+  const[extracting,setExtracting]=useState(false);
+  const[extracted,setExtracted]=useState(null);
+  const[error,setError]=useState(null);
+  const[done,setDone]=useState(false);
+
+  const handleFile=e=>{const f=e.target.files?.[0];if(f){setFile(f);setExtracted(null);setError(null);setDone(false);}};
+
+  const extract=async()=>{
+    if(!file)return;setExtracting(true);setError(null);
+    try{
+      const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Read failed"));r.readAsDataURL(file);});
+      const isPDF=file.type==="application/pdf";
+      const prompt=uploadType==="llp"
+        ?`Extract engine LLP data ONLY (not APU) from this document. Return ONLY valid JSON, no markdown:\n{"msn":"string","registration":"string","engines":[{"position":"LH or RH or 1 or 2","esn":"string","engine_type":"string","csn":number,"tsn":number,"llps":[{"desc":"string","pn":"string","sn":"string","fc_remaining":number}]}]}`
+        :uploadType==="apu_llp"
+        ?`Extract APU LLP data ONLY from this document. Return ONLY valid JSON, no markdown:\n{"msn":"string","registration":"string","apu":{"sn":"string","csn":number,"llps":[{"desc":"string","pn":"string","sn":"string","fc_remaining":number}]}}`
+        :`Extract ALL data from this aircraft utilisation report. Return ONLY valid JSON, no markdown:\n{"month_year":"e.g. May 2026","operator":"string","msn":"string","registration":"string","airframe":{"fh_period":"HH:MM","fc_period":number,"tsn":"HH:MM","csn":number},"engine1":{"model":"string","sn":"string","tsn":"HH:MM","csn":number,"fh_period":"HH:MM","fc_period":number},"engine2":{"model":"string","sn":"string","tsn":"HH:MM","csn":number,"fh_period":"HH:MM","fc_period":number},"apu":{"sn":"string","tsn":"HH:MM","csn":number},"landing_gear":{"nose":{"pn":"string","sn":"string","csn":number},"left":{"pn":"string","sn":"string","csn":number},"right":{"pn":"string","sn":"string","csn":number}},"removals":[{"component":"engine or landing_gear or apu","sn":"string","position":"string","date":"string","reason":"string","tsn_at_removal":"HH:MM","csn_at_removal":number,"mro":"string"}]}`;
+      const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:isPDF?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",data:base64}},{type:"text",text:prompt}]}]})});
+      const result=await resp.json();
+      if(result.error)throw new Error(result.error);
+      if(!result.ok&&result.preview)throw new Error("Preview: "+result.preview);
+      const parsed=result.ok?result.data:JSON.parse((result.raw||"").replace(/```json|```/g,"").trim());
+      setExtracted({parsed,fileName:file.name});
+    }catch(err){setError("Extraction failed: "+err.message);}
+    setExtracting(false);
+  };
+
+  const confirmSave=async()=>{
+    const d=extracted.parsed;const msn=d.msn?.toString().replace(/^0+/,"");
+    let asset=assets.find(a=>a.msn?.toString().replace(/^0+/,"")===msn);
+    const warnings=[];
+
+    if(!asset){
+      asset={id:msn,type:"aircraft",msn,registration:d.registration||"",model:d.engine1?.model?.toUpperCase().includes("CFM")?"A320-214":"A320-214",operator:d.operator||"",manufacturer:"Airbus S.A.S.",dom:"",weights:{},specs:{adsb:false,cpdlc:false,tcas:false},checks:[{name:"6 Year Check",lastDate:"",lastFH:0,lastFC:0,nextDate:""},{name:"12 Year Check",lastDate:"",lastFH:0,lastFC:0,nextDate:""}],
+        engines:[
+          {position:1,sn:d.engine1?.sn||"",type:d.engine1?.model||"",thrust:"",status:"Title",currentFH:parseHHMM(d.engine1?.tsn),currentFC:d.engine1?.csn||0,llps:[],shopVisits:[]},
+          {position:2,sn:d.engine2?.sn||"",type:d.engine2?.model||"",thrust:"",status:"Title",currentFH:parseHHMM(d.engine2?.tsn),currentFC:d.engine2?.csn||0,llps:[],shopVisits:[]}
+        ],
+        landingGear:{
+          nose:{pn:d.landing_gear?.nose?.pn||"",sn:d.landing_gear?.nose?.sn||"",startFH:0,startFC:0,refAirframeFH:0,refAirframeFC:0,nextDue:"",shopVisits:[]},
+          left:{pn:d.landing_gear?.left?.pn||"",sn:d.landing_gear?.left?.sn||"",startFH:0,startFC:0,refAirframeFH:0,refAirframeFC:0,nextDue:"",shopVisits:[]},
+          right:{pn:d.landing_gear?.right?.pn||"",sn:d.landing_gear?.right?.sn||"",startFH:0,startFC:0,refAirframeFH:0,refAirframeFC:0,nextDue:"",shopVisits:[]}
+        },
+        apu:{pn:"",sn:d.apu?.sn||"",currentFH:parseHHMM(d.apu?.tsn),currentFC:d.apu?.csn||0,llps:[],shopVisits:[]},
+        airframe:{currentFH:parseHHMM(d.airframe?.tsn),currentFC:d.airframe?.csn||0},
+        photos:[],documents:[],disclaimer:"This outline specification has been prepared based on the information available to Vector Group at the relevant time.",_lastPeriod:d.month_year};
+      await saveAsset(asset);
+      await db.saveUtilisation({asset_id:msn,period:d.month_year,data:{afFH:d.airframe?.tsn,afFC:d.airframe?.csn,eng1FC:d.engine1?.csn,eng2FC:d.engine2?.csn,apuFC:d.apu?.csn}});
+      setDone(true);notify(`MSN ${msn} created from ${d.month_year} report`);return;
+    }
+
+    // Check for engine S/N changes
+    const engines=(asset.engines||[]).map((e,i)=>{
+      const src=i===0?d.engine1:d.engine2;
+      if(!src)return e;
+      if(src.sn&&e.sn&&src.sn!==e.sn){
+        warnings.push(`⚠ Engine ${i+1} S/N change: was ${e.sn}, now ${src.sn} — possible engine swap or shop visit return`);
+      }
+      return{...e,sn:src.sn||e.sn,type:src.model||e.type,currentFH:parseHHMM(src.tsn),currentFC:src.csn||e.currentFC};
+    });
+
+    // Check APU S/N change
+    const apuSnChanged=d.apu?.sn&&asset.apu?.sn&&d.apu.sn!==asset.apu.sn;
+    if(apuSnChanged)warnings.push(`⚠ APU S/N change: was ${asset.apu.sn}, now ${d.apu.sn}`);
+
+    // Update landing gear P/N and S/N
+    const lg=JSON.parse(JSON.stringify(asset.landingGear||{}));
+    ["nose","left","right"].forEach(k=>{
+      const src=d.landing_gear?.[k];
+      if(!src)return;
+      if(!lg[k])lg[k]={pn:"",sn:"",startFH:0,startFC:0,refAirframeFH:0,refAirframeFC:0,nextDue:"",shopVisits:[]};
+      if(src.sn&&lg[k].sn&&src.sn!==lg[k].sn)warnings.push(`⚠ ${k.toUpperCase()} Landing Gear S/N change: was ${lg[k].sn}, now ${src.sn}`);
+      if(src.pn)lg[k].pn=src.pn;
+      if(src.sn)lg[k].sn=src.sn;
+    });
+
+    // Process removals - add as shop visits
+    const removalNotes=[];
+    if(d.removals?.length){
+      d.removals.forEach(r=>{
+        if(r.sn){
+          removalNotes.push(`🔧 ${r.component?.toUpperCase()||"Component"} removal: S/N ${r.sn} Pos ${r.position||"?"} on ${r.date||"?"} — ${r.reason||"reason not stated"}${r.mro?" @ "+r.mro:""}`);
+        }
+      });
+    }
+
+    const allWarnings=[...warnings,...removalNotes];
+
+    await saveAsset({...asset,_lastPeriod:d.month_year,
+      airframe:{...(asset.airframe||{}),currentFH:parseHHMM(d.airframe?.tsn),currentFC:d.airframe?.csn},
+      engines,
+      landingGear:lg,
+      apu:{...(asset.apu||{}),sn:d.apu?.sn||asset.apu?.sn,currentFH:parseHHMM(d.apu?.tsn),currentFC:d.apu?.csn||asset.apu?.currentFC}
+    });
+    await db.saveUtilisation({asset_id:asset.id,period:d.month_year,data:{afFH:d.airframe?.tsn,afFC:d.airframe?.csn,eng1FC:d.engine1?.csn,eng2FC:d.engine2?.csn,apuFC:d.apu?.csn,warnings:allWarnings}});
+    
+    if(allWarnings.length){
+      setExtracted(prev=>({...prev,warnings:allWarnings}));
+      setDone(true);
+    } else {
+      setDone(true);
+      notify(`MSN ${msn} updated for ${d.month_year}`);
+    }
+  };
+
+  const confirmLLP=async()=>{
+    const d=extracted.parsed;
+    const msn=d.msn?.toString().replace(/^0+/,"");
+    const asset=assets.find(a=>a.msn?.toString().replace(/^0+/,"")===msn);
+    if(!asset){setError(`No asset found with MSN ${msn}.`);return;}
+
+    // Handle engine LLPs
+    const engines=JSON.parse(JSON.stringify(asset.engines||[]));
+    (d.engines||[]).forEach(eng=>{
+      const pos=eng.position?.toString().toLowerCase();
+      const idx=(pos==="lh"||pos==="1"||pos==="left")?0:1;
+      if(engines[idx]){
+        engines[idx].sn=eng.esn||engines[idx].sn;
+        engines[idx].type=eng.engine_type||engines[idx].type;
+        const refCSN=eng.csn||0;
+        engines[idx].llps=(eng.llps||[]).map(l=>({desc:l.desc,pn:l.pn,sn:l.sn,startFCRem:l.fc_remaining,refFC:refCSN}));
+      }
+    });
+
+    // Handle APU LLPs
+    let apu=JSON.parse(JSON.stringify(asset.apu||{}));
+    if(d.apu?.llps?.length){
+      const refCSN=d.apu.csn||0;
+      if(d.apu.sn)apu.sn=d.apu.sn;
+      // If no currentFC yet, initialise from LLP sheet CSN
+      if(!apu.currentFC&&d.apu.csn)apu.currentFC=d.apu.csn;
+      apu.llps=(d.apu.llps||[]).map(l=>({desc:l.desc,pn:l.pn,sn:l.sn,startFCRem:l.fc_remaining,refFC:refCSN}));
+    }
+
+    const hasEngines=(d.engines||[]).length>0;
+    const hasAPU=d.apu?.llps?.length>0;
+
+    await saveAsset({...asset,engines,apu});
+    setDone(true);
+    notify(`LLP data saved for MSN ${msn}${hasEngines&&hasAPU?" (engines + APU)":hasAPU?" (APU)":""}`);
+  };
+
+  return(
+    <div style={{maxWidth:860,margin:"0 auto"}}>
+      <h1 style={{fontSize:20,color:"#C9A84C",fontWeight:700,marginBottom:6}}>Upload</h1>
+      <p style={{color:"#64748b",marginBottom:16,fontSize:13}}>Select report type, upload PDF or Excel, and Claude AI extracts the data for your review.</p>
+      <div className="flab g8" style={{marginBottom:16}}>
+        {[["util","📄 Utilisation Report"],["llp","🔧 Engine LLP Sheet"],["apu_llp","⚙ APU LLP Sheet"]].map(([v,l])=>(
+          <button key={v} onClick={()=>{setUploadType(v);setFile(null);setExtracted(null);setError(null);setDone(false);}}
+            style={{padding:"8px 16px",background:uploadType===v?"#1e3a5f":"#0d1e2e",color:uploadType===v?"#C9A84C":"#64748b",border:`1px solid ${uploadType===v?"#1B3A6B":"#1e3348"}`,borderRadius:6,fontSize:13,fontWeight:600,cursor:"pointer"}}>{l}</button>
+        ))}
+      </div>
+      <div className="card" style={{padding:32,textAlign:"center",marginBottom:16,border:"2px dashed #1e3048"}}>
+        <div style={{fontSize:36,marginBottom:10}}>📁</div>
+        <input type="file" accept=".pdf,.xlsx" id="upfile" onChange={handleFile} style={{display:"none"}}/>
+        <label htmlFor="upfile" style={{cursor:"pointer"}}>
+          <div style={{fontWeight:600,color:file?"#C9A84C":"#64748b",marginBottom:4}}>{file?file.name:"Click to select file"}</div>
+          <div style={{fontSize:12,color:"#475569"}}>{uploadType==="util"?"PDF or Excel (.xlsx)":uploadType==="llp"?"Engine LLP Status Sheet (PDF)":"APU LLP Status Sheet (PDF)"}</div>
+        </label>
+        {file&&!done&&<button className="btn btn-gold" style={{marginTop:14}} onClick={extract} disabled={extracting}>{extracting?"Extracting…":"Extract with AI"}</button>}
+      </div>
+      {extracting&&<div className="card" style={{padding:32,textAlign:"center"}}><div style={{width:32,height:32,border:"3px solid #C9A84C",borderTop:"3px solid transparent",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 14px"}}/><p style={{color:"#94a3b8"}}>Reading document…</p></div>}
+      {error&&<div style={{background:"#2a0e0e",border:"1px solid #7f1d1d",borderRadius:8,padding:14,color:"#f87171",marginBottom:14,fontSize:13}}>⚠ {error}</div>}
+      {extracted&&!done&&(
+        <div className="card" style={{padding:20}}>
+          <div className="section-title">Extracted Data — Review Before Saving</div>
+          {(uploadType==="llp"||uploadType==="apu_llp")?(
+            <div style={{marginTop:14}}>
+              <div className="grid2" style={{gap:8,marginBottom:12}}>
+                {[["MSN",extracted.parsed.msn],["Registration",extracted.parsed.registration]].map(([l,v])=>(
+                  <div key={l} style={{background:"#0d1925",borderRadius:6,padding:"8px 10px"}}>
+                    <div style={{fontSize:9,color:"#475569"}}>{l}</div>
+                    <div style={{fontSize:13,fontWeight:600,color:"#f1f5f9"}}>{v?.toString()||"—"}</div>
+                  </div>
+                ))}
+              </div>
+              {(extracted.parsed.engines||[]).map((eng,i)=>(
+                <div key={i} style={{background:"#0d1925",borderRadius:8,padding:12,marginBottom:10}}>
+                  <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>
+                    {eng.position} Engine — ESN {eng.esn} · {eng.llps?.length||0} LLPs · CSN {eng.csn?.toLocaleString()}
+                  </div>
+                  <table style={{fontSize:11}}>
+                    <thead><tr><th>Description</th><th>P/N</th><th>S/N</th><th>FC Remaining</th></tr></thead>
+                    <tbody>{(eng.llps||[]).map((l,j)=>{
+                      const col=l.fc_remaining<1000?"#f87171":l.fc_remaining<3000?"#fbbf24":"#34d399";
+                      return <tr key={j}><td>{l.desc}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.pn}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.sn}</td><td style={{fontWeight:700,color:col}}>{l.fc_remaining?.toLocaleString()}</td></tr>;
+                    })}</tbody>
+                  </table>
+                </div>
+              ))}
+              {extracted.parsed.apu?.llps?.length>0&&(
+                <div style={{background:"#0d1925",borderRadius:8,padding:12,marginBottom:10}}>
+                  <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>
+                    APU — S/N {extracted.parsed.apu.sn||"—"} · {extracted.parsed.apu.llps.length} LLPs · CSN {extracted.parsed.apu.csn?.toLocaleString()}
+                  </div>
+                  <table style={{fontSize:11}}>
+                    <thead><tr><th>Description</th><th>P/N</th><th>S/N</th><th>FC Remaining</th></tr></thead>
+                    <tbody>{extracted.parsed.apu.llps.map((l,j)=>{
+                      const col=l.fc_remaining<1000?"#f87171":l.fc_remaining<3000?"#fbbf24":"#34d399";
+                      return <tr key={j}><td>{l.desc}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.pn}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.sn}</td><td style={{fontWeight:700,color:col}}>{l.fc_remaining?.toLocaleString()}</td></tr>;
+                    })}</tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ):(
+            <div className="grid2" style={{marginTop:14,gap:12}}>
+              <div style={{background:"#0d1925",borderRadius:8,padding:12}}>
+                <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>Airframe</div>
+                {[["MSN",extracted.parsed.msn],["Registration",extracted.parsed.registration],["Period",extracted.parsed.month_year],["TSN",extracted.parsed.airframe?.tsn],["CSN",extracted.parsed.airframe?.csn]].map(([l,v])=>(
+                  <div key={l} className="flj" style={{padding:"4px 0",borderBottom:"1px solid #1e3048"}}><span style={{fontSize:11,color:"#475569"}}>{l}</span><span style={{fontSize:12,fontWeight:700,color:"#f1f5f9"}}>{v?.toString()||"—"}</span></div>
+                ))}
+              </div>
+              <div style={{background:"#0d1925",borderRadius:8,padding:12}}>
+                <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>Engines & APU</div>
+                {(()=>{
+                  const msn=(extracted.parsed.msn||"").toString().replace(/^0+/,"");
+                  const prev=assets.find(a=>a.msn?.toString().replace(/^0+/,"")===msn);
+                  const rows=[
+                    ["Eng 1 S/N",extracted.parsed.engine1?.sn,prev?.engines?.[0]?.sn,false],
+                    ["Eng 1 CSN",extracted.parsed.engine1?.csn,prev?.engines?.[0]?.currentFC,true],
+                    ["Eng 2 S/N",extracted.parsed.engine2?.sn,prev?.engines?.[1]?.sn,false],
+                    ["Eng 2 CSN",extracted.parsed.engine2?.csn,prev?.engines?.[1]?.currentFC,true],
+                    ["APU S/N",extracted.parsed.apu?.sn,prev?.apu?.sn,false],
+                    ["APU CSN",extracted.parsed.apu?.csn,prev?.apu?.currentFC,true]
+                  ];
+                  return rows.map(([l,v,prevV,isNum])=>{
+                    const changed=prevV&&v&&String(v)!==String(prevV);
+                    const delta=isNum&&v&&prevV?v-prevV:null;
+                    const deltaCol=delta===null?"#475569":delta<0?"#f87171":delta>500?"#fbbf24":"#34d399";
+                    return<div key={l} className="flj" style={{padding:"5px 6px",borderBottom:"1px solid #1e3048",background:changed&&!isNum?"#2a1400":"transparent",borderRadius:3}}>
+                      <span style={{fontSize:11,color:"#5a7a9a"}}>{l}</span>
+                      <div style={{textAlign:"right"}}>
+                        <span style={{fontSize:12,fontWeight:700,color:changed&&!isNum?"#fbbf24":"#f1f5f9"}}>{v?.toString()||"—"}</span>
+                        {changed&&!isNum&&<span style={{fontSize:10,color:"#f87171",marginLeft:6}}>⚠ changed</span>}
+                        {delta!==null&&<span style={{fontSize:10,color:deltaCol,marginLeft:6}}>{delta>0?"+":""}{delta}</span>}
+                      </div>
+                    </div>;
+                  });
+                })()}
+              </div>
+              {(()=>{
+                const msn=(extracted.parsed.msn||"").toString().replace(/^0+/,"");
+                const prev=assets.find(a=>a.msn?.toString().replace(/^0+/,"")===msn);
+                if(!prev)return null;
+                const prevCSN=prev.airframe?.currentFC;
+                const newCSN=extracted.parsed.airframe?.csn;
+                const periodFC=extracted.parsed.airframe?.fc_period;
+                const calcDelta=newCSN&&prevCSN?newCSN-prevCSN:null;
+                const match=periodFC&&calcDelta?Math.abs(periodFC-calcDelta)<=1:null;
+                if(match===null)return null;
+                return<div style={{gridColumn:"1/-1",background:match?"#0d2818":"#2a0e0e",border:`1px solid ${match?"#166534":"#7f1d1d"}`,borderRadius:6,padding:"8px 12px"}}>
+                  <div style={{fontSize:11,fontWeight:700,color:match?"#34d399":"#f87171"}}>
+                    {match?"✓ Delta verified — period FC matches report":"⚠ Delta mismatch — check report figures"}
+                  </div>
+                  <div style={{fontSize:10,color:"#64748b",marginTop:2}}>
+                    Calculated delta: {calcDelta} FC · Report period: {periodFC} FC
+                  </div>
+                </div>;
+              })()}
+            </div>
+          )}
+          <div className="flj" style={{marginTop:16,paddingTop:14,borderTop:"1px solid #1e3048"}}>
+            <button className="btn btn-ghost" onClick={()=>{setExtracted(null);setFile(null);}}>Discard</button>
+            <button className="btn btn-gold" onClick={uploadType==="util"?confirmSave:confirmLLP}>✓ Confirm & Save</button>
+          </div>
+        </div>
+      )}
+      {done&&(
+        <div style={{background:"#0d2818",border:"1px solid #166534",borderRadius:8,padding:24,textAlign:"center"}}>
+          <div style={{fontSize:36,marginBottom:8}}>✅</div>
+          <div style={{fontWeight:700,color:"#34d399",fontSize:16,marginBottom:10}}>Saved successfully</div>
+          {extracted?.warnings?.length>0&&(
+            <div style={{background:"#2a1f0a",border:"1px solid #78350f",borderRadius:6,padding:12,marginBottom:14,textAlign:"left"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#fbbf24",marginBottom:6}}>⚠ Flags to review:</div>
+              {extracted.warnings.map((w,i)=>(
+                <div key={i} style={{fontSize:12,color:"#fcd34d",marginBottom:4,lineHeight:1.5}}>{w}</div>
+              ))}
+            </div>
+          )}
+          <button className="btn btn-ghost" onClick={()=>{setFile(null);setExtracted(null);setDone(false);}}>Upload Another</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function EnginePhotoSettings({notify}) {
+  const [photos, setPhotos] = useState({v2500: null, cfm56: null});
+  const [uploading, setUploading] = useState(null);
+
+  useEffect(() => {
+    db.getSetting('engine_photo_v2500').then(v => { if(v) setPhotos(p => ({...p, v2500: v})); });
+    db.getSetting('engine_photo_cfm56').then(v => { if(v) setPhotos(p => ({...p, cfm56: v})); });
+  }, []);
+
+  const handleUpload = async (type, file) => {
+    if (!file) return;
+    setUploading(type);
+    try {
+      const url = await uploadToCloudinary(file);
+      await db.setSetting(`engine_photo_${type}`, url);
+      setPhotos(p => ({...p, [type]: url}));
+      notify(`${type.toUpperCase()} photo updated`);
+    } catch(err) {
+      notify('Upload failed: ' + err.message, 'error');
+    }
+    setUploading(null);
+  };
+
+  return (
+    <div className="grid2" style={{gap:16}}>
+      {[['v2500','V2500 / IAE'],['cfm56','CFM56']].map(([type, label]) => (
+        <div key={type} style={{background:'#0d1925',borderRadius:8,overflow:'hidden',border:'1px solid #1e3348'}}>
+          {photos[type]
+            ? <img src={photos[type]} alt={label} style={{width:'100%',height:140,objectFit:'cover',display:'block'}}/>
+            : <div style={{width:'100%',height:140,background:'#0a1620',display:'flex',alignItems:'center',justifyContent:'center',color:'#475569',fontSize:12}}>No photo</div>
+          }
+          <div style={{padding:'10px 12px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontSize:12,fontWeight:600,color:'#e2e8f0'}}>{label}</span>
+            <label style={{cursor:'pointer'}}>
+              <input type="file" accept="image/*" onChange={e=>handleUpload(type,e.target.files?.[0])} style={{display:'none'}}/>
+              <span className="btn btn-primary" style={{fontSize:11,padding:'5px 10px'}}>
+                {uploading===type ? '⏳ Uploading…' : photos[type] ? 'Replace' : 'Upload'}
+              </span>
+            </label>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+
+function AdminView({assets,saveAsset,notify,loadAssets,adminPin,setAdminPin}){
+  const[tab,setTab]=useState("assets");
+  const[showNew,setShowNew]=useState(false);
+  const[newA,setNewA]=useState({msn:"",registration:"",model:"A320-214",operator:"",manufacturer:"Airbus S.A.S.",dom:""});
+  const createAsset=async()=>{
+    if(!newA.msn){notify("MSN required","error");return;}
+    const blank={id:newA.msn,type:"aircraft",msn:newA.msn,registration:newA.registration,model:newA.model,operator:newA.operator,manufacturer:newA.manufacturer,dom:newA.dom,weights:{},specs:{adsb:false,cpdlc:false,tcas:false},checks:[{name:"6 Year Check",lastDate:"",lastFH:0,lastFC:0,nextDate:""},{name:"12 Year Check",lastDate:"",lastFH:0,lastFC:0,nextDate:""}],engines:[{position:1,sn:"",type:"",thrust:"",status:"Title",currentFH:0,currentFC:0,llps:[],shopVisits:[]},{position:2,sn:"",type:"",thrust:"",status:"Title",currentFH:0,currentFC:0,llps:[],shopVisits:[]}],landingGear:{nose:{pn:"",sn:"",startFH:0,startFC:0,refAirframeFH:0,refAirframeFC:0,nextDue:"",shopVisits:[]},left:{pn:"",sn:"",startFH:0,startFC:0,refAirframeFH:0,refAirframeFC:0,nextDue:"",shopVisits:[]},right:{pn:"",sn:"",startFH:0,startFC:0,refAirframeFH:0,refAirframeFC:0,nextDue:"",shopVisits:[]}},apu:{pn:"",sn:"",currentFH:0,currentFC:0,llps:[],shopVisits:[]},airframe:{currentFH:0,currentFC:0},photos:[],documents:[],disclaimer:"This outline specification has been prepared based on the information available to Vector Group at the relevant time."};
+    await saveAsset(blank);setShowNew(false);setNewA({msn:"",registration:"",model:"A320-214",operator:"",manufacturer:"Airbus S.A.S.",dom:""});notify(`Asset MSN ${blank.msn} created`);
+  };
+  const deleteAsset=async(id)=>{if(!confirm(`Delete asset MSN ${id}?`))return;await db.deleteAsset(id);await loadAssets();notify("Asset deleted");};
+  return(
+    <div>
+      <h1 style={{fontSize:20,color:"#C9A84C",fontWeight:700,marginBottom:18}}>Admin Panel</h1>
+      <div style={{display:"flex",borderBottom:"2px solid #1e3048",marginBottom:20,gap:2}}>
+        {["assets","settings","guide"].map(t=><button key={t} className={`tab-btn${tab===t?" active":""}`} onClick={()=>setTab(t)}>{t}</button>)}
+      </div>
+      {tab==="assets"&&(
+        <div>
+          <div className="flj" style={{marginBottom:14}}>
+            <span style={{color:"#475569",fontSize:13}}>{assets.length} aircraft in system</span>
+            <button className="btn btn-gold" onClick={()=>setShowNew(true)}>+ New Asset</button>
+          </div>
+          {showNew&&(
+            <div className="card" style={{padding:20,marginBottom:16}}>
+              <div className="section-title">New Aircraft</div>
+              <div className="grid3" style={{gap:10,marginBottom:12}}>
+                {[["MSN *","msn"],["Registration","registration"],["Model","model"],["Operator","operator"],["Manufacturer","manufacturer"]].map(([l,k])=>(
+                  <div key={k}><label className="form-label">{l}</label><input value={newA[k]||""} onChange={e=>setNewA({...newA,[k]:e.target.value})} className={!newA[k]&&k==="msn"?"amber":""}/></div>
+                ))}
+                <div><label className="form-label">Date of Manufacture</label><input type="date" value={newA.dom} onChange={e=>setNewA({...newA,dom:e.target.value})}/></div>
+              </div>
+              <div className="flab g8"><button className="btn btn-ghost" onClick={()=>setShowNew(false)}>Cancel</button><button className="btn btn-gold" onClick={createAsset}>Create Asset</button></div>
+            </div>
+          )}
+          <div className="card" style={{overflow:"hidden"}}>
+            <table><thead><tr><th>MSN</th><th>Registration</th><th>Model</th><th>Operator</th><th>Engine S/Ns</th><th></th></tr></thead>
+            <tbody>
+              {assets.length===0&&<tr><td colSpan={6} style={{textAlign:"center",padding:40,color:"#475569"}}>No assets yet.</td></tr>}
+              {assets.map(a=>(
+                <tr key={a.id}>
+                  <td style={{fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{a.msn}</td>
+                  <td style={{fontWeight:600}}>{a.registration||"—"}</td>
+                  <td style={{color:"#94a3b8"}}>{a.model||"—"}</td>
+                  <td style={{color:"#94a3b8"}}>{a.operator||"—"}</td>
+                  <td style={{fontFamily:"monospace",fontSize:11,color:"#64748b"}}>{a.engines?.map(e=>e.sn||"TBD").join(" / ")||"—"}</td>
+                  <td><button className="btn-danger btn" style={{fontSize:10,padding:"3px 8px"}} onClick={()=>deleteAsset(a.id)}>Delete</button></td>
+                </tr>
+              ))}
+            </tbody></table>
+          </div>
+        </div>
+      )}
+      {tab==="guide"&&<div style={{maxWidth:920}}><GuideView/></div>}
+      {tab==="settings"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:700}}>
+          <div className="card" style={{padding:20}}>
+            <div className="section-title">Engine Stock Photos</div>
+            <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Upload default photos for each engine type. These appear on engine tech specs.</p>
+            <EnginePhotoSettings notify={notify}/>
+          </div>
+          <div className="card" style={{padding:20}}>
+            <div className="section-title">Change Admin PIN</div>
+            <PINChanger onSave={async pin=>{await db.setSetting("admin_pin",pin);setAdminPin(pin);notify("PIN updated");}}/>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PINChanger({onSave}){
+  const[pin,setPin]=useState("");const[conf,setConf]=useState("");const[err,setErr]=useState("");
+  const save=()=>{if(pin.length<4){setErr("Min 4 characters");return;}if(pin!==conf){setErr("PINs do not match");return;}onSave(pin);setPin("");setConf("");setErr("");};
+  return<div style={{display:"flex",flexDirection:"column",gap:10}}>
+    <div><label className="form-label">New PIN</label><input type="password" value={pin} onChange={e=>setPin(e.target.value)}/></div>
+    <div><label className="form-label">Confirm PIN</label><input type="password" value={conf} onChange={e=>setConf(e.target.value)}/></div>
+    {err&&<p style={{color:"#f87171",fontSize:12}}>{err}</p>}
+    <button className="btn btn-gold" onClick={save}>Update PIN</button>
+  </div>;
+}
+
+function PortfolioView({assets, onSelect}){
+  const ageFromDOM=(dom)=>{
+    if(!dom)return null;
+    const years=(new Date()-new Date(dom))/(1000*60*60*24*365.25);
+    return years.toFixed(1);
+  };
+  const nextCheck=(asset)=>{
+    const dates=(asset.checks||[]).map(c=>c.nextDate).filter(Boolean);
+    if(!dates.length)return null;
+    return dates.sort()[0];
+  };
+  const soonestGear=(asset)=>{
+    const dates=["nose","left","right"].map(k=>asset.landingGear?.[k]?.nextDue).filter(Boolean);
+    if(!dates.length)return null;
+    return dates.sort()[0];
+  };
+  const llpCol=(v)=>v===null?"#94a3b8":v<1000?"#dc2626":v<3000?"#d97706":"#16a34a";
+  const llpBg=(v)=>v===null?"#f8fafc":v<1000?"#fef2f2":v<3000?"#fffbeb":"#f0fdf4";
+  const llpBorder=(v)=>v===null?"#e2e8f0":v<1000?"#fca5a5":v<3000?"#fcd34d":"#86efac";
+  const dateBg=(d)=>d===null?"#f8fafc":d<0?"#fef2f2":d<365?"#fffbeb":"#f8fafc";
+  const dateCol=(d)=>d===null?"#94a3b8":d<0?"#dc2626":d<365?"#d97706":"#334155";
+  const dateBorder=(d)=>d===null?"#e2e8f0":d<0?"#fca5a5":d<365?"#fcd34d":"#e2e8f0";
+  const statusLabel={critical:{text:"Critical",bg:"#fef2f2",color:"#dc2626",border:"#fca5a5"},warn:{text:"Attention",bg:"#fffbeb",color:"#d97706",border:"#fcd34d"},ok:{text:"All Clear",bg:"#f0fdf4",color:"#16a34a",border:"#86efac"}};
+
+  return(
+    <div style={{background:"#f1f5f9",minHeight:"100vh",margin:"-20px -22px",padding:"32px 28px",animation:"fadeIn 0.2s ease"}}>
+      <div style={{maxWidth:1400,margin:"0 auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:32}}>
+          <div>
+            <h1 style={{fontSize:28,fontWeight:800,color:"#0f172a",letterSpacing:"-0.02em"}}>Fleet Portfolio</h1>
+            <p style={{color:"#64748b",fontSize:14,marginTop:4,fontWeight:500}}>{assets.length} aircraft · {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"})}</p>
+          </div>
+  
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(380px,1fr))",gap:20}}>
+          {assets.map(a=>{
+            const st=assetStatus(a);
+            const af=a.airframe||{};
+            const eng1=a.engines?.[0];const eng2=a.engines?.[1];
+            const ll1=lowestLimiter(eng1);const ll2=lowestLimiter(eng2);
+            const apuLL=a.apu?.llps?.length?Math.min(...a.apu.llps.map(l=>calcLLPRem(l,a.apu.currentFC))):null;
+            const gearDate=soonestGear(a);
+            const checkDate=nextCheck(a);
+            const gearDays=daysFromNow(gearDate);
+            const checkDays=daysFromNow(checkDate);
+            const sl=statusLabel[st];
+
+            return(
+              <div key={a.id}
+                style={{background:"#ffffff",borderRadius:14,border:"1px solid #e2e8f0",
+                  boxShadow:"0 4px 16px rgba(0,0,0,0.06)",cursor:"pointer",
+                  transition:"all 0.2s",overflow:"hidden"}}
+                onClick={()=>onSelect(a.id)}
+                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 12px 32px rgba(0,0,0,0.12)";}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,0.06)";}}
+              >
+                {/* Status bar at top */}
+                <div style={{height:4,background:st==="critical"?"#dc2626":st==="warn"?"#d97706":"#16a34a"}}/>
+
+                <div style={{padding:22}}>
+                  {/* Header */}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:18}}>
+                    <div>
+                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:3}}>
+                        <span style={{fontSize:24,fontWeight:800,color:"#0f172a",fontFamily:"monospace",letterSpacing:"0.02em"}}>{a.msn}</span>
+                        <span style={{fontSize:16,fontWeight:700,color:"#334155"}}>{a.registration||"—"}</span>
+                      </div>
+                      <div style={{fontSize:12,color:"#64748b",fontWeight:500}}>{a.model||"—"} · {a.operator||"—"}</div>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+                      <span style={{background:sl.bg,color:sl.color,border:`1px solid ${sl.border}`,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700}}>{sl.text}</span>
+                      {a.dom&&<span style={{fontSize:11,color:"#94a3b8",fontWeight:600}}>{ageFromDOM(a.dom)} yrs old</span>}
+                    </div>
+                  </div>
+
+                  {/* Airframe */}
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+                    {[["Airframe TSN",fmtHHMM(af.currentFH)],["Airframe CSN",(af.currentFC||0).toLocaleString()]].map(([l,v])=>(
+                      <div key={l} style={{background:"#f8fafc",borderRadius:8,padding:"10px 12px",border:"1px solid #e2e8f0"}}>
+                        <div style={{fontSize:9,color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3}}>{l}</div>
+                        <div style={{fontSize:18,fontWeight:800,color:"#0f172a",fontFamily:"monospace"}}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* LLP Section */}
+                  <div style={{marginBottom:14}}>
+                    <div style={{fontSize:9,color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:7}}>Life Limited Parts — FC Remaining</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                      {[[`Eng 1${eng1?.sn?` · ${eng1.sn}`:""}`,ll1],[`Eng 2${eng2?.sn?` · ${eng2.sn}`:""}`,ll2],["APU",apuLL]].map(([label,val])=>(
+                        <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:llpBg(val),borderRadius:6,padding:"7px 11px",border:`1px solid ${llpBorder(val)}`}}>
+                          <span style={{fontSize:11,color:"#475569",fontWeight:600}}>{label}</span>
+                          <span style={{fontSize:13,fontWeight:800,color:llpCol(val),fontFamily:"monospace"}}>{val!==null?val.toLocaleString()+" FC":"No data"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Dates */}
+                  <div style={{marginBottom:18}}>
+                    <div style={{fontSize:9,color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:7}}>Key Events</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                      {[["Next Gear Overhaul",gearDate,gearDays],["Next Major Check",checkDate,checkDays]].map(([label,date,days])=>(
+                        <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:dateBg(days),borderRadius:6,padding:"7px 11px",border:`1px solid ${dateBorder(days)}`}}>
+                          <span style={{fontSize:11,color:"#475569",fontWeight:600}}>{label}</span>
+                          <div style={{textAlign:"right"}}>
+                            <div style={{fontSize:12,fontWeight:700,color:dateCol(days)}}>{date?fmtDate(date):"Not entered"}</div>
+                            {days!==null&&<div style={{fontSize:10,color:dateCol(days),opacity:0.8}}>{days<0?`${Math.abs(days)}d overdue`:days===0?"Today":`${days}d`}</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:14,borderTop:"1px solid #f1f5f9"}}>
+                    <span style={{fontSize:11,color:"#94a3b8",fontWeight:500}}>{a._lastPeriod||"No report"}</span>
+                    <button style={{background:"#C9A84C",color:"#0a1520",border:"none",borderRadius:7,padding:"8px 16px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:"0.03em",transition:"all 0.15s"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="#d4b060"}
+                      onMouseLeave={e=>e.currentTarget.style.background="#C9A84C"}
+                      onClick={async e=>{
+                        e.stopPropagation();
+                        const isCFMAsset=isCFM(a);
+                        const photoKey=isCFMAsset?"engine_photo_cfm56":"engine_photo_v2500";
+                        const engPhoto=await db.getSetting(photoKey).catch(()=>null)||"";
+                        openTechSpec(buildTechSpecHTML(a,engPhoto));
+                      }}>
+                      📋 Tech Spec
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {assets.length===0&&(
+            <div style={{gridColumn:"1/-1",textAlign:"center",padding:80,color:"#94a3b8"}}>
+              <div style={{fontSize:48,marginBottom:16}}>✈</div>
+              <p style={{fontSize:16,fontWeight:600,color:"#334155"}}>No assets in portfolio</p>
+              <p style={{fontSize:13,marginTop:8}}>Go to Admin to add your first aircraft</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function GuideView(){
+  const sections=[
+    {title:"Overview",icon:"🏠",content:[
+      ["Dashboard — List View","Shows all aircraft in a sortable table with MSN, registration, model, operator, airframe TSN/CSN, engine LLP limiters, APU, landing gear due dates, and last report period. Click any row or the View button to open the asset."],
+      ["Dashboard — Card View","Toggle to card view using the ☰/⊞ buttons. Each card shows status dot, key identifiers, airframe hours, engine LLP limiters, APU LLP limiter, and landing gear next overhaul dates. N/A shown when data not yet entered."],
+      ["Status Indicators","Each asset has a colour-coded dot — green (all clear), amber (attention needed: LLP <3,000 FC or gear due within 12 months), red (critical: LLP <1,000 FC or gear overdue). The worst indicator across all components determines overall status."],
+      ["Search & Filter","Use the search bar to filter by MSN, registration, or operator in real time."],
+    ]},
+    {title:"Asset Tabs",icon:"📋",content:[
+      ["Overview","Shows asset details (MSN, reg, operator, model, manufacturer, DOM), current airframe TSN/CSN prominently displayed, a status summary panel (LLP limiters per engine and APU, landing gear next overhaul dates with days remaining, last report period), and check history (last date and next due)."],
+      ["Engines","Shows each engine with S/N, type, thrust, TSN, CSN, FH/FC ratio, lowest LLP limiter, full LLP table (descriptor, P/N, S/N, FC remaining — colour coded), shop visit history (editable — add/delete), and a Generate Tech Spec button per engine."],
+      ["Landing Gear","Shows NLG, LLG, RLG each with P/N, S/N, next overhaul date with days remaining, last overhaul date/TSN/CSN, time and cycles since last overhaul (calculated), and calculated current TSN/CSN. Editable via Edit button."],
+      ["APU","Matches engine format — P/N, S/N, TSN, CSN, lowest LLP limiter, full LLP table, and shop visit history."],
+      ["Specs","Operating weights (MTOW, MTW, MZFW, MLW in kg and lb), cabin specifications (config, seating, galleys, lavatories), avionics (ADS-B, CPDLC, TCAS 7.1), full check history with TSN/CSN, and asset photos. All fields editable via Edit All button."],
+      ["History","Full utilisation upload history — period, AF TSN/CSN, engine CSNs, APU CSN, upload date. Delete individual records."],
+      ["Documents","Store document links (Google Drive URLs) with label and category for certificates, reports, and lease documents."],
+    ]},
+    {title:"Adding & Managing Assets",icon:"✈",content:[
+      ["Create from Upload","Go to Upload → Utilisation Report → select PDF → Extract with AI → review → Confirm & Save. If the MSN doesn't exist in the system, the asset is created automatically with all available data from the report."],
+      ["Create Manually","Go to Admin → Assets → New Asset. Enter MSN (required) and other details. Asset is created with blank data ready to populate."],
+      ["Edit Asset Details","Open asset → Overview or Landing Gear or APU tab → Edit button. For specs and weights use the Specs tab → Edit All."],
+      ["Delete Asset","Admin → Assets → Delete button beside the asset."],
+    ]},
+    {title:"Uploading Reports",icon:"📤",content:[
+      ["Utilisation Report","Go to Upload → Utilisation Report. Select PDF or Excel. Claude AI extracts: airframe TSN/CSN/period FH/FC, engine model/S/N/TSN/CSN per position, APU S/N/TSN/CSN, landing gear P/N/S/N/CSN per position, and any titled component removals."],
+      ["Review Panel","Before saving, review extracted data. Engine and APU S/Ns are shown — if changed from previous month they highlight amber with ⚠ changed flag. Engine CSN deltas show in green/amber/red. A delta verification banner checks if the period FC matches the airframe CSN difference."],
+      ["Delta Verification","Green banner = period FC matches calculated delta (current minus previous CSN). Red banner = mismatch — check the source PDF before saving."],
+      ["Component Removals","If the report contains a titled component removal (engine, landing gear, APU), it is flagged after saving with S/N, position, date, reason, and MRO details."],
+      ["S/N Change Flags","After saving, if any engine, APU, or landing gear S/N has changed from the stored value, a yellow warning panel shows with full details — indicating a possible swap, shop visit return, or donor component."],
+      ["LLP Status Sheet","Go to Upload → LLP Status Sheet. Select the PDF. Claude extracts all LLP descriptors, P/Ns, S/Ns, and FC remaining for both engines. Uploading always replaces existing LLP data — no manual deletion needed. The engine CSN at time of upload is saved as the reference point for the countdown."],
+    ]},
+    {title:"LLP Tracking",icon:"⚙",content:[
+      ["How the Countdown Works","FC Remaining = Start FC Rem − (Current Engine CSN − Ref FC). Ref FC is the engine CSN when the LLP sheet was uploaded. Start FC Rem is the remaining cycles at that time. Every new utilisation upload updates the engine CSN, and the countdown adjusts automatically."],
+      ["Upload Order","Order doesn't matter. Upload utilisation first then LLP, or LLP first then utilisation — the calculation always uses the latest engine CSN against the LLP reference point."],
+      ["Manual Entry","Engines tab → + Add LLP. Enter descriptor, P/N, S/N, starting FC remaining, and reference FC (engine CSN at time of entry)."],
+      ["Status Colours","Green = >3,000 FC remaining. Amber = 1,000–3,000 FC. Red = <1,000 FC."],
+      ["At Shop","When an engine is at shop, edit the engine and check the At Shop checkbox. A 🔧 icon appears on the dashboard and asset page."],
+    ]},
+    {title:"Tech Specs",icon:"📄",content:[
+      ["Full Aircraft Tech Spec","Open any asset → Generate Tech Spec button (top right). Opens a printable A4 document with: Vector Group cover page with airframe photo (if uploaded), asset details, operating weights, specifications, check history, engine data with full LLP tables and shop visit history, landing gear, and APU."],
+      ["Engine Tech Spec","Engines tab → Generate Tech Spec button on each engine. Produces a standalone engine specification with the engine stock photo (V2500 or CFM56) on the cover, engine details, LLP table, and shop visit history."],
+      ["Print to PDF","In the tech spec window, click 🖨 Print / Save PDF. In the print dialog select Save as PDF as the destination. The toolbar hides automatically when printing."],
+      ["Airframe Photo","Upload in Specs tab → Asset Photos. Select label (Airframe, Cabin, Flight Deck etc). First photo in the list appears on the full aircraft tech spec cover."],
+      ["Engine Stock Photos","Admin → Settings → Engine Stock Photos. Upload one photo for V2500/IAE and one for CFM56. These appear as the cover photo on engine-specific tech specs, detected automatically from the engine type."],
+    ]},
+    {title:"Photos & Documents",icon:"🖼",content:[
+      ["Asset Photos","Specs tab → Asset Photos section. Click Upload Photo, choose a label, select an image file. Photos upload to Cloudinary and the URL is saved in the asset. Thumbnails show in the app; first photo appears on tech spec cover."],
+      ["Engine Stock Photos","Admin → Settings. Upload once per engine type. Used on engine tech specs automatically."],
+      ["Documents","Documents tab. Add Google Drive links with a label and category. Use for certificates, lease documents, authority approvals, and maintenance reports."],
+    ]},
+    {title:"Data Storage & Architecture",icon:"💾",content:[
+      ["Google Sheets","All fleet data stored in your Google Sheet. Each asset is one row — do not manually edit these rows. Utilisation history, settings, and utilisation records each have their own sheet tab."],
+      ["Cloudinary","Aircraft and engine photos stored on Cloudinary (free tier — 25GB storage). Photos are referenced by URL in the asset data."],
+      ["Google Apps Script","The backend API is a Google Apps Script web app. To redeploy if needed: open the Google Sheet → Extensions → Apps Script → Deploy → Manage deployments → edit → New version → Deploy."],
+      ["Vercel & GitHub","App hosted on Vercel (vector-fleet.vercel.app). Code in GitHub (github.com/alanshorten/vector-fleet). To update: download index.html from Claude, replace in GitHub, Vercel redeploys automatically within 60 seconds."],
+      ["Anthropic API Key","Used for AI extraction. Stored as a Vercel environment variable (ANTHROPIC_API_KEY). Never put it in GitHub — GitHub automatically revokes exposed keys."],
+      ["AI Extraction Model","Uses claude-haiku-4-5-20251001 for fast, cost-effective document extraction. Approximately $0.01–0.02 per report."],
+    ]},
+    {title:"Quick Reference",icon:"⚡",content:[
+      ["Key URLs","App: vector-fleet.vercel.app · Google Sheet: docs.google.com/spreadsheets/d/1pQlYt-BF0PWpzIUzJRqdEZfQUJ5KnKoCppWsyR_R2iA · GitHub: github.com/alanshorten/vector-fleet"],
+      ["Cloudinary","Cloud name: dgo3buxcy · Upload preset: fs7bezpu · Dashboard: cloudinary.com"],
+      ["Vercel","Dashboard: vercel.com — Environment variables, deployment logs, and function logs all accessible here."],
+      ["If the App Breaks","Check Vercel → Logs for errors. Check GitHub to confirm the latest index.html was uploaded correctly. Hard refresh with Ctrl+Shift+R. If AI extraction fails, check Vercel → Environment Variables that ANTHROPIC_API_KEY is set."],
+    ]},
+  ];
+
+  return(
+    <div style={{maxWidth:920,margin:"0 auto",animation:"fadeIn 0.2s ease"}}>
+      <div style={{marginBottom:24}}>
+        <h1 style={{fontSize:22,color:"#C9A84C",fontWeight:700}}>User Guide</h1>
+        <p style={{color:"#5a7a9a",fontSize:13,marginTop:4}}>Vector Fleet Manager — Complete Reference</p>
+      </div>
+      {sections.map((s,si)=>(
+        <div key={si} className="card" style={{padding:24,marginBottom:14}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,paddingBottom:12,borderBottom:"1px solid #1e3348"}}>
+            <span style={{fontSize:22}}>{s.icon}</span>
+            <h2 style={{fontSize:13,fontWeight:700,color:"#e2e8f0",textTransform:"uppercase",letterSpacing:"0.07em"}}>{s.title}</h2>
+          </div>
+          {s.content.map(([label,text],i)=>(
+            <div key={i} style={{marginBottom:14,paddingBottom:14,borderBottom:i<s.content.length-1?"1px solid #152030":"none"}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#C9A84C",marginBottom:4}}>{label}</div>
+              <div style={{fontSize:13,color:"#7a9ab5",lineHeight:1.65}}>{text}</div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
