@@ -136,7 +136,7 @@ const calcLLPRem=(llp,fc)=>llp.startFCRem-(fc-llp.refFC);
 const lowestLimiter=(eng)=>{if(!eng?.llps?.length)return null;return Math.min(...eng.llps.map(l=>calcLLPRem(l,eng.currentFC)));};
 const daysFromNow=(d)=>d?Math.ceil((new Date(d)-new Date())/86400000):null;
 const fmtDate=(s)=>{try{return s?new Date(s).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}):"—";}catch{return s||"—";}};
-const fmtHHMM=(dec)=>{if(!dec&&dec!==0)return"—";return`${Math.floor(dec)}:${String(Math.round((dec%1)*60)).padStart(2,"0")}`;};
+const fmtHHMM=(dec)=>{if(!dec&&dec!==0)return"—";if(typeof dec==="string"&&dec.includes(":"))return dec;return`${Math.floor(dec)}:${String(Math.round((dec%1)*60)).padStart(2,"0")}`;};
 const parseHHMM=(s)=>{if(!s)return 0;const p=s.toString().split(":");return parseFloat(p[0])+(parseFloat(p[1]||0)/60);};
 const isCFM=(asset)=>asset?.engines?.some(e=>e.type?.toUpperCase().includes("CFM"));
 const isEmpty=(v)=>!v&&v!==0;
