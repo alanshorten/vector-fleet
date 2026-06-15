@@ -206,6 +206,21 @@ These are not debt — they are the backlog. Documented here so an engineer has 
 - [ ] Documents tab — structured links to Google Drive docs per asset
 - [ ] Email ingestion — dedicated inbox, airline sends report, auto-processes
 - [ ] LLP extrapolation seasonal refinement (see 3.1)
+### Email Ingestion Architecture Decision
+Approach: Option A + Option C combined
+- Each organisation gets unique address: 
+  {company}@reports.vectoriq.app
+- Airlines can send directly to that address, OR
+- Lessor sets up forwarding rule from existing inbox
+- Both options process identically on VectorIQ side
+- Email service: SendGrid (inbound parse + 
+  outbound notifications — one service, two jobs)
+- Webhook fires to Vercel serverless function
+- Function identifies companyId from email address
+- Claude parses attachment, writes to Firestore
+- Notification sent to relevant users by role
+- Build single-company first, extend to 
+  multi-tenant when second org onboards
 
 ### Layer 2 — Financial Intelligence (Next Major Build)
 - [ ] Lease data input UI (manual + parse-and-discard PDF)
