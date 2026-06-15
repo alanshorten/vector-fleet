@@ -1154,7 +1154,7 @@ const extract=async()=>{
         }catch(xlsxErr){
           throw new Error("Could not parse the Excel file. Please check the file is not corrupted and try again.");
         }
-        resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:4000,messages:[{role:"user",content:[{type:"text",text:"The following is the contents of an Excel spreadsheet exported as CSV. Each sheet is labelled.\n\n"+csvText+"\n\n"+prompt}]}]})});
+        resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:4000,messages:[{role:"user",content:[{type:"text",text:""The following is the contents of an Excel spreadsheet exported as CSV. Each sheet is labelled. If multiple months of data are present, extract the MOST RECENT month only and return a single JSON object, not an array.\n\n"+csvText+"\n\n"+prompt}]}]})});
       }
       if(!resp.ok){
         const status=resp.status;
