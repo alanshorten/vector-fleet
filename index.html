@@ -1364,8 +1364,8 @@ if(!asset){setError("Could not match this LLP sheet to any aircraft. Check the f
               </div>
               {(extracted.parsed.engines||[]).map((eng,i)=>(
                 <div key={i} style={{background:"#0d1925",borderRadius:8,padding:12,marginBottom:10}}>
-                  <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>
-                   <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>{eng.position} Engine — ESN {eng.esn} · {eng.llps?.length||0} LLPs</div>
+                 
+                  <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>{eng.position} Engine — ESN {eng.esn} · {eng.llps?.length||0} LLPs</div>
 <div className="flab g8" style={{marginBottom:8,alignItems:"center"}}><label className="form-label" style={{margin:0,whiteSpace:"nowrap"}}>Ref CSN (edit if OCR wrong):</label><input type="number" defaultValue={eng.csn} style={{width:120,padding:"4px 8px",fontSize:12}} onChange={e=>{const val=+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].csn=val;return d;});}}/></div>
                   </div>
                   <table style={{fontSize:11}}>
