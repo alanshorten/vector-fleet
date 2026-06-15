@@ -550,7 +550,7 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
   const Field=({label,path,type="text"})=>{
     const parts=path.split(".");const val=parts.reduce((o,k)=>o?.[k],d);
     return<div className="form-group"><label className="form-label">{label}</label>
-      {editing&&isAdmin?<input type={type} value={val||""} onChange={e=>set(path,e.target.value)} className={isEmpty(val)?"amber":""}/>
+      {editing&&isAdmin?<input type={type} defaultValue={val||""} onBlur={e=>set(path,e.target.value)} className={isEmpty(val)?"amber":""}/>
       :<div style={{fontSize:13,fontWeight:500,color:isEmpty(val)?"#475569":"#e2e8f0",fontStyle:isEmpty(val)?"italic":"normal"}}>{type==="date"?fmtDate(val):val||"Not entered"}</div>}
     </div>;
   };
