@@ -1373,8 +1373,8 @@ if(!asset){setError("Could not match this LLP sheet to any aircraft. Check the f
               ))}
               {extracted.parsed.apu?.llps?.length>0&&(
                 <div style={{background:"#0d1925",borderRadius:8,padding:12,marginBottom:10}}>
-                  <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>
-                    APU — S/N {extracted.parsed.apu.sn||"—"} · {extracted.parsed.apu.llps.length} LLPs</div><div className="flab g8" style={{marginBottom:8,alignItems:"center"}}><label className="form-label" style={{margin:0,whiteSpace:"nowrap"}}>Ref CSN (edit if OCR wrong):</label><input type="number" defaultValue={extracted.parsed.apu.csn} style={{width:120,padding:"4px 8px",fontSize:12}} onChange={e=>{const val=+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.csn=val;return d;});}}/></div>
+                 <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>APU — S/N {extracted.parsed.apu.sn||"—"} · {extracted.parsed.apu.llps.length} LLPs</div>
+<div className="flab g8" style={{marginBottom:8,alignItems:"center"}}><label className="form-label" style={{margin:0,whiteSpace:"nowrap"}}>Ref CSN (edit if OCR wrong):</label><input type="number" defaultValue={extracted.parsed.apu.csn} style={{width:120,padding:"4px 8px",fontSize:12}} onChange={e=>{const val=+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.csn=val;return d;});}}/></div>
                   </div>
                   <table style={{fontSize:11}}>
                     <thead><tr><th>Description</th><th>P/N</th><th>S/N</th><th>FC Remaining</th></tr></thead>
