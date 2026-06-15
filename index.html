@@ -1125,6 +1125,7 @@ function UploadView({assets,saveAsset,notify}){
   const[extracted,setExtracted]=useState(null);
   const[error,setError]=useState(null);
   const[done,setDone]=useState(false);
+  const[matchedAsset,setMatchedAsset]=useState(null);
   const[instructions,setInstructions]=useState("");
   const[showInstructions,setShowInstructions]=useState(false);
 
