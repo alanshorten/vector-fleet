@@ -1293,7 +1293,6 @@ if(!asset){setError("Could not match this LLP sheet to any aircraft. Check the f
     engines[idx].llps=(eng.llps||[]).map(l=>({desc:l.desc,pn:l.pn,sn:l.sn,startFCRem:l.fc_remaining,refFC:refCSN}));
   }
 });
-    });
 
     // Handle APU LLPs
     let apu=JSON.parse(JSON.stringify(asset.apu||{}));
