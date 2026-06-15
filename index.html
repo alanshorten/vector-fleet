@@ -1272,9 +1272,13 @@ const extract=async()=>{
   const confirmLLP=async()=>{
     const d=extracted.parsed;
     const msn=d.msn?.toString().replace(/^0+/,"");
-    const asset=assets.find(a=>a.msn?.toString().replace(/^0+/,"")===msn);
-    if(!asset){setError(`No asset found with MSN ${msn}.`);return;}
-
+let asset=assets.find(a=>a.msn?.toString().replace(/^0+/,"")===msn);
+if(!asset){
+  const esnList=(d.engines||[]).map(e=>e.esn).filter(Boolean);
+  if(esnList.length){asset=assets.find(a=>(a.engines||[]).some(e=>esnList.includes(e.sn)));}
+}
+if(!asset&&d.apu?.sn){asset=assets.find(a=>a.apu?.sn&&a.apu.sn===d.apu.sn);}
+if(!asset){setError("Could not match this LLP sheet to any aircraft. Check the file contains a recognisable MSN, engine S/N, or APU S/N.");return;}
     // Handle engine LLPs
     const engines=JSON.parse(JSON.stringify(asset.engines||[]));
     (d.engines||[]).forEach(eng=>{
