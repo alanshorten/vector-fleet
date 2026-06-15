@@ -1173,12 +1173,12 @@ const extract=async()=>{
       }
       let parsed;
       try{
-        const rawParsed=result.ok?result.data:JSON.parse((result.raw||"").replace(/```json|```/g,"").trim());
-parsed=Array.isArray(rawParsed)?rawParsed[rawParsed.length-1]:rawParsed;
-      }catch(parseErr){
+      const rawParsed=result.ok?result.data:JSON.parse((result.raw||"").replace(/```json|```/g,"").trim());
+  parsed=Array.isArray(rawParsed)?rawParsed[rawParsed.length-1]:rawParsed;
+}catch(parseErr){
         throw new Error("The AI could not extract structured data from this file. Check it is the correct report type, or try adding specific instructions above.");
       }
-      if(!parsed||typeof parsed!=="object")throw new Error("No data could be extracted from this file. Please check it is the correct report type.");
+      
       setExtracted({parsed,fileName:file.name});
     }catch(err){
       const msg=err.message||"";
