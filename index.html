@@ -488,7 +488,7 @@ ${(()=>{
     if(!galleryPhotos.length)return"";
     const photoHtml=galleryPhotos.map(p=>`
       <div style="break-inside:avoid">
-        <img src="${p.url}" style="width:100%;height:160px;object-fit:cover;border-radius:4px;display:block"/>
+        <img src="${p.url}" style="width:100%;height:160px;object-fit:contain;background:#fff;border-radius:4px;display:block"/>
         <div style="text-align:center;font-size:10px;color:#6b7280;margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">${p.label||""}</div>
       </div>`).join("");
     return`<div class="pb"></div>
