@@ -975,7 +975,7 @@ function PhotoManager({asset, saveAsset, notify, label="photos", field="photos"}
     <div>
       <div className="flab g8" style={{marginBottom:12,flexWrap:'wrap'}}>
         <select value={photoLabel} onChange={e=>setPhotoLabel(e.target.value)} style={{width:160}}>
-          {['Airframe','Cabin','Flight Deck','Engine','Landing Gear','Documents','Other'].map(l=>(
+          {['Airframe','Cabin','Flight Deck','Passenger Seat','Galley G1','Galley G2','Galley G3','Engine','Landing Gear','Documents','Other'].map(l=>(
             <option key={l}>{l}</option>
           ))}
         </select>
