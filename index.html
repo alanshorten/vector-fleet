@@ -6,7 +6,7 @@
 <title>Vector Fleet Manager</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module" id="firebase-init">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
   import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
@@ -1127,24 +1127,66 @@ function UploadView({assets,saveAsset,notify}){
 
   const handleFile=e=>{const f=e.target.files?.[0];if(f){setFile(f);setExtracted(null);setError(null);setDone(false);}};
 
-  const extract=async()=>{
-    if(!file)return;setExtracting(true);setError(null);
+const extract=async()=>{
+    if(!file)return;
+    const isPDF=file.type==="application/pdf";
+    const isExcel=file.type==="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"||file.type==="application/vnd.ms-excel"||file.name.endsWith(".xlsx")||file.name.endsWith(".xls");
+    if(!isPDF&&!isExcel){setError("Unsupported file type. Please upload a PDF or Excel (.xlsx / .xls) file.");return;}
+    if(file.size>10*1024*1024){setError("File is too large (maximum 10 MB). Please check you have selected the correct file.");return;}
+    setExtracting(true);setError(null);
     try{
-      const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Read failed"));r.readAsDataURL(file);});
-      const isPDF=file.type==="application/pdf";
       const basePrompt=uploadType==="llp"
         ?"Extract engine LLP data from this document. Process each section (FAN, HPC, HPT, LPT) separately. For each LLP row, read left to right: first the LLP DESCRIPTION (e.g. FAN DISK, BOOSTER SPOOL, FAN SHAFT — each row has a unique description, do not repeat), then PART NUMBER, then SERIAL NUMBER. The remaining cycles value is in the RIGHTMOST column group labelled REMAINING CYCLES — identify the engine variant sub-column from the engine type at the top of the document (e.g. CFM56-5B4/P = use 5B4/P sub-column). Each data row corresponds to exactly one description row — match them by row position. Exclude rows where remaining cycles is N/L, N/A, or non-numeric. Return ONLY valid JSON, no markdown:\n{\"msn\":\"string\",\"registration\":\"string\",\"engines\":[{\"position\":\"LH or RH\",\"esn\":\"string\",\"engine_type\":\"string\",\"variant\":\"string\",\"csn\":number,\"tsn\":number,\"llps\":[{\"desc\":\"string\",\"pn\":\"string\",\"sn\":\"string\",\"fc_remaining\":number}]}]}"
         :uploadType==="apu_llp"
         ?"Extract APU LLP data ONLY from this document. Return ONLY valid JSON, no markdown:\n{\"msn\":\"string\",\"registration\":\"string\",\"apu\":{\"sn\":\"string\",\"csn\":number,\"llps\":[{\"desc\":\"string\",\"pn\":\"string\",\"sn\":\"string\",\"fc_remaining\":number}]}}"
         :"Extract ALL data from this aircraft utilisation report. Return ONLY valid JSON, no markdown:\n{\"month_year\":\"e.g. May 2026\",\"operator\":\"string\",\"msn\":\"string\",\"registration\":\"string\",\"airframe\":{\"fh_period\":\"HH:MM\",\"fc_period\":number,\"tsn\":\"HH:MM\",\"csn\":number},\"engine1\":{\"model\":\"string\",\"sn\":\"string\",\"tsn\":\"HH:MM\",\"csn\":number,\"fh_period\":\"HH:MM\",\"fc_period\":number},\"engine2\":{\"model\":\"string\",\"sn\":\"string\",\"tsn\":\"HH:MM\",\"csn\":number,\"fh_period\":\"HH:MM\",\"fc_period\":number},\"apu\":{\"sn\":\"string\",\"tsn\":\"HH:MM\",\"csn\":number},\"landing_gear\":{\"nose\":{\"pn\":\"string\",\"sn\":\"string\",\"csn\":number},\"left\":{\"pn\":\"string\",\"sn\":\"string\",\"csn\":number},\"right\":{\"pn\":\"string\",\"sn\":\"string\",\"csn\":number}},\"removals\":[{\"component\":\"engine or landing_gear or apu\",\"sn\":\"string\",\"position\":\"string\",\"date\":\"string\",\"reason\":\"string\",\"tsn_at_removal\":\"HH:MM\",\"csn_at_removal\":number,\"mro\":\"string\"}]}";
       const prompt=instructions?basePrompt+" Additional instructions: "+instructions:basePrompt;
-      const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:isPDF?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",data:base64}},{type:"text",text:prompt}]}]})});
-      const result=await resp.json();
-      if(result.error)throw new Error(result.error);
-      if(!result.ok&&result.preview)throw new Error("Preview: "+result.preview);
-      const parsed=result.ok?result.data:JSON.parse((result.raw||"").replace(/```json|```/g,"").trim());
+      let resp;
+      if(isPDF){
+        const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Could not read the file. Please try again."));r.readAsDataURL(file);});
+        resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:prompt}]}]})});
+      } else {
+        const arrayBuffer=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(new Error("Could not read the file. Please try again."));r.readAsArrayBuffer(file);});
+        let csvText;
+        try{
+          const wb=XLSX.read(new Uint8Array(arrayBuffer),{type:"array"});
+          csvText=wb.SheetNames.map(name=>"Sheet: "+name+"\n"+XLSX.utils.sheet_to_csv(wb.Sheets[name],{skipHidden:true})).join("\n\n");
+        }catch(xlsxErr){
+          throw new Error("Could not parse the Excel file. Please check the file is not corrupted and try again.");
+        }
+        resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:4000,messages:[{role:"user",content:[{type:"text",text:"The following is the contents of an Excel spreadsheet exported as CSV. Each sheet is labelled.\n\n"+csvText+"\n\n"+prompt}]}]})});
+      }
+      if(!resp.ok){
+        const status=resp.status;
+        if(status===401||status===403)throw new Error("Authentication error with the AI service. Please contact your administrator.");
+        if(status===429)throw new Error("Too many requests — please wait a moment and try again.");
+        if(status>=500)throw new Error("The extraction service is temporarily unavailable. Please try again in a few minutes.");
+        throw new Error("Extraction request failed (error "+status+"). Please try again.");
+      }
+      let result;
+      try{result=await resp.json();}catch(jsonErr){throw new Error("Received an unexpected response from the server. Please try again.");}
+      if(result.error){
+        const msg=result.error;
+        if(msg.includes("credit")||msg.includes("billing"))throw new Error("AI service billing issue — please contact your administrator.");
+        if(msg.includes("overloaded")||msg.includes("capacity"))throw new Error("The AI service is busy right now. Please wait a moment and try again.");
+        throw new Error("Extraction failed. Please check the file is a valid report and try again.");
+      }
+      let parsed;
+      try{
+        parsed=result.ok?result.data:JSON.parse((result.raw||"").replace(/```json|```/g,"").trim());
+      }catch(parseErr){
+        throw new Error("The AI could not extract structured data from this file. Check it is the correct report type, or try adding specific instructions above.");
+      }
+      if(!parsed||typeof parsed!=="object")throw new Error("No data could be extracted from this file. Please check it is the correct report type.");
       setExtracted({parsed,fileName:file.name});
-    }catch(err){setError("Extraction failed: "+err.message);}
+    }catch(err){
+      const msg=err.message||"";
+      if(msg.startsWith("{")||msg.includes('"error"')){
+        setError("Extraction failed. Please check the file is a valid report and try again.");
+      } else {
+        setError(msg);
+      }
+    }
     setExtracting(false);
   };
 
