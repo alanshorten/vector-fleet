@@ -1281,16 +1281,18 @@ if(!asset&&d.apu?.sn){asset=assets.find(a=>a.apu?.sn&&a.apu.sn===d.apu.sn);}
 if(!asset){setError("Could not match this LLP sheet to any aircraft. Check the file contains a recognisable MSN, engine S/N, or APU S/N.");return;}
     // Handle engine LLPs
     const engines=JSON.parse(JSON.stringify(asset.engines||[]));
-    (d.engines||[]).forEach(eng=>{
-      const pos=eng.position?.toString().toLowerCase();
-let idx=(pos==="lh"||pos==="1"||pos==="left")?0:1;
-if(!pos){const matchIdx=(asset.engines||[]).findIndex(e=>e.sn===eng.esn);if(matchIdx!==-1)idx=matchIdx;}
-      if(engines[idx]){
-        engines[idx].sn=eng.esn||engines[idx].sn;
-        engines[idx].type=eng.engine_type||engines[idx].type;
-        const refCSN=eng.csn||0;
-        engines[idx].llps=(eng.llps||[]).map(l=>({desc:l.desc,pn:l.pn,sn:l.sn,startFCRem:l.fc_remaining,refFC:refCSN}));
-      }
+   (d.engines||[]).forEach(eng=>{
+  if(!eng.esn)return;
+  const matchIdx=(asset.engines||[]).findIndex(e=>e.sn===eng.esn);
+  if(matchIdx===-1)return;
+  const idx=matchIdx;
+  if(engines[idx]){
+    engines[idx].sn=eng.esn||engines[idx].sn;
+    engines[idx].type=eng.engine_type||engines[idx].type;
+    const refCSN=eng.csn||0;
+    engines[idx].llps=(eng.llps||[]).map(l=>({desc:l.desc,pn:l.pn,sn:l.sn,startFCRem:l.fc_remaining,refFC:refCSN}));
+  }
+});
     });
 
     // Handle APU LLPs
