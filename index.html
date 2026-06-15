@@ -1173,7 +1173,7 @@ const extract=async()=>{
       }
       let parsed;
       try{
-        parsed=result.ok?result.data:JSON.parse((result.raw||"").replace(/```json|```/g,"").trim());
+        parsed=result.ok?result.data:(result.raw?JSON.parse(result.raw.replace(/```json|```/g,"").trim()):null);
       }catch(parseErr){
         throw new Error("The AI could not extract structured data from this file. Check it is the correct report type, or try adding specific instructions above.");
       }
