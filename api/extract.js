@@ -1,13 +1,10 @@
 export const maxDuration = 60;
-
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', 'https://vector-fleet.vercel.app');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
-
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -18,26 +15,21 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify(req.body)
     });
-
     const text = await response.text();
-
     let parsed;
     try {
       parsed = JSON.parse(text);
     } catch (e) {
       return res.status(200).json({ ok: false, raw: text.slice(0, 2000) });
     }
-
     if (!Array.isArray(parsed.content)) {
       return res.status(200).json({ ok: false, raw: (parsed.error?.message || JSON.stringify(parsed)).slice(0, 2000) });
     }
-
     // Combine all text blocks (handles the rare multi-block case)
     const combinedText = parsed.content
       .filter(b => b.type === 'text')
       .map(b => b.text)
       .join('\n');
-
     // The model may reason in plain text before producing the answer.
     // Prefer a fenced ```json ... ``` block if present — this is what we
     // now explicitly ask for in prompts that allow reasoning (e.g. LLP extraction).
@@ -59,15 +51,12 @@ export default async function handler(req, res) {
         candidate = combinedText;
       }
     }
-
     candidate = candidate.replace(/```json|```/g, '').trim();
-
     try {
       return res.status(200).json({ ok: true, data: JSON.parse(candidate) });
     } catch (e) {
       return res.status(200).json({ ok: false, raw: combinedText.slice(0, 2000) });
     }
-
   } catch (err) {
     return res.status(200).json({ error: err.message });
   }
