@@ -39,14 +39,79 @@
   // we only ever care about whole-month granularity here.
   var MONTH_NAMES = ["january","february","march","april","may","june",
     "july","august","september","october","november","december"];
+  var MONTH_ABBR = ["jan","feb","mar","apr","may","jun",
+    "jul","aug","sep","oct","nov","dec"];
 
+  function monthIndexFromToken(tok) {
+    if (!tok) return -1;
+    var t = tok.replace(/\.$/, ""); // strip trailing "." e.g. "Jan."
+    var full = MONTH_NAMES.indexOf(t);
+    if (full !== -1) return full;
+    if (t.length >= 3) {
+      var abbr = MONTH_ABBR.indexOf(t.slice(0, 3));
+      if (abbr !== -1) return abbr;
+    }
+    return -1;
+  }
+
+  function normaliseYear(y) {
+    // Accept 2-digit years (e.g. "May '26", "May 26") — assume 2000s,
+    // since this app has no plausible use of pre-2000 dates.
+    if (y < 100) return 2000 + y;
+    return y;
+  }
+
+  // Accepts realistic variants an AI extraction step might produce, since
+  // the extraction prompt only gives "e.g. May 2026" as a hint, not an
+  // enforced format. Handles:
+  //   "May 2026", "may 2026"        (canonical)
+  //   "Jan 2026", "Jan. 2026"       (abbreviated month)
+  //   "May, 2026"                   (comma separator)
+  //   "May'26", "May '26", "May 26" (2-digit year, apostrophe optional)
+  //   "05/2026", "05-2026"          (numeric month/year, slash or dash)
+  //   "2026-05", "2026/05"          (ISO-ish year-first)
+  // Anything genuinely ambiguous still returns null rather than guessing —
+  // callers must treat null as "unparseable", not as "no gap".
   function parseMonthYear(s) {
     if (!s || typeof s !== "string") return null;
-    var parts = s.trim().toLowerCase().split(/\s+/);
+    var raw = s.trim().toLowerCase();
+    if (!raw) return null;
+
+    // ISO-ish year-first numeric: "2026-05" / "2026/05"
+    var isoMatch = raw.match(/^(\d{4})[\/\-](\d{1,2})$/);
+    if (isoMatch) {
+      var isoYear = parseInt(isoMatch[1], 10);
+      var isoMonth = parseInt(isoMatch[2], 10) - 1;
+      if (isoMonth >= 0 && isoMonth <= 11) {
+        return { year: isoYear, month: isoMonth, key: isoYear * 12 + isoMonth };
+      }
+      return null;
+    }
+
+    // Numeric month-first: "05/2026" / "05-2026"
+    var numMatch = raw.match(/^(\d{1,2})[\/\-](\d{2,4})$/);
+    if (numMatch) {
+      var numMonth = parseInt(numMatch[1], 10) - 1;
+      var numYear = normaliseYear(parseInt(numMatch[2], 10));
+      if (numMonth >= 0 && numMonth <= 11) {
+        return { year: numYear, month: numMonth, key: numYear * 12 + numMonth };
+      }
+      return null;
+    }
+
+    // Word-based: strip commas/apostrophes, collapse whitespace, then split.
+    // Covers "May 2026", "Jan. 2026", "May, 2026", "May '26", "May26".
+    var cleaned = raw.replace(/[,']/g, " ").replace(/\s+/g, " ").trim();
+    // Handle no-space run-together case like "may26" before splitting.
+    var runTogether = cleaned.match(/^([a-z]+)\.?\s?(\d{2,4})$/);
+    var parts = runTogether
+      ? [runTogether[1], runTogether[2]]
+      : cleaned.split(" ");
     if (parts.length !== 2) return null;
-    var monthIdx = MONTH_NAMES.indexOf(parts[0]);
-    var year = parseInt(parts[1], 10);
-    if (monthIdx === -1 || isNaN(year)) return null;
+    var monthIdx = monthIndexFromToken(parts[0]);
+    var yearNum = parseInt(parts[1], 10);
+    if (monthIdx === -1 || isNaN(yearNum)) return null;
+    var year = normaliseYear(yearNum);
     return { year: year, month: monthIdx, key: year * 12 + monthIdx };
   }
 
@@ -302,6 +367,53 @@
     var prevPeriod = parseMonthYear(previousAsset._lastPeriod);
     var monthsGap = monthsBetween(prevPeriod ? prevPeriod.key : null, newPeriod ? newPeriod.key : null);
 
+    // Period unparseable: either the new report's month_year or the asset's
+    // stored _lastPeriod didn't match any recognised format. This must be
+    // surfaced explicitly and loudly — silently falling through with
+    // monthsGap=null previously caused gap detection to go quiet (a real
+    // multi-month gap was treated as an ordinary consecutive update with
+    // the tightest delta tolerance, since gapDetected and isOutOfOrder both
+    // require monthsGap to be a non-null number). Per product decision:
+    // an unparseable period must never be treated as "no gap" / "ok".
+    if (newPeriod === null || prevPeriod === null) {
+      var unparseableField = newPeriod === null ? "this report's period" : "the asset's stored last period";
+      var unparseableValue = newPeriod === null ? newReport.month_year : previousAsset._lastPeriod;
+      var snChangesUP = detectSNChanges(newReport, previousAsset);
+      var snWarningsUP = formatSNWarnings(snChangesUP);
+      var removalWarningsUP = formatRemovalWarnings(newReport.removals);
+      var utilisationRecordUP = {
+        asset_id: previousAsset.id,
+        period: newReport.month_year,
+        data: {
+          afFH: newReport.airframe && newReport.airframe.tsn,
+          afFC: newReport.airframe && newReport.airframe.csn,
+          eng1FC: newReport.engine1 && newReport.engine1.csn,
+          eng2FC: newReport.engine2 && newReport.engine2.csn,
+          apuFC: newReport.apu && newReport.apu.csn,
+          warnings: snWarningsUP.concat(removalWarningsUP)
+        }
+      };
+      return {
+        isNewAsset: false,
+        historyOnly: true,
+        deltaCheck: {
+          status: "period_unparseable",
+          fc: { calc: null, reported: null, match: null },
+          fh: { calc: null, reported: null, match: null },
+          monthsGap: null
+        },
+        snChanges: snChangesUP,
+        mergedAsset: null, // explicit: Body must NOT call saveAsset with this
+        utilisationRecord: utilisationRecordUP,
+        warnings: snWarningsUP.concat(removalWarningsUP).concat([
+          "\u26A0 Could not determine reporting gap: " + unparseableField +
+          " (\"" + (unparseableValue || "blank") + "\") is not in a recognised month/year " +
+          "format. Saved to history only \u2014 live asset state unchanged. Review and " +
+          "correct the period manually if this report should be applied."
+        ])
+      };
+    }
+
     // Out-of-order: new report's period is strictly BEFORE the asset's last
     // stored period. Per product decision: save into history, never
     // overwrite live state — a stale report should never clobber newer data.
@@ -489,6 +601,8 @@
   window.__brain1Internals = {
     parseHHMM: parseHHMM,
     parseMonthYear: parseMonthYear,
+    monthIndexFromToken: monthIndexFromToken,
+    normaliseYear: normaliseYear,
     monthsBetween: monthsBetween,
     checkDelta: checkDelta,
     checkDeltaFH: checkDeltaFH,
