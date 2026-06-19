@@ -1,4 +1,3 @@
-
 // ============================================================================
 // Brain 1 — Utilisation Report Processing
 // /calculations/utilisation.js
@@ -303,10 +302,19 @@
     var prevPeriod = parseMonthYear(previousAsset._lastPeriod);
     var monthsGap = monthsBetween(prevPeriod ? prevPeriod.key : null, newPeriod ? newPeriod.key : null);
 
-    // Out-of-order: new report's period is at or before the asset's last
+    // Out-of-order: new report's period is strictly BEFORE the asset's last
     // stored period. Per product decision: save into history, never
-    // overwrite live state.
-    var isOutOfOrder = (monthsGap !== null && monthsGap <= 0);
+    // overwrite live state — a stale report should never clobber newer data.
+    var isOutOfOrder = (monthsGap !== null && monthsGap < 0);
+
+    // Same-month: new report's period equals the asset's current period.
+    // This is NOT out-of-order — it's a partial/split report for the SAME
+    // month (e.g. Engine 1 + APU report arrives separately from an Engine 2
+    // report, or a donor-engine component is reported by a different lessor
+    // some months and not others). These must MERGE into live state, filling
+    // in only what this report actually contains, never blanking fields this
+    // report is silent on.
+    var isSameMonth = (monthsGap === 0);
 
     var snChanges = detectSNChanges(newReport, previousAsset);
     var snWarnings = formatSNWarnings(snChanges);
@@ -350,24 +358,35 @@
 
     // Delta verification — engines's individual FC deltas aren't separately
     // surfaced today (only airframe-level), so we preserve that scope.
-    var fcCheck = checkDelta(
-      newReport.airframe && newReport.airframe.csn,
-      previousAsset.airframe && previousAsset.airframe.currentFC,
-      newReport.airframe && newReport.airframe.fc_period,
-      monthsGap
-    );
-    var fhCheck = checkDeltaFH(
-      newReport.airframe && newReport.airframe.tsn,
-      previousAsset.airframe && previousAsset.airframe.currentFH,
-      newReport.airframe && newReport.airframe.fh_period,
-      monthsGap
-    );
+    // Same-month merges skip delta verification entirely: a partial report
+    // for a month already on file isn't reporting a NEW period of flying,
+    // so there's nothing meaningful to diff period-FC against.
+    var fcCheck, fhCheck;
+    if (isSameMonth) {
+      fcCheck = { calc: null, reported: (newReport.airframe && newReport.airframe.fc_period) || null, match: null };
+      fhCheck = { calc: null, reported: (newReport.airframe && newReport.airframe.fh_period) || null, match: null };
+    } else {
+      fcCheck = checkDelta(
+        newReport.airframe && newReport.airframe.csn,
+        previousAsset.airframe && previousAsset.airframe.currentFC,
+        newReport.airframe && newReport.airframe.fc_period,
+        monthsGap
+      );
+      fhCheck = checkDeltaFH(
+        newReport.airframe && newReport.airframe.tsn,
+        previousAsset.airframe && previousAsset.airframe.currentFH,
+        newReport.airframe && newReport.airframe.fh_period,
+        monthsGap
+      );
+    }
 
     var deltaStatus = "ok";
-    if (gapDetected) {
+    if (isSameMonth) {
+      deltaStatus = "same_month_merge";
+    } else if (gapDetected) {
       deltaStatus = "gap_detected";
     }
-    if (fcCheck.match === false || fhCheck.match === false) {
+    if (!isSameMonth && (fcCheck.match === false || fhCheck.match === false)) {
       deltaStatus = "mismatch";
     }
 
@@ -398,14 +417,20 @@
     var mergedAsset = Object.assign({}, previousAsset, {
       _lastPeriod: newReport.month_year,
       airframe: Object.assign({}, previousAsset.airframe || {}, {
-        currentFH: parseHHMM(newReport.airframe && newReport.airframe.tsn),
-        currentFC: newReport.airframe && newReport.airframe.csn
+        currentFH: (newReport.airframe && newReport.airframe.tsn)
+          ? parseHHMM(newReport.airframe.tsn)
+          : (previousAsset.airframe && previousAsset.airframe.currentFH),
+        currentFC: (newReport.airframe && newReport.airframe.csn != null)
+          ? newReport.airframe.csn
+          : (previousAsset.airframe && previousAsset.airframe.currentFC)
       }),
       engines: engines,
       landingGear: lg,
       apu: Object.assign({}, previousAsset.apu || {}, {
         sn: (newReport.apu && newReport.apu.sn) || (previousAsset.apu && previousAsset.apu.sn),
-        currentFH: parseHHMM(newReport.apu && newReport.apu.tsn),
+        currentFH: (newReport.apu && newReport.apu.tsn)
+          ? parseHHMM(newReport.apu.tsn)
+          : (previousAsset.apu && previousAsset.apu.currentFH),
         currentFC: (newReport.apu && newReport.apu.csn != null)
           ? newReport.apu.csn
           : (previousAsset.apu && previousAsset.apu.currentFC)
@@ -413,6 +438,12 @@
     });
 
     var allWarnings = snWarnings.concat(removalWarnings);
+    if (isSameMonth) {
+      allWarnings = allWarnings.concat(["\u2139 Same-month merge: this report updates " +
+        (newReport.month_year || "the current period") +
+        " with additional data (e.g. a separate engine or APU report). Existing figures for " +
+        "components not present in this report were preserved, not overwritten."]);
+    }
     if (deltaStatus === "mismatch") {
       allWarnings = allWarnings.concat(["\u26A0 Delta mismatch \u2014 reported period figures do not match calculated CSN/TSN difference. Check report figures."]);
     }
