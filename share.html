@@ -48,9 +48,14 @@ iframe{width:100%;border:none;background:#fff;border-radius:8px;min-height:80vh}
     root.appendChild(center);
   }
 
-  // Path is /share/{token} (rewritten by vercel.json to /share.html?token={token}).
-  const params = new URLSearchParams(window.location.search);
-  const token = params.get('token');
+  // The browser URL stays as /share/{token} even though vercel.json rewrites
+  // this request to /share.html?token={token} server-side — a rewrite
+  // changes what's served, not what's shown in the address bar. So we read
+  // the token from the path the visitor actually has, with the query string
+  // kept only as a fallback (handy for testing this file directly).
+  const pathParts = window.location.pathname.split('/').filter(Boolean);
+  let token = pathParts[0] === 'share' ? pathParts[1] : null;
+  if (!token) token = new URLSearchParams(window.location.search).get('token');
   if (!token) { showError('Missing share link token.'); return; }
 
   let res;
