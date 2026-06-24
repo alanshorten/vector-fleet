@@ -3,5 +3,8 @@
     "api/extract.js": {
       "maxDuration": 60
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/share/:token", "destination": "/share.html?token=:token" }
+  ]
 }
