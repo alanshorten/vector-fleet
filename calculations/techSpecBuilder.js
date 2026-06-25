@@ -28,8 +28,8 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null){
   const enginePos=asset._enginePos||1;
   const specCSS=`@page{size:A4;margin:14mm 18mm}body{font-family:Arial,sans-serif;color:#111;font-size:11px;line-height:1.45;margin:0;print-color-adjust:exact;-webkit-print-color-adjust:exact;color-adjust:exact}
 .cover{text-align:center;page-break-after:always;padding:46px 30px}.cover h1{color:#323F42;font-size:24px;margin:0 0 5px}.cover h2{color:#323F42;font-size:17px;margin:0 0 18px}
-.viq-banner{background:#ffffff;border-bottom:2px solid #C9A84C;margin:-46px -30px 32px -30px;padding:12px 0;text-align:center}
-.viq-banner img{height:42px;width:auto;display:inline-block}
+.viq-banner{background:#ffffff;border-bottom:2px solid #C9A84C;margin:-46px -30px 24px -30px;padding:8px 0;text-align:center}
+.viq-banner img{height:28px;width:auto;display:inline-block}
 .cover .meta{color:#374151;font-size:13px;line-height:2.2}.cover .disc{font-size:9px;color:#6b7280;max-width:460px;margin:24px auto 0;line-height:1.6;text-align:left}
 .cover .dt{margin-top:14px;font-size:12px;color:#374151}
 h3{background:#323F42;color:#FFFFFF;font-size:11.5px;padding:5px 10px;border-radius:4px;margin:18px 0 7px;letter-spacing:0.04em}
@@ -56,18 +56,22 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
   const lgSec=(g,title)=>{
     if(!g)return"";
     const intervalCycles=g.overhaulIntervalCycles!=null?g.overhaulIntervalCycles:20000;
-    const hasOverhaulPair=g.lastOverhaulFC!=null&&g.airframeAtOverhaulFC!=null;
+    const hasRefPair=g.refLegFC!=null&&g.refAirframeFC!=null;
     let curFH=null,curFC=null,curSource="";
     if(g.currentFC!=null){curFH=g.currentFH;curFC=g.currentFC;curSource="Ground Truth";}
-    else if(hasOverhaulPair){curFH=(g.lastOverhaulFH||0)+((af.currentFH||0)-(g.airframeAtOverhaulFH||0));curFC=g.lastOverhaulFC+((af.currentFC||0)-g.airframeAtOverhaulFC);curSource="Calculated";}
+    else if(hasRefPair){curFH=(g.refLegFH||0)+((af.currentFH||0)-(g.refAirframeFH||0));curFC=g.refLegFC+((af.currentFC||0)-g.refAirframeFC);curSource="Calculated";}
     const totalsCell=curFC!=null?('FH: '+fmtHHMM(curFH)+'&nbsp; CSN: '+Math.round(curFC).toLocaleString()+' ('+curSource+')'):"—";
     const cyclesRemaining=(g.lastOverhaulFC!=null&&curFC!=null)?(g.lastOverhaulFC+intervalCycles)-curFC:null;
     const nextDueCell=lgFmtDate(g.nextDue)+(cyclesRemaining!=null?' / '+Math.round(cyclesRemaining).toLocaleString()+' cyc rem':"");
-    const sinceFH=g.airframeAtOverhaulFH!=null?(af.currentFH||0)-g.airframeAtOverhaulFH:null;
-    const sinceFC=g.airframeAtOverhaulFC!=null?(af.currentFC||0)-g.airframeAtOverhaulFC:null;
+    // "Since Last Overhaul" diffs the leg's current total against its own
+    // CSN/TSN at the last overhaul — same leg-CSN scale on both sides, so no
+    // airframe figure is needed (the Reference Reading and Last Overhaul
+    // Record are independent inputs and may not share a date).
+    const sinceFH=(curFH!=null&&g.lastOverhaulFH!=null)?curFH-g.lastOverhaulFH:null;
+    const sinceFC=(curFC!=null&&g.lastOverhaulFC!=null)?curFC-g.lastOverhaulFC:null;
     const lastDateISO=lgFromDDMMYYYY(g.lastOverhaulDate);
     const sinceDays=lastDateISO?Math.floor((new Date()-new Date(lastDateISO))/86400000):null;
-    return'<table style="margin-bottom:14px"><thead><tr><th colspan="5" style="background:#323F42;color:#FFFFFF;font-size:11px">'+title+'</th></tr><tr><th>Part Number</th><th>Serial Number</th><th>Manufacturer</th><th>Totals Since New</th><th>Next Overhaul Due (Cal / Cyc)</th></tr></thead><tbody><tr><td>'+( g.pn||"—")+'</td><td>'+(g.sn||"—")+'</td><td>'+(g.mfr||"—")+'</td><td>'+totalsCell+'</td><td style="font-weight:700">'+ nextDueCell+'</td></tr></tbody></table>'+'<table style="margin-bottom:14px"><thead><tr><th>Last Overhaul Date</th><th>Leg FH at OH</th><th>Leg CSN at OH</th><th>Airframe FH at OH</th><th>Airframe CSN at OH</th><th>Days Since</th><th>FH Since</th><th>CSN Since</th></tr></thead><tbody><tr><td>'+lgFmtDate(g.lastOverhaulDate)+'</td><td>'+(g.lastOverhaulFH!=null?fmtHHMM(g.lastOverhaulFH):"—")+'</td><td>'+(g.lastOverhaulFC!=null?g.lastOverhaulFC.toLocaleString():"—")+'</td><td>'+(g.airframeAtOverhaulFH!=null?fmtHHMM(g.airframeAtOverhaulFH):"—")+'</td><td>'+(g.airframeAtOverhaulFC!=null?g.airframeAtOverhaulFC.toLocaleString():"—")+'</td><td>'+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td><td>'+(sinceFH!=null?fmtHHMM(sinceFH):"—")+'</td><td>'+(sinceFC!=null?Math.round(sinceFC).toLocaleString():"—")+'</td></tr></tbody></table>';
+    return'<table style="margin-bottom:14px"><thead><tr><th colspan="5" style="background:#323F42;color:#FFFFFF;font-size:11px">'+title+'</th></tr><tr><th>Part Number</th><th>Serial Number</th><th>Manufacturer</th><th>Totals Since New</th><th>Next Overhaul Due (Cal / Cyc)</th></tr></thead><tbody><tr><td>'+( g.pn||"—")+'</td><td>'+(g.sn||"—")+'</td><td>'+(g.mfr||"—")+'</td><td>'+totalsCell+'</td><td style="font-weight:700">'+ nextDueCell+'</td></tr></tbody></table>'+'<table style="margin-bottom:14px"><thead><tr><th>Last Overhaul Date</th><th>Leg FH at OH</th><th>Leg CSN at OH</th><th>Days Since</th><th>FH Since</th><th>CSN Since</th></tr></thead><tbody><tr><td>'+lgFmtDate(g.lastOverhaulDate)+'</td><td>'+(g.lastOverhaulFH!=null?fmtHHMM(g.lastOverhaulFH):"—")+'</td><td>'+(g.lastOverhaulFC!=null?g.lastOverhaulFC.toLocaleString():"—")+'</td><td>'+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td><td>'+(sinceFH!=null?fmtHHMM(sinceFH):"—")+'</td><td>'+(sinceFC!=null?Math.round(sinceFC).toLocaleString():"—")+'</td></tr></tbody></table>';
   };
   if(engineOnly){
     const eng=asset.engines?.[0];
