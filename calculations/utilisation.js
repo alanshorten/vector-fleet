@@ -303,17 +303,17 @@
           nose: {
             pn: (newReport.landing_gear && newReport.landing_gear.nose && newReport.landing_gear.nose.pn) || "",
             sn: (newReport.landing_gear && newReport.landing_gear.nose && newReport.landing_gear.nose.sn) || "",
-            startFH: 0, startFC: 0, refAirframeFH: 0, refAirframeFC: 0, nextDue: "", shopVisits: []
+            startFH: 0, startFC: 0, refAirframeFH: 0, refAirframeFC: 0, gearStartSet: false, nextDue: "", shopVisits: []
           },
           left: {
             pn: (newReport.landing_gear && newReport.landing_gear.left && newReport.landing_gear.left.pn) || "",
             sn: (newReport.landing_gear && newReport.landing_gear.left && newReport.landing_gear.left.sn) || "",
-            startFH: 0, startFC: 0, refAirframeFH: 0, refAirframeFC: 0, nextDue: "", shopVisits: []
+            startFH: 0, startFC: 0, refAirframeFH: 0, refAirframeFC: 0, gearStartSet: false, nextDue: "", shopVisits: []
           },
           right: {
             pn: (newReport.landing_gear && newReport.landing_gear.right && newReport.landing_gear.right.pn) || "",
             sn: (newReport.landing_gear && newReport.landing_gear.right && newReport.landing_gear.right.sn) || "",
-            startFH: 0, startFC: 0, refAirframeFH: 0, refAirframeFC: 0, nextDue: "", shopVisits: []
+            startFH: 0, startFC: 0, refAirframeFH: 0, refAirframeFC: 0, gearStartSet: false, nextDue: "", shopVisits: []
           }
         },
         apu: {
