@@ -53,7 +53,7 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
 <table><thead><tr><th>Details</th><th>Date / MRO</th><th>TSN</th><th>CSN</th></tr></thead><tbody>${svRows(eng.shopVisits,eng.currentFH,eng.currentFC)}</tbody></table>`;};
   const lgFromDDMMYYYY=(s)=>{if(!s)return"";const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);if(m)return m[3]+"-"+m[2]+"-"+m[1];return s;};
   const lgFmtDate=(s)=>{if(!s)return"—";if(/^\d{2}\/\d{2}\/\d{4}$/.test(s))return s;return fmtDate(s)||"—";};
-  const lgSec=(g,title)=>{if(!g)return"";const calcCSN=(g.startFC||0)+((af.currentFC||0)-(g.refAirframeFC||0));const calcFH=(g.startFH||0)+((af.currentFH||0)-(g.refAirframeFH||0));const sinceFH=(af.currentFH||0)-(g.lastOverhaulFH||0);const sinceFC=(af.currentFC||0)-(g.lastOverhaulFC||0);const lastDateISO=lgFromDDMMYYYY(g.lastOverhaulDate);const sinceDays=lastDateISO?Math.floor((new Date()-new Date(lastDateISO))/86400000):null;return'<table style="margin-bottom:14px"><thead><tr><th colspan="4" style="background:#323F42;color:#FFFFFF;font-size:11px">'+title+'</th></tr><tr><th>Part Number</th><th>Serial Number</th><th>Totals Since New</th><th>Next Overhaul Due</th></tr></thead><tbody><tr><td>'+( g.pn||"—")+'</td><td>'+(g.sn||"—")+'</td><td>FH: '+fmtHHMM(calcFH)+'&nbsp; CSN: '+Math.round(calcCSN).toLocaleString()+'</td><td style="font-weight:700">'+ lgFmtDate(g.nextDue)+'</td></tr></tbody></table>'+'<table style="margin-bottom:14px"><thead><tr><th>Last Overhaul Date</th><th>FH at Overhaul</th><th>CSN at Overhaul</th><th>Days Since</th><th>FH Since</th><th>CSN Since</th></tr></thead><tbody><tr><td>'+lgFmtDate(g.lastOverhaulDate)+'</td><td>'+(g.lastOverhaulFH?fmtHHMM(g.lastOverhaulFH):"—")+'</td><td>'+(g.lastOverhaulFC?g.lastOverhaulFC.toLocaleString():"—")+'</td><td>'+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td><td>'+fmtHHMM(sinceFH)+'</td><td>'+Math.round(sinceFC).toLocaleString()+'</td></tr></tbody></table>';};
+  const lgSec=(g,title)=>{if(!g)return"";const calcCSN=(g.startFC||0)+((af.currentFC||0)-(g.refAirframeFC||0));const calcFH=(g.startFH||0)+((af.currentFH||0)-(g.refAirframeFH||0));const sinceFH=(af.currentFH||0)-(g.lastOverhaulFH||0);const sinceFC=(af.currentFC||0)-(g.lastOverhaulFC||0);const lastDateISO=lgFromDDMMYYYY(g.lastOverhaulDate);const sinceDays=lastDateISO?Math.floor((new Date()-new Date(lastDateISO))/86400000):null;return'<table style="margin-bottom:14px"><thead><tr><th colspan="5" style="background:#323F42;color:#FFFFFF;font-size:11px">'+title+'</th></tr><tr><th>Part Number</th><th>Serial Number</th><th>Manufacturer</th><th>Totals Since New</th><th>Next Overhaul Due</th></tr></thead><tbody><tr><td>'+( g.pn||"—")+'</td><td>'+(g.sn||"—")+'</td><td>'+(g.mfr||"—")+'</td><td>FH: '+fmtHHMM(calcFH)+'&nbsp; CSN: '+Math.round(calcCSN).toLocaleString()+'</td><td style="font-weight:700">'+ lgFmtDate(g.nextDue)+'</td></tr></tbody></table>'+'<table style="margin-bottom:14px"><thead><tr><th>Last Overhaul Date</th><th>FH at Overhaul</th><th>CSN at Overhaul</th><th>Days Since</th><th>FH Since</th><th>CSN Since</th></tr></thead><tbody><tr><td>'+lgFmtDate(g.lastOverhaulDate)+'</td><td>'+(g.lastOverhaulFH?fmtHHMM(g.lastOverhaulFH):"—")+'</td><td>'+(g.lastOverhaulFC?g.lastOverhaulFC.toLocaleString():"—")+'</td><td>'+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td><td>'+fmtHHMM(sinceFH)+'</td><td>'+Math.round(sinceFC).toLocaleString()+'</td></tr></tbody></table>';};
   if(engineOnly){
     const eng=asset.engines?.[0];
     const ll=lowestLimiter(eng);
@@ -104,6 +104,7 @@ ${(asset.checks||[]).map(c=>`<tr><td>${c.name}</td><td>${fmtDate(c.lastDate)}</t
 <tr><td>Passenger Seating</td><td>${asset.specs?.seating||"—"}</td></tr>
 <tr><td>Passenger Seating Config</td><td>${asset.specs?.seatConfig||"—"}</td></tr>
 <tr><td>Passenger Seating Manufacturer</td><td>${asset.specs?.seatMfr||"—"}</td></tr>
+<tr><td>Passenger Seats P/N</td><td>${asset.specs?.seatPN||"—"}</td></tr>
 <tr><td>Attendant Seats</td><td>${asset.specs?.attendantSeats||"—"}</td></tr>
 <tr><td>Galleys</td><td>${asset.specs?.galleys||"—"}</td></tr>
 <tr><td>Lavatories</td><td>${asset.specs?.lavs||"—"}</td></tr>
@@ -113,6 +114,9 @@ ${(asset.checks||[]).map(c=>`<tr><td>${c.name}</td><td>${fmtDate(c.lastDate)}</t
 <tr><td>CPDLC</td><td>${asset.specs?.cpdlc?"Installed":"Not Installed"}</td></tr>
 <tr><td>TCAS 7.1</td><td>${asset.specs?.tcas?"Installed":"Not Installed"}</td></tr>
 <tr><td>Cockpit Door Surveillance System</td><td>${asset.specs?.cdss?"Installed":"Not Installed"}</td></tr>
+<tr><td>Reinforced Flight Deck Door</td><td>${asset.specs?.rfdd?"Installed":"Not Installed"}</td></tr>
+<tr><td>QAR</td><td>${asset.specs?.qar?"Installed":"Not Installed"}</td></tr>
+<tr><td>Enhanced Mode-S</td><td>${asset.specs?.modeS?"Installed":"Not Installed"}</td></tr>
 <tr><td>Electronic Flight Bag</td><td>${asset.specs?.efb?"Installed":"Not Installed"}</td></tr>
 ${(asset.specs?.custom||[]).filter(f=>f.label&&f.value).map(f=>'<tr><td>'+f.label+'</td><td>'+f.value+'</td></tr>').join("")}
 </tbody></table>
@@ -134,6 +138,7 @@ ${(()=>{
 <h3>APU — ${apu.sn||"—"}</h3>
 <table class="kv">
   <tr><td>Part Number</td><td>${apu.pn||"—"}</td><td style="color:#6b7280;font-weight:600;width:120px">Serial Number</td><td>${apu.sn||"—"}</td></tr>
+  <tr><td>Manufacturer</td><td>${apu.mfr||"—"}</td><td style="color:#6b7280;font-weight:600;width:120px"></td><td></td></tr>
   <tr><td>TSN</td><td>${fmtHHMM(apu.currentFH)}</td><td style="color:#6b7280;font-weight:600">CSN</td><td>${(apu.currentFC||0).toLocaleString()}</td></tr>
 </table>
 <table><thead><tr><th>LLP Descriptor</th><th>P/N</th><th>S/N</th><th>FC Remaining</th></tr></thead><tbody>${llpRows(apu.llps,apu.currentFC)}</tbody></table>
@@ -149,7 +154,17 @@ ${(()=>{
 </div>`;
   })()}
 ${(()=>{
-    const galleryPhotos=(asset.photos||[]).filter(p=>p.label!=="LOPA"&&p.label!=="Airframe");
+    const avionicsPhotos=(asset.photos||[]).filter(p=>p.label==="Avionics");
+    if(!avionicsPhotos.length)return"";
+    const imgs=avionicsPhotos.map(p=>`<img src="${p.url}" style="width:100%;max-height:680px;object-fit:contain;background:#fff;border-radius:4px;display:block;margin:0 auto 10px"/>`).join("");
+    return`${PAGE_FOOTER}<div class="pb"></div>
+<h3>Avionics</h3>
+<div style="text-align:center;margin-top:10px">
+  ${imgs}
+</div>`;
+  })()}
+${(()=>{
+    const galleryPhotos=(asset.photos||[]).filter(p=>p.label!=="LOPA"&&p.label!=="Airframe"&&p.label!=="Avionics");
     if(!galleryPhotos.length)return"";
     const photoHtml=galleryPhotos.map(p=>`
       <div style="break-inside:avoid">
