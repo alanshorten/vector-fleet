@@ -303,8 +303,8 @@
           nose: {
             pn: (newReport.landing_gear && newReport.landing_gear.nose && newReport.landing_gear.nose.pn) || "",
             sn: (newReport.landing_gear && newReport.landing_gear.nose && newReport.landing_gear.nose.sn) || "",
+            refLegFH: null, refLegFC: null, refAirframeFH: null, refAirframeFC: null,
             lastOverhaulDate: "", lastOverhaulFH: null, lastOverhaulFC: null,
-            airframeAtOverhaulFH: null, airframeAtOverhaulFC: null,
             currentFH: (newReport.landing_gear && newReport.landing_gear.nose && newReport.landing_gear.nose.total_fh != null) ? parseHHMM(newReport.landing_gear.nose.total_fh) : null,
             currentFC: (newReport.landing_gear && newReport.landing_gear.nose && newReport.landing_gear.nose.total_fc != null) ? newReport.landing_gear.nose.total_fc : null,
             overhaulIntervalYears: 10, overhaulIntervalCycles: 20000, nextDue: "", shopVisits: []
@@ -312,8 +312,8 @@
           left: {
             pn: (newReport.landing_gear && newReport.landing_gear.left && newReport.landing_gear.left.pn) || "",
             sn: (newReport.landing_gear && newReport.landing_gear.left && newReport.landing_gear.left.sn) || "",
+            refLegFH: null, refLegFC: null, refAirframeFH: null, refAirframeFC: null,
             lastOverhaulDate: "", lastOverhaulFH: null, lastOverhaulFC: null,
-            airframeAtOverhaulFH: null, airframeAtOverhaulFC: null,
             currentFH: (newReport.landing_gear && newReport.landing_gear.left && newReport.landing_gear.left.total_fh != null) ? parseHHMM(newReport.landing_gear.left.total_fh) : null,
             currentFC: (newReport.landing_gear && newReport.landing_gear.left && newReport.landing_gear.left.total_fc != null) ? newReport.landing_gear.left.total_fc : null,
             overhaulIntervalYears: 10, overhaulIntervalCycles: 20000, nextDue: "", shopVisits: []
@@ -321,8 +321,8 @@
           right: {
             pn: (newReport.landing_gear && newReport.landing_gear.right && newReport.landing_gear.right.pn) || "",
             sn: (newReport.landing_gear && newReport.landing_gear.right && newReport.landing_gear.right.sn) || "",
+            refLegFH: null, refLegFC: null, refAirframeFH: null, refAirframeFC: null,
             lastOverhaulDate: "", lastOverhaulFH: null, lastOverhaulFC: null,
-            airframeAtOverhaulFH: null, airframeAtOverhaulFC: null,
             currentFH: (newReport.landing_gear && newReport.landing_gear.right && newReport.landing_gear.right.total_fh != null) ? parseHHMM(newReport.landing_gear.right.total_fh) : null,
             currentFC: (newReport.landing_gear && newReport.landing_gear.right && newReport.landing_gear.right.total_fc != null) ? newReport.landing_gear.right.total_fc : null,
             overhaulIntervalYears: 10, overhaulIntervalCycles: 20000, nextDue: "", shopVisits: []
@@ -532,8 +532,8 @@
       var src = newReport.landing_gear && newReport.landing_gear[k];
       if (!src) return;
       if (!lg[k]) {
-        lg[k] = { pn: "", sn: "", lastOverhaulDate: "", lastOverhaulFH: null, lastOverhaulFC: null,
-          airframeAtOverhaulFH: null, airframeAtOverhaulFC: null, currentFH: null, currentFC: null,
+        lg[k] = { pn: "", sn: "", refLegFH: null, refLegFC: null, refAirframeFH: null, refAirframeFC: null,
+          lastOverhaulDate: "", lastOverhaulFH: null, lastOverhaulFC: null, currentFH: null, currentFC: null,
           overhaulIntervalYears: 10, overhaulIntervalCycles: 20000, nextDue: "", shopVisits: [] };
       }
       if (src.pn) lg[k].pn = src.pn;
