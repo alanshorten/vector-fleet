@@ -303,17 +303,29 @@
           nose: {
             pn: (newReport.landing_gear && newReport.landing_gear.nose && newReport.landing_gear.nose.pn) || "",
             sn: (newReport.landing_gear && newReport.landing_gear.nose && newReport.landing_gear.nose.sn) || "",
-            startFH: 0, startFC: 0, refAirframeFH: 0, refAirframeFC: 0, gearStartSet: false, nextDue: "", shopVisits: []
+            lastOverhaulDate: "", lastOverhaulFH: null, lastOverhaulFC: null,
+            airframeAtOverhaulFH: null, airframeAtOverhaulFC: null,
+            currentFH: (newReport.landing_gear && newReport.landing_gear.nose && newReport.landing_gear.nose.total_fh != null) ? parseHHMM(newReport.landing_gear.nose.total_fh) : null,
+            currentFC: (newReport.landing_gear && newReport.landing_gear.nose && newReport.landing_gear.nose.total_fc != null) ? newReport.landing_gear.nose.total_fc : null,
+            overhaulIntervalYears: 10, overhaulIntervalCycles: 20000, nextDue: "", shopVisits: []
           },
           left: {
             pn: (newReport.landing_gear && newReport.landing_gear.left && newReport.landing_gear.left.pn) || "",
             sn: (newReport.landing_gear && newReport.landing_gear.left && newReport.landing_gear.left.sn) || "",
-            startFH: 0, startFC: 0, refAirframeFH: 0, refAirframeFC: 0, gearStartSet: false, nextDue: "", shopVisits: []
+            lastOverhaulDate: "", lastOverhaulFH: null, lastOverhaulFC: null,
+            airframeAtOverhaulFH: null, airframeAtOverhaulFC: null,
+            currentFH: (newReport.landing_gear && newReport.landing_gear.left && newReport.landing_gear.left.total_fh != null) ? parseHHMM(newReport.landing_gear.left.total_fh) : null,
+            currentFC: (newReport.landing_gear && newReport.landing_gear.left && newReport.landing_gear.left.total_fc != null) ? newReport.landing_gear.left.total_fc : null,
+            overhaulIntervalYears: 10, overhaulIntervalCycles: 20000, nextDue: "", shopVisits: []
           },
           right: {
             pn: (newReport.landing_gear && newReport.landing_gear.right && newReport.landing_gear.right.pn) || "",
             sn: (newReport.landing_gear && newReport.landing_gear.right && newReport.landing_gear.right.sn) || "",
-            startFH: 0, startFC: 0, refAirframeFH: 0, refAirframeFC: 0, gearStartSet: false, nextDue: "", shopVisits: []
+            lastOverhaulDate: "", lastOverhaulFH: null, lastOverhaulFC: null,
+            airframeAtOverhaulFH: null, airframeAtOverhaulFC: null,
+            currentFH: (newReport.landing_gear && newReport.landing_gear.right && newReport.landing_gear.right.total_fh != null) ? parseHHMM(newReport.landing_gear.right.total_fh) : null,
+            currentFC: (newReport.landing_gear && newReport.landing_gear.right && newReport.landing_gear.right.total_fc != null) ? newReport.landing_gear.right.total_fc : null,
+            overhaulIntervalYears: 10, overhaulIntervalCycles: 20000, nextDue: "", shopVisits: []
           }
         },
         apu: {
@@ -520,10 +532,19 @@
       var src = newReport.landing_gear && newReport.landing_gear[k];
       if (!src) return;
       if (!lg[k]) {
-        lg[k] = { pn: "", sn: "", startFH: 0, startFC: 0, refAirframeFH: 0, refAirframeFC: 0, nextDue: "", shopVisits: [] };
+        lg[k] = { pn: "", sn: "", lastOverhaulDate: "", lastOverhaulFH: null, lastOverhaulFC: null,
+          airframeAtOverhaulFH: null, airframeAtOverhaulFC: null, currentFH: null, currentFC: null,
+          overhaulIntervalYears: 10, overhaulIntervalCycles: 20000, nextDue: "", shopVisits: [] };
       }
       if (src.pn) lg[k].pn = src.pn;
       if (src.sn) lg[k].sn = src.sn;
+      // Ground truth ("TOTAL HOURS & CYCLES") from the dedicated Gear Status
+      // Report some lessors send monthly — when present, this always
+      // overrides the calculated figure outright (no tolerance check, per
+      // product decision — there's no overhaul baseline to compare against
+      // for the two aircraft that receive this report).
+      if (src.total_fh != null) lg[k].currentFH = parseHHMM(src.total_fh);
+      if (src.total_fc != null) lg[k].currentFC = src.total_fc;
     });
 
     var mergedAsset = Object.assign({}, previousAsset, {
