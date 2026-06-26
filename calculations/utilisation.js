@@ -342,7 +342,7 @@
         },
         photos: [],
         documents: [],
-        disclaimer: "This outline specification has been prepared based on the information available to Vector Group at the relevant time.",
+        disclaimer: "This outline specification has been prepared based on the information available to Maverick Horizon at the relevant time.",
         _lastPeriod: newReport.month_year
       };
 
