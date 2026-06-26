@@ -1,4 +1,4 @@
-// TailIQ — Admin-only user invite
+// TailiQ — Admin-only user invite
 // POST /api/invite-user  { email }  ->  { ok: true }
 //
 // Flow: Admin SDK creates the Firebase Auth user (no password set by us —
@@ -27,7 +27,7 @@ const ALLOWED_ORIGINS = [
 // their inbox, not necessarily from the same browser tab that sent the invite.
 const CONTINUE_URL = 'https://app.tailiq.app/?view=set-password';
 
-const SENDER = 'TailIQ <invites@tailiq.app>';
+const SENDER = 'TailiQ <invites@tailiq.app>';
 
 function getApp() {
   if (admin.apps.length) return admin.app();
@@ -45,13 +45,13 @@ function emailHTML(resetLink) {
   <div style="font-family:'Segoe UI',Arial,sans-serif;background:#0b1520;padding:32px;">
     <div style="max-width:480px;margin:0 auto;background:#111f30;border:1px solid #1e3048;border-radius:10px;overflow:hidden;">
       <div style="background:#0d1c2c;padding:24px 28px;">
-        <span style="font-family:Arial,sans-serif;font-size:24px;font-weight:700;color:#ffffff;">TailIQ</span>
+        <span style="font-family:Arial,sans-serif;font-size:24px;font-weight:700;color:#ffffff;">TailiQ</span>
         <span style="font-family:Arial,sans-serif;font-size:13px;color:#7a9ab5;margin-left:10px;">Fleet Intelligence</span>
       </div>
       <div style="padding:28px;">
-        <h1 style="color:#e2e8f0;font-size:18px;margin:0 0 14px;">You've been invited to TailIQ</h1>
+        <h1 style="color:#e2e8f0;font-size:18px;margin:0 0 14px;">You've been invited to TailiQ</h1>
         <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 22px;">
-          An administrator has set up an account for you on TailIQ, the fleet intelligence platform.
+          An administrator has set up an account for you on TailiQ, the fleet intelligence platform.
           Click below to choose your password and get started.
         </p>
         <a href="${resetLink}" style="display:inline-block;background:#C9A84C;color:#0a1520;text-decoration:none;
@@ -89,7 +89,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // Confirms the caller is a genuinely signed-in TailIQ user. See trust
+    // Confirms the caller is a genuinely signed-in TailiQ user. See trust
     // model note in the file header re: no per-role enforcement yet.
     await admin.auth(app).verifyIdToken(idToken);
   } catch (err) {
@@ -122,9 +122,23 @@ module.exports = async (req, res) => {
       throw err;
     }
 
-    const resetLink = await auth.generatePasswordResetLink(normalizedEmail, {
+    const firebaseHostedLink = await auth.generatePasswordResetLink(normalizedEmail, {
       url: CONTINUE_URL,
     });
+
+    // generatePasswordResetLink() returns a link to Firebase's own hosted
+    // action handler (e.g. vector-fleet.firebaseapp.com/__/auth/action),
+    // with `continueUrl` only used *after* that page completes — and it
+    // does that redirect without re-attaching oobCode, so our own
+    // SetPasswordScreen never sees the code. We don't need Firebase's
+    // hosted page at all (SetPasswordScreen already calls
+    // verifyPasswordResetCode/confirmPasswordReset directly), so pull the
+    // oobCode out and send people straight to our own page instead.
+    const oobCode = new URL(firebaseHostedLink).searchParams.get('oobCode');
+    if (!oobCode) {
+      throw new Error('Could not extract reset code from generated link.');
+    }
+    const resetLink = `${CONTINUE_URL}&oobCode=${encodeURIComponent(oobCode)}`;
 
     const sgResp = await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
@@ -134,8 +148,8 @@ module.exports = async (req, res) => {
       },
       body: JSON.stringify({
         personalizations: [{ to: [{ email: normalizedEmail }] }],
-        from: { email: 'invites@tailiq.app', name: 'TailIQ' },
-        subject: "You've been invited to TailIQ",
+        from: { email: 'invites@tailiq.app', name: 'TailiQ' },
+        subject: "You've been invited to TailiQ",
         content: [{ type: 'text/html', value: emailHTML(resetLink) }],
       }),
     });
