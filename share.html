@@ -72,11 +72,11 @@ iframe{width:100%;border:none;background:#fff;border-radius:8px;min-height:80vh}
     return;
   }
 
-  const { asset } = await res.json();
+  const { asset, defaultDisclaimer } = await res.json();
 
   // buildTechSpecHTML is the SAME function the authenticated app uses to
   // generate the printable tech spec — see /calculations/techSpecBuilder.js.
-  const html = buildTechSpecHTML(asset, '', null);
+  const html = buildTechSpecHTML(asset, '', null, defaultDisclaimer);
 
   root.innerHTML = '';
   const bar = document.createElement('div');
