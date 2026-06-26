@@ -1,8 +1,8 @@
-// VectorIQ — public share-link lookup
+// TailiQ — public share-link lookup
 // GET /api/share/{token}  ->  { asset: {...allowlisted fields...} }
 //
 // Unauthenticated by design (this is what makes a share link work for
-// someone with no VectorIQ login), so it must fail closed on anything
+// someone with no TailiQ login), so it must fail closed on anything
 // that isn't a valid, unexpired, unrevoked token, and it must never
 // return a field that isn't explicitly allowlisted below. Financial
 // fields (Layer 2 — leaseData, reserveRates, reserveBalances, etc.)
@@ -92,7 +92,20 @@ module.exports = async (req, res) => {
     }
     const asset = { id: assetSnap.id, ...assetSnap.data() };
 
-    return res.status(200).json({ asset: pickAllowed(asset) });
+    // The fleet-wide default disclaimer (Admin → Settings) is not asset
+    // data, so it doesn't go through ALLOWED_FIELDS/pickAllowed — it's a
+    // single non-sensitive string fetched and returned alongside the asset.
+    let defaultDisclaimer = null;
+    try {
+      const settingSnap = await fs.collection('settings').doc('default_disclaimer').get();
+      if (settingSnap.exists) defaultDisclaimer = settingSnap.data().value || null;
+    } catch (e) {
+      // Non-fatal — the tech spec builder falls back to its own hardcoded
+      // wording if this comes back null, so a settings-fetch failure
+      // should never break the share link itself.
+    }
+
+    return res.status(200).json({ asset: pickAllowed(asset), defaultDisclaimer });
   } catch (err) {
     console.error('share token lookup failed', err);
     return res.status(500).json({ error: 'Internal error' });
