@@ -36,7 +36,12 @@ h3{background:#323F42;color:#FFFFFF;font-size:11.5px;padding:5px 10px;border-rad
 table{width:100%;border-collapse:collapse;margin-bottom:9px;font-size:10.5px}
 th{background:#f1f5f9;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0}
 td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
-.kv td:first-child{color:#6b7280;font-weight:600;width:180px}
+.kv td:first-child{color:#6b7280;font-weight:600;width:130px}
+.specs-grid{width:100%;border-collapse:collapse;border:none}
+.specs-grid>tr>td.specs-col{border:none;padding:0;vertical-align:top;width:50%}
+.specs-grid .kv{margin-bottom:0}
+.specs-col:first-child{padding-right:7px}
+.specs-col:last-child{padding-left:7px}
 .pb{page-break-before:always;height:0;margin:0;padding:0}
 .pgfooter{text-align:center;font-size:8px;color:#9ca3af;letter-spacing:0.05em;text-transform:uppercase;margin-top:24px;border-top:1px solid #e2e8f0;padding-top:7px}
 .footer{text-align:center;font-size:8px;color:#aaa;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:7px}`;
@@ -118,27 +123,33 @@ ${[["MTOW","mtow","mtow_lb"],["Max Taxi Weight","mtw","mtw_lb"],["MZFW","mzfw","
 ${(asset.checks||[]).map(c=>`<tr><td>${c.name}</td><td>${fmtDate(c.lastDate)}</td><td>${c.lastFH?.toLocaleString()||"—"}</td><td>${c.lastFC?.toLocaleString()||"—"}</td><td style="font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("")}
 </tbody></table>
 <h3>Specifications</h3>
-<table class="kv"><tbody>
-<tr><td>Configuration</td><td>${asset.specs?.config||"—"}</td></tr>
-<tr><td>Passenger Seating</td><td>${asset.specs?.seating||"—"}</td></tr>
-<tr><td>Passenger Seating Config</td><td>${asset.specs?.seatConfig||"—"}</td></tr>
-<tr><td>Passenger Seating Manufacturer</td><td>${asset.specs?.seatMfr||"—"}</td></tr>
-<tr><td>Passenger Seats P/N</td><td>${asset.specs?.seatPN||"—"}</td></tr>
-<tr><td>Attendant Seats</td><td>${asset.specs?.attendantSeats||"—"}</td></tr>
-<tr><td>Galleys</td><td>${asset.specs?.galleys||"—"}</td></tr>
-<tr><td>Lavatories</td><td>${asset.specs?.lavs||"—"}</td></tr>
-<tr><td>Cargo Type</td><td>${asset.specs?.cargoType||"—"}</td></tr>
-<tr><td>Winglets</td><td>${asset.specs?.winglets||"—"}</td></tr>
-<tr><td>ADS-B</td><td>${asset.specs?.adsb?"Installed":"Not Installed"}</td></tr>
-<tr><td>CPDLC</td><td>${asset.specs?.cpdlc?"Installed":"Not Installed"}</td></tr>
-<tr><td>TCAS 7.1</td><td>${asset.specs?.tcas?"Installed":"Not Installed"}</td></tr>
-<tr><td>Cockpit Door Surveillance System</td><td>${asset.specs?.cdss?"Installed":"Not Installed"}</td></tr>
-<tr><td>Reinforced Flight Deck Door</td><td>${asset.specs?.rfdd?"Installed":"Not Installed"}</td></tr>
-<tr><td>QAR</td><td>${asset.specs?.qar?"Installed":"Not Installed"}</td></tr>
-<tr><td>Enhanced Mode-S</td><td>${asset.specs?.modeS?"Installed":"Not Installed"}</td></tr>
-<tr><td>Electronic Flight Bag</td><td>${asset.specs?.efb?"Installed":"Not Installed"}</td></tr>
-${(asset.specs?.custom||[]).filter(f=>f.label&&f.value).map(f=>'<tr><td>'+f.label+'</td><td>'+f.value+'</td></tr>').join("")}
-</tbody></table>
+${(()=>{
+  const rows=[
+    ["Configuration",asset.specs?.config||"—"],
+    ["Passenger Seating",asset.specs?.seating||"—"],
+    ["Passenger Seating Config",asset.specs?.seatConfig||"—"],
+    ["Passenger Seating Manufacturer",asset.specs?.seatMfr||"—"],
+    ["Passenger Seats P/N",asset.specs?.seatPN||"—"],
+    ["Attendant Seats",asset.specs?.attendantSeats||"—"],
+    ["Galleys",asset.specs?.galleys||"—"],
+    ["Lavatories",asset.specs?.lavs||"—"],
+    ["Cargo Type",asset.specs?.cargoType||"—"],
+    ["Winglets",asset.specs?.winglets||"—"],
+    ["ADS-B",asset.specs?.adsb?"Installed":"Not Installed"],
+    ["CPDLC",asset.specs?.cpdlc?"Installed":"Not Installed"],
+    ["TCAS 7.1",asset.specs?.tcas?"Installed":"Not Installed"],
+    ["Cockpit Door Surveillance System",asset.specs?.cdss?"Installed":"Not Installed"],
+    ["Reinforced Flight Deck Door",asset.specs?.rfdd?"Installed":"Not Installed"],
+    ["QAR",asset.specs?.qar?"Installed":"Not Installed"],
+    ["Enhanced Mode-S",asset.specs?.modeS?"Installed":"Not Installed"],
+    ["Electronic Flight Bag",asset.specs?.efb?"Installed":"Not Installed"],
+    ...(asset.specs?.custom||[]).filter(f=>f.label&&f.value).map(f=>[f.label,f.value])
+  ];
+  const mid=Math.ceil(rows.length/2);
+  const left=rows.slice(0,mid),right=rows.slice(mid);
+  const colHTML=col=>col.map(([l,v])=>`<tr><td>${l}</td><td>${v}</td></tr>`).join("");
+  return`<table class="specs-grid"><tr><td class="specs-col"><table class="kv"><tbody>${colHTML(left)}</tbody></table></td><td class="specs-col"><table class="kv"><tbody>${colHTML(right)}</tbody></table></td></tr></table>`;
+})()}
 ${PAGE_FOOTER}<div class="pb"></div>
 ${engSec(asset.engines?.[0],1)}
 ${PAGE_FOOTER}<div class="pb"></div>
