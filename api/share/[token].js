@@ -10,6 +10,14 @@
 
 const admin = require('firebase-admin');
 
+// Allow both the legacy Vercel URL and the new tailiq.app domain while
+// we're mid-transition. Drop the .vercel.app entry in a future cleanup
+// session once app.tailiq.app is confirmed solid for everything.
+const ALLOWED_ORIGINS = [
+  'https://vector-fleet.vercel.app',
+  'https://app.tailiq.app',
+];
+
 function getApp() {
   if (admin.apps.length) return admin.app();
   return admin.initializeApp({
@@ -41,10 +49,13 @@ function pickAllowed(asset) {
 }
 
 module.exports = async (req, res) => {
-  // Public endpoint, but still locked to our own domain — a share link is
-  // opened directly by the recipient's browser, not called cross-origin
+  // Public endpoint, but still locked to our own domain(s) — a share link
+  // is opened directly by the recipient's browser, not called cross-origin
   // from a third-party site.
-  res.setHeader('Access-Control-Allow-Origin', 'https://vector-fleet.vercel.app');
+  const origin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
