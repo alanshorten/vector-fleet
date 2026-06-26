@@ -103,7 +103,7 @@ ${PAGE_FOOTER}
   <h2>Manufacturer Serial Number: ${asset.msn}</h2>
   <div class="meta">Manufacturer: <b>${asset.manufacturer||"—"}</b><br>Model: <b>${asset.model||"—"}</b><br>Registration: <b>${asset.registration||"—"}</b><br>Operator: <b>${asset.operator||"—"}</b></div>
   ${(()=>{const coverPhoto=(asset.photos||[]).find(p=>p.label==="Airframe");return coverPhoto?.url?`<img src="${coverPhoto.url}" style="width:420px;max-height:200px;object-fit:cover;border-radius:6px;margin:18px auto 0;display:block;box-shadow:0 4px 16px rgba(0,0,0,0.2)"/>`:"";})()}
-  <div class="disc">${asset.disclaimer||"This outline specification has been prepared based on the information available to Vector Group at the relevant time. The recipient must verify the information provided independently."}</div>
+  <div class="disc">${asset.disclaimer||"This outline specification has been prepared based on the information available to Maverick Horizon at the relevant time. The recipient must verify the information provided independently."}</div>
   <div class="dt">Date: ${today}</div>
 </div>
 <h3>Asset Details</h3>
