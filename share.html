@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>VectorIQ — Shared Tech Spec</title>
+<title>TailiQ — Shared Tech Spec</title>
 <!-- Same pure-JS builders the main app uses — no React/Babel/Firebase needed
      for this page, since it only ever reads allowlisted data returned by
      the public /api/share/{token} function. -->
@@ -41,7 +41,7 @@ iframe{width:100%;border:none;background:#fff;border-radius:8px;min-height:80vh}
     center.className = 'center';
     center.innerHTML = `
       <div class="card">
-        <div class="gold" style="font-size:16px;margin-bottom:10px">VectorIQ</div>
+        <div class="gold" style="font-size:16px;margin-bottom:10px">TailiQ</div>
         <div style="font-size:14px;font-weight:600">${message}</div>
         <div class="muted">If you believe this is a mistake, ask the sender for a fresh share link.</div>
       </div>`;
@@ -62,7 +62,7 @@ iframe{width:100%;border:none;background:#fff;border-radius:8px;min-height:80vh}
   try {
     res = await fetch('/api/share/' + encodeURIComponent(token));
   } catch (e) {
-    showError('Could not reach VectorIQ — check your connection and try again.');
+    showError('Could not reach TailiQ — check your connection and try again.');
     return;
   }
 
@@ -83,7 +83,7 @@ iframe{width:100%;border:none;background:#fff;border-radius:8px;min-height:80vh}
   bar.className = 'wrap';
   bar.innerHTML = `
     <div class="bar">
-      <span class="gold" style="flex:1;font-size:14px">VectorIQ — Shared Tech Spec (read-only)</span>
+      <span class="gold" style="flex:1;font-size:14px">TailiQ — Shared Tech Spec (read-only)</span>
       <button class="btn btn-gold" id="printBtn">🖨 Print / Save PDF</button>
     </div>`;
   const iframeWrap = document.createElement('div');
