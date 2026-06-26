@@ -1,6 +1,18 @@
 export const maxDuration = 60;
+
+// Allow both the legacy Vercel URL and the new tailiq.app domain while we're
+// mid-transition. Drop the .vercel.app entry in a future cleanup session
+// once app.tailiq.app is confirmed solid for everything.
+const ALLOWED_ORIGINS = [
+  'https://vector-fleet.vercel.app',
+  'https://app.tailiq.app',
+];
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', 'https://vector-fleet.vercel.app');
+  const origin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
