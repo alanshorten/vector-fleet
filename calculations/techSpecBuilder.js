@@ -172,8 +172,8 @@ ${(()=>{
   <tr><td>TSN</td><td>${fmtHHMM(apu.currentFH)}</td><td style="color:#6b7280;font-weight:600">CSN</td><td>${(apu.currentFC||0).toLocaleString()}</td></tr>
 </table>
 <table><thead><tr><th>LLP Descriptor</th><th>P/N</th><th>S/N</th><th>FC Remaining</th></tr></thead><tbody>${llpRows(apu.llps,apu.currentFC)}</tbody></table>
-<p style="font-weight:700;font-size:10px;margin:8px 0 4px">APU Shop Visit History</p>
-<table><thead><tr><th>Details</th><th>Date / MRO</th><th>TSN</th><th>CSN</th></tr></thead><tbody>${svRows(apu.shopVisits,apu.currentFH,apu.currentFC)}</tbody></table>
+<p style="font-weight:700;font-size:10px;margin:8px 0 4px">Most Recent APU Shop Visit</p>
+<table><thead><tr><th>Details</th><th>Date / MRO</th><th>TSN</th><th>CSN</th></tr></thead><tbody>${svRows((apu.shopVisits||[]).slice(-1),apu.currentFH,apu.currentFC)}</tbody></table>
 ${(()=>{
     const lopaPhoto=(asset.photos||[]).find(p=>p.label==="LOPA");
     if(!lopaPhoto)return"";
