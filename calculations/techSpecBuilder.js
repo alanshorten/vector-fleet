@@ -48,14 +48,14 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
   const PAGE_FOOTER='<div class="pgfooter">Powered by <span style="text-transform:none">TailiQ</span> Fleet Intelligence</div>';
   const llpRows=(llps,csn)=>!llps?.length?'<tr><td colspan="4" style="color:#aaa;font-style:italic">No LLP data entered</td></tr>':llps.map(l=>{const r=calcLLPRem(l,csn);return`<tr><td>${l.desc||""}</td><td style="font-family:monospace">${l.pn||""}</td><td style="font-family:monospace">${l.sn||""}</td><td style="font-weight:700;color:${r<1000?"#dc2626":r<3000?"#d97706":"#111"}">${r.toLocaleString()}</td></tr>`;}).join("");
   const svRows=(visits,currentFH,currentFC)=>{if(!visits||!visits.length)return'<tr><td colspan="4" style="color:#aaa;font-style:italic">No shop visits recorded</td></tr>';const mroLine=(mro)=>mro?'<br/><span style="font-size:9px;color:#6b7280">'+mro+'</span>':"";const rows=visits.map(sv=>'<tr><td>'+(sv.details||"")+'</td><td>'+fmtDate(sv.date)+mroLine(sv.mro)+'</td><td style="font-family:monospace">'+(fmtHHMM(sv.fh)||"")+'</td><td style="font-family:monospace">'+(sv.fc?sv.fc.toLocaleString():"")+'</td></tr>').join("");const last=visits[visits.length-1];const sinceFH=currentFH&&last.fh?currentFH-last.fh:null;const sinceFC=currentFC&&last.fc?currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;const sinceRow='<tr style="background:#f1f5f9"><td colspan="2" style="color:#323F42;font-weight:700">Since Last Shop Visit</td><td style="font-family:monospace">'+(sinceFH!==null?fmtHHMM(sinceFH):"—")+'</td><td style="font-family:monospace">'+(sinceFC!==null?sinceFC.toLocaleString():"—")+'</td></tr><tr style="background:#f1f5f9"><td colspan="4" style="color:#6b7280;font-size:9px">Days since last shop visit: '+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td></tr>';return rows+sinceRow;};
-  const engSec=(eng,pos)=>{if(!eng)return"";const ll=lowestLimiter(eng);return`<h3>Engine #${pos} — ESN ${eng.sn||"—"}</h3>
+  const engSec=(eng,pos,fullHistory=false)=>{if(!eng)return"";const ll=lowestLimiter(eng);const svList=fullHistory?(eng.shopVisits||[]):(eng.shopVisits||[]).slice(-1);const svTitle=fullHistory?"Shop Visit History":"Most Recent Shop Visit";return`<h3>Engine #${pos} — ESN ${eng.sn||"—"}</h3>
 <table class="kv"><tr><td>Engine Type</td><td>${eng.type||"—"}</td><td style="color:#6b7280;font-weight:600;width:120px">Thrust</td><td>${eng.thrust||"—"}</td></tr>
 <tr><td>TSN</td><td>${fmtHHMM(eng.currentFH)}</td><td style="color:#6b7280;font-weight:600">CSN</td><td>${(eng.currentFC||0).toLocaleString()}</td></tr>
 <tr><td>Lowest LLP Limiter</td><td colspan="3" style="font-weight:700;color:${ll!==null&&ll<1000?"#dc2626":ll!==null&&ll<3000?"#d97706":"#111"}">${ll!==null?ll.toLocaleString()+" FC":"No LLP data"}</td></tr></table>
 <p style="font-weight:700;font-size:10px;margin:8px 0 4px">Life Limited Parts</p>
 <table><thead><tr><th>LLP Descriptor</th><th>P/N</th><th>S/N</th><th>FC Remaining</th></tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>
-<p style="font-weight:700;font-size:10px;margin:8px 0 4px">Shop Visit History</p>
-<table><thead><tr><th>Details</th><th>Date / MRO</th><th>TSN</th><th>CSN</th></tr></thead><tbody>${svRows(eng.shopVisits,eng.currentFH,eng.currentFC)}</tbody></table>`;};
+<p style="font-weight:700;font-size:10px;margin:8px 0 4px">${svTitle}</p>
+<table><thead><tr><th>Details</th><th>Date / MRO</th><th>TSN</th><th>CSN</th></tr></thead><tbody>${svRows(svList,eng.currentFH,eng.currentFC)}</tbody></table>`;};
   const lgFromDDMMYYYY=(s)=>{if(!s)return"";const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);if(m)return m[3]+"-"+m[2]+"-"+m[1];return s;};
   const lgFmtDate=(s)=>fmtDate(s);
   const lgSec=(g,title)=>{
@@ -91,7 +91,7 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
   ${engPhoto?`<img src="${engPhoto}" style="width:420px;max-height:220px;object-fit:cover;border-radius:6px;margin:18px auto 0;display:block;box-shadow:0 4px 16px rgba(0,0,0,0.2)"/>`:""}
   <div class="dt">Date: ${today}</div>
 </div>
-${engSec(eng,enginePos)}
+${engSec(eng,enginePos,true)}
 ${PAGE_FOOTER}
 </body></html>`;
   }
