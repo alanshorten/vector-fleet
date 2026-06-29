@@ -3,13 +3,13 @@
 // Captures email signups from the tailiq.app landing page.
 // 1. Validates the submitted email.
 // 2. Writes it to a Firestore collection (`landing_interest`).
-// 3. Sends a notification email to Alan via SendGrid so he knows in real time.
+// 3. Sends a notification email to Alan via SendGrid's HTTP API so he knows
+//    in real time (uses plain fetch — no @sendgrid/mail dependency needed).
 //
-// Uses the same Firebase Admin SDK / SendGrid setup already configured
-// for invite-user.js and email-ingest.js — no new services or cost.
+// Uses the same Firebase Admin SDK setup already configured for
+// invite-user.js and email-ingest.js — no new services or cost.
 
 const admin = require('firebase-admin');
-const sgMail = require('@sendgrid/mail');
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -25,11 +25,33 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NOTIFY_TO = 'alan.shorten@maverick-horizon.com';
 const NOTIFY_FROM = 'invites@tailiq.app';
+
+async function sendNotification(cleanEmail, docId) {
+  const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: NOTIFY_TO }] }],
+      from: { email: NOTIFY_FROM },
+      subject: 'New TailiQ landing page signup',
+      content: [
+        { type: 'text/plain', value: `New signup: ${cleanEmail}\n\nFirestore doc: landing_interest/${docId}` },
+        { type: 'text/html', value: `<p>New TailiQ landing page signup:</p><p><strong>${cleanEmail}</strong></p><p style="color:#888;font-size:12px">Firestore doc: landing_interest/${docId}</p>` },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`SendGrid responded ${response.status}: ${body}`);
+  }
+}
 
 module.exports = async (req, res) => {
   // Basic CORS — the form is served from the same domain, but allow both
@@ -67,15 +89,9 @@ module.exports = async (req, res) => {
     // Fire the notification email. If SendGrid fails, we still return
     // success to the visitor — the signup itself is already saved.
     try {
-      await sgMail.send({
-        to: NOTIFY_TO,
-        from: NOTIFY_FROM,
-        subject: 'New TailiQ landing page signup',
-        text: `New signup: ${cleanEmail}\n\nFirestore doc: landing_interest/${docRef.id}`,
-        html: `<p>New TailiQ landing page signup:</p><p><strong>${cleanEmail}</strong></p><p style="color:#888;font-size:12px">Firestore doc: landing_interest/${docRef.id}</p>`,
-      });
+      await sendNotification(cleanEmail, docRef.id);
     } catch (notifyErr) {
-      console.error('SendGrid notification failed:', notifyErr?.response?.body || notifyErr);
+      console.error('SendGrid notification failed:', notifyErr.message || notifyErr);
     }
 
     return res.status(200).json({ ok: true });
