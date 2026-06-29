@@ -5,11 +5,6 @@
     }
   },
   "rewrites": [
-    {
-      "source": "/",
-      "has": [{ "type": "host", "value": "tailiq.app" }],
-      "destination": "/tailiq_landing.html"
-    },
     { "source": "/share/:token", "destination": "/share.html?token=:token" }
   ]
 }
