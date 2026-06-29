@@ -183,6 +183,17 @@ async function writeNotification(fsdb, payload) {
   }
 }
 
+// ---- review-queue severity classification (Section 12a) -------------------
+// Brain 1's warning strings already encode severity via their leading
+// glyph — "\u26A0" (⚠) for things that should hold a report back pending
+// review (S/N change, delta mismatch, gap detected), vs "\u2139"/"\uD83D\uDD27"
+// (ℹ/🔧) for informational notes (same-month merge, removal log) that are
+// fine to apply immediately. No Brain 1 changes needed — this just reads
+// the same warning text the manual Upload flow already shows.
+function hasHighSeverityWarning(warnings) {
+  return (warnings || []).some(function (w) { return w.indexOf('\u26A0') === 0; });
+}
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
 
@@ -334,6 +345,28 @@ module.exports = async (req, res) => {
       });
       await writeNotification(fsdb, { ...baseLog, status: 'history_only', warnings: result.warnings });
       return res.status(200).json({ ok: true, status: 'history_only' });
+    }
+
+    // ---- Review queue gate (Section 12a) -----------------------------------
+    // High-severity warnings (S/N change, delta mismatch, gap detected) hold
+    // the report back from going live, same way out-of-order uploads already
+    // never touch live state. The full merge result (already computed by
+    // Brain 1 above) is staged in `pendingReports` rather than discarded, so
+    // Apply in the review queue is just "write what we already calculated" —
+    // no re-parsing, no re-running Brain 1, no risk of a different result
+    // between now and review.
+    if (hasHighSeverityWarning(result.warnings)) {
+      await fsdb.collection('pendingReports').add({
+        ...baseLog,
+        status: 'pending_review',
+        warnings: result.warnings,
+        isNewAsset: result.isNewAsset,
+        mergedAsset: result.mergedAsset,
+        utilisationRecord: result.utilisationRecord,
+        createdAt: new Date().toISOString()
+      });
+      await writeNotification(fsdb, { ...baseLog, status: 'pending_review', warnings: result.warnings });
+      return res.status(200).json({ ok: true, status: 'pending_review' });
     }
 
     const { _dbId, _updatedAt, ...assetData } = result.mergedAsset;
