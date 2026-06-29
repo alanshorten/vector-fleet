@@ -8,3 +8,4 @@
     { "source": "/share/:token", "destination": "/share.html?token=:token" }
   ]
 }
+
