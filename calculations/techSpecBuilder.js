@@ -28,7 +28,7 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
   const engineOnly=asset._engineOnly;
   const enginePos=asset._enginePos||1;
   const specCSS=`@page{size:A4;margin:14mm 18mm}body{font-family:Arial,sans-serif;color:#111;font-size:11px;line-height:1.45;margin:0;print-color-adjust:exact;-webkit-print-color-adjust:exact;color-adjust:exact}
-.cover{text-align:center;page-break-after:always;padding:46px 30px}.cover h1{color:#323F42;font-size:24px;margin:0 0 5px}.cover h2{color:#323F42;font-size:17px;margin:0 0 18px}
+.cover{text-align:center;page-break-after:always;padding:46px 30px 70px;position:relative;min-height:235mm;box-sizing:border-box}.cover h1{color:#323F42;font-size:24px;margin:0 0 5px}.cover h2{color:#323F42;font-size:17px;margin:0 0 18px}
 .viq-banner{background:#ffffff;border-bottom:2px solid #C9A84C;margin:-46px -30px 24px -30px;padding:8px 0;text-align:center}
 .viq-banner img{height:28px;width:auto;display:inline-block}
 .cover .meta{color:#374151;font-size:13px;line-height:2.2}.cover .disc{font-size:9px;color:#6b7280;max-width:460px;margin:24px auto 0;line-height:1.6;text-align:left}
@@ -47,10 +47,12 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
 .pgfooter{text-align:center;font-size:8px;color:#9ca3af;letter-spacing:0.05em;text-transform:uppercase;margin-top:24px;border-top:1px solid #e2e8f0;padding-top:7px}
 .footer{text-align:center;font-size:8px;color:#aaa;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:7px}`;
   const PAGE_FOOTER='<div class="pgfooter"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#dc2626;margin-right:3px;vertical-align:middle"></span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#16a34a;margin-right:6px;vertical-align:middle"></span>Powered by <span style="text-transform:none">TailiQ</span> Fleet Intelligence</div>';
-  const COVER_PILL='<a href="https://tailiq.app" target="_blank" style="text-decoration:none;display:inline-block;margin:14px auto 0"><table style="margin:0 auto;border:1px solid #C9A84C;border-radius:16px;border-collapse:separate;background:#fff"><tr>'
-    +'<td style="padding:4px 0 4px 9px;white-space:nowrap;vertical-align:middle"><span style="display:inline-block;width:4.5px;height:4.5px;border-radius:50%;background:#dc2626;margin-right:2.5px;vertical-align:middle"></span><span style="display:inline-block;width:4.5px;height:4.5px;border-radius:50%;background:#16a34a;vertical-align:middle"></span></td>'
-    +'<td style="vertical-align:middle;padding:4px 9px;text-align:left;font-size:8px;color:#374151;font-weight:600;line-height:1.25;white-space:nowrap">Find out more<br/><span style="font-size:7px;color:#9ca3af;font-weight:400">tailiq.app</span></td>'
-    +'<td style="vertical-align:middle;padding:4px 9px 4px 0"><img src="'+QR_TAILIQ+'" style="width:22px;height:22px;display:block"/></td>'
+  const COVER_PILL='<a href="https://tailiq.app" target="_blank" style="text-decoration:none;display:inline-block"><table style="margin:0 auto;border:1px solid #C9A84C;border-radius:16px;border-collapse:separate;background:#fff" cellpadding="0" cellspacing="0"><tr>'
+    +'<td style="border:none;padding:4px 0 4px 9px;white-space:nowrap;vertical-align:middle">'
+    +'<span style="display:inline-block;width:4.5px;height:4.5px;border-radius:50%;background:#dc2626;margin-right:2.5px;vertical-align:middle"></span>'
+    +'<span style="display:inline-block;width:4.5px;height:4.5px;border-radius:50%;background:#16a34a;vertical-align:middle"></span></td>'
+    +'<td style="border:none;vertical-align:middle;padding:4px 9px;text-align:left;font-size:8px;color:#374151;font-weight:600;line-height:1.25;white-space:nowrap">Find out more<br/><span style="font-size:7px;color:#9ca3af;font-weight:400">tailiq.app</span></td>'
+    +'<td style="border:none;vertical-align:middle;padding:4px 9px 4px 0"><img src="'+QR_TAILIQ+'" style="width:22px;height:22px;display:block"/></td>'
     +'</tr></table></a>';
   const llpRows=(llps,csn)=>!llps?.length?'<tr><td colspan="4" style="color:#aaa;font-style:italic">No LLP data entered</td></tr>':llps.map(l=>{const r=calcLLPRem(l,csn);return`<tr><td>${l.desc||""}</td><td style="font-family:monospace">${l.pn||""}</td><td style="font-family:monospace">${l.sn||""}</td><td style="font-weight:700;color:${r<1000?"#dc2626":r<3000?"#d97706":"#111"}">${r.toLocaleString()}</td></tr>`;}).join("");
   const svRows=(visits,currentFH,currentFC)=>{if(!visits||!visits.length)return'<tr><td colspan="4" style="color:#aaa;font-style:italic">No shop visits recorded</td></tr>';const mroLine=(mro)=>mro?'<br/><span style="font-size:9px;color:#6b7280">'+mro+'</span>':"";const rows=visits.map(sv=>'<tr><td>'+(sv.details||"")+'</td><td>'+fmtDate(sv.date)+mroLine(sv.mro)+'</td><td style="font-family:monospace">'+(fmtHHMM(sv.fh)||"")+'</td><td style="font-family:monospace">'+(sv.fc?sv.fc.toLocaleString():"")+'</td></tr>').join("");const last=visits[visits.length-1];const sinceFH=currentFH&&last.fh?currentFH-last.fh:null;const sinceFC=currentFC&&last.fc?currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;const sinceRow='<tr style="background:#f1f5f9"><td colspan="2" style="color:#323F42;font-weight:700">Since Last Shop Visit</td><td style="font-family:monospace">'+(sinceFH!==null?fmtHHMM(sinceFH):"—")+'</td><td style="font-family:monospace">'+(sinceFC!==null?sinceFC.toLocaleString():"—")+'</td></tr><tr style="background:#f1f5f9"><td colspan="4" style="color:#6b7280;font-size:9px">Days since last shop visit: '+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td></tr>';return rows+sinceRow;};
@@ -96,7 +98,7 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
   <div class="meta">Aircraft MSN: <b>${asset.msn}</b><br>Registration: <b>${asset.registration||"—"}</b><br>Engine Type: <b>${eng?.type||"—"}</b><br>Position: <b>Engine #${enginePos}</b><br>Operator: <b>${asset.operator||"—"}</b></div>
   ${engPhoto?`<img src="${engPhoto}" style="width:420px;max-height:220px;object-fit:cover;border-radius:6px;margin:18px auto 0;display:block;box-shadow:0 4px 16px rgba(0,0,0,0.2)"/>`:""}
   <div class="dt">Date: ${today}</div>
-  ${COVER_PILL}
+  <div style="position:absolute;bottom:24px;left:0;right:0;text-align:center">${COVER_PILL}</div>
 </div>
 ${engSec(eng,enginePos,true)}
 ${PAGE_FOOTER}
@@ -112,7 +114,7 @@ ${PAGE_FOOTER}
   ${(()=>{const coverPhoto=(asset.photos||[]).find(p=>p.label==="Airframe");return coverPhoto?.url?`<img src="${coverPhoto.url}" style="width:420px;max-height:200px;object-fit:cover;border-radius:6px;margin:18px auto 0;display:block;box-shadow:0 4px 16px rgba(0,0,0,0.2)"/>`:"";})()}
   <div class="disc">${asset.disclaimer||disclaimerOverride||"This outline specification has been prepared based on the information available to Maverick Horizon at the relevant time. The recipient must verify the information provided independently."}</div>
   <div class="dt">Date: ${today}</div>
-  ${COVER_PILL}
+  <div style="position:absolute;bottom:24px;left:0;right:0;text-align:center">${COVER_PILL}</div>
 </div>
 <h3>Asset Details</h3>
 <table class="kv">
