@@ -26,7 +26,7 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const NOTIFY_TO = 'alan.shorten@maverick-horizon.com';
+const NOTIFY_TO = 'alan.shorten@gmail.com';
 const NOTIFY_FROM = 'invites@tailiq.app';
 
 async function sendNotification(cleanEmail, docId) {
