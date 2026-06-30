@@ -174,6 +174,7 @@ ${(()=>{
     if(!rows.length)return"";
     return`<table style="margin-bottom:14px"><thead><tr><th colspan="4" style="background:#323F42;color:#FFFFFF;font-size:11px">Wheels &amp; Brakes</th></tr><tr><th>Component</th><th>Qty</th><th>P/N</th><th>Manufacturer</th></tr></thead><tbody>${rows.map(([label,item])=>`<tr><td>${label}</td><td>${item.qty||"—"}</td><td>${item.pn||"—"}</td><td>${item.mfr||"—"}</td></tr>`).join("")}</tbody></table>`;
   })()}
+${PAGE_FOOTER}<div class="pb"></div>
 <h3>APU — ${apu.sn||"—"}</h3>
 <table class="kv">
   <tr><td>Part Number</td><td>${apu.pn||"—"}</td><td style="color:#6b7280;font-weight:600;width:120px">Serial Number</td><td>${apu.sn||"—"}</td></tr>
