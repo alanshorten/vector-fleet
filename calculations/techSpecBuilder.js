@@ -27,8 +27,9 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
   const af=asset.airframe||{};const lg=asset.landingGear||{};const apu=asset.apu||{};
   const engineOnly=asset._engineOnly;
   const enginePos=asset._enginePos||1;
-  const specCSS=`@page{size:A4;margin:14mm 18mm}html,body{height:100%}body{font-family:Arial,sans-serif;color:#111;font-size:11px;line-height:1.45;margin:0;print-color-adjust:exact;-webkit-print-color-adjust:exact;color-adjust:exact}
-.cover{text-align:center;page-break-after:always;padding:0;box-sizing:border-box;display:table;width:100%;height:100%}.cover-top{display:table-row}.cover-top>div{display:table-cell;vertical-align:top;padding:46px 30px 0}.cover-bottom{display:table-row}.cover-bottom>div{display:table-cell;vertical-align:bottom;padding:0 30px 28px;text-align:center}.cover h1{color:#323F42;font-size:24px;margin:0 0 5px}.cover h2{color:#323F42;font-size:17px;margin:0 0 18px}
+  const specCSS=`@page{size:A4;margin:14mm 18mm}body{font-family:Arial,sans-serif;color:#111;font-size:11px;line-height:1.45;margin:0;print-color-adjust:exact;-webkit-print-color-adjust:exact;color-adjust:exact}
+.cover{text-align:center;page-break-after:always;padding:46px 30px;box-sizing:border-box}.cover-bottom{margin-top:14px}.cover h1{color:#323F42;font-size:24px;margin:0 0 5px}.cover h2{color:#323F42;font-size:17px;margin:0 0 18px}
+@media print{html,body{height:100%}.cover{padding:0;display:table;width:100%;height:100%}.cover-top{display:table-row}.cover-top>div{display:table-cell;vertical-align:top;padding:46px 30px 0}.cover-bottom{display:table-row;margin-top:0}.cover-bottom>div{display:table-cell;vertical-align:bottom;padding:0 30px 28px;text-align:center}}
 .viq-banner{background:#ffffff;border-bottom:2px solid #C9A84C;margin:-46px -30px 24px -30px;padding:8px 0;text-align:center}
 .viq-banner img{height:28px;width:auto;display:inline-block}
 .cover .meta{color:#374151;font-size:13px;line-height:2.2}.cover .disc{font-size:9px;color:#6b7280;max-width:460px;margin:24px auto 0;line-height:1.6;text-align:left}
