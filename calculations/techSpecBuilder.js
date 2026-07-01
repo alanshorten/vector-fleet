@@ -166,7 +166,7 @@ ${lgSec(lg.left,"LH Main Landing Gear")}
 ${lgSec(lg.right,"RH Main Landing Gear")}
 ${(()=>{
     const wb=asset.wheelsBrakes||{};
-    const rows=[["Wheels",wb.mainWheels],["Wheels",wb.noseWheels],["Brake Unit",wb.brakes]].filter(([,item])=>item&&(item.pn||item.mfr));
+    const rows=[["Main Wheels",wb.mainWheels],["Nose Wheels",wb.noseWheels],["Brake Unit",wb.brakes]].filter(([,item])=>item&&(item.pn||item.mfr));
     if(!rows.length)return"";
     return`<table style="margin-bottom:14px"><thead><tr><th colspan="4" style="background:#323F42;color:#FFFFFF;font-size:11px">Wheels &amp; Brakes</th></tr><tr><th>Component</th><th>Qty</th><th>P/N</th><th>Manufacturer</th></tr></thead><tbody>${rows.map(([label,item])=>`<tr><td>${label}</td><td>${item.qty||"—"}</td><td>${item.pn||"—"}</td><td>${item.mfr||"—"}</td></tr>`).join("")}</tbody></table>`;
   })()}
