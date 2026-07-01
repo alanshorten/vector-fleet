@@ -6,14 +6,10 @@
 // scoped to app.tailiq.app, and emails it via SendGrid using our own
 // domain/branding rather than Firebase's generic hosted reset page.
 //
-// Trust model: this app has no real per-user role system yet (the "Admin"
-// gate in index.html is a client-side PIN, not a Firebase custom claim —
-// see TECH_DEBT). Matching the trust model already used everywhere else
-// (Firestore rules: request.auth != null), this endpoint only requires the
-// caller to be *any* signed-in user, verified server-side via their Firebase
-// ID token. It does not yet enforce "admin" specifically — same limitation
-// as the rest of the app today. Tightening this would need real custom
-// claims, which is a separate piece of work, not bundled into this session.
+// Trust model: caller must be a signed-in user with role=admin custom claim,
+// verified server-side via their Firebase ID token. Only admins can invite users.
+// Role (editor or viewer) is set as a custom claim at invite time — the new user
+// has their role from the moment they first sign in.
 
 const admin = require('firebase-admin');
 
@@ -40,7 +36,11 @@ function getApp() {
   });
 }
 
-function emailHTML(resetLink) {
+function emailHTML(resetLink, role) {
+  const roleLabel = role === 'editor' ? 'Editor' : 'Viewer';
+  const roleDesc = role === 'editor'
+    ? 'You have been set up with <strong>Editor</strong> access — you can upload reports and edit asset data.'
+    : 'You have been set up with <strong>Viewer</strong> access — you can view fleet data and tech specs.';
   return `
   <div style="font-family:'Segoe UI',Arial,sans-serif;background:#0b1520;padding:32px;">
     <div style="max-width:480px;margin:0 auto;background:#111f30;border:1px solid #1e3048;border-radius:10px;overflow:hidden;">
@@ -50,10 +50,11 @@ function emailHTML(resetLink) {
       </div>
       <div style="padding:28px;">
         <h1 style="color:#e2e8f0;font-size:18px;margin:0 0 14px;">You've been invited to TailiQ</h1>
-        <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 22px;">
+        <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 12px;">
           An administrator has set up an account for you on TailiQ, the fleet intelligence platform.
           Click below to choose your password and get started.
         </p>
+        <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0 0 22px;">${roleDesc}</p>
         <a href="${resetLink}" style="display:inline-block;background:#C9A84C;color:#0a1520;text-decoration:none;
           font-weight:700;font-size:14px;padding:12px 22px;border-radius:6px;">Set your password</a>
         <p style="color:#5a7a9a;font-size:12px;margin-top:24px;">
@@ -88,17 +89,24 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: 'Server configuration error.' });
   }
 
+  let decoded;
   try {
-    // Confirms the caller is a genuinely signed-in TailiQ user. See trust
-    // model note in the file header re: no per-role enforcement yet.
-    await admin.auth(app).verifyIdToken(idToken);
+    // Confirms the caller is a signed-in TailiQ admin.
+    decoded = await admin.auth(app).verifyIdToken(idToken);
   } catch (err) {
     return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
   }
 
-  const { email } = req.body || {};
+  if (decoded.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required.' });
+  }
+
+  const { email, role } = req.body || {};
   if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: 'A valid email address is required.' });
+  }
+  if (!['editor', 'viewer'].includes(role)) {
+    return res.status(400).json({ error: 'Role must be editor or viewer.' });
   }
   const normalizedEmail = email.trim().toLowerCase();
 
@@ -115,6 +123,9 @@ module.exports = async (req, res) => {
     // API itself but is never shared with anyone or stored by us.
     try {
       await auth.createUser({ email: normalizedEmail, emailVerified: false });
+      // Set role claim immediately so the user has the right access from first sign-in
+      const newUser = await auth.getUserByEmail(normalizedEmail);
+      await auth.setCustomUserClaims(newUser.uid, { role });
     } catch (err) {
       if (err.code === 'auth/email-already-exists') {
         return res.status(409).json({ error: 'A user with this email already exists.' });
@@ -150,7 +161,7 @@ module.exports = async (req, res) => {
         personalizations: [{ to: [{ email: normalizedEmail }] }],
         from: { email: 'invites@tailiq.app', name: 'TailiQ' },
         subject: "You've been invited to TailiQ",
-        content: [{ type: 'text/html', value: emailHTML(resetLink) }],
+        content: [{ type: 'text/html', value: emailHTML(resetLink, role) }],
       }),
     });
 
