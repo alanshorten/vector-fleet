@@ -117,6 +117,9 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
   const secH=(lbl,svg)=>`<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:9px;padding-bottom:7px;border-bottom:1px dashed #f2f2f7"><tr><td style="border:none;padding:0;width:36px;vertical-align:middle">${IC(svg)}</td><td style="border:none;padding:0 0 0 10px;vertical-align:middle"><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#0f172a">${lbl}</span></td></tr></table>`;
   const cO=(lbl,svg)=>`<div class="card">${svg?IH(lbl,svg):`<span class="card-lbl">${lbl}</span>`}`;
   const cNB=(lbl,svg)=>`<div style="margin-bottom:13px">${IH(lbl,svg)}`;
+  const CS='border:1px solid #e2e8f0;border-radius:10px;padding:14px 17px;vertical-align:top';
+  const col2=(l,r)=>`<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:13px"><colgroup><col width="49%"/><col width="2%"/><col width="49%"/></colgroup><tr>${l}<td style="border:none;padding:0"></td>${r}</tr></table>`;
+  const col3=(a,b,c)=>`<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:13px"><colgroup><col width="32%"/><col width="2%"/><col width="32%"/><col width="2%"/><col width="32%"/></colgroup><tr>${a}<td style="border:none;padding:0"></td>${b}<td style="border:none;padding:0"></td>${c}</tr></table>`;
   const cC=`</div>`;
   const kvR=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10px;color:#64748b;font-weight:600;width:150px;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10.5px;color:#0f172a;font-weight:600;vertical-align:top">${v}</td></tr>`;
   const mT=(lbl,val,sub)=>`<div class="mini-t"><div class="mini-l">${lbl}</div><div class="mini-v">${val}</div>${sub?`<div class="mini-s">${sub}</div>`:""}</div>`;
@@ -195,9 +198,9 @@ ${PAGE_FOOTER}
 </div></div><div class="cover-bottom"><div>${PAGE_FOOTER}</div></div></div>
 
 ${pgH("Asset Summary")}
-<table class="specs-grid"><tr>
-  <td class="specs-col">
-    ${cNB("Weights",svgScale)}
+${col2(
+  `<td style="${CS}">
+    ${IH("Weights",svgScale)}
     <table width="100%" cellpadding="0" cellspacing="0"><tr>
       <td style="padding:0 4px 0 0;border:none;vertical-align:top;width:50%">${mT("MTOW",(asset.weights?.mtow?.toLocaleString()||"—")+" kg",(asset.weights?.mtow_lb?.toLocaleString()||"—")+" lb")}</td>
       <td style="padding:0 0 0 4px;border:none;vertical-align:top;width:50%">${mT("MLW",(asset.weights?.mlw?.toLocaleString()||"—")+" kg",(asset.weights?.mlw_lb?.toLocaleString()||"—")+" lb")}</td>
@@ -205,21 +208,19 @@ ${pgH("Asset Summary")}
       <td style="padding:0 4px 0 0;border:none;vertical-align:top">${mT("MZFW",(asset.weights?.mzfw?.toLocaleString()||"—")+" kg",(asset.weights?.mzfw_lb?.toLocaleString()||"—")+" lb")}</td>
       <td style="padding:0 0 0 4px;border:none;vertical-align:top">${mT("Max Taxi",(asset.weights?.mtw?.toLocaleString()||"—")+" kg",(asset.weights?.mtw_lb?.toLocaleString()||"—")+" lb")}</td>
     </tr></table>
-    ${cC}
-  </td>
-  <td class="specs-col">
-    ${cNB("Check History",svgWrench)}
+  </td>`,
+  `<td style="${CS}">
+    ${IH("Check History",svgWrench)}
     <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr>
       <th style="${TH}">Check</th><th style="${TH}">Last Date</th><th style="${TH}">FH</th><th style="${TH}">FC</th><th style="${TH}">Next Due</th>
     </tr></thead><tbody>
     ${(asset.checks||[]).map(c=>`<tr><td style="${TD}">${c.name}</td><td style="${TD}">${fmtDate(c.lastDate)}</td><td style="${TD}">${c.lastFH?.toLocaleString()||"—"}</td><td style="${TD}">${c.lastFC?.toLocaleString()||"—"}</td><td style="${TD};font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("")}
     </tbody></table>
-    ${cC}
-  </td>
-</tr></table>
-<table class="specs-grid"><tr>
-  <td class="specs-col">
-    ${secH("Configuration",svgClip)}
+  </td>`
+)}
+${col2(
+  `<td style="${CS}">
+    ${IH("Configuration",svgClip)}
     <table width="100%" cellpadding="0" cellspacing="0">
       ${kvR("Configuration",asset.specs?.config||"—")}
       ${kvR("Seating",asset.specs?.seating||"—")}
@@ -230,9 +231,9 @@ ${pgH("Asset Summary")}
       ${kvR("Cargo Type",asset.specs?.cargoType||"—")}
       ${kvR("Winglets",asset.specs?.winglets||"—")}
     </table>
-  </td>
-  <td class="specs-col">
-    ${secH("Systems",svgCog)}
+  </td>`,
+  `<td style="${CS}">
+    ${IH("Systems",svgCog)}
     <table width="100%" cellpadding="0" cellspacing="0">
       ${kvR("ADS-B",asset.specs?.adsb?"Installed":"—")}
       ${kvR("CPDLC",asset.specs?.cpdlc?"Installed":"—")}
@@ -244,8 +245,8 @@ ${pgH("Asset Summary")}
       ${kvR("Reinf. Flight Deck Door",asset.specs?.rfdd?"Installed":"—")}
       ${(asset.specs?.custom||[]).filter(f=>f.label&&f.value).map(f=>kvR(f.label,f.value)).join("")}
     </table>
-  </td>
-</tr></table>
+  </td>`
+)}
 ${PAGE_FOOTER}<div class="pb"></div>
 ${(()=>{
   const engines=(asset.engines||[]).filter(e=>e&&(e.type||e.sn||e.currentFH));
@@ -257,21 +258,20 @@ ${(()=>{
     const svList=(eng.shopVisits||[]).slice(-1);
     return`
 ${pgH(`Engine #${pos} \u2014 Powerplant Status`)}
-<table class="specs-grid"><tr>
-  <td class="specs-col">
-    ${cNB(`Engine #${pos} \u2014 ESN ${eng.sn||"\u2014"}`,svgEngine)}
+${col2(
+  `<td style="${CS}">
+    ${IH(`Engine #${pos} \u2014 ESN ${eng.sn||"\u2014"}`,svgEngine)}
     <table width="100%" cellpadding="0" cellspacing="0">
       ${kvR("Model / Thrust",`${eng.type||"\u2014"} \u00b7 ${eng.thrust||"\u2014"}`)}
       ${kvR("Flight Hours Since New",`${fmtHHMM(eng.currentFH)} FH`)}
       ${kvR("Flight Cycles Since New",`${(eng.currentFC||0).toLocaleString()} FC`)}
     </table>
     ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
-    ${cC}
-  </td>
-  <td class="specs-col">
-    ${svList.length?`${cNB("Most Recent Shop Visit",svgCal)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,eng.currentFH,eng.currentFC)}</tbody></table>${cC}`:""}
-  </td>
-</tr></table>
+  </td>`,
+  svList.length
+    ? `<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,eng.currentFH,eng.currentFC)}</tbody></table></td>`
+    : `<td style="border:none;padding:0"></td>`
+)}
 ${cO("Life Limited Parts",svgList)}
 <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr>
   <th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th>
@@ -283,27 +283,24 @@ ${cC}`;
 ${pgH("Landing Gear")}
 ${cO("Landing Gear Assembly",svgGearLeg)}
 ${(()=>{
+  const lgCS='border:1px solid #e2e8f0;border-radius:8px;padding:11px 12px;vertical-align:top';
   const lgCol=(g,title)=>{
-    if(!g)return`<td width="33%" style="padding:0 5px;border:none;vertical-align:top"><div style="border:1px solid #e2e8f0;border-radius:8px;padding:11px 12px;min-height:170px"><div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#C9A84C;margin-bottom:8px">${title}</div><div style="color:#94a3b8;font-size:10px">No data</div></div></td>`;
-    const hasRefPair=g.refLegFC!=null&&g.refAirframeFC!=null;
+    const hasRefPair=g?.refLegFC!=null&&g?.refAirframeFC!=null;
     let curFC=null;
-    if(g.currentFC!=null){curFC=g.currentFC;}
+    if(g?.currentFC!=null){curFC=g.currentFC;}
     else if(hasRefPair){curFC=g.refLegFC+((af.currentFC||0)-g.refAirframeFC);}
-    const intervalCycles=g.overhaulIntervalCycles||20000;
-    const cycRem=(g.lastOverhaulFC!=null&&curFC!=null)?(g.lastOverhaulFC+intervalCycles)-curFC:null;
-    return`<td width="33%" style="padding:0 5px;border:none;vertical-align:top">
-<div style="border:1px solid #e2e8f0;border-radius:8px;padding:11px 12px;min-height:170px">
-<div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#C9A84C;margin-bottom:8px">${title}</div>
-<table width="100%" cellpadding="0" cellspacing="0">
-${kvR("Part No.",g.pn||"—")}
-${kvR("Serial No.",g.sn||"—")}
-${kvR("Manufacturer",g.mfr||"—")}
-${kvR("Next OH Due",lgFmtDate(g.nextDue)||(cycRem!==null?Math.round(cycRem).toLocaleString()+" cyc rem":"—"))}
-${kvR("Last OH Date",lgFmtDate(g.lastOverhaulDate)||"—")}
-</table>
-</div></td>`;
+    const intervalCycles=g?.overhaulIntervalCycles||20000;
+    const cycRem=(g?.lastOverhaulFC!=null&&curFC!=null)?(g.lastOverhaulFC+intervalCycles)-curFC:null;
+    const rows=g?`<table width="100%" cellpadding="0" cellspacing="0">
+      ${kvR("Part No.",g.pn||"—")}
+      ${kvR("Serial No.",g.sn||"—")}
+      ${kvR("Manufacturer",g.mfr||"—")}
+      ${kvR("Next OH Due",lgFmtDate(g.nextDue)||(cycRem!==null?Math.round(cycRem).toLocaleString()+" cyc rem":"—"))}
+      ${kvR("Last OH Date",lgFmtDate(g.lastOverhaulDate)||"—")}
+    </table>`:`<div style="color:#94a3b8;font-size:10px">No data</div>`;
+    return`<td style="${lgCS}"><div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#C9A84C;margin-bottom:8px">${title}</div>${rows}</td>`;
   };
-  return`<table width="100%" cellpadding="0" cellspacing="0"><colgroup><col width="33%"/><col width="34%"/><col width="33%"/></colgroup><tr>${lgCol(lg.nose,"Nose Gear")}${lgCol(lg.left,"LH Main Gear")}${lgCol(lg.right,"RH Main Gear")}</tr></table>`;
+  return col3(lgCol(lg.nose,"Nose Gear"),lgCol(lg.left,"LH Main Gear"),lgCol(lg.right,"RH Main Gear"));
 })()}
 ${cC}
 ${(()=>{
@@ -314,9 +311,9 @@ ${(()=>{
 })()}
 ${PAGE_FOOTER}<div class="pb"></div>
 ${pgH("Auxiliary Power Unit")}
-<table class="specs-grid"><tr>
-  <td class="specs-col">
-    ${cNB(`APU \u2014 ${apu.sn||"\u2014"}`,svgBolt)}
+${col2(
+  `<td style="${CS}">
+    ${IH(`APU \u2014 ${apu.sn||"\u2014"}`,svgBolt)}
     <table width="100%" cellpadding="0" cellspacing="0">
       ${kvR("Manufacturer",apu.mfr||"—")}
       ${kvR("Part Number",apu.pn||"—")}
@@ -325,12 +322,11 @@ ${pgH("Auxiliary Power Unit")}
       ${kvR("Cycles Since New",(apu.currentFC||0).toLocaleString()+" FC")}
     </table>
     ${(()=>{const ll=lowestLimiter(apu);const desc=lowestLLPDesc(apu);return ll!==null?progBar(ll)+(desc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${desc}</div>`:""):"";})()}
-    ${cC}
-  </td>
-  <td class="specs-col">
-    ${(()=>{const svList=(apu.shopVisits||[]).slice(-1);return svList.length?`${cNB("Most Recent Shop Visit",svgCal)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,apu.currentFH,apu.currentFC)}</tbody></table>${cC}`:"";})()}
-  </td>
-</tr></table>
+  </td>`,
+  (()=>{const svList=(apu.shopVisits||[]).slice(-1);return svList.length
+    ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,apu.currentFH,apu.currentFC)}</tbody></table></td>`
+    :`<td style="border:none;padding:0"></td>`;})()
+)}
 ${apu.llps?.length?`${cO("APU Life Limited Parts",svgList)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:0;margin-bottom:0"><thead><tr><th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th></tr></thead><tbody>${llpRows(apu.llps,apu.currentFC)}</tbody></table>${cC}`:""}
 
 ${(()=>{
