@@ -28,13 +28,26 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
   const engineOnly=asset._engineOnly;
   const enginePos=asset._enginePos||1;
   const specCSS=`@page{size:A4;margin:14mm 18mm}body{font-family:Arial,sans-serif;color:#111;font-size:11px;line-height:1.45;margin:0;print-color-adjust:exact;-webkit-print-color-adjust:exact;color-adjust:exact}
-.cover{text-align:center;page-break-after:always;padding:46px 30px;box-sizing:border-box}.cover-bottom{margin-top:14px}.cover h1{color:#323F42;font-size:24px;margin:0 0 5px}.cover h2{color:#323F42;font-size:17px;margin:0 0 18px}
-@media print{html,body{height:100%}.cover{padding:0;display:table;width:100%;height:100%}.cover-top{display:table-row}.cover-top>div{display:table-cell;vertical-align:top;padding:46px 30px 0}.cover-bottom{display:table-row;margin-top:0}.cover-bottom>div{display:table-cell;vertical-align:bottom;padding:0 30px 28px;text-align:center}}
-.viq-banner{background:#ffffff;border-bottom:2px solid #C9A84C;margin:-46px -30px 24px -30px;padding:8px 0;text-align:center}
-.viq-banner img{height:28px;width:auto;display:inline-block}
-.cover .meta{color:#374151;font-size:13px;line-height:2.2}.cover .disc{font-size:9px;color:#6b7280;max-width:460px;margin:24px auto 0;line-height:1.6;text-align:left}
-.cover .dt{margin-top:14px;font-size:12px;color:#374151}
-h3{background:#323F42;color:#FFFFFF;font-size:11.5px;padding:5px 10px;border-radius:4px;margin:18px 0 7px;letter-spacing:0.04em}
+.cover{text-align:left;page-break-after:always;padding:0;box-sizing:border-box}
+@media print{html,body{height:100%}.cover{display:table;width:100%;height:100%}.cover-top{display:table-row}.cover-top>div{display:table-cell;vertical-align:top}.cover-bottom{display:table-row}.cover-bottom>div{display:table-cell;vertical-align:bottom;padding:0 30px 0}}
+.cov-hdr{background:#ffffff;border-bottom:2px solid #C9A84C;padding:9px 30px;text-align:left}
+.cov-hdr img{height:28px;width:auto;display:inline-block;vertical-align:middle}
+.cov-body{padding:28px 30px 0}
+.cov-logo{text-align:center;margin-bottom:22px}
+.cov-photo-wrap{margin-bottom:18px}
+.cov-photo-wrap img{width:100%;height:236px;object-fit:cover;border-radius:5px;display:block}
+.cov-type{font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.01em;margin:0 0 14px}
+.sc-cards{width:100%;border-collapse:collapse}
+.sc-cell{padding:0 4px;width:25%}
+.sc-cell:first-child{padding-left:0}
+.sc-cell:last-child{padding-right:0}
+.sc-inner{border:1.5px solid #C9A84C;border-top:3px solid #C9A84C;border-radius:5px;background:#fffdf5;padding:11px 12px 13px}
+.sc-lbl{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.13em;color:#94a3b8;margin-bottom:4px}
+.sc-val{font-size:20px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.02em}
+.sc-sub{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:#cbd5e1;margin-top:2px}
+.cov-disc{font-size:9px;color:#6b7280;margin:18px 0 0;line-height:1.6;text-align:left}
+.cov-date{margin-top:10px;font-size:11px;color:#374151}
+h3{background:#1e293b;color:#FFFFFF;font-size:11.5px;padding:5px 10px;border-radius:4px;margin:18px 0 7px;letter-spacing:0.04em}
 table{width:100%;border-collapse:collapse;margin-bottom:9px;font-size:10.5px}
 th{background:#f1f5f9;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0}
 td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
@@ -88,33 +101,49 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
     const ll=lowestLimiter(eng);
     return`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Engine Spec ESN ${eng?.sn}</title><style>${specCSS}</style></head><body>
 <div class="cover"><div class="cover-top"><div>
-  <div class="viq-banner"><img src="${VECTORIQ_BANNER}" alt="TailiQ"/></div>
-  <img src="${logoUrl}" alt="Maverick Horizon" style="width:${logoWidth}px;border-radius:0;margin-bottom:24px"/><br>
-  <h1>Engine Technical Specification</h1>
-  <h2>Engine Serial Number: ${eng?.sn||"—"}</h2>
-  <div class="meta">Aircraft MSN: <b>${asset.msn}</b><br>Registration: <b>${asset.registration||"—"}</b><br>Engine Type: <b>${eng?.type||"—"}</b><br>Position: <b>Engine #${enginePos}</b><br>Operator: <b>${asset.operator||"—"}</b></div>
-  ${engPhoto?`<img src="${engPhoto}" style="width:420px;max-height:220px;object-fit:cover;border-radius:6px;margin:18px auto 0;display:block;box-shadow:0 4px 16px rgba(0,0,0,0.2)"/>`:""}
-  <div class="dt">Date: ${today}</div>
-</div></div><div class="cover-bottom"><div>${COVER_PILL}</div></div></div>
+  <div class="cov-hdr"><img src="${VECTORIQ_BANNER}" alt="TailiQ"/></div>
+  <div class="cov-body">
+    <div class="cov-logo"><img src="${logoUrl}" alt="Maverick Horizon" style="width:${logoWidth}px"/></div>
+    ${engPhoto?`<div class="cov-photo-wrap"><img src="${engPhoto}" alt="Engine"/></div>`:""}
+    <div class="cov-type">Engine Technical Specification</div>
+    <table class="sc-cards"><tr>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">ESN</div><div class="sc-val" style="font-size:15px">${eng?.sn||"—"}</div><div class="sc-sub">Engine Serial No.</div></div></td>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">Position</div><div class="sc-val">ENG #${enginePos}</div><div class="sc-sub">Aircraft Engine</div></div></td>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">TSN</div><div class="sc-val">${fmtHHMM(eng?.currentFH)}</div><div class="sc-sub">Time Since New</div></div></td>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">CSN</div><div class="sc-val">${(eng?.currentFC||0).toLocaleString()}</div><div class="sc-sub">Cycles Since New</div></div></td>
+    </tr></table>
+    <table class="kv" style="margin-top:16px"><tr><td>Aircraft MSN</td><td>${asset.msn||"—"}</td><td style="color:#6b7280;font-weight:600;width:120px">Registration</td><td>${asset.registration||"—"}</td></tr>
+    <tr><td>Engine Type</td><td>${eng?.type||"—"}</td><td style="color:#6b7280;font-weight:600">Thrust</td><td>${eng?.thrust||"—"}</td></tr>
+    <tr><td>${asset.operatorLabel||"Current Operator"}</td><td colspan="3">${asset.operator||"—"}</td></tr></table>
+    <div class="cov-date">Date: ${today}</div>
+  </div>
+</div></div><div class="cover-bottom"><div>${PAGE_FOOTER}</div></div></div>
 ${engSec(eng,enginePos,true)}
 ${PAGE_FOOTER}
 </body></html>`;
   }
+  const coverPhoto=(asset.photos||[]).find(p=>p.label==="Airframe");
   return`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Tech Spec MSN ${asset.msn}</title><style>${specCSS}</style></head><body>
 <div class="cover"><div class="cover-top"><div>
-  <div class="viq-banner"><img src="${VECTORIQ_BANNER}" alt="TailiQ"/></div>
-  <img src="${logoUrl}" alt="Maverick Horizon" style="width:${logoWidth}px;border-radius:0;margin-bottom:24px"/><br>
-  <h1>Asset Technical Specification</h1>
-  <h2>Manufacturer Serial Number: ${asset.msn}</h2>
-  <div class="meta">Manufacturer: <b>${asset.manufacturer||"—"}</b><br>Model: <b>${asset.model||"—"}</b><br>Registration: <b>${asset.registration||"—"}</b><br>Operator: <b>${asset.operator||"—"}</b></div>
-  ${(()=>{const coverPhoto=(asset.photos||[]).find(p=>p.label==="Airframe");return coverPhoto?.url?`<img src="${coverPhoto.url}" style="width:420px;max-height:200px;object-fit:cover;border-radius:6px;margin:18px auto 0;display:block;box-shadow:0 4px 16px rgba(0,0,0,0.2)"/>`:"";})()}
-  <div class="disc">${asset.disclaimer||disclaimerOverride||"This outline specification has been prepared based on the information available to Maverick Horizon at the relevant time. The recipient must verify the information provided independently."}</div>
-  <div class="dt">Date: ${today}</div>
-</div></div><div class="cover-bottom"><div>${COVER_PILL}</div></div></div>
+  <div class="cov-hdr"><img src="${VECTORIQ_BANNER}" alt="TailiQ"/></div>
+  <div class="cov-body">
+    <div class="cov-logo"><img src="${logoUrl}" alt="Maverick Horizon" style="width:${logoWidth}px"/></div>
+    ${coverPhoto?.url?`<div class="cov-photo-wrap"><img src="${coverPhoto.url}" alt="Aircraft"/></div>`:""}
+    <div class="cov-type">${asset.manufacturer||""} ${asset.model||""}</div>
+    <table class="sc-cards"><tr>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">MSN</div><div class="sc-val">${asset.msn||"—"}</div><div class="sc-sub">Serial No.</div></div></td>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">Registration</div><div class="sc-val">${asset.registration||"—"}</div><div class="sc-sub">Current Mark</div></div></td>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">Flight Hours</div><div class="sc-val">${fmtHHMM(af.currentFH)}</div><div class="sc-sub">TSN</div></div></td>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">Flight Cycles</div><div class="sc-val">${(af.currentFC||0).toLocaleString()}</div><div class="sc-sub">CSN</div></div></td>
+    </tr></table>
+    <div class="cov-disc">${asset.disclaimer||disclaimerOverride||"This outline specification has been prepared based on the information available to Maverick Horizon at the relevant time. The recipient must verify the information provided independently."}</div>
+    <div class="cov-date">Date: ${today}</div>
+  </div>
+</div></div><div class="cover-bottom"><div>${PAGE_FOOTER}</div></div></div>
 <h3>Asset Details</h3>
 <table class="kv">
   <tr><td>Date of Manufacture</td><td>${(()=>{const d=asset.dom;if(!d)return"—";if(/^\d{2}\/\d{4}$/.test(d))return d;try{const dt=new Date(d);if(isNaN(dt))return d;return String(dt.getMonth()+1).padStart(2,"0")+"/"+dt.getFullYear();}catch{return d;}})()}</td></tr>
-  <tr><td>Current Operator</td><td>${asset.operator||"—"}</td></tr>
+  <tr><td>${asset.operatorLabel||"Current Operator"}</td><td>${asset.operator||"—"}</td></tr>
   <tr><td>Airframe TSN</td><td>${fmtHHMM(af.currentFH)}</td></tr>
   <tr><td>Airframe CSN</td><td>${(af.currentFC||0).toLocaleString()}</td></tr>
   <tr><td>Data Current As Of</td><td>${asset._lastPeriod||"—"}</td></tr>
