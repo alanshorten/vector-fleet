@@ -33,7 +33,7 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 @media print{html,body{height:100%}.cover{display:table;width:100%;height:100%}.cover-top{display:table-row}.cover-top>div{display:table-cell;vertical-align:top}.cover-bottom{display:table-row}.cover-bottom>div{display:table-cell;vertical-align:bottom;padding:0 30px 0}}
 .cov-hdr{background:#ffffff;border-bottom:2px solid #C9A84C;padding:9px 30px;text-align:left}
 .cov-hdr img{height:28px;width:auto;display:inline-block;vertical-align:middle}
-.hero{background:#111827;padding:36px 30px 32px;position:relative;overflow:hidden}
+.hero{background:#111827;padding:40px 30px 38px;position:relative;overflow:hidden}
 .hero-sil{position:absolute;right:-20px;top:20px;opacity:0.05;pointer-events:none}
 .hero-logo{text-align:center;margin-bottom:18px}
 .hero-logo img{height:60px;width:auto;display:inline-block}
@@ -41,7 +41,7 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 .hero-type{text-align:center;font-size:28px;font-weight:800;color:#f8fafc;letter-spacing:-0.02em;line-height:1;margin-bottom:8px}
 .hero-identity{text-align:center;font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:0.14em;text-transform:uppercase;font-weight:600;margin-bottom:24px}
 .hero-photo{width:80%;margin:0 auto;border-radius:12px;overflow:hidden}
-.hero-photo img{width:100%;height:auto;max-height:260px;object-fit:contain;display:block}
+.hero-photo img{width:100%;height:auto;max-height:300px;object-fit:contain;display:block}
 .cov-lower{padding:28px 30px 0}
 .sc-cards{width:100%;border-collapse:collapse;table-layout:fixed}
 .sc-cell{width:25%;vertical-align:top;border:none;padding:0 5px}
@@ -123,11 +123,11 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
     const iconFC=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51,9a9,9,0,0,1,14.85-3.36L23,10M1,14l4.64,4.36A9,9,0,0,0,20.49,15"/></svg>`;
     const iconType=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 22,8.5 22,15.5 12,22 2,15.5 2,8.5"/><line x1="12" y1="22" x2="12" y2="15.5"/><polyline points="2,8.5 12,15.5 22,8.5"/></svg>`;
     const iconThrust=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13,2L3,14h9l-1,8,10-12h-9l1-8z"/></svg>`;
-    return`<table class="sc-cards"><tr>
-      <td class="sc-cell" width="25%" style="width:25%;padding:0 4px 0 0;border:none"><div class="sc-inner"><div class="sc-icon">${iconFH}</div><div class="sc-val">${fmtHHMM(eng?.currentFH)}</div><div class="sc-lbl">Flight Hours</div></div></td>
-      <td class="sc-cell" width="25%" style="width:25%;padding:0 2px;border:none"><div class="sc-inner"><div class="sc-icon">${iconFC}</div><div class="sc-val">${(eng?.currentFC||0).toLocaleString()}</div><div class="sc-lbl">Flight Cycles</div></div></td>
-      <td class="sc-cell" width="25%" style="width:25%;padding:0 2px;border:none"><div class="sc-inner"><div class="sc-icon">${iconType}</div><div class="sc-val-sm">${eng?.type||"—"}</div><div class="sc-lbl">Engine Type</div></div></td>
-      <td class="sc-cell" width="25%" style="width:25%;padding:0 0 0 4px;border:none"><div class="sc-inner"><div class="sc-icon">${iconThrust}</div><div class="sc-val-sm">${eng?.thrust||"—"}</div><div class="sc-lbl">Thrust Rating</div></div></td>
+    return`<table width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col width="25%"/><col width="25%"/><col width="25%"/><col width="25%"/></colgroup><tr>
+      <td width="25%" style="width:25%;padding:0 4px 0 0;border:none;vertical-align:top"><div class="sc-inner"><div class="sc-icon">${iconFH}</div><div class="sc-val">${fmtHHMM(eng?.currentFH)}</div><div class="sc-lbl">Flight Hours</div></div></td>
+      <td width="25%" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner"><div class="sc-icon">${iconFC}</div><div class="sc-val">${(eng?.currentFC||0).toLocaleString()}</div><div class="sc-lbl">Flight Cycles</div></div></td>
+      <td width="25%" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner"><div class="sc-icon">${iconType}</div><div class="sc-val-sm">${eng?.type||"—"}</div><div class="sc-lbl">Engine Type</div></div></td>
+      <td width="25%" style="width:25%;padding:0 0 0 4px;border:none;vertical-align:top"><div class="sc-inner"><div class="sc-icon">${iconThrust}</div><div class="sc-val-sm">${eng?.thrust||"—"}</div><div class="sc-lbl">Thrust Rating</div></div></td>
     </tr></table>`;})()}
     <div class="cov-date">Date: ${today}</div>
   </div>
@@ -156,11 +156,11 @@ ${PAGE_FOOTER}
     const iconOp=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20,21v-2a4,4,0,0,0-4-4H8a4,4,0,0,0-4,4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
     const opLabel=(asset.operatorLabel||"Current Operator").toUpperCase();
     const opVal=asset.operator||"—";
-    return`<table class="sc-cards"><tr>
-      <td class="sc-cell" width="25%" style="width:25%;padding:0 4px 0 0;border:none"><div class="sc-inner"><div class="sc-icon">${iconFH}</div><div class="sc-val">${fmtHHMM(af.currentFH)}</div><div class="sc-lbl">Flight Hours</div></div></td>
-      <td class="sc-cell" width="25%" style="width:25%;padding:0 2px;border:none"><div class="sc-inner"><div class="sc-icon">${iconFC}</div><div class="sc-val">${(af.currentFC||0).toLocaleString()}</div><div class="sc-lbl">Flight Cycles</div></div></td>
-      <td class="sc-cell" width="25%" style="width:25%;padding:0 2px;border:none"><div class="sc-inner"><div class="sc-icon">${iconDOM}</div><div class="sc-val" style="font-size:14px">${domDisp}</div><div class="sc-lbl">Date of Manufacture</div></div></td>
-      <td class="sc-cell" width="25%" style="width:25%;padding:0 0 0 4px;border:none"><div class="sc-inner"><div class="sc-icon">${iconOp}</div><div class="sc-val-sm">${opVal}</div><div class="sc-lbl">${opLabel}</div></div></td>
+    return`<table width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col width="25%"/><col width="25%"/><col width="25%"/><col width="25%"/></colgroup><tr>
+      <td width="25%" style="width:25%;padding:0 4px 0 0;border:none;vertical-align:top"><div class="sc-inner"><div class="sc-icon">${iconFH}</div><div class="sc-val">${fmtHHMM(af.currentFH)}</div><div class="sc-lbl">Flight Hours</div></div></td>
+      <td width="25%" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner"><div class="sc-icon">${iconFC}</div><div class="sc-val">${(af.currentFC||0).toLocaleString()}</div><div class="sc-lbl">Flight Cycles</div></div></td>
+      <td width="25%" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner"><div class="sc-icon">${iconDOM}</div><div class="sc-val" style="font-size:14px">${domDisp}</div><div class="sc-lbl">Date of Manufacture</div></div></td>
+      <td width="25%" style="width:25%;padding:0 0 0 4px;border:none;vertical-align:top"><div class="sc-inner"><div class="sc-icon">${iconOp}</div><div class="sc-val-sm">${opVal}</div><div class="sc-lbl">${opLabel}</div></div></td>
     </tr></table>`;})()}
     <div class="cov-disc">${asset.disclaimer||disclaimerOverride||"This outline specification has been prepared based on the information available to Maverick Horizon at the relevant time. The recipient must verify the information provided independently."}</div>
     <div class="cov-date">Date: ${today}</div>
