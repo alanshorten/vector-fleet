@@ -36,15 +36,17 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 .hero{background:#111827;padding:36px 30px 32px;position:relative;overflow:hidden}
 .hero-sil{position:absolute;right:-20px;top:20px;opacity:0.05;pointer-events:none}
 .hero-logo{text-align:center;margin-bottom:18px}
-.hero-logo img{height:60px;width:auto;display:block;margin:0 auto}
+.hero-logo img{height:60px;width:auto;display:inline-block}
 .hero-rule{width:44px;height:2px;background:#C9A84C;margin:0 auto 20px;border-radius:2px}
 .hero-type{text-align:center;font-size:28px;font-weight:800;color:#f8fafc;letter-spacing:-0.02em;line-height:1;margin-bottom:8px}
 .hero-identity{text-align:center;font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:0.14em;text-transform:uppercase;font-weight:600;margin-bottom:24px}
-.hero-photo{width:80%;margin:0 auto;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.07)}
+.hero-photo{width:80%;margin:0 auto;border-radius:12px;overflow:hidden}
 .hero-photo img{width:100%;height:auto;max-height:260px;object-fit:contain;display:block}
 .cov-lower{padding:28px 30px 0}
-.sc-cards{width:100%;border-collapse:separate;border-spacing:10px;margin:-10px}
-.sc-cell{width:25%;vertical-align:top;border:none;padding:0}
+.sc-cards{width:100%;border-collapse:collapse;table-layout:fixed}
+.sc-cell{width:25%;vertical-align:top;border:none;padding:0 5px}
+.sc-cell:first-child{padding-left:0}
+.sc-cell:last-child{padding-right:0}
 .sc-inner{border:1px solid #e2e8f0;border-left:3px solid #C9A84C;border-radius:12px;background:#ffffff;padding:16px 14px 16px;text-align:left;box-shadow:0 1px 4px rgba(15,23,42,0.06)}
 .sc-icon{margin-bottom:10px}
 .sc-val{font-size:20px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.02em;margin-bottom:5px}
