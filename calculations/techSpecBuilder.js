@@ -111,7 +111,7 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
   <div class="cov-hdr"><img src="${VECTORIQ_BANNER}" alt="TailiQ"/></div>
   <div class="hero">
     <div class="hero-sil"><svg width="380" height="160" viewBox="0 0 500 200" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#C9A84C" stroke-width="1.2" fill="rgba(201,168,76,0.15)"><!-- Fuselage --><ellipse cx="260" cy="100" rx="200" ry="16"/><path d="M60,100 Q80,95 160,92 Q260,89 400,92 Q440,94 458,100 Q440,106 400,108 Q260,111 160,108 Q80,105 60,100Z"/><!-- Wings --><path d="M220,98 L240,98 L290,145 L370,162 L370,167 L280,150 L240,104 L220,104Z"/><path d="M220,98 L240,98 L290,55 L370,38 L370,33 L280,50 L240,92 L220,92Z"/><!-- Engines --><ellipse cx="286" cy="155" rx="32" ry="9"/>><ellipse cx="286" cy="45" rx="32" ry="9"/><!-- Tail fin --><path d="M75,94 L82,94 L82,52 Q79,44 75,42 Q71,44 72,52 L75,52Z"/><!-- H-stab --><path d="M73,100 L100,100 L118,120 L136,125 L136,127 L115,122 L100,103 L73,103Z"/><path d="M73,100 L100,100 L118,80 L136,75 L136,73 L115,78 L100,97 L73,97Z"/></g></svg></div>
-    <p style="text-align:center;margin:0 0 18px 0;padding:0"><img src="${logoUrl}" alt="Maverick Horizon" style="height:60px;width:auto;display:inline"/></p>
+    <center style="margin-bottom:18px"><img src="${logoUrl}" alt="Maverick Horizon" style="height:60px;width:auto"/></center>
     <div class="hero-rule"></div>
     <div class="hero-type">Engine Technical Specification</div>
     <div class="hero-identity">ESN ${eng?.sn||"—"} &nbsp;·&nbsp; Engine #${enginePos} &nbsp;·&nbsp; MSN ${asset.msn||"—"} / ${asset.registration||"—"}</div>
@@ -142,7 +142,7 @@ ${PAGE_FOOTER}
   <div class="cov-hdr"><img src="${VECTORIQ_BANNER}" alt="TailiQ"/></div>
   <div class="hero">
     <div class="hero-sil"><svg width="380" height="160" viewBox="0 0 500 200" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#C9A84C" stroke-width="1.2" fill="rgba(201,168,76,0.15)"><!-- Fuselage --><ellipse cx="260" cy="100" rx="200" ry="16"/><path d="M60,100 Q80,95 160,92 Q260,89 400,92 Q440,94 458,100 Q440,106 400,108 Q260,111 160,108 Q80,105 60,100Z"/><!-- Wings --><path d="M220,98 L240,98 L290,145 L370,162 L370,167 L280,150 L240,104 L220,104Z"/><path d="M220,98 L240,98 L290,55 L370,38 L370,33 L280,50 L240,92 L220,92Z"/><!-- Engines --><ellipse cx="286" cy="155" rx="32" ry="9"/>><ellipse cx="286" cy="45" rx="32" ry="9"/><!-- Tail fin --><path d="M75,94 L82,94 L82,52 Q79,44 75,42 Q71,44 72,52 L75,52Z"/><!-- H-stab --><path d="M73,100 L100,100 L118,120 L136,125 L136,127 L115,122 L100,103 L73,103Z"/><path d="M73,100 L100,100 L118,80 L136,75 L136,73 L115,78 L100,97 L73,97Z"/></g></svg></div>
-    <p style="text-align:center;margin:0 0 18px 0;padding:0"><img src="${logoUrl}" alt="Maverick Horizon" style="height:60px;width:auto;display:inline"/></p>
+    <center style="margin-bottom:18px"><img src="${logoUrl}" alt="Maverick Horizon" style="height:60px;width:auto"/></center>
     <div class="hero-rule"></div>
     <div class="hero-type">${asset.manufacturer||""} ${asset.model||""}</div>
     <div class="hero-identity">MSN ${asset.msn||"—"} &nbsp;·&nbsp; ${asset.registration||"—"}</div>
