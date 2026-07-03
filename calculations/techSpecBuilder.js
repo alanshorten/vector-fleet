@@ -34,14 +34,14 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 .cov-hdr img{height:28px;width:auto;display:inline-block;vertical-align:middle}
 .cov-body{padding:28px 30px 0}
 .cov-logo{text-align:center;margin-bottom:22px}
-.cov-photo-wrap{margin-bottom:18px}
-.cov-photo-wrap img{width:100%;height:236px;object-fit:cover;border-radius:5px;display:block}
+.cov-photo-wrap{margin-bottom:18px;text-align:center}
+.cov-photo-wrap img{width:82%;height:auto;max-height:280px;object-fit:contain;border-radius:5px;display:inline-block}
 .cov-type{font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.01em;margin:0 0 14px}
 .sc-cards{width:100%;border-collapse:collapse}
 .sc-cell{padding:0 4px;width:25%}
 .sc-cell:first-child{padding-left:0}
 .sc-cell:last-child{padding-right:0}
-.sc-inner{border:1.5px solid #C9A84C;border-top:3px solid #C9A84C;border-radius:5px;background:#fffdf5;padding:11px 12px 13px}
+.sc-inner{border:1.5px solid #C9A84C;border-top:3px solid #C9A84C;border-radius:5px;background:#ffffff;padding:11px 12px 13px}
 .sc-lbl{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.13em;color:#94a3b8;margin-bottom:4px}
 .sc-val{font-size:20px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.02em}
 .sc-sub{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:#cbd5e1;margin-top:2px}
