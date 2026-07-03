@@ -36,15 +36,7 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 .cov-logo{text-align:center;margin-bottom:22px}
 .cov-photo-wrap{margin-bottom:18px;text-align:center}
 .cov-photo-wrap img{width:82%;height:auto;max-height:280px;object-fit:contain;border-radius:5px;display:inline-block}
-.cov-type{font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.01em;margin:0 0 14px}
-.sc-cards{width:100%;border-collapse:collapse}
-.sc-cell{padding:0 4px;width:25%}
-.sc-cell:first-child{padding-left:0}
-.sc-cell:last-child{padding-right:0}
-.sc-inner{border:1.5px solid #C9A84C;border-top:3px solid #C9A84C;border-radius:5px;background:#ffffff;padding:11px 12px 13px}
-.sc-lbl{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.13em;color:#94a3b8;margin-bottom:4px}
-.sc-val{font-size:20px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.02em}
-.sc-sub{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:#cbd5e1;margin-top:2px}
+.cov-type{font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.01em;margin:0 0 4px}.cov-identity{font-size:11px;color:#64748b;letter-spacing:0.05em;margin-bottom:16px}.sc-cards{width:100%;border-collapse:collapse}.sc-cell{padding:0 4px;width:25%}.sc-cell:first-child{padding-left:0}.sc-cell:last-child{padding-right:0}.sc-inner{border:1.5px solid #C9A84C;border-top:3px solid #C9A84C;border-radius:5px;background:#ffffff;padding:13px 14px 14px;text-align:center}.sc-icon{margin-bottom:7px}.sc-val{font-size:20px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.02em;margin-bottom:5px}.sc-val-sm{font-size:13px;font-weight:800;color:#0f172a;line-height:1.2;letter-spacing:-0.01em;margin-bottom:5px}.sc-lbl{font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#94a3b8}
 .cov-disc{font-size:9px;color:#6b7280;margin:18px 0 0;line-height:1.6;text-align:left}
 .cov-date{margin-top:10px;font-size:11px;color:#374151}
 h3{background:#1e293b;color:#FFFFFF;font-size:11.5px;padding:5px 10px;border-radius:4px;margin:18px 0 7px;letter-spacing:0.04em}
@@ -106,12 +98,18 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
     <div class="cov-logo"><img src="${logoUrl}" alt="Maverick Horizon" style="width:${logoWidth}px"/></div>
     ${engPhoto?`<div class="cov-photo-wrap"><img src="${engPhoto}" alt="Engine"/></div>`:""}
     <div class="cov-type">Engine Technical Specification</div>
-    <table class="sc-cards"><tr>
-      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">ESN</div><div class="sc-val" style="font-size:15px">${eng?.sn||"—"}</div><div class="sc-sub">Engine Serial No.</div></div></td>
-      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">Position</div><div class="sc-val">ENG #${enginePos}</div><div class="sc-sub">Aircraft Engine</div></div></td>
-      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">TSN</div><div class="sc-val">${fmtHHMM(eng?.currentFH)}</div><div class="sc-sub">Time Since New</div></div></td>
-      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">CSN</div><div class="sc-val">${(eng?.currentFC||0).toLocaleString()}</div><div class="sc-sub">Cycles Since New</div></div></td>
-    </tr></table>
+    <div class="cov-identity">ESN ${eng?.sn||"—"} &nbsp;·&nbsp; Engine #${enginePos} &nbsp;·&nbsp; ${asset.msn||"—"} / ${asset.registration||"—"}</div>
+    ${(()=>{
+    const iconESN=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="10" ry="5"/><path d="M2,12c0,2.76,4.48,5,10,5s10-2.24,10-5"/><line x1="2" y1="12" x2="2" y2="18"/><line x1="22" y1="12" x2="22" y2="18"/></svg>`;
+    const iconFH=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12,6 12,12 16,14"/></svg>`;
+    const iconFC=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51,9a9,9,0,0,1,14.85-3.36L23,10M1,14l4.64,4.36A9,9,0,0,0,20.49,15"/></svg>`;
+    const iconType=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 22,8.5 22,15.5 12,22 2,15.5 2,8.5"/><line x1="12" y1="22" x2="12" y2="15.5"/><polyline points="2,8.5 12,15.5 22,8.5"/></svg>`;
+    return`<table class="sc-cards"><tr>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-icon">${iconFH}</div><div class="sc-val">${fmtHHMM(eng?.currentFH)}</div><div class="sc-lbl">Flight Hours</div></div></td>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-icon">${iconFC}</div><div class="sc-val">${(eng?.currentFC||0).toLocaleString()}</div><div class="sc-lbl">Flight Cycles</div></div></td>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-icon">${iconType}</div><div class="sc-val-sm">${eng?.type||"—"}</div><div class="sc-lbl">Engine Type</div></div></td>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-icon">${iconESN}</div><div class="sc-val-sm">${eng?.thrust||"—"}</div><div class="sc-lbl">Thrust Rating</div></div></td>
+    </tr></table>`;})()}
     <table class="kv" style="margin-top:16px"><tr><td>Aircraft MSN</td><td>${asset.msn||"—"}</td><td style="color:#6b7280;font-weight:600;width:120px">Registration</td><td>${asset.registration||"—"}</td></tr>
     <tr><td>Engine Type</td><td>${eng?.type||"—"}</td><td style="color:#6b7280;font-weight:600">Thrust</td><td>${eng?.thrust||"—"}</td></tr>
     <tr><td>${asset.operatorLabel||"Current Operator"}</td><td colspan="3">${asset.operator||"—"}</td></tr></table>
@@ -130,12 +128,20 @@ ${PAGE_FOOTER}
     <div class="cov-logo"><img src="${logoUrl}" alt="Maverick Horizon" style="width:${logoWidth}px"/></div>
     ${coverPhoto?.url?`<div class="cov-photo-wrap"><img src="${coverPhoto.url}" alt="Aircraft"/></div>`:""}
     <div class="cov-type">${asset.manufacturer||""} ${asset.model||""}</div>
-    <table class="sc-cards"><tr>
-      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">MSN</div><div class="sc-val">${asset.msn||"—"}</div><div class="sc-sub">Serial No.</div></div></td>
-      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">Registration</div><div class="sc-val">${asset.registration||"—"}</div><div class="sc-sub">Current Mark</div></div></td>
-      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">Flight Hours</div><div class="sc-val">${fmtHHMM(af.currentFH)}</div><div class="sc-sub">TSN</div></div></td>
-      <td class="sc-cell"><div class="sc-inner"><div class="sc-lbl">Flight Cycles</div><div class="sc-val">${(af.currentFC||0).toLocaleString()}</div><div class="sc-sub">CSN</div></div></td>
-    </tr></table>
+    <div class="cov-identity">MSN ${asset.msn||"—"} &nbsp;·&nbsp; ${asset.registration||"—"}</div>
+    ${(()=>{const d=asset.dom||"";let domDisp="—";if(/^\d{2}\/\d{4}$/.test(d)){const ms=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];const[mo,yr]=d.split("/");domDisp=ms[parseInt(mo)-1]+" "+yr;}else if(d){try{const dt=new Date(d);if(!isNaN(dt))domDisp=dt.toLocaleDateString("en-GB",{month:"short",year:"numeric"}).toUpperCase();}catch{domDisp=d;}}
+    const iconFH=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12,6 12,12 16,14"/></svg>`;
+    const iconFC=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51,9a9,9,0,0,1,14.85-3.36L23,10M1,14l4.64,4.36A9,9,0,0,0,20.49,15"/></svg>`;
+    const iconDOM=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+    const iconOp=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20,21v-2a4,4,0,0,0-4-4H8a4,4,0,0,0-4,4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+    const opLabel=(asset.operatorLabel||"Current Operator").toUpperCase();
+    const opVal=asset.operator||"—";
+    return`<table class="sc-cards"><tr>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-icon">${iconFH}</div><div class="sc-val">${fmtHHMM(af.currentFH)}</div><div class="sc-lbl">Flight Hours</div></div></td>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-icon">${iconFC}</div><div class="sc-val">${(af.currentFC||0).toLocaleString()}</div><div class="sc-lbl">Flight Cycles</div></div></td>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-icon">${iconDOM}</div><div class="sc-val" style="font-size:14px">${domDisp}</div><div class="sc-lbl">Date of Manufacture</div></div></td>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-icon">${iconOp}</div><div class="sc-val-sm">${opVal}</div><div class="sc-lbl">${opLabel}</div></div></td>
+    </tr></table>`;})()}
     <div class="cov-disc">${asset.disclaimer||disclaimerOverride||"This outline specification has been prepared based on the information available to Maverick Horizon at the relevant time. The recipient must verify the information provided independently."}</div>
     <div class="cov-date">Date: ${today}</div>
   </div>
