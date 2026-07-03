@@ -66,7 +66,13 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
 .specs-col:last-child{padding-left:7px}
 .pb{page-break-before:always;height:0;margin:0;padding:0}
 .pgfooter{text-align:center;font-size:8px;color:#9ca3af;letter-spacing:0.05em;text-transform:uppercase;margin-top:24px;border-top:1px solid #e2e8f0;padding-top:7px}
-.footer{text-align:center;font-size:8px;color:#aaa;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:7px}`;
+.footer{text-align:center;font-size:8px;color:#aaa;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:7px}
+.card{border:1px solid #e2e8f0;border-radius:10px;padding:14px 17px;margin-bottom:13px}
+.card-lbl{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#C9A84C;margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid #f1f5f9;display:block}
+.mini-t{border:1px solid #e2e8f0;border-radius:8px;padding:10px 11px}
+.mini-l{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;margin-bottom:3px}
+.mini-v{font-size:14px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.01em}
+.mini-s{font-size:8px;color:#94a3b8;margin-top:2px}`;
   const PAGE_FOOTER='<div class="pgfooter"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#dc2626;margin-right:3px;vertical-align:middle"></span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#16a34a;margin-right:6px;vertical-align:middle"></span>Powered by <span style="text-transform:none">TailiQ</span> Fleet Intelligence</div>';
   // QR pill disabled for internal use — QR_TAILIQ constant retained for future reactivation.
   // To re-enable: restore the original COVER_PILL definition from git history (commit before this change).
@@ -103,6 +109,14 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
     const sinceDays=lastDateISO?Math.floor((new Date()-new Date(lastDateISO))/86400000):null;
     return'<table style="margin-bottom:14px"><thead><tr><th colspan="5" style="background:#323F42;color:#FFFFFF;font-size:11px">'+title+'</th></tr><tr><th>Part Number</th><th>Serial Number</th><th>Manufacturer</th><th>Totals Since New</th><th>Next Overhaul Due (Cal / Cyc)</th></tr></thead><tbody><tr><td>'+( g.pn||"—")+'</td><td>'+(g.sn||"—")+'</td><td>'+(g.mfr||"—")+'</td><td>'+totalsCell+'</td><td style="font-weight:700">'+ nextDueCell+'</td></tr></tbody></table>'+'<table style="margin-bottom:14px"><thead><tr><th>Last Overhaul Date</th><th>Leg FH at OH</th><th>Leg CSN at OH</th><th>Days Since</th><th>FH Since</th><th>CSN Since</th></tr></thead><tbody><tr><td>'+lgFmtDate(g.lastOverhaulDate)+'</td><td>'+(g.lastOverhaulFH!=null?fmtHHMM(g.lastOverhaulFH):"—")+'</td><td>'+(g.lastOverhaulFC!=null?g.lastOverhaulFC.toLocaleString():"—")+'</td><td>'+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td><td>'+(sinceFH!=null?fmtHHMM(sinceFH):"—")+'</td><td>'+(sinceFC!=null?Math.round(sinceFC).toLocaleString():"—")+'</td></tr></tbody></table>';
   };
+  const lowestLLPDesc=(obj)=>{if(!obj?.llps?.length)return null;const csn=obj?.currentFC||0;let min=Infinity,desc=null;for(const l of (obj.llps||[])){const r=calcLLPRem(l,csn);if(r<min){min=r;desc=l.desc||null;}}return desc;};
+  const progBar=(rem,max=20000)=>{if(rem===null||rem===undefined||isNaN(rem))return'';const pct=Math.min(100,Math.max(0,(rem/max)*100));const col=rem>6000?'#16a34a':rem>3000?'#d97706':'#dc2626';return`<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:11px"><tr><td style="border:none;padding:0 0 4px 0;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#64748b">Lowest LLP Limiter</td><td align="right" style="border:none;padding:0 0 4px 0;font-size:11px;font-weight:800;color:${col}">${rem.toLocaleString()} FC Rem.</td></tr></table><div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden"><div style="height:6px;width:${pct.toFixed(1)}%;background:${col};border-radius:3px"></div></div>`;};
+  const identLine=`MSN ${asset.msn||"—"} · ${asset.registration||"—"} · ${asset.model||""}`;
+  const pgH=(t)=>`<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;padding-bottom:9px;border-bottom:2px solid #C9A84C"><tr><td style="border:none;padding:0 0 9px 0;vertical-align:bottom"><span style="font-size:19px;font-weight:800;color:#0f172a;letter-spacing:-0.02em">${t}</span></td><td align="right" style="border:none;padding:0 0 9px 0;vertical-align:bottom"><span style="font-size:8.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;font-weight:600">${identLine}</span></td></tr></table>`;
+  const cO=(l)=>`<div class="card"><span class="card-lbl">${l}</span>`;
+  const cC=`</div>`;
+  const kvR=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10px;color:#64748b;font-weight:600;width:150px;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10.5px;color:#0f172a;font-weight:600;vertical-align:top">${v}</td></tr>`;
+  const mT=(lbl,val,sub)=>`<div class="mini-t"><div class="mini-l">${lbl}</div><div class="mini-v">${val}</div>${sub?`<div class="mini-s">${sub}</div>`:""}</div>`;
   if(engineOnly){
     const eng=asset.engines?.[0];
     const ll=lowestLimiter(eng);
@@ -166,75 +180,133 @@ ${PAGE_FOOTER}
     <div class="cov-date">Date: ${today}</div>
   </div>
 </div></div><div class="cover-bottom"><div>${PAGE_FOOTER}</div></div></div>
-<h3>Asset Details</h3>
-<table class="kv">
-  <tr><td>Date of Manufacture</td><td>${(()=>{const d=asset.dom;if(!d)return"—";if(/^\d{2}\/\d{4}$/.test(d))return d;try{const dt=new Date(d);if(isNaN(dt))return d;return String(dt.getMonth()+1).padStart(2,"0")+"/"+dt.getFullYear();}catch{return d;}})()}</td></tr>
-  <tr><td>${asset.operatorLabel||"Current Operator"}</td><td>${asset.operator||"—"}</td></tr>
-  <tr><td>Airframe TSN</td><td>${fmtHHMM(af.currentFH)}</td></tr>
-  <tr><td>Airframe CSN</td><td>${(af.currentFC||0).toLocaleString()}</td></tr>
-  <tr><td>Data Current As Of</td><td>${asset._lastPeriod||"—"}</td></tr>
-</table>
-<h3>Operating Weights</h3>
-<table><thead><tr><th>Parameter</th><th>kg</th><th>lb</th></tr></thead><tbody>
-${[["MTOW","mtow","mtow_lb"],["Max Taxi Weight","mtw","mtw_lb"],["MZFW","mzfw","mzfw_lb"],["MLW","mlw","mlw_lb"]].map(([l,k,klb])=>`<tr><td>${l}</td><td>${asset.weights?.[k]?.toLocaleString()||"—"}</td><td>${asset.weights?.[klb]?.toLocaleString()||"—"}</td></tr>`).join("")}
+
+${pgH("Asset Summary")}
+${cO("Operating Weights")}
+<table width="100%" cellpadding="0" cellspacing="0"><colgroup><col width="25%"/><col width="25%"/><col width="25%"/><col width="25%"/></colgroup><tr>
+  <td width="25%" style="padding:0 5px 0 0;border:none;vertical-align:top">${mT("MTOW",(asset.weights?.mtow?.toLocaleString()||"—")+" kg",(asset.weights?.mtow_lb?.toLocaleString()||"—")+" lb")}</td>
+  <td width="25%" style="padding:0 2px;border:none;vertical-align:top">${mT("MLW",(asset.weights?.mlw?.toLocaleString()||"—")+" kg",(asset.weights?.mlw_lb?.toLocaleString()||"—")+" lb")}</td>
+  <td width="25%" style="padding:0 2px;border:none;vertical-align:top">${mT("MZFW",(asset.weights?.mzfw?.toLocaleString()||"—")+" kg",(asset.weights?.mzfw_lb?.toLocaleString()||"—")+" lb")}</td>
+  <td width="25%" style="padding:0 0 0 5px;border:none;vertical-align:top">${mT("Max Taxi",(asset.weights?.mtw?.toLocaleString()||"—")+" kg",(asset.weights?.mtw_lb?.toLocaleString()||"—")+" lb")}</td>
+</tr></table>
+${cC}
+${cO("Check History")}
+<table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:0"><thead><tr>
+  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Check</th>
+  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Last Date</th>
+  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Last FH</th>
+  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Last FC</th>
+  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Next Due</th>
+</tr></thead><tbody>
+${(asset.checks||[]).map(c=>`<tr><td style="padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top">${c.name}</td><td style="padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top">${fmtDate(c.lastDate)}</td><td style="padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top">${c.lastFH?.toLocaleString()||"—"}</td><td style="padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top">${c.lastFC?.toLocaleString()||"—"}</td><td style="padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top;font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("")}
 </tbody></table>
-<h3>Check History</h3>
-<table><thead><tr><th>Check</th><th>Last Date</th><th>Last TSN</th><th>Last CSN</th><th>Next Due</th></tr></thead><tbody>
-${(asset.checks||[]).map(c=>`<tr><td>${c.name}</td><td>${fmtDate(c.lastDate)}</td><td>${c.lastFH?.toLocaleString()||"—"}</td><td>${c.lastFC?.toLocaleString()||"—"}</td><td style="font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("")}
-</tbody></table>
-<h3>Specifications</h3>
+${cC}
+<table class="specs-grid"><tr>
+  <td class="specs-col">
+    ${cO("Cabin Configuration")}
+    <table width="100%" cellpadding="0" cellspacing="0">
+      ${kvR("Configuration",asset.specs?.config||"—")}
+      ${kvR("Seating",asset.specs?.seating||"—")}
+      ${kvR("Seat Config",asset.specs?.seatConfig||"—")}
+      ${kvR("Seat Manufacturer",asset.specs?.seatMfr||"—")}
+      ${kvR("Galleys",asset.specs?.galleys||"—")}
+      ${kvR("Lavatories",asset.specs?.lavs||"—")}
+      ${kvR("Cargo Type",asset.specs?.cargoType||"—")}
+      ${kvR("Winglets",asset.specs?.winglets||"—")}
+    </table>
+    ${cC}
+  </td>
+  <td class="specs-col">
+    ${cO("Systems &amp; Avionics")}
+    <table width="100%" cellpadding="0" cellspacing="0">
+      ${kvR("ADS-B",asset.specs?.adsb?"Installed":"—")}
+      ${kvR("CPDLC",asset.specs?.cpdlc?"Installed":"—")}
+      ${kvR("TCAS 7.1",asset.specs?.tcas?"Installed":"—")}
+      ${kvR("EFB",asset.specs?.efb?"Installed":"—")}
+      ${kvR("Enhanced Mode-S",asset.specs?.modeS?"Installed":"—")}
+      ${kvR("QAR",asset.specs?.qar?"Installed":"—")}
+      ${kvR("CDSS",asset.specs?.cdss?"Installed":"—")}
+      ${kvR("Reinf. Flight Deck Door",asset.specs?.rfdd?"Installed":"—")}
+      ${(asset.specs?.custom||[]).filter(f=>f.label&&f.value).map(f=>kvR(f.label,f.value)).join("")}
+    </table>
+    ${cC}
+  </td>
+</tr></table>
+${PAGE_FOOTER}<div class="pb"></div>
 ${(()=>{
-  const rows=[
-    ["Configuration",asset.specs?.config||"—"],
-    ["Passenger Seating",asset.specs?.seating||"—"],
-    ["Passenger Seating Config",asset.specs?.seatConfig||"—"],
-    ["Passenger Seating Manufacturer",asset.specs?.seatMfr||"—"],
-    ["Passenger Seats P/N",asset.specs?.seatPN||"—"],
-    ["Attendant Seats",asset.specs?.attendantSeats||"—"],
-    ["Galleys",asset.specs?.galleys||"—"],
-    ["Lavatories",asset.specs?.lavs||"—"],
-    ["Cargo Type",asset.specs?.cargoType||"—"],
-    ["Winglets",asset.specs?.winglets||"—"],
-    ["ADS-B",asset.specs?.adsb?"Installed":"Not Installed"],
-    ["CPDLC",asset.specs?.cpdlc?"Installed":"Not Installed"],
-    ["TCAS 7.1",asset.specs?.tcas?"Installed":"Not Installed"],
-    ["Cockpit Door Surveillance System",asset.specs?.cdss?"Installed":"Not Installed"],
-    ["Reinforced Flight Deck Door",asset.specs?.rfdd?"Installed":"Not Installed"],
-    ["QAR",asset.specs?.qar?"Installed":"Not Installed"],
-    ["Enhanced Mode-S",asset.specs?.modeS?"Installed":"Not Installed"],
-    ["Electronic Flight Bag",asset.specs?.efb?"Installed":"Not Installed"],
-    ...(asset.specs?.custom||[]).filter(f=>f.label&&f.value).map(f=>[f.label,f.value])
-  ];
-  const mid=Math.ceil(rows.length/2);
-  const left=rows.slice(0,mid),right=rows.slice(mid);
-  const colHTML=col=>col.map(([l,v])=>`<tr><td>${l}</td><td>${v}</td></tr>`).join("");
-  return`<table class="specs-grid"><tr><td class="specs-col"><table class="kv"><tbody>${colHTML(left)}</tbody></table></td><td class="specs-col"><table class="kv"><tbody>${colHTML(right)}</tbody></table></td></tr></table>`;
+  const engines=(asset.engines||[]).filter(e=>e&&(e.type||e.sn||e.currentFH));
+  return engines.map((eng,i)=>{
+    const pos=i+1;
+    const ll=lowestLimiter(eng);
+    const llDesc=lowestLLPDesc(eng);
+    const svList=(eng.shopVisits||[]).slice(-1);
+    return`${i>0?PAGE_FOOTER+'<div class="pb"></div>':""}
+${pgH(`Engine #${pos} \u2014 Powerplant Status`)}
+${cO(`Engine #${pos} \u2014 ESN ${eng.sn||"\u2014"}`)}
+<table width="100%" cellpadding="0" cellspacing="0">
+${kvR("Model / Thrust",`${eng.type||"\u2014"} \u00b7 ${eng.thrust||"\u2014"}`)}
+${kvR("Flight Hours Since New",`${fmtHHMM(eng.currentFH)} FH`)}
+${kvR("Flight Cycles Since New",`${(eng.currentFC||0).toLocaleString()} FC`)}
+</table>
+${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
+${cC}
+${cO("Life Limited Parts")}
+<table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:0"><thead><tr>
+  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">LLP Descriptor</th>
+  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">P/N</th>
+  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">S/N</th>
+  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">FC Remaining</th>
+</tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>
+${cC}
+${svList.length?`${cO("Most Recent Shop Visit")}<table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:0"><thead><tr><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Details</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Date / MRO</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">TSN</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">CSN</th></tr></thead><tbody>${svRows(svList,eng.currentFH,eng.currentFC)}</tbody></table>${cC}`:""}
+`;
+  }).join("");
 })()}
 ${PAGE_FOOTER}<div class="pb"></div>
-${engSec(asset.engines?.[0],1)}
-${PAGE_FOOTER}<div class="pb"></div>
-${engSec(asset.engines?.[1],2)}
-${PAGE_FOOTER}<div class="pb"></div>
-<h3>Landing Gear</h3>
-${lgSec(lg.nose,"Nose Landing Gear")}
-${lgSec(lg.left,"LH Main Landing Gear")}
-${lgSec(lg.right,"RH Main Landing Gear")}
+${pgH("Landing Gear &amp; APU")}
+${cO("Landing Gear Assembly")}
 ${(()=>{
-    const wb=asset.wheelsBrakes||{};
-    const rows=[["Main Wheels",wb.mainWheels],["Nose Wheels",wb.noseWheels],["Brake Unit",wb.brakes]].filter(([,item])=>item&&(item.pn||item.mfr));
-    if(!rows.length)return"";
-    return`<table style="margin-bottom:14px"><thead><tr><th colspan="4" style="background:#323F42;color:#FFFFFF;font-size:11px">Wheels &amp; Brakes</th></tr><tr><th>Component</th><th>Qty</th><th>P/N</th><th>Manufacturer</th></tr></thead><tbody>${rows.map(([label,item])=>`<tr><td>${label}</td><td>${item.qty||"—"}</td><td>${item.pn||"—"}</td><td>${item.mfr||"—"}</td></tr>`).join("")}</tbody></table>`;
-  })()}
-${PAGE_FOOTER}<div class="pb"></div>
-<h3>APU — ${apu.sn||"—"}</h3>
-<table class="kv">
-  <tr><td>Part Number</td><td>${apu.pn||"—"}</td><td style="color:#6b7280;font-weight:600;width:120px">Serial Number</td><td>${apu.sn||"—"}</td></tr>
-  <tr><td>Manufacturer</td><td>${apu.mfr||"—"}</td><td style="color:#6b7280;font-weight:600;width:120px"></td><td></td></tr>
-  <tr><td>TSN</td><td>${fmtHHMM(apu.currentFH)}</td><td style="color:#6b7280;font-weight:600">CSN</td><td>${(apu.currentFC||0).toLocaleString()}</td></tr>
+  const lgCol=(g,title)=>{
+    if(!g)return`<td width="33%" style="padding:0 5px;border:none;vertical-align:top"><div class="mini-t"><div class="mini-l">${title}</div><div style="color:#94a3b8;font-size:10px;margin-top:6px">No data</div></div></td>`;
+    const hasRefPair=g.refLegFC!=null&&g.refAirframeFC!=null;
+    let curFC=null;
+    if(g.currentFC!=null){curFC=g.currentFC;}
+    else if(hasRefPair){curFC=g.refLegFC+((af.currentFC||0)-g.refAirframeFC);}
+    const intervalCycles=g.overhaulIntervalCycles||20000;
+    const cycRem=(g.lastOverhaulFC!=null&&curFC!=null)?(g.lastOverhaulFC+intervalCycles)-curFC:null;
+    return`<td width="33%" style="padding:0 5px;border:none;vertical-align:top">
+<div style="border:1px solid #e2e8f0;border-radius:8px;padding:11px 12px">
+<div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#C9A84C;margin-bottom:8px">${title}</div>
+<table width="100%" cellpadding="0" cellspacing="0">
+${kvR("Part No.",g.pn||"—")}
+${kvR("Serial No.",g.sn||"—")}
+${kvR("Manufacturer",g.mfr||"—")}
+${kvR("Next OH Due",lgFmtDate(g.nextDue)||(cycRem!==null?Math.round(cycRem).toLocaleString()+" cyc rem":"—"))}
+${g.lastOverhaulDate?kvR("Last OH Date",lgFmtDate(g.lastOverhaulDate)):""}
 </table>
-<table><thead><tr><th>LLP Descriptor</th><th>P/N</th><th>S/N</th><th>FC Remaining</th></tr></thead><tbody>${llpRows(apu.llps,apu.currentFC)}</tbody></table>
-<p style="font-weight:700;font-size:10px;margin:8px 0 4px">Most Recent APU Shop Visit</p>
-<table><thead><tr><th>Details</th><th>Date / MRO</th><th>TSN</th><th>CSN</th></tr></thead><tbody>${svRows((apu.shopVisits||[]).slice(-1),apu.currentFH,apu.currentFC)}</tbody></table>
+</div></td>`;
+  };
+  return`<table width="100%" cellpadding="0" cellspacing="0"><colgroup><col width="33%"/><col width="34%"/><col width="33%"/></colgroup><tr>${lgCol(lg.nose,"Nose Gear")}${lgCol(lg.left,"LH Main Gear")}${lgCol(lg.right,"RH Main Gear")}</tr></table>`;
+})()}
+${cC}
+${(()=>{
+  const wb=asset.wheelsBrakes||{};
+  const rows=[["Main Wheels",wb.mainWheels],["Nose Wheels",wb.noseWheels],["Brake Unit",wb.brakes]].filter(([,item])=>item&&(item.pn||item.mfr));
+  if(!rows.length)return"";
+  return`${cO("Wheels &amp; Brakes")}<table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:0"><thead><tr><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Component</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Qty</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">P/N</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Manufacturer</th></tr></thead><tbody>${rows.map(([label,item])=>`<tr><td style="padding:5px 8px;border:1px solid #e2e8f0">${label}</td><td style="padding:5px 8px;border:1px solid #e2e8f0">${item.qty||"—"}</td><td style="padding:5px 8px;border:1px solid #e2e8f0">${item.pn||"—"}</td><td style="padding:5px 8px;border:1px solid #e2e8f0">${item.mfr||"—"}</td></tr>`).join("")}</tbody></table>${cC}`;
+})()}
+${cO(`APU \u2014 ${apu.sn||"\u2014"}`)}
+<table width="100%" cellpadding="0" cellspacing="0">
+${kvR("Manufacturer",apu.mfr||"—")}
+${kvR("Part Number",apu.pn||"—")}
+${kvR("Serial Number",apu.sn||"—")}
+${kvR("Time Since New",fmtHHMM(apu.currentFH)+" FH")}
+${kvR("Cycles Since New",(apu.currentFC||0).toLocaleString()+" FC")}
+</table>
+${(()=>{const ll=lowestLimiter(apu);const desc=lowestLLPDesc(apu);return ll!==null?progBar(ll)+(desc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${desc}</div>`:""):"";})()}
+${apu.llps?.length?`<table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-top:12px;margin-bottom:0"><thead><tr><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">LLP Descriptor</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">P/N</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">S/N</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">FC Remaining</th></tr></thead><tbody>${llpRows(apu.llps,apu.currentFC)}</tbody></table>`:""}
+${cC}
+
 ${(()=>{
     const lopaPhoto=(asset.photos||[]).find(p=>p.label==="LOPA");
     if(!lopaPhoto)return"";
