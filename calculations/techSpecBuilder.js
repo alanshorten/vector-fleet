@@ -34,7 +34,6 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 .cov-hdr{background:#ffffff;border-bottom:2px solid #C9A84C;padding:9px 30px;text-align:left}
 .cov-hdr img{height:28px;width:auto;display:inline-block;vertical-align:middle}
 .hero{background:#111827;padding:40px 30px 38px;position:relative;overflow:hidden}
-.hero-sil{position:absolute;right:-20px;top:20px;opacity:0.05;pointer-events:none}
 .hero-logo{text-align:center;margin-bottom:18px}
 .hero-logo img{height:60px;width:auto;display:inline-block}
 .hero-rule{width:44px;height:2px;background:#C9A84C;margin:0 auto 20px;border-radius:2px}
@@ -113,10 +112,25 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
   const progBar=(rem,max=20000)=>{if(rem===null||rem===undefined||isNaN(rem))return'';const pct=Math.min(100,Math.max(0,(rem/max)*100));const col=rem>6000?'#16a34a':rem>3000?'#d97706':'#dc2626';return`<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:11px"><tr><td style="border:none;padding:0 0 4px 0;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#64748b">Lowest LLP Limiter</td><td align="right" style="border:none;padding:0 0 4px 0;font-size:11px;font-weight:800;color:${col}">${rem.toLocaleString()} FC Rem.</td></tr></table><div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden"><div style="height:6px;width:${pct.toFixed(1)}%;background:${col};border-radius:3px"></div></div>`;};
   const identLine=`MSN ${asset.msn||"—"} · ${asset.registration||"—"} · ${asset.model||""}`;
   const pgH=(t)=>`<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;padding-bottom:9px;border-bottom:2px solid #C9A84C"><tr><td style="border:none;padding:0 0 9px 0;vertical-align:bottom"><span style="font-size:19px;font-weight:800;color:#0f172a;letter-spacing:-0.02em">${t}</span></td><td align="right" style="border:none;padding:0 0 9px 0;vertical-align:bottom"><span style="font-size:8.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;font-weight:600">${identLine}</span></td></tr></table>`;
-  const cO=(l)=>`<div class="card"><span class="card-lbl">${l}</span>`;
+  const IC=(svg)=>`<div style="width:28px;height:28px;border:1.5px solid #0f172a;border-radius:50%;background:#fff;display:inline-block;box-sizing:border-box;text-align:center;padding-top:5px;vertical-align:middle">${svg}</div>`;
+  const IH=(lbl,svg)=>`<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed #f2f2f7"><tr><td style="border:none;padding:0;width:36px;vertical-align:middle">${IC(svg)}</td><td style="border:none;padding:0 0 0 10px;vertical-align:middle"><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#0f172a">${lbl}</span></td></tr></table>`;
+  const secH=(lbl,svg)=>`<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:9px;padding-bottom:7px;border-bottom:1px dashed #f2f2f7"><tr><td style="border:none;padding:0;width:36px;vertical-align:middle">${IC(svg)}</td><td style="border:none;padding:0 0 0 10px;vertical-align:middle"><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#0f172a">${lbl}</span></td></tr></table>`;
+  const cO=(lbl,svg)=>`<div class="card">${svg?IH(lbl,svg):`<span class="card-lbl">${lbl}</span>`}`;
   const cC=`</div>`;
   const kvR=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10px;color:#64748b;font-weight:600;width:150px;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10.5px;color:#0f172a;font-weight:600;vertical-align:top">${v}</td></tr>`;
   const mT=(lbl,val,sub)=>`<div class="mini-t"><div class="mini-l">${lbl}</div><div class="mini-v">${val}</div>${sub?`<div class="mini-s">${sub}</div>`:""}</div>`;
+  const TH='background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0';
+  const TD='padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top';
+  const svgEngine=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5" fill="#000"/><path d="M12 9.5c1.5-2 4-2 4 0s-2.5 4-4 2.5M12 14.5c-1.5 2-4 2-4 0s2.5-4 4-2.5M9.5 12c-2-1.5-2-4 0-4s4 2.5 2.5 4M14.5 12c2 1.5 2 4 0 4s-4-2.5-2.5-4"/></svg>`;
+  const svgScale=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v17M12 5l-6 3M12 5l6 3M6 8v6M18 8v6M4 14h4M16 14h4M9 20h6"/></svg>`;
+  const svgWrench=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>`;
+  const svgClip=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="9" y="2" width="6" height="3" rx="1"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>`;
+  const svgCog=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`;
+  const svgList=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
+  const svgCal=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+  const svgGearLeg=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="15"/><path d="M9 5l3 3 3-3M10 10h4M8 15h8M8 15v3M16 15v3"/><circle cx="8" cy="18" r="2.5"/><circle cx="16" cy="18" r="2.5"/></svg>`;
+  const svgBolt=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+  const svgWheel=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="9"/><line x1="12" y1="15" x2="12" y2="21"/><line x1="3" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="21" y2="12"/></svg>`;
   if(engineOnly){
     const eng=asset.engines?.[0];
     const ll=lowestLimiter(eng);
@@ -124,7 +138,6 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
 <div class="cover"><div class="cover-top"><div>
   <div class="cov-hdr"><img src="${VECTORIQ_BANNER}" alt="TailiQ"/></div>
   <div class="hero">
-    <div class="hero-sil"><svg width="380" height="160" viewBox="0 0 500 200" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#C9A84C" stroke-width="1.2" fill="rgba(201,168,76,0.15)"><!-- Fuselage --><ellipse cx="260" cy="100" rx="200" ry="16"/><path d="M60,100 Q80,95 160,92 Q260,89 400,92 Q440,94 458,100 Q440,106 400,108 Q260,111 160,108 Q80,105 60,100Z"/><!-- Wings --><path d="M220,98 L240,98 L290,145 L370,162 L370,167 L280,150 L240,104 L220,104Z"/><path d="M220,98 L240,98 L290,55 L370,38 L370,33 L280,50 L240,92 L220,92Z"/><!-- Engines --><ellipse cx="286" cy="155" rx="32" ry="9"/>><ellipse cx="286" cy="45" rx="32" ry="9"/><!-- Tail fin --><path d="M75,94 L82,94 L82,52 Q79,44 75,42 Q71,44 72,52 L75,52Z"/><!-- H-stab --><path d="M73,100 L100,100 L118,120 L136,125 L136,127 L115,122 L100,103 L73,103Z"/><path d="M73,100 L100,100 L118,80 L136,75 L136,73 L115,78 L100,97 L73,97Z"/></g></svg></div>
     <center style="margin-bottom:18px"><img src="${logoUrl}" alt="Maverick Horizon" style="height:60px;width:auto"/></center>
     <div class="hero-rule"></div>
     <div class="hero-type">Engine Technical Specification</div>
@@ -155,7 +168,6 @@ ${PAGE_FOOTER}
 <div class="cover"><div class="cover-top"><div>
   <div class="cov-hdr"><img src="${VECTORIQ_BANNER}" alt="TailiQ"/></div>
   <div class="hero">
-    <div class="hero-sil"><svg width="380" height="160" viewBox="0 0 500 200" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#C9A84C" stroke-width="1.2" fill="rgba(201,168,76,0.15)"><!-- Fuselage --><ellipse cx="260" cy="100" rx="200" ry="16"/><path d="M60,100 Q80,95 160,92 Q260,89 400,92 Q440,94 458,100 Q440,106 400,108 Q260,111 160,108 Q80,105 60,100Z"/><!-- Wings --><path d="M220,98 L240,98 L290,145 L370,162 L370,167 L280,150 L240,104 L220,104Z"/><path d="M220,98 L240,98 L290,55 L370,38 L370,33 L280,50 L240,92 L220,92Z"/><!-- Engines --><ellipse cx="286" cy="155" rx="32" ry="9"/>><ellipse cx="286" cy="45" rx="32" ry="9"/><!-- Tail fin --><path d="M75,94 L82,94 L82,52 Q79,44 75,42 Q71,44 72,52 L75,52Z"/><!-- H-stab --><path d="M73,100 L100,100 L118,120 L136,125 L136,127 L115,122 L100,103 L73,103Z"/><path d="M73,100 L100,100 L118,80 L136,75 L136,73 L115,78 L100,97 L73,97Z"/></g></svg></div>
     <center style="margin-bottom:18px"><img src="${logoUrl}" alt="Maverick Horizon" style="height:60px;width:auto"/></center>
     <div class="hero-rule"></div>
     <div class="hero-type">${asset.manufacturer||""} ${asset.model||""}</div>
@@ -182,28 +194,31 @@ ${PAGE_FOOTER}
 </div></div><div class="cover-bottom"><div>${PAGE_FOOTER}</div></div></div>
 
 ${pgH("Asset Summary")}
-${cO("Operating Weights")}
-<table width="100%" cellpadding="0" cellspacing="0"><colgroup><col width="25%"/><col width="25%"/><col width="25%"/><col width="25%"/></colgroup><tr>
-  <td width="25%" style="padding:0 5px 0 0;border:none;vertical-align:top">${mT("MTOW",(asset.weights?.mtow?.toLocaleString()||"—")+" kg",(asset.weights?.mtow_lb?.toLocaleString()||"—")+" lb")}</td>
-  <td width="25%" style="padding:0 2px;border:none;vertical-align:top">${mT("MLW",(asset.weights?.mlw?.toLocaleString()||"—")+" kg",(asset.weights?.mlw_lb?.toLocaleString()||"—")+" lb")}</td>
-  <td width="25%" style="padding:0 2px;border:none;vertical-align:top">${mT("MZFW",(asset.weights?.mzfw?.toLocaleString()||"—")+" kg",(asset.weights?.mzfw_lb?.toLocaleString()||"—")+" lb")}</td>
-  <td width="25%" style="padding:0 0 0 5px;border:none;vertical-align:top">${mT("Max Taxi",(asset.weights?.mtw?.toLocaleString()||"—")+" kg",(asset.weights?.mtw_lb?.toLocaleString()||"—")+" lb")}</td>
-</tr></table>
-${cC}
-${cO("Check History")}
-<table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:0"><thead><tr>
-  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Check</th>
-  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Last Date</th>
-  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Last FH</th>
-  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Last FC</th>
-  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Next Due</th>
-</tr></thead><tbody>
-${(asset.checks||[]).map(c=>`<tr><td style="padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top">${c.name}</td><td style="padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top">${fmtDate(c.lastDate)}</td><td style="padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top">${c.lastFH?.toLocaleString()||"—"}</td><td style="padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top">${c.lastFC?.toLocaleString()||"—"}</td><td style="padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top;font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("")}
-</tbody></table>
-${cC}
 <table class="specs-grid"><tr>
   <td class="specs-col">
-    ${cO("Cabin Configuration")}
+    ${cO("Operating Weights",svgScale)}
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="padding:0 4px 0 0;border:none;vertical-align:top;width:50%">${mT("MTOW",(asset.weights?.mtow?.toLocaleString()||"—")+" kg",(asset.weights?.mtow_lb?.toLocaleString()||"—")+" lb")}</td>
+      <td style="padding:0 0 0 4px;border:none;vertical-align:top;width:50%">${mT("MLW",(asset.weights?.mlw?.toLocaleString()||"—")+" kg",(asset.weights?.mlw_lb?.toLocaleString()||"—")+" lb")}</td>
+    </tr><tr><td colspan="2" style="border:none;height:6px"></td></tr><tr>
+      <td style="padding:0 4px 0 0;border:none;vertical-align:top">${mT("MZFW",(asset.weights?.mzfw?.toLocaleString()||"—")+" kg",(asset.weights?.mzfw_lb?.toLocaleString()||"—")+" lb")}</td>
+      <td style="padding:0 0 0 4px;border:none;vertical-align:top">${mT("Max Taxi",(asset.weights?.mtw?.toLocaleString()||"—")+" kg",(asset.weights?.mtw_lb?.toLocaleString()||"—")+" lb")}</td>
+    </tr></table>
+    ${cC}
+  </td>
+  <td class="specs-col">
+    ${cO("Check History",svgWrench)}
+    <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr>
+      <th style="${TH}">Check</th><th style="${TH}">Last Date</th><th style="${TH}">FH</th><th style="${TH}">FC</th><th style="${TH}">Next Due</th>
+    </tr></thead><tbody>
+    ${(asset.checks||[]).map(c=>`<tr><td style="${TD}">${c.name}</td><td style="${TD}">${fmtDate(c.lastDate)}</td><td style="${TD}">${c.lastFH?.toLocaleString()||"—"}</td><td style="${TD}">${c.lastFC?.toLocaleString()||"—"}</td><td style="${TD};font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("")}
+    </tbody></table>
+    ${cC}
+  </td>
+</tr></table>
+<table class="specs-grid"><tr>
+  <td class="specs-col">
+    ${secH("Configuration",svgClip)}
     <table width="100%" cellpadding="0" cellspacing="0">
       ${kvR("Configuration",asset.specs?.config||"—")}
       ${kvR("Seating",asset.specs?.seating||"—")}
@@ -214,10 +229,9 @@ ${cC}
       ${kvR("Cargo Type",asset.specs?.cargoType||"—")}
       ${kvR("Winglets",asset.specs?.winglets||"—")}
     </table>
-    ${cC}
   </td>
   <td class="specs-col">
-    ${cO("Systems &amp; Avionics")}
+    ${secH("Systems",svgCog)}
     <table width="100%" cellpadding="0" cellspacing="0">
       ${kvR("ADS-B",asset.specs?.adsb?"Installed":"—")}
       ${kvR("CPDLC",asset.specs?.cpdlc?"Installed":"—")}
@@ -229,45 +243,47 @@ ${cC}
       ${kvR("Reinf. Flight Deck Door",asset.specs?.rfdd?"Installed":"—")}
       ${(asset.specs?.custom||[]).filter(f=>f.label&&f.value).map(f=>kvR(f.label,f.value)).join("")}
     </table>
-    ${cC}
   </td>
 </tr></table>
 ${PAGE_FOOTER}<div class="pb"></div>
 ${(()=>{
   const engines=(asset.engines||[]).filter(e=>e&&(e.type||e.sn||e.currentFH));
-  return engines.map((eng,i)=>{
+  if(!engines.length)return'';
+  const pages=engines.map((eng,i)=>{
     const pos=i+1;
     const ll=lowestLimiter(eng);
     const llDesc=lowestLLPDesc(eng);
     const svList=(eng.shopVisits||[]).slice(-1);
-    return`${i>0?PAGE_FOOTER+'<div class="pb"></div>':""}
+    return`
 ${pgH(`Engine #${pos} \u2014 Powerplant Status`)}
-${cO(`Engine #${pos} \u2014 ESN ${eng.sn||"\u2014"}`)}
-<table width="100%" cellpadding="0" cellspacing="0">
-${kvR("Model / Thrust",`${eng.type||"\u2014"} \u00b7 ${eng.thrust||"\u2014"}`)}
-${kvR("Flight Hours Since New",`${fmtHHMM(eng.currentFH)} FH`)}
-${kvR("Flight Cycles Since New",`${(eng.currentFC||0).toLocaleString()} FC`)}
-</table>
-${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
-${cC}
-${cO("Life Limited Parts")}
-<table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:0"><thead><tr>
-  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">LLP Descriptor</th>
-  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">P/N</th>
-  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">S/N</th>
-  <th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">FC Remaining</th>
+<table class="specs-grid"><tr>
+  <td class="specs-col">
+    ${cO(`Engine #${pos} \u2014 ESN ${eng.sn||"\u2014"}`,svgEngine)}
+    <table width="100%" cellpadding="0" cellspacing="0">
+      ${kvR("Model / Thrust",`${eng.type||"\u2014"} \u00b7 ${eng.thrust||"\u2014"}`)}
+      ${kvR("Flight Hours Since New",`${fmtHHMM(eng.currentFH)} FH`)}
+      ${kvR("Flight Cycles Since New",`${(eng.currentFC||0).toLocaleString()} FC`)}
+    </table>
+    ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
+    ${cC}
+  </td>
+  <td class="specs-col">
+    ${svList.length?`${cO("Most Recent Shop Visit",svgCal)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,eng.currentFH,eng.currentFC)}</tbody></table>${cC}`:""}
+  </td>
+</tr></table>
+${cO("Life Limited Parts",svgList)}
+<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr>
+  <th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th>
 </tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>
-${cC}
-${svList.length?`${cO("Most Recent Shop Visit")}<table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:0"><thead><tr><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Details</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Date / MRO</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">TSN</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">CSN</th></tr></thead><tbody>${svRows(svList,eng.currentFH,eng.currentFC)}</tbody></table>${cC}`:""}
-`;
-  }).join("");
+${cC}`;
+  });
+  return pages.join(PAGE_FOOTER+'<div class="pb"></div>')+PAGE_FOOTER+'<div class="pb"></div>';
 })()}
-${PAGE_FOOTER}<div class="pb"></div>
 ${pgH("Landing Gear &amp; APU")}
-${cO("Landing Gear Assembly")}
+${cO("Landing Gear Assembly",svgGearLeg)}
 ${(()=>{
   const lgCol=(g,title)=>{
-    if(!g)return`<td width="33%" style="padding:0 5px;border:none;vertical-align:top"><div class="mini-t"><div class="mini-l">${title}</div><div style="color:#94a3b8;font-size:10px;margin-top:6px">No data</div></div></td>`;
+    if(!g)return`<td width="33%" style="padding:0 5px;border:none;vertical-align:top"><div style="border:1px solid #e2e8f0;border-radius:8px;padding:11px 12px"><div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#C9A84C;margin-bottom:8px">${title}</div><div style="color:#94a3b8;font-size:10px">No data</div></div></td>`;
     const hasRefPair=g.refLegFC!=null&&g.refAirframeFC!=null;
     let curFC=null;
     if(g.currentFC!=null){curFC=g.currentFC;}
@@ -293,19 +309,26 @@ ${(()=>{
   const wb=asset.wheelsBrakes||{};
   const rows=[["Main Wheels",wb.mainWheels],["Nose Wheels",wb.noseWheels],["Brake Unit",wb.brakes]].filter(([,item])=>item&&(item.pn||item.mfr));
   if(!rows.length)return"";
-  return`${cO("Wheels &amp; Brakes")}<table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:0"><thead><tr><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Component</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Qty</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">P/N</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">Manufacturer</th></tr></thead><tbody>${rows.map(([label,item])=>`<tr><td style="padding:5px 8px;border:1px solid #e2e8f0">${label}</td><td style="padding:5px 8px;border:1px solid #e2e8f0">${item.qty||"—"}</td><td style="padding:5px 8px;border:1px solid #e2e8f0">${item.pn||"—"}</td><td style="padding:5px 8px;border:1px solid #e2e8f0">${item.mfr||"—"}</td></tr>`).join("")}</tbody></table>${cC}`;
+  return`${cO("Wheels &amp; Brakes",svgWheel)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Component</th><th style="${TH}">Qty</th><th style="${TH}">P/N</th><th style="${TH}">Manufacturer</th></tr></thead><tbody>${rows.map(([label,item])=>`<tr><td style="${TD}">${label}</td><td style="${TD}">${item.qty||"—"}</td><td style="${TD}">${item.pn||"—"}</td><td style="${TD}">${item.mfr||"—"}</td></tr>`).join("")}</tbody></table>${cC}`;
 })()}
-${cO(`APU \u2014 ${apu.sn||"\u2014"}`)}
-<table width="100%" cellpadding="0" cellspacing="0">
-${kvR("Manufacturer",apu.mfr||"—")}
-${kvR("Part Number",apu.pn||"—")}
-${kvR("Serial Number",apu.sn||"—")}
-${kvR("Time Since New",fmtHHMM(apu.currentFH)+" FH")}
-${kvR("Cycles Since New",(apu.currentFC||0).toLocaleString()+" FC")}
-</table>
-${(()=>{const ll=lowestLimiter(apu);const desc=lowestLLPDesc(apu);return ll!==null?progBar(ll)+(desc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${desc}</div>`:""):"";})()}
-${apu.llps?.length?`<table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-top:12px;margin-bottom:0"><thead><tr><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">LLP Descriptor</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">P/N</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">S/N</th><th style="background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0">FC Remaining</th></tr></thead><tbody>${llpRows(apu.llps,apu.currentFC)}</tbody></table>`:""}
-${cC}
+<table class="specs-grid"><tr>
+  <td class="specs-col">
+    ${cO(`APU \u2014 ${apu.sn||"\u2014"}`,svgBolt)}
+    <table width="100%" cellpadding="0" cellspacing="0">
+      ${kvR("Manufacturer",apu.mfr||"—")}
+      ${kvR("Part Number",apu.pn||"—")}
+      ${kvR("Serial Number",apu.sn||"—")}
+      ${kvR("Time Since New",fmtHHMM(apu.currentFH)+" FH")}
+      ${kvR("Cycles Since New",(apu.currentFC||0).toLocaleString()+" FC")}
+    </table>
+    ${(()=>{const ll=lowestLimiter(apu);const desc=lowestLLPDesc(apu);return ll!==null?progBar(ll)+(desc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${desc}</div>`:""):"";})()}
+    ${cC}
+  </td>
+  <td class="specs-col">
+    ${(()=>{const svList=(apu.shopVisits||[]).slice(-1);return svList.length?`${cO("Most Recent Shop Visit",svgCal)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,apu.currentFH,apu.currentFC)}</tbody></table>${cC}`:"";})()}
+  </td>
+</tr></table>
+${apu.llps?.length?`${cO("APU Life Limited Parts",svgList)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:0;margin-bottom:0"><thead><tr><th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th></tr></thead><tbody>${llpRows(apu.llps,apu.currentFC)}</tbody></table>${cC}`:""}
 
 ${(()=>{
     const lopaPhoto=(asset.photos||[]).find(p=>p.label==="LOPA");
