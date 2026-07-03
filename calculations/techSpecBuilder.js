@@ -32,13 +32,28 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 @media print{html,body{height:100%}.cover{display:table;width:100%;height:100%}.cover-top{display:table-row}.cover-top>div{display:table-cell;vertical-align:top}.cover-bottom{display:table-row}.cover-bottom>div{display:table-cell;vertical-align:bottom;padding:0 30px 0}}
 .cov-hdr{background:#ffffff;border-bottom:2px solid #C9A84C;padding:9px 30px;text-align:left}
 .cov-hdr img{height:28px;width:auto;display:inline-block;vertical-align:middle}
-.cov-body{padding:28px 30px 0}
-.cov-logo{text-align:center;margin-bottom:22px}
-.cov-photo-wrap{margin-bottom:18px;text-align:center}
-.cov-photo-wrap img{width:82%;height:auto;max-height:280px;object-fit:contain;border-radius:5px;display:inline-block}
-.cov-type{font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.01em;margin:0 0 4px}.cov-identity{font-size:11px;color:#64748b;letter-spacing:0.05em;margin-bottom:16px}.sc-cards{width:100%;border-collapse:collapse}.sc-cell{padding:0 4px;width:25%}.sc-cell:first-child{padding-left:0}.sc-cell:last-child{padding-right:0}.sc-inner{border:1.5px solid #C9A84C;border-top:3px solid #C9A84C;border-radius:5px;background:#ffffff;padding:13px 14px 14px;text-align:center}.sc-icon{margin-bottom:7px}.sc-val{font-size:20px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.02em;margin-bottom:5px}.sc-val-sm{font-size:13px;font-weight:800;color:#0f172a;line-height:1.2;letter-spacing:-0.01em;margin-bottom:5px}.sc-lbl{font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#94a3b8}
-.cov-disc{font-size:9px;color:#6b7280;margin:18px 0 0;line-height:1.6;text-align:left}
-.cov-date{margin-top:10px;font-size:11px;color:#374151}
+.hero{background:#1e293b;padding:28px 30px 26px;position:relative;overflow:hidden}
+.hero-deco-1{position:absolute;right:-80px;top:-80px;width:320px;height:320px;border-radius:50%;border:1px solid rgba(201,168,76,0.08)}
+.hero-deco-2{position:absolute;right:-40px;top:-40px;width:200px;height:200px;border-radius:50%;border:1px solid rgba(201,168,76,0.1)}
+.hero-logo{text-align:center;margin-bottom:18px}
+.hero-logo img{height:60px;width:auto;display:inline-block}
+.hero-rule{width:44px;height:2px;background:#C9A84C;margin:0 auto 18px;border-radius:2px}
+.hero-type{text-align:center;font-size:26px;font-weight:800;color:#f8fafc;letter-spacing:-0.02em;line-height:1;margin-bottom:7px}
+.hero-identity{text-align:center;font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:0.14em;text-transform:uppercase;font-weight:600;margin-bottom:20px}
+.hero-photo{width:78%;margin:0 auto;border-radius:5px;overflow:hidden;border:1px solid rgba(255,255,255,0.07)}
+.hero-photo img{width:100%;height:auto;max-height:220px;object-fit:contain;display:block;background:#0f172a}
+.cov-lower{padding:22px 30px 0}
+.sc-cards{width:100%;border-collapse:collapse}
+.sc-cell{padding:0 4px;width:25%}
+.sc-cell:first-child{padding-left:0}
+.sc-cell:last-child{padding-right:0}
+.sc-inner{border:1.5px solid #C9A84C;border-top:3px solid #C9A84C;border-radius:5px;background:#ffffff;padding:13px 10px 14px;text-align:center}
+.sc-icon{margin-bottom:7px}
+.sc-val{font-size:19px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.02em;margin-bottom:5px}
+.sc-val-sm{font-size:12px;font-weight:800;color:#0f172a;line-height:1.2;letter-spacing:-0.01em;margin-bottom:5px}
+.sc-lbl{font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#94a3b8}
+.cov-disc{font-size:9px;color:#6b7280;margin:20px 0 0;line-height:1.6}
+.cov-date{margin-top:8px;font-size:11px;color:#374151}
 h3{background:#1e293b;color:#FFFFFF;font-size:11.5px;padding:5px 10px;border-radius:4px;margin:18px 0 7px;letter-spacing:0.04em}
 table{width:100%;border-collapse:collapse;margin-bottom:9px;font-size:10.5px}
 th{background:#f1f5f9;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0}
@@ -94,25 +109,26 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
     return`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Engine Spec ESN ${eng?.sn}</title><style>${specCSS}</style></head><body>
 <div class="cover"><div class="cover-top"><div>
   <div class="cov-hdr"><img src="${VECTORIQ_BANNER}" alt="TailiQ"/></div>
-  <div class="cov-body">
-    <div class="cov-logo"><img src="${logoUrl}" alt="Maverick Horizon" style="width:${logoWidth}px"/></div>
-    ${engPhoto?`<div class="cov-photo-wrap"><img src="${engPhoto}" alt="Engine"/></div>`:""}
-    <div class="cov-type">Engine Technical Specification</div>
-    <div class="cov-identity">ESN ${eng?.sn||"—"} &nbsp;·&nbsp; Engine #${enginePos} &nbsp;·&nbsp; ${asset.msn||"—"} / ${asset.registration||"—"}</div>
+  <div class="hero">
+    <div class="hero-deco-1"></div><div class="hero-deco-2"></div>
+    <div class="hero-logo"><img src="${logoUrl}" alt="Maverick Horizon"/></div>
+    <div class="hero-rule"></div>
+    <div class="hero-type">Engine Technical Specification</div>
+    <div class="hero-identity">ESN ${eng?.sn||"—"} &nbsp;·&nbsp; Engine #${enginePos} &nbsp;·&nbsp; MSN ${asset.msn||"—"} / ${asset.registration||"—"}</div>
+    ${engPhoto?`<div class="hero-photo"><img src="${engPhoto}" alt="Engine"/></div>`:""}
+  </div>
+  <div class="cov-lower">
     ${(()=>{
-    const iconESN=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="10" ry="5"/><path d="M2,12c0,2.76,4.48,5,10,5s10-2.24,10-5"/><line x1="2" y1="12" x2="2" y2="18"/><line x1="22" y1="12" x2="22" y2="18"/></svg>`;
     const iconFH=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12,6 12,12 16,14"/></svg>`;
     const iconFC=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51,9a9,9,0,0,1,14.85-3.36L23,10M1,14l4.64,4.36A9,9,0,0,0,20.49,15"/></svg>`;
     const iconType=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 22,8.5 22,15.5 12,22 2,15.5 2,8.5"/><line x1="12" y1="22" x2="12" y2="15.5"/><polyline points="2,8.5 12,15.5 22,8.5"/></svg>`;
+    const iconThrust=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13,2L3,14h9l-1,8,10-12h-9l1-8z"/></svg>`;
     return`<table class="sc-cards"><tr>
       <td class="sc-cell"><div class="sc-inner"><div class="sc-icon">${iconFH}</div><div class="sc-val">${fmtHHMM(eng?.currentFH)}</div><div class="sc-lbl">Flight Hours</div></div></td>
       <td class="sc-cell"><div class="sc-inner"><div class="sc-icon">${iconFC}</div><div class="sc-val">${(eng?.currentFC||0).toLocaleString()}</div><div class="sc-lbl">Flight Cycles</div></div></td>
       <td class="sc-cell"><div class="sc-inner"><div class="sc-icon">${iconType}</div><div class="sc-val-sm">${eng?.type||"—"}</div><div class="sc-lbl">Engine Type</div></div></td>
-      <td class="sc-cell"><div class="sc-inner"><div class="sc-icon">${iconESN}</div><div class="sc-val-sm">${eng?.thrust||"—"}</div><div class="sc-lbl">Thrust Rating</div></div></td>
+      <td class="sc-cell"><div class="sc-inner"><div class="sc-icon">${iconThrust}</div><div class="sc-val-sm">${eng?.thrust||"—"}</div><div class="sc-lbl">Thrust Rating</div></div></td>
     </tr></table>`;})()}
-    <table class="kv" style="margin-top:16px"><tr><td>Aircraft MSN</td><td>${asset.msn||"—"}</td><td style="color:#6b7280;font-weight:600;width:120px">Registration</td><td>${asset.registration||"—"}</td></tr>
-    <tr><td>Engine Type</td><td>${eng?.type||"—"}</td><td style="color:#6b7280;font-weight:600">Thrust</td><td>${eng?.thrust||"—"}</td></tr>
-    <tr><td>${asset.operatorLabel||"Current Operator"}</td><td colspan="3">${asset.operator||"—"}</td></tr></table>
     <div class="cov-date">Date: ${today}</div>
   </div>
 </div></div><div class="cover-bottom"><div>${PAGE_FOOTER}</div></div></div>
@@ -124,11 +140,15 @@ ${PAGE_FOOTER}
   return`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Tech Spec MSN ${asset.msn}</title><style>${specCSS}</style></head><body>
 <div class="cover"><div class="cover-top"><div>
   <div class="cov-hdr"><img src="${VECTORIQ_BANNER}" alt="TailiQ"/></div>
-  <div class="cov-body">
-    <div class="cov-logo"><img src="${logoUrl}" alt="Maverick Horizon" style="width:${logoWidth}px"/></div>
-    ${coverPhoto?.url?`<div class="cov-photo-wrap"><img src="${coverPhoto.url}" alt="Aircraft"/></div>`:""}
-    <div class="cov-type">${asset.manufacturer||""} ${asset.model||""}</div>
-    <div class="cov-identity">MSN ${asset.msn||"—"} &nbsp;·&nbsp; ${asset.registration||"—"}</div>
+  <div class="hero">
+    <div class="hero-deco-1"></div><div class="hero-deco-2"></div>
+    <div class="hero-logo"><img src="${logoUrl}" alt="Maverick Horizon"/></div>
+    <div class="hero-rule"></div>
+    <div class="hero-type">${asset.manufacturer||""} ${asset.model||""}</div>
+    <div class="hero-identity">MSN ${asset.msn||"—"} &nbsp;·&nbsp; ${asset.registration||"—"}</div>
+    ${coverPhoto?.url?`<div class="hero-photo"><img src="${coverPhoto.url}" alt="Aircraft"/></div>`:""}
+  </div>
+  <div class="cov-lower">
     ${(()=>{const d=asset.dom||"";let domDisp="—";if(/^\d{2}\/\d{4}$/.test(d)){const ms=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];const[mo,yr]=d.split("/");domDisp=ms[parseInt(mo)-1]+" "+yr;}else if(d){try{const dt=new Date(d);if(!isNaN(dt))domDisp=dt.toLocaleDateString("en-GB",{month:"short",year:"numeric"}).toUpperCase();}catch{domDisp=d;}}
     const iconFH=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12,6 12,12 16,14"/></svg>`;
     const iconFC=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51,9a9,9,0,0,1,14.85-3.36L23,10M1,14l4.64,4.36A9,9,0,0,0,20.49,15"/></svg>`;
