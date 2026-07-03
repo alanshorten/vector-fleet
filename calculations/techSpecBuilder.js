@@ -118,8 +118,8 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
   const cO=(lbl,svg)=>`<div class="card">${svg?IH(lbl,svg):`<span class="card-lbl">${lbl}</span>`}`;
   const cNB=(lbl,svg)=>`<div style="margin-bottom:13px">${IH(lbl,svg)}`;
   const CS='border:1px solid #e2e8f0;border-radius:10px;padding:14px 17px;vertical-align:top';
-  const col2=(l,r)=>`<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:13px"><colgroup><col width="49%"/><col width="2%"/><col width="49%"/></colgroup><tr>${l}<td style="border:none;padding:0"></td>${r}</tr></table>`;
-  const col3=(a,b,c)=>`<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:13px"><colgroup><col width="32%"/><col width="2%"/><col width="32%"/><col width="2%"/><col width="32%"/></colgroup><tr>${a}<td style="border:none;padding:0"></td>${b}<td style="border:none;padding:0"></td>${c}</tr></table>`;
+  const col2=(l,r)=>`<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin-bottom:13px"><colgroup><col width="49%"/><col width="2%"/><col width="49%"/></colgroup><tr>${l}<td style="border:none;padding:0"></td>${r}</tr></table>`;
+  const col3=(a,b,c)=>`<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin-bottom:13px"><colgroup><col width="32%"/><col width="2%"/><col width="32%"/><col width="2%"/><col width="32%"/></colgroup><tr>${a}<td style="border:none;padding:0"></td>${b}<td style="border:none;padding:0"></td>${c}</tr></table>`;
   const cC=`</div>`;
   const kvR=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10px;color:#64748b;font-weight:600;width:150px;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10.5px;color:#0f172a;font-weight:600;vertical-align:top">${v}</td></tr>`;
   const mT=(lbl,val,sub)=>`<div class="mini-t"><div class="mini-l">${lbl}</div><div class="mini-v">${val}</div>${sub?`<div class="mini-s">${sub}</div>`:""}</div>`;
@@ -291,12 +291,13 @@ ${(()=>{
     else if(hasRefPair){curFC=g.refLegFC+((af.currentFC||0)-g.refAirframeFC);}
     const intervalCycles=g?.overhaulIntervalCycles||20000;
     const cycRem=(g?.lastOverhaulFC!=null&&curFC!=null)?(g.lastOverhaulFC+intervalCycles)-curFC:null;
+    const lkv=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #f8fafc;padding:4px 0;font-size:9.5px;color:#64748b;font-weight:600;width:80px;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #f8fafc;padding:4px 0;font-size:10px;color:#0f172a;font-weight:600;vertical-align:top;word-break:break-word">${v}</td></tr>`;
     const rows=g?`<table width="100%" cellpadding="0" cellspacing="0">
-      ${kvR("Part No.",g.pn||"—")}
-      ${kvR("Serial No.",g.sn||"—")}
-      ${kvR("Manufacturer",g.mfr||"—")}
-      ${kvR("Next OH Due",lgFmtDate(g.nextDue)||(cycRem!==null?Math.round(cycRem).toLocaleString()+" cyc rem":"—"))}
-      ${kvR("Last OH Date",lgFmtDate(g.lastOverhaulDate)||"—")}
+      ${lkv("Part No.",g.pn||"—")}
+      ${lkv("Serial No.",g.sn||"—")}
+      ${lkv("Manufacturer",g.mfr||"—")}
+      ${lkv("Next OH Due",lgFmtDate(g.nextDue)||(cycRem!==null?Math.round(cycRem).toLocaleString()+" cyc rem":"—"))}
+      ${lkv("Last OH Date",lgFmtDate(g.lastOverhaulDate)||"—")}
     </table>`:`<div style="color:#94a3b8;font-size:10px">No data</div>`;
     return`<td style="${lgCS}"><div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#C9A84C;margin-bottom:8px">${title}</div>${rows}</td>`;
   };
