@@ -785,6 +785,17 @@ function openTechSpec(html){
   const withPrint=withBar.replace('</style>','@media print{body>div:first-child{display:none!important}div[style*="height:52px"]{display:none!important}}</style>');
   const win=window.open();win.document.write(withPrint);win.document.close();
 }
+// Shared full-spec generator used by PortfolioView, ProspectListView, and
+// ProspectEditor — one place that fetches engine photo/logo/disclaimer and
+// opens the print-ready window, so all three surfaces stay in sync.
+async function generateTechSpec(asset){
+  const isCFMAsset=isCFM(asset);
+  const photoKey=isCFMAsset?"engine_photo_cfm56":"engine_photo_v2500";
+  const engPhoto=await db.getSetting(photoKey).catch(()=>null)||"";
+  const logo=await getTechSpecLogo();
+  const defaultDisclaimer=await getDefaultDisclaimer();
+  openTechSpec(buildTechSpecHTML(asset,engPhoto,logo,defaultDisclaimer));
+}
 
 function AssetView({asset,saveAsset,isAdmin,notify,onBack,loadAssets}){
   const[tab,setTab]=useState("overview");
@@ -3381,6 +3392,7 @@ function PortfolioView({assets, notify, onSelect}){
 function ProspectListView({assets,saveAsset,notify,userRole,onSelect,loadAssets}){
   const canDelete=userRole==='admin'||userRole==='editor';
   const[showNew,setShowNew]=useState(false);
+  const[shareOpenId,setShareOpenId]=useState(null);
   const[newA,setNewA]=useState({msn:"",registration:"",model:"A320-214",operator:"",manufacturer:"Airbus S.A.S.",dom:""});
   const createProspect=async()=>{
     if(!newA.msn){notify("MSN required","error");return;}
@@ -3435,10 +3447,15 @@ function ProspectListView({assets,saveAsset,notify,userRole,onSelect,loadAssets}
             </div>
             <div style={{fontSize:13,fontWeight:600,color:"#e2e8f0"}}>{a.registration||"No registration yet"}</div>
             <div style={{fontSize:12,color:"#94a3b8"}}>{a.model} · {a.operator||"—"}</div>
-            <button className="btn btn-ghost" style={{width:"100%",marginTop:12,fontSize:12,padding:"7px 0"}} onClick={e=>{e.stopPropagation();onSelect(a.id);}}>Open Editor →</button>
+            <div className="flab g8" style={{marginTop:12}}>
+              <button className="btn btn-ghost" style={{flex:1,fontSize:11,padding:"7px 0"}} onClick={e=>{e.stopPropagation();setShareOpenId(a.id);}}>🔗 Share</button>
+              <button className="btn btn-ghost" style={{flex:1,fontSize:11,padding:"7px 0"}} onClick={e=>{e.stopPropagation();generateTechSpec(a);}}>📋 Tech Spec</button>
+            </div>
+            <button className="btn btn-gold" style={{width:"100%",marginTop:8,fontSize:12,padding:"7px 0"}} onClick={e=>{e.stopPropagation();onSelect(a.id);}}>Open Editor →</button>
           </div>
         ))}
       </div>
+      {shareOpenId&&<ShareModal asset={assets.find(x=>x.id===shareOpenId)} notify={notify} onClose={()=>setShareOpenId(null)}/>}
     </div>
   );
 }
@@ -3460,6 +3477,7 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
   const[form,setForm]=useState(()=>JSON.parse(JSON.stringify(asset)));
   const[previewHtml,setPreviewHtml]=useState("");
   const[saving,setSaving]=useState(false);
+  const[shareOpen,setShareOpen]=useState(false);
   const assetsRef=useRef(form);
   assetsRef.current=form;
 
@@ -3476,8 +3494,8 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
 
   useEffect(()=>{regeneratePreview(form);},[]); // eslint-disable-line
 
-  // set() persists the whole form on blur — commit + save + refresh preview in
-  // one step, so Viewer-tier users never need to find a separate Save button.
+  // commit() persists the whole form on blur — save + refresh preview in one
+  // step, so Viewer-tier users never need to find a separate Save button.
   const commit=async(path,val)=>{
     const f=JSON.parse(JSON.stringify(assetsRef.current));
     const parts=path.split(".");let obj=f;
@@ -3491,14 +3509,86 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
     }catch(e){notify("Save failed: "+e.message,"error");}
     setSaving(false);
   };
+  // Same idea but for callers that already have the fully-mutated object in
+  // hand (e.g. auto-calculated Next Due, kg/lb weight conversion, hidden-field
+  // toggles) — avoids clone-then-reclone.
+  const commitObject=async(f)=>{
+    setForm(f);
+    setSaving(true);
+    try{
+      await saveAsset(f,`Updated prospect MSN ${f.msn}`);
+      await regeneratePreview(f);
+    }catch(e){notify("Save failed: "+e.message,"error");}
+    setSaving(false);
+  };
   const toggle=(path)=>{
     const parts=path.split(".");let cur=assetsRef.current;for(const p of parts)cur=cur?.[p];
     commit(path,!cur);
+  };
+  const hiddenFields=form.hiddenSpecFields||[];
+  const toggleHide=(path)=>{
+    const f=JSON.parse(JSON.stringify(assetsRef.current));
+    const hidden=f.hiddenSpecFields||[];
+    const idx=hidden.indexOf(path);
+    if(idx>=0)hidden.splice(idx,1);else hidden.push(path);
+    f.hiddenSpecFields=hidden;
+    commitObject(f);
   };
 
   const d=form;
   const af=d.airframe||{};
   const specs=d.specs||{};
+
+  // Specs field with a 👁/🚫 visibility toggle — identical hide mechanism to
+  // the live fleet's SpecsTab, so a field hidden here stays hidden if this
+  // prospect is ever promoted to the live fleet later.
+  const SpecField=({label,path})=>{
+    const parts=path.split(".");const val=parts.reduce((o,k)=>o?.[k],d);
+    const isHidden=hiddenFields.includes(path);
+    return(
+      <div className="form-group" style={{display:"flex",alignItems:"flex-end",gap:4}}>
+        <div style={{flex:1}}>
+          <label className="form-label">{label}</label>
+          <input type="text" defaultValue={val||""} onBlur={e=>commit(path,e.target.value)} style={{opacity:isHidden?0.4:1}}/>
+        </div>
+        <button type="button" onClick={()=>toggleHide(path)} title={isHidden?"Show in tech spec":"Hide from tech spec"} style={{marginBottom:8,background:"none",border:"none",cursor:"pointer",fontSize:13,color:isHidden?"#475569":"#C9A84C",padding:"2px 4px",flexShrink:0}}>{isHidden?"🚫":"👁"}</button>
+      </div>
+    );
+  };
+  const SpecToggle=({label,path})=>{
+    const parts=path.split(".");const val=parts.reduce((o,k)=>o?.[k],d);
+    const isHidden=hiddenFields.includes(path);
+    return(
+      <div className="flj" style={{padding:"5px 0",borderBottom:"1px solid #0f2030",opacity:isHidden?0.4:1}}>
+        <span style={{fontSize:12,color:"#94a3b8"}}>{label}</span>
+        <div className="flab g8">
+          <button type="button" onClick={()=>toggle(path)} className="pill" style={{background:val?"#0d2818":"#2a0e0e",color:val?"#34d399":"#f87171",border:"none",cursor:"pointer",fontSize:11}}>{val?"Installed":"Not Installed"}</button>
+          <button type="button" onClick={()=>toggleHide(path)} title={isHidden?"Show":"Hide"} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:isHidden?"#475569":"#C9A84C",padding:"0 2px"}}>{isHidden?"🚫":"👁"}</button>
+        </div>
+      </div>
+    );
+  };
+  const weightRow=(label,kKg,kLb)=>(
+    <tr key={kKg}>
+      <td style={{color:"#64748b"}}>{label}</td>
+      <td><input type="number" defaultValue={d.weights?.[kKg]||""} onBlur={e=>{
+        const kg=e.target.value===""?"":+e.target.value;
+        const f=JSON.parse(JSON.stringify(assetsRef.current));
+        if(!f.weights)f.weights={};
+        f.weights[kKg]=kg;
+        f.weights[kLb]=kg?Math.round(kg*2.20462):"";
+        commitObject(f);
+      }} style={{width:100}}/></td>
+      <td style={{color:"#475569"}}><input type="number" defaultValue={d.weights?.[kLb]||""} onBlur={e=>{
+        const lb=e.target.value===""?"":+e.target.value;
+        const f=JSON.parse(JSON.stringify(assetsRef.current));
+        if(!f.weights)f.weights={};
+        f.weights[kLb]=lb;
+        f.weights[kKg]=lb?Math.round(lb/2.20462):"";
+        commitObject(f);
+      }} style={{width:100}}/></td>
+    </tr>
+  );
 
   return(
     <div style={{animation:"fadeIn 0.2s ease"}}>
@@ -3508,6 +3598,8 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
           <h1 style={{fontSize:18,color:"#C9A84C",fontWeight:700}}>Prospect MSN {d.msn} — {d.registration||"—"}</h1>
           <p style={{color:"#475569",fontSize:12}}>{d.model} · {d.operator||"—"} {saving&&<span style={{color:"#94a3b8"}}> · saving…</span>}</p>
         </div>
+        <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>setShareOpen(true)}>🔗 Share</button>
+        <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>generateTechSpec(d)}>📋 Generate Tech Spec</button>
       </div>
       <div className="prospect-split" style={{display:"flex",gap:18,alignItems:"flex-start"}}>
         <div style={{flex:"1 1 50%",minWidth:0,display:"flex",flexDirection:"column",gap:14,maxHeight:"calc(100vh - 160px)",overflowY:"auto",paddingRight:6}}>
@@ -3517,9 +3609,15 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
             <div className="grid2" style={{gap:"0 16px"}}>
               <PField label="MSN" val={d.msn} onCommit={v=>commit("msn",v)}/>
               <PField label="Registration" val={d.registration} onCommit={v=>commit("registration",v)}/>
+              <div className="form-group">
+                <label className="form-label" style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                  <span>{d.operatorLabel||"Current Operator"}</span>
+                  <button type="button" onClick={()=>commit("operatorLabel",d.operatorLabel==="Previous Operator"?"Current Operator":"Previous Operator")} style={{fontSize:9,fontWeight:700,padding:"1px 7px",borderRadius:3,border:"1px solid #C9A84C",background:"none",color:"#C9A84C",cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",flexShrink:0}}>{"→ "+(d.operatorLabel==="Previous Operator"?"Current":"Previous")}</button>
+                </label>
+                <input type="text" defaultValue={d.operator||""} onBlur={e=>commit("operator",e.target.value)}/>
+              </div>
               <PField label="Model" val={d.model} onCommit={v=>commit("model",v)}/>
               <PField label="Manufacturer" val={d.manufacturer} onCommit={v=>commit("manufacturer",v)}/>
-              <PField label="Operator" val={d.operator} onCommit={v=>commit("operator",v)}/>
               <PField label="Date of Manufacture" val={d.dom} type="date" onCommit={v=>commit("dom",v)}/>
             </div>
             <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #1e3048"}}>
@@ -3532,26 +3630,48 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
           </div>
 
           <div className="card" style={{padding:18}}>
+            <div className="section-title">Operating Weights</div>
+            <table><thead><tr><th>Parameter</th><th>kg</th><th>lb</th></tr></thead><tbody>
+              {weightRow("MTOW","mtow","mtow_lb")}
+              {weightRow("Max Taxi","mtw","mtw_lb")}
+              {weightRow("MZFW","mzfw","mzfw_lb")}
+              {weightRow("MLW","mlw","mlw_lb")}
+            </tbody></table>
+          </div>
+
+          <div className="card" style={{padding:18}}>
             <div className="section-title">Specifications</div>
+            <div style={{fontSize:10,color:"#475569",marginBottom:10}}>👁 fields appear in the generated tech spec; 🚫 fields are entered here but hidden from the output.</div>
             <div className="grid2" style={{gap:"0 16px"}}>
-              <PField label="Configuration" val={specs.config} onCommit={v=>commit("specs.config",v)}/>
-              <PField label="Seating" val={specs.seating} onCommit={v=>commit("specs.seating",v)}/>
-              <PField label="Seat Config" val={specs.seatConfig} onCommit={v=>commit("specs.seatConfig",v)}/>
-              <PField label="Seat Manufacturer" val={specs.seatMfr} onCommit={v=>commit("specs.seatMfr",v)}/>
-              <PField label="Galleys" val={specs.galleys} onCommit={v=>commit("specs.galleys",v)}/>
-              <PField label="Lavatories" val={specs.lavs} onCommit={v=>commit("specs.lavs",v)}/>
-              <PField label="Cargo Type" val={specs.cargoType} onCommit={v=>commit("specs.cargoType",v)}/>
-              <PField label="Winglets" val={specs.winglets} onCommit={v=>commit("specs.winglets",v)}/>
+              {[["Configuration","specs.config"],["Passenger Seating Config","specs.seatConfig"],["Passenger Seating Manufacturer","specs.seatMfr"],["Passenger Seats P/N","specs.seatPN"],["Attendant Seats","specs.attendantSeats"],["Galleys","specs.galleys"],["Lavatories","specs.lavs"],["Cargo Type","specs.cargoType"],["Winglets","specs.winglets"]].map(([l,p])=><SpecField key={p} label={l} path={p}/>)}
             </div>
             <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #1e3048"}}>
               <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:8}}>Avionics / Systems</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:14}}>
-                {[["ADS-B","adsb"],["CPDLC","cpdlc"],["TCAS 7.1","tcas"],["EFB","efb"],["Enhanced Mode-S","modeS"],["QAR","qar"],["CDSS","cdss"],["Reinf. Flight Deck Door","rfdd"]].map(([l,k])=>(
-                  <label key={k} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#94a3b8",cursor:"pointer"}}>
-                    <input type="checkbox" checked={!!specs[k]} onChange={()=>toggle("specs."+k)}/> {l}
-                  </label>
-                ))}
-              </div>
+              {[["ADS-B","specs.adsb"],["CPDLC","specs.cpdlc"],["TCAS 7.1","specs.tcas"],["Electronic Flight Bag","specs.efb"],["Enhanced Mode-S","specs.modeS"],["QAR","specs.qar"],["Cockpit Door Surveillance System","specs.cdss"],["Reinforced Flight Deck Door","specs.rfdd"]].map(([l,p])=><SpecToggle key={p} label={l} path={p}/>)}
+            </div>
+            <div style={{marginTop:14}}>
+              <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Custom Fields</div>
+              {[0,1,2,3,4].map(idx=>{
+                const cf=(d.specs?.custom||[])[idx]||{label:"",value:""};
+                return(
+                  <div key={idx} className="flab g8" style={{marginBottom:6}}>
+                    <input placeholder="Field name" defaultValue={cf.label||""} onBlur={e=>{
+                      const f=JSON.parse(JSON.stringify(assetsRef.current));
+                      if(!f.specs)f.specs={};if(!f.specs.custom)f.specs.custom=[{},{},{},{},{}];
+                      while(f.specs.custom.length<5)f.specs.custom.push({});
+                      f.specs.custom[idx]={...f.specs.custom[idx],label:e.target.value};
+                      commitObject(f);
+                    }} style={{width:160,fontStyle:"italic",color:"#64748b"}}/>
+                    <input placeholder="Value" defaultValue={cf.value||""} onBlur={e=>{
+                      const f=JSON.parse(JSON.stringify(assetsRef.current));
+                      if(!f.specs)f.specs={};if(!f.specs.custom)f.specs.custom=[{},{},{},{},{}];
+                      while(f.specs.custom.length<5)f.specs.custom.push({});
+                      f.specs.custom[idx]={...f.specs.custom[idx],value:e.target.value};
+                      commitObject(f);
+                    }} style={{flex:1}}/>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -3559,7 +3679,10 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
             const eng=d.engines?.[ei]||{};
             return(
               <div className="card" key={ei} style={{padding:18}}>
-                <div className="section-title">Engine #{ei+1}</div>
+                <div className="flj">
+                  <div className="section-title" style={{margin:0}}>Engine #{ei+1}</div>
+                  <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>generateTechSpec({...d,engines:[eng],_engineOnly:true,_enginePos:eng.position||ei+1})}>📋 Standalone Engine Spec</button>
+                </div>
                 <div className="grid2" style={{gap:"0 16px"}}>
                   <PField label="Serial Number" val={eng.sn} onCommit={v=>commit(`engines.${ei}.sn`,v)}/>
                   <PField label="Engine Type" val={eng.type} onCommit={v=>commit(`engines.${ei}.type`,v)}/>
@@ -3568,6 +3691,7 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
                   <PField label="TSN (HH:MM)" val={eng.currentFH} onCommit={v=>commit(`engines.${ei}.currentFH`,parseHHMM(v))} placeholder="0:00"/>
                   <PField label="CSN" val={eng.currentFC} type="number" onCommit={v=>commit(`engines.${ei}.currentFC`,v)}/>
                 </div>
+                <div style={{marginTop:10,fontSize:11,color:"#475569",fontStyle:"italic"}}>{eng.llps?.length?`${eng.llps.length} LLP line(s) recorded.`:"No LLP data yet."}</div>
               </div>
             );
           })}
@@ -3581,6 +3705,7 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
                   <PField label="Manufacturer" val={g.mfr} onCommit={v=>commit(`landingGear.${k}.mfr`,v)}/>
                   <PField label="Part Number" val={g.pn} onCommit={v=>commit(`landingGear.${k}.pn`,v)}/>
                   <PField label="Serial Number" val={g.sn} onCommit={v=>commit(`landingGear.${k}.sn`,v)}/>
+                  <PField key={"nextdue-"+(g.nextDue||"")} label="Next Overhaul Due" val={g.nextDue} type="date" onCommit={v=>commit(`landingGear.${k}.nextDue`,v)}/>
                   <PField label="Last Overhaul Date" val={g.lastOverhaulDate} type="date" onCommit={v=>{
                     // Mirror the live-fleet auto-calc: if Next Due is still blank,
                     // derive it from Last Overhaul Date + overhaulIntervalYears (default 10yr).
@@ -3592,11 +3717,16 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
                       const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
                       if(m)leg.nextDue=(+m[1]+yrs)+"-"+m[2]+"-"+m[3];
                     }
-                    setForm(f);
-                    saveAsset(f,`Updated prospect MSN ${f.msn}`).then(()=>regeneratePreview(f)).catch(e=>notify("Save failed: "+e.message,"error"));
+                    commitObject(f);
                   }}/>
-                  <PField key={"nextdue-"+(g.nextDue||"")} label="Next Overhaul Due" val={g.nextDue} type="date" onCommit={v=>commit(`landingGear.${k}.nextDue`,v)}/>
                   <PField label="Last OH FC" val={g.lastOverhaulFC} type="number" onCommit={v=>commit(`landingGear.${k}.lastOverhaulFC`,v)}/>
+                </div>
+                <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid #1e3048"}}>
+                  <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:8}}>Current Totals (Ground Truth)</div>
+                  <div className="grid2" style={{gap:"0 16px"}}>
+                    <PField label="Leg TSN (HH:MM)" val={g.currentFH} onCommit={v=>commit(`landingGear.${k}.currentFH`,parseHHMM(v))} placeholder="0:00"/>
+                    <PField label="Leg CSN" val={g.currentFC} type="number" onCommit={v=>commit(`landingGear.${k}.currentFC`,v)}/>
+                  </div>
                 </div>
               </div>
             );
@@ -3611,19 +3741,44 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
               <PField label="TSN (HH:MM)" val={d.apu?.currentFH} onCommit={v=>commit("apu.currentFH",parseHHMM(v))} placeholder="0:00"/>
               <PField label="CSN" val={d.apu?.currentFC} type="number" onCommit={v=>commit("apu.currentFC",v)}/>
             </div>
+            <div style={{marginTop:10,fontSize:11,color:"#475569",fontStyle:"italic"}}>{d.apu?.llps?.length?`${d.apu.llps.length} LLP line(s) recorded.`:"No LLP data yet."}</div>
           </div>
 
           <div className="card" style={{padding:18}}>
             <div className="section-title">Checks</div>
-            {(d.checks||[]).map((c,ci)=>(
-              <div key={ci} style={{marginBottom:12,paddingBottom:12,borderBottom:ci<d.checks.length-1?"1px solid #1e3048":"none"}}>
-                <div style={{fontSize:12,fontWeight:600,color:"#94a3b8",marginBottom:6}}>{c.name}</div>
-                <div className="grid2" style={{gap:"0 16px"}}>
-                  <PField label="Last Date" val={c.lastDate} type="date" onCommit={v=>commit(`checks.${ci}.lastDate`,v)}/>
-                  <PField label="Next Due" val={c.nextDate} type="date" onCommit={v=>commit(`checks.${ci}.nextDate`,v)}/>
+            {(d.checks||[]).map((c,ci)=>{
+              const yrs=(()=>{const m=/(\d+)\s*Year/i.exec(c.name);return m?+m[1]:null;})();
+              return(
+                <div key={ci} style={{marginBottom:12,paddingBottom:12,borderBottom:ci<d.checks.length-1?"1px solid #1e3048":"none"}}>
+                  <div style={{fontSize:12,fontWeight:600,color:"#94a3b8",marginBottom:6}}>{c.name}</div>
+                  <div className="grid2" style={{gap:"0 16px"}}>
+                    <div className="form-group">
+                      <label className="form-label">Last Date (auto-fills Next Due)</label>
+                      <CheckDateInput val={c.lastDate} yrs={yrs} onCommit={(iso,nextISO)=>{
+                        const f=JSON.parse(JSON.stringify(assetsRef.current));
+                        f.checks[ci].lastDate=iso;
+                        if(nextISO)f.checks[ci].nextDate=nextISO;
+                        commitObject(f);
+                      }}/>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Next Due</label>
+                      <CheckDateInput key={"nextdate-"+(c.nextDate||"")} val={c.nextDate} yrs={null} onCommit={(iso)=>commit(`checks.${ci}.nextDate`,iso)}/>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+
+          <div className="card" style={{padding:20,background:"#0d1c2c",border:"1px solid #C9A84C"}}>
+            <div className="section-title" style={{color:"#C9A84C"}}>That's the full template</div>
+            <p style={{fontSize:12,color:"#94a3b8",marginBottom:14}}>Every field above feeds the preview on the right. When you're happy with it:</p>
+            <div className="flab g8" style={{flexWrap:"wrap"}}>
+              <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>generateTechSpec(d)}>📋 Generate Full Tech Spec</button>
+              <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>setShareOpen(true)}>🔗 Share This Prospect</button>
+              <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={onBack}>← Back to Prospects List</button>
+            </div>
           </div>
 
         </div>
@@ -3638,6 +3793,7 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
           </div>
         </div>
       </div>
+      {shareOpen&&<ShareModal asset={d} notify={notify} onClose={()=>setShareOpen(false)}/>}
     </div>
   );
 }
