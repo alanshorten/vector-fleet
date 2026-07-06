@@ -340,7 +340,7 @@ ${(()=>{
 </div>`;
   })()}
 ${(()=>{
-    const avRows=asset.avionics||[];
+    const avRows=(asset.avionics||[]).filter(r=>!r.hidden&&r.pn);
     const avionicsPhotos=(asset.photos||[]).filter(p=>p.label==="Avionics");
     if(!avRows.length&&!avionicsPhotos.length)return"";
     const ataNum=(ata)=>{const m=/(\d+)/.exec(ata||"");return m?+m[1]:9999;};
