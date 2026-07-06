@@ -340,14 +340,23 @@ ${(()=>{
 </div>`;
   })()}
 ${(()=>{
+    const avRows=asset.avionics||[];
     const avionicsPhotos=(asset.photos||[]).filter(p=>p.label==="Avionics");
-    if(!avionicsPhotos.length)return"";
+    if(!avRows.length&&!avionicsPhotos.length)return"";
+    const ataNum=(ata)=>{const m=/(\d+)/.exec(ata||"");return m?+m[1]:9999;};
+    const groups={};
+    avRows.forEach(r=>{const key=r.ata||"Other";if(!groups[key])groups[key]=[];groups[key].push(r);});
+    const sortedKeys=Object.keys(groups).sort((a,b)=>ataNum(a)-ataNum(b));
+    const tableHtml=avRows.length?sortedKeys.map(key=>`
+      <table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:9px">
+        <thead><tr><th style="${TH}" colspan="2">${key}</th></tr></thead>
+        <tbody>${groups[key].map(r=>`<tr><td style="color:#6b7280;font-weight:600;width:55%">${r.component||""}</td><td>${r.pn||"—"}</td></tr>`).join("")}</tbody>
+      </table>`).join(""):"";
     const imgs=avionicsPhotos.map(p=>`<img src="${p.url}" style="width:100%;max-height:680px;object-fit:contain;background:#fff;border-radius:4px;display:block;margin:0 auto 10px"/>`).join("");
     return`${PAGE_FOOTER}<div class="pb"></div>
 <h3>Avionics</h3>
-<div style="text-align:center;margin-top:10px">
-  ${imgs}
-</div>`;
+${tableHtml}
+${imgs?`<div style="text-align:center;margin-top:10px">${imgs}</div>`:""}`;
   })()}
 ${(()=>{
     const galleryPhotos=(asset.photos||[]).filter(p=>p.label!=="LOPA"&&p.label!=="Airframe"&&p.label!=="Avionics");
