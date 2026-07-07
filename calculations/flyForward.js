@@ -6,7 +6,7 @@
 // Implements the schema and formula locked in the July 2026 Brain 3
 // scoping session (VECTORIQ_ROADMAP.md Section 4,
 // brain3-scoping-session-handoff.md). This file is written to be the
-// real Brain 3 used by the Oct-Dec 2026 Layer 2 build, not a demo-only
+// real Brain 3 used by the live Layer 2 build, not a demo-only
 // stand-in — the Fly-Forward Demo view exercises this exact code
 // against fabricated numbers (TECH_DEBT.md — Fly-Forward Demo item).
 //
@@ -281,10 +281,10 @@ function projectEnLpPot(pot, ctx) {
       const harvestPNs = new Set(harvestSet.map(p => p.pn + "|" + p.sn));
       // llpVector() (Brain 2) only returns {desc,pn,sn,remainingFC,approvedLife} —
       // catalogPrice lives on the original llps records, so look it back up here.
-      const harvestSetPriced = harvestSet.map(p => ({
-        ...p,
-        catalogPrice: (llps.find(l => l.pn === p.pn && l.sn === p.sn) || {}).catalogPrice || 0
-      }));
+      const harvestSetPriced = harvestSet.map(p => {
+        const match = llps.find(l => l.pn === p.pn && l.sn === p.sn);
+        return { ...p, catalogPrice: match ? match.catalogPrice : undefined };
+      });
 
       // Guardrail check BEFORE resetting the stack (needs the pre-harvest vector).
       const warning = window.validateStubBuffer(eng, pot);
@@ -329,17 +329,20 @@ function projectEnLpPot(pot, ctx) {
   return { code: pot.code, label: pot.label, monthlySeries, events, partialFundedNote: null, warnings };
 }
 
-// Illustrative per-part catalogue cost estimate for a harvested set —
-// FABRICATED for demo purposes (no confirmed per-part catalogue price
-// list was available at scoping time; TECH_DEBT.md tracks the real
-// per-FC blended rate as EN-LP's ACCRUAL rate, which amortises the
-// whole stack's replacement cost across cycles — it is not a
-// per-part price and must not be multiplied by a single part's
-// approvedLife, which was an earlier bug in this file). Sums each
-// harvested part's own fabricated catalogPrice with a small +/- band.
+// Illustrative per-part catalogue cost estimate for a harvested set.
+// Prefers p.catalogPrice if the caller supplied one (fabricated demo
+// LLP stacks do). Real live-asset LLP records have NO cost field at
+// all (TECH_DEBT.md — no per-part catalogue price table exists
+// anywhere in the app), so for real parts this falls back to an
+// ILLUSTRATIVE estimate sized off the part's real approvedLife — the
+// dollar figure is fabricated, the life value it's scaled from is not.
+const ILLUSTRATIVE_PRICE_PER_APPROVED_FC = 22; // $/approved-FC — fabricated constant, not sourced
 function harvestCostEstimate(harvestSet, bound) {
   const multiplier = bound === "low" ? 0.92 : 1.08; // illustrative spread only
-  return harvestSet.reduce((sum, p) => sum + (p.catalogPrice || 0) * multiplier, 0);
+  return harvestSet.reduce((sum, p) => {
+    const price = p.catalogPrice != null ? p.catalogPrice : p.approvedLife * ILLUSTRATIVE_PRICE_PER_APPROVED_FC;
+    return sum + price * multiplier;
+  }, 0);
 }
 
 window.projectReservePot = projectReservePot;
