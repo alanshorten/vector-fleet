@@ -223,7 +223,6 @@ ${col2(
     ${IH("Configuration",svgClip)}
     <table width="100%" cellpadding="0" cellspacing="0">
       ${kvR("Configuration",asset.specs?.config||"—")}
-      ${kvR("Seating",asset.specs?.seating||"—")}
       ${kvR("Seat Config",asset.specs?.seatConfig||"—")}
       ${kvR("Seat Manufacturer",asset.specs?.seatMfr||"—")}
       ${kvR("Galleys",asset.specs?.galleys||"—")}
