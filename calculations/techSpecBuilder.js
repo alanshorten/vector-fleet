@@ -225,6 +225,8 @@ ${col2(
       ${kvR("Configuration",asset.specs?.config||"—")}
       ${kvR("Seat Config",asset.specs?.seatConfig||"—")}
       ${kvR("Seat Manufacturer",asset.specs?.seatMfr||"—")}
+      ${kvR("Passenger Seats P/N",asset.specs?.seatPN||"—")}
+      ${kvR("Attendant Seats",asset.specs?.attendantSeats||"—")}
       ${kvR("Galleys",asset.specs?.galleys||"—")}
       ${kvR("Lavatories",asset.specs?.lavs||"—")}
       ${kvR("Cargo Type",asset.specs?.cargoType||"—")}
@@ -240,7 +242,7 @@ ${col2(
       ${kvR("EFB",asset.specs?.efb?"Installed":"—")}
       ${kvR("Enhanced Mode-S",asset.specs?.modeS?"Installed":"—")}
       ${kvR("QAR",asset.specs?.qar?"Installed":"—")}
-      ${kvR("CDSS",asset.specs?.cdss?"Installed":"—")}
+      ${kvR("Cockpit Door Surv Sys",asset.specs?.cdss?"Installed":"—")}
       ${kvR("Reinf. Flight Deck Door",asset.specs?.rfdd?"Installed":"—")}
       ${(asset.specs?.custom||[]).filter(f=>f.label&&f.value).map(f=>kvR(f.label,f.value)).join("")}
     </table>
