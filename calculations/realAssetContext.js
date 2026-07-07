@@ -79,7 +79,22 @@ function estimateApuHrPerMonth(fhPerMonth, apuCurrentFH, airframeCurrentFH) {
   return fhPerMonth * (apuCurrentFH / airframeCurrentFH);
 }
 
+// "27/10/2028" -> Date(2028, 9, 27). Matches the DD/MM/YYYY convention
+// used elsewhere in the app (e.g. Dashboard's own parseDMY) for check
+// and landing-gear due dates. Falls back to native Date parsing, then
+// null if genuinely unparseable — callers should treat null as "no
+// real anchor available" and fall back to fabricated-only behaviour,
+// not guess.
+function parseDMYDate(s) {
+  if (!s) return null;
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s.trim());
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+
 window.parsePeriodToDate = parsePeriodToDate;
 window.hhmmToDecimalHours = hhmmToDecimalHours;
 window.computeRealUtilisationRate = computeRealUtilisationRate;
 window.estimateApuHrPerMonth = estimateApuHrPerMonth;
+window.parseDMYDate = parseDMYDate;
