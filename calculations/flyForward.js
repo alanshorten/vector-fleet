@@ -337,8 +337,8 @@ function projectEnLpPot(pot, ctx) {
       const allHarvested = limiterPriced ? [limiterPriced, ...harvestSetPriced] : harvestSetPriced;
 
       const cost = escalatedCostRange(
-        { ...pot, projectedCostLow: harvestCostEstimate(allHarvested, "low"),
-          projectedCostHigh: harvestCostEstimate(allHarvested, "high") },
+        { ...pot, projectedCostLow: harvestCostEstimate(allHarvested, llps, pot.fullStackReplacementCost, "low"),
+          projectedCostHigh: harvestCostEstimate(allHarvested, llps, pot.fullStackReplacementCost, "high") },
         date
       );
       const shortfallLow = cost.low - balance;
@@ -385,18 +385,26 @@ function projectEnLpPot(pot, ctx) {
   return { code: pot.code, label: pot.label, monthlySeries, events, partialFundedNote: null, warnings };
 }
 
-// Illustrative per-part catalogue cost estimate for a harvested set.
-// Prefers p.catalogPrice if the caller supplied one (fabricated demo
-// LLP stacks do). Real live-asset LLP records have NO cost field at
-// all (TECH_DEBT.md — no per-part catalogue price table exists
-// anywhere in the app), so for real parts this falls back to an
-// ILLUSTRATIVE estimate sized off the part's real approvedLife — the
-// dollar figure is fabricated, the life value it's scaled from is not.
-const ILLUSTRATIVE_PRICE_PER_APPROVED_FC = 22; // $/approved-FC — fabricated constant, not sourced
-function harvestCostEstimate(harvestSet, bound) {
+// Per-part cost estimate for a harvested set, grounded in a real,
+// editable "full stack replacement cost" (pot.fullStackReplacementCost)
+// rather than a flat, arbitrary $/FC constant. Each part's illustrative
+// share is proportional to its approvedLife relative to the WHOLE
+// stack's total approvedLife (allLlps) — this guarantees a partial
+// harvest can never sum to more than the full-stack figure, which a
+// flat per-FC rate could (and did: bundling several parts at a flat
+// rate could exceed the known full-stack cost, which is nonsensical).
+// Prefers p.catalogPrice directly if the caller supplied one (fabricated
+// demo LLP stacks can); real live-asset LLP records have no per-part
+// cost field at all, so this is the normal path for real assets.
+function harvestCostEstimate(harvestSet, allLlps, fullStackReplacementCost, bound) {
+  const totalApprovedLife = (allLlps || []).reduce((s, p) => s + (p.approvedLife || 0), 0);
   const multiplier = bound === "low" ? 0.92 : 1.08; // illustrative spread only
   return harvestSet.reduce((sum, p) => {
-    const price = p.catalogPrice != null ? p.catalogPrice : p.approvedLife * ILLUSTRATIVE_PRICE_PER_APPROVED_FC;
+    let price;
+    if (p.catalogPrice != null) price = p.catalogPrice;
+    else if (totalApprovedLife > 0 && fullStackReplacementCost)
+      price = (p.approvedLife / totalApprovedLife) * fullStackReplacementCost;
+    else price = 0;
     return sum + price * multiplier;
   }, 0);
 }
