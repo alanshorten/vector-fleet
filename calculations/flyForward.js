@@ -94,13 +94,22 @@ function escalatedCostRange(pot, eventDate) {
 
 // calendar_months: pure time-based, repeating every N months from
 // lease start (or from lastEventDate if mid-lease onboarding supplies
-// one). Returns event month-indices (relative to leaseStart) within
-// the projection horizon.
+// one). If firstEventOverrideDate is set (a real, already-known next-due
+// date — e.g. from asset.checks), it takes priority over both: trust
+// the real date directly for the FIRST occurrence rather than
+// re-deriving it, then repeat at the configured interval after that.
+// Returns event month-indices (relative to leaseStart) within the
+// projection horizon.
 function calendarMonthEvents(pot, horizonMonths, leaseStart) {
   const interval = pot.triggerInterval.months;
-  const startOffset = pot.lastEventDate
-    ? monthsBetween(leaseStart, pot.lastEventDate) + interval
-    : interval;
+  let startOffset;
+  if (pot.firstEventOverrideDate) {
+    startOffset = Math.max(0, monthsBetween(leaseStart, pot.firstEventOverrideDate));
+  } else if (pot.lastEventDate) {
+    startOffset = monthsBetween(leaseStart, pot.lastEventDate) + interval;
+  } else {
+    startOffset = interval;
+  }
   const events = [];
   for (let m = startOffset; m <= horizonMonths; m += interval) events.push(m);
   return events;
@@ -109,12 +118,19 @@ function calendarMonthEvents(pot, horizonMonths, leaseStart) {
 // calendar_or_cycles: dual limiter (e.g. Landing Gear — 10yr/20,000FC).
 // Whichever comes first governs; resets both counters at each event so
 // a longer horizon correctly re-derives the next interval each time.
+// If firstEventOverrideDate is set (e.g. the asset's own already-computed
+// landing-gear nextDue, which already accounts for both the calendar and
+// cycle limiter on the real asset), it anchors the FIRST occurrence
+// directly — later occurrences fall back to the fabricated cadence since
+// there's no real data to anchor those against.
 function calendarOrCyclesEvents(pot, horizonMonths, leaseStart, fcPerMonth) {
   const { months: calMonths, cycles } = pot.triggerInterval;
   const cycleMonths = fcPerMonth > 0 ? cycles / fcPerMonth : Infinity;
   const interval = Math.min(calMonths, cycleMonths);
   const events = [];
-  let m = interval;
+  let m = pot.firstEventOverrideDate
+    ? Math.max(0, monthsBetween(leaseStart, pot.firstEventOverrideDate))
+    : interval;
   while (m <= horizonMonths) {
     events.push(Math.round(m));
     m += interval;
@@ -260,39 +276,69 @@ function projectEnLpPot(pot, ctx) {
   const events = [];
   const warnings = [];
   let balance = pot.openingBalance || 0;
+  let missingApprovedLifeWarned = false;
 
   for (let m = 0; m <= horizonMonths; m++) {
     const date = addMonths(leaseStart, m);
     if (m > 0) balance += monthlyAccrual(pot, date, utilisation);
 
     const currentFC = baseFC + fcPerMonth * (m - resetMonth);
-    const eng = { llps, currentFC };
-    const vector = window.llpVector(eng);
-
     monthlySeries.push({ monthIndex: m, date, balance });
 
-    if (!vector.length) continue;
-    const limiter = vector.reduce((min, p) => (p.remainingFC < min.remainingFC ? p : min));
+    if (!llps.length) continue;
 
-    if (limiter.remainingFC <= 0) {
-      // Shop visit triggered. Harvest limiter + anything within
-      // harvestThresholdFC of its own limit.
-      const harvestSet = vector.filter(p => p.remainingFC <= pot.harvestThresholdFC);
-      const harvestPNs = new Set(harvestSet.map(p => p.pn + "|" + p.sn));
-      // llpVector() (Brain 2) only returns {desc,pn,sn,remainingFC,approvedLife} —
-      // catalogPrice lives on the original llps records, so look it back up here.
+    // TRUE lowest limiter from the FULL raw stack — mirrors Brain 2's
+    // lowestLimiter() and is independent of whether approvedLife is
+    // populated. approvedLife is often left blank on real LLP records
+    // (it isn't needed for day-to-day FC-remaining tracking), and
+    // llpVector() silently drops any part missing it — using llpVector
+    // alone to find the limiter would miss real shop visits entirely
+    // whenever the limiting part itself lacks approvedLife.
+    const withRemaining = llps.map(l => ({ ...l, remainingFC: window.calcLLPRem(l, currentFC) }));
+    const trueLimiter = withRemaining.reduce((min, p) => (p.remainingFC < min.remainingFC ? p : min));
+
+    if (trueLimiter.remainingFC <= 0) {
+      const limiterHasApprovedLife = trueLimiter.approvedLife !== null && trueLimiter.approvedLife !== undefined;
+      if (!limiterHasApprovedLife && !missingApprovedLifeWarned) {
+        warnings.push(
+          `⚠ ${trueLimiter.desc || trueLimiter.pn || "the limiting LLP"} has no Approved Life recorded. ` +
+          `Fly-Forward can still detect it's driving a shop visit, but can't estimate its replacement cost ` +
+          `or reset its future life without that value — enter Approved Life on this LLP record for a complete simulation.`
+        );
+        missingApprovedLifeWarned = true;
+      }
+
+      // Harvest candidates (parts riding along, other than the limiter
+      // itself) come from the approvedLife-filtered vector, since the
+      // harvest-threshold comparison and stub-buffer guardrail both
+      // need approvedLife to mean anything.
+      const eng = { llps, currentFC };
+      const vector = window.llpVector(eng);
+      const candidates = vector.filter(p => !(p.pn === trueLimiter.pn && p.sn === trueLimiter.sn));
+      const harvestSet = candidates.filter(p => p.remainingFC <= pot.harvestThresholdFC);
       const harvestSetPriced = harvestSet.map(p => {
         const match = llps.find(l => l.pn === p.pn && l.sn === p.sn);
         return { ...p, catalogPrice: match ? match.catalogPrice : undefined };
       });
 
-      // Guardrail check BEFORE resetting the stack (needs the pre-harvest vector).
-      const warning = window.validateStubBuffer(eng, pot);
-      if (warning && !warnings.includes(warning)) warnings.push(warning);
+      // Only run the stub-buffer guardrail when the true limiter is
+      // itself part of the approvedLife-having vector too — otherwise
+      // validateStubBuffer would misidentify a different part as "the
+      // limiter" internally and mis-exclude it from its own check.
+      if (limiterHasApprovedLife) {
+        const warning = window.validateStubBuffer(eng, pot);
+        if (warning && !warnings.includes(warning)) warnings.push(warning);
+      }
+
+      const limiterPriced = limiterHasApprovedLife
+        ? { ...trueLimiter, catalogPrice: (llps.find(l => l.pn === trueLimiter.pn && l.sn === trueLimiter.sn) || {}).catalogPrice }
+        : null; // cost genuinely unknown — omitted from the estimate, not zeroed silently (see warning above)
+
+      const allHarvested = limiterPriced ? [limiterPriced, ...harvestSetPriced] : harvestSetPriced;
 
       const cost = escalatedCostRange(
-        { ...pot, projectedCostLow: harvestCostEstimate(harvestSetPriced, "low"),
-          projectedCostHigh: harvestCostEstimate(harvestSetPriced, "high") },
+        { ...pot, projectedCostLow: harvestCostEstimate(allHarvested, "low"),
+          projectedCostHigh: harvestCostEstimate(allHarvested, "high") },
         date
       );
       const shortfallLow = cost.low - balance;
@@ -309,17 +355,27 @@ function projectEnLpPot(pot, ctx) {
         shortfallHigh,
         balanceAtEvent: balance,
         beyondHorizon: false,
-        harvestedParts: harvestSet.map(p => p.desc)
+        harvestedParts: [trueLimiter.desc || trueLimiter.pn, ...harvestSet.map(p => p.desc)],
+        costIncomplete: !limiterHasApprovedLife
       });
 
       balance -= cost.likely;
 
-      // Reset harvested parts to full life at this point in time.
+      // Reset harvested parts to full life at this point in time. A part
+      // with unknown approvedLife can't be reset to "full life" (we don't
+      // know what that is) — parked far out instead so it doesn't
+      // immediately re-trigger every subsequent month; the warning above
+      // already explains why its future replacement isn't being projected.
+      const harvestedIds = new Set([
+        trueLimiter.pn + "|" + trueLimiter.sn,
+        ...harvestSet.map(p => p.pn + "|" + p.sn)
+      ]);
       llps = llps.map(l => {
-        if (harvestPNs.has(l.pn + "|" + l.sn)) {
+        if (!harvestedIds.has(l.pn + "|" + l.sn)) return l;
+        if (l.approvedLife !== null && l.approvedLife !== undefined) {
           return { ...l, startFCRem: l.approvedLife, refFC: currentFC };
         }
-        return l;
+        return { ...l, startFCRem: 999999, refFC: currentFC };
       });
       baseFC = currentFC;
       resetMonth = m;
