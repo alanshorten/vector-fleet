@@ -145,11 +145,18 @@ function calendarOrCyclesEvents(pot, horizonMonths, leaseStart, fcPerMonth) {
 // trigger band. For continuing the simulation past one event, resets
 // at the window midpoint (a modelling simplification — real accumulated
 // hours reset to 0 at overhaul, this assumes steady apuHrPerMonth).
-function apuHourEvents(pot, horizonMonths, apuHrPerMonth) {
+//
+// startOffsetMonths anchors the clock to "now" rather than month 0
+// (lease start) — if leaseStart is set to a real historical date (to
+// let $ balances catch up to a realistic today), there's still no real
+// data on how many APU hours were already accumulated toward the next
+// overhaul back then, so the condition clock only starts counting from
+// today, same as EN-LP's engine-cycle clock.
+function apuHourEvents(pot, horizonMonths, apuHrPerMonth, startOffsetMonths) {
   const [minHr, maxHr] = pot.triggerInterval.apuHours;
   const events = [];
   if (apuHrPerMonth <= 0) return events;
-  let offsetMonths = 0;
+  let offsetMonths = startOffsetMonths || 0;
   while (true) {
     const monthMin = offsetMonths + minHr / apuHrPerMonth;
     const monthMax = offsetMonths + maxHr / apuHrPerMonth;
@@ -185,7 +192,7 @@ function projectReservePot(pot, ctx) {
       monthMid: m
     }));
   } else if (pot.triggerBasis === "apu_hours") {
-    eventMonths = apuHourEvents(pot, horizonMonths, utilisation.apuHrPerMonth);
+    eventMonths = apuHourEvents(pot, horizonMonths, utilisation.apuHrPerMonth, ctx.nowOffsetMonths);
   } else {
     throw new Error(`projectReservePot: unsupported triggerBasis "${pot.triggerBasis}" — use projectEnLpPot for llp_cycles`);
   }
@@ -266,11 +273,19 @@ function projectReservePot(pot, ctx) {
 function projectEnLpPot(pot, ctx) {
   const { leaseStart, horizonMonths, utilisation, llpEngineStart } = ctx;
   const fcPerMonth = utilisation.fcPerMonth || 0;
+  // llpEngineStart.currentFC is a REAL snapshot taken today, not at
+  // lease inception. If leaseStart is set to a real historical date (so
+  // $ balances can catch up to a realistic today), the engine-cycle
+  // clock must still start from "now" — there's no way to know the
+  // engine's real cycle count back at a fabricated lease start, and
+  // assuming today's reading applied back then would simulate years of
+  // cycles that never happened.
+  const nowOffsetMonths = Math.max(0, ctx.nowOffsetMonths || 0);
 
   // Working copy of the LLP stack — each part's life resets on harvest.
   let llps = llpEngineStart.llps.map(l => ({ ...l }));
   let baseFC = llpEngineStart.currentFC;
-  let resetMonth = 0; // the month index at which baseFC was last established
+  let resetMonth = nowOffsetMonths; // the month index at which baseFC was last established (= "now", not lease start)
 
   const monthlySeries = [];
   const events = [];
@@ -281,9 +296,14 @@ function projectEnLpPot(pot, ctx) {
   for (let m = 0; m <= horizonMonths; m++) {
     const date = addMonths(leaseStart, m);
     if (m > 0) balance += monthlyAccrual(pot, date, utilisation);
+    monthlySeries.push({ monthIndex: m, date, balance });
+
+    // Before "now", there's no real engine-cycle data to check shop
+    // visits against — only $ accrual applies to this stretch of the
+    // chart (the historical catch-up period).
+    if (m < nowOffsetMonths) continue;
 
     const currentFC = baseFC + fcPerMonth * (m - resetMonth);
-    monthlySeries.push({ monthIndex: m, date, balance });
 
     if (!llps.length) continue;
 
@@ -337,8 +357,8 @@ function projectEnLpPot(pot, ctx) {
       const allHarvested = limiterPriced ? [limiterPriced, ...harvestSetPriced] : harvestSetPriced;
 
       const cost = escalatedCostRange(
-        { ...pot, projectedCostLow: harvestCostEstimate(allHarvested, llps, pot.fullStackReplacementCost, "low"),
-          projectedCostHigh: harvestCostEstimate(allHarvested, llps, pot.fullStackReplacementCost, "high") },
+        { ...pot, projectedCostLow: harvestCostEstimate(allHarvested, llps, pot.fullStackReplacementCost, pot.engineFamily, "low"),
+          projectedCostHigh: harvestCostEstimate(allHarvested, llps, pot.fullStackReplacementCost, pot.engineFamily, "high") },
         date
       );
       const shortfallLow = cost.low - balance;
@@ -385,27 +405,36 @@ function projectEnLpPot(pot, ctx) {
   return { code: pot.code, label: pot.label, monthlySeries, events, partialFundedNote: null, warnings };
 }
 
-// Per-part cost estimate for a harvested set, grounded in a real,
-// editable "full stack replacement cost" (pot.fullStackReplacementCost)
-// rather than a flat, arbitrary $/FC constant. Each part's illustrative
-// share is proportional to its approvedLife relative to the WHOLE
-// stack's total approvedLife (allLlps) — this guarantees a partial
-// harvest can never sum to more than the full-stack figure, which a
-// flat per-FC rate could (and did: bundling several parts at a flat
-// rate could exceed the known full-stack cost, which is nonsensical).
-// Prefers p.catalogPrice directly if the caller supplied one (fabricated
-// demo LLP stacks can); real live-asset LLP records have no per-part
-// cost field at all, so this is the normal path for real assets.
-function harvestCostEstimate(harvestSet, allLlps, fullStackReplacementCost, bound) {
+// Per-part cost estimate for a harvested set. Three tiers, in order of
+// preference:
+//   1. Real catalogue price, matched by exact P/N (llpCatalogue.js) —
+//      sourced from Engine_LLP_Escalation_Model.xlsx. Tightest cost band
+//      (+/-3%, install/labour variance only) since the part price itself
+//      is known, not estimated.
+//   2. p.catalogPrice if the caller supplied one directly (fabricated
+//      demo LLP stacks can).
+//   3. Proportional share of a known "full stack replacement cost"
+//      (pot.fullStackReplacementCost), sized by the part's approvedLife
+//      relative to the whole stack's total approvedLife (allLlps) — this
+//      guarantees a partial harvest can never sum to more than the full
+//      stack figure, which a flat per-FC rate could (and did). Wider
+//      band (+/-8%) since this tier is a genuine estimate, not a real price.
+// A part with NO approvedLife and no catalogue/supplied price contributes
+// $0 and should already be flagged elsewhere (costIncomplete on the event).
+function harvestCostEstimate(harvestSet, allLlps, fullStackReplacementCost, engineFamily, bound) {
   const totalApprovedLife = (allLlps || []).reduce((s, p) => s + (p.approvedLife || 0), 0);
-  const multiplier = bound === "low" ? 0.92 : 1.08; // illustrative spread only
   return harvestSet.reduce((sum, p) => {
+    const cataloguePrice = window.lookupLLPCataloguePrice ? window.lookupLLPCataloguePrice(p.pn, engineFamily) : null;
+    if (cataloguePrice != null) {
+      const m = bound === "low" ? 0.97 : 1.03;
+      return sum + cataloguePrice * m;
+    }
+    const m = bound === "low" ? 0.92 : 1.08;
     let price;
     if (p.catalogPrice != null) price = p.catalogPrice;
-    else if (totalApprovedLife > 0 && fullStackReplacementCost)
-      price = (p.approvedLife / totalApprovedLife) * fullStackReplacementCost;
+    else if (totalApprovedLife > 0 && fullStackReplacementCost) price = (p.approvedLife / totalApprovedLife) * fullStackReplacementCost;
     else price = 0;
-    return sum + price * multiplier;
+    return sum + price * m;
   }, 0);
 }
 
@@ -413,3 +442,4 @@ window.projectReservePot = projectReservePot;
 window.projectEnLpPot = projectEnLpPot;
 window.escalateAnnual = escalateAnnual;
 window.applyDerateModifier = applyDerateModifier;
+window.monthsBetween = monthsBetween;
