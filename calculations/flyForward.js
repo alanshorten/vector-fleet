@@ -193,6 +193,25 @@ function projectReservePot(pot, ctx) {
     }));
   } else if (pot.triggerBasis === "apu_hours") {
     eventMonths = apuHourEvents(pot, horizonMonths, utilisation.apuHrPerMonth, ctx.nowOffsetMonths);
+  } else if (pot.triggerBasis === "engine_fh") {
+    // EN-PR only. A single recurring FH-driven event, no separate
+    // calendar/cycle axis (unlike LG-OH's dual limiter). Converted into
+    // an equivalent months interval using this asset's own FH/month rate
+    // — consistent with the constant-utilisation-rate assumption already
+    // underlying every other pot's projection, not a new kind of
+    // approximation. Reuses calendarMonthEvents directly via a synthetic
+    // pot carrying the converted months interval; firstEventOverrideDate
+    // (set by the caller — either inferred from openingBalance/accrualRate
+    // or a manually-entered last-PR date, see index.html assembly logic)
+    // anchors the first occurrence exactly like AF-6Y/AF-12Y/LG-OH do.
+    const fhPerMonth = utilisation.fhPerMonth || 0;
+    if (fhPerMonth <= 0) {
+      eventMonths = [];
+    } else {
+      const intervalMonths = pot.triggerInterval.fh / fhPerMonth;
+      const syntheticPot = { ...pot, triggerInterval: { months: intervalMonths } };
+      eventMonths = calendarMonthEvents(syntheticPot, horizonMonths, leaseStart).map(m => ({ monthMid: m }));
+    }
   } else {
     throw new Error(`projectReservePot: unsupported triggerBasis "${pot.triggerBasis}" — use projectEnLpPot for llp_cycles`);
   }
