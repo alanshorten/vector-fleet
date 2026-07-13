@@ -377,7 +377,26 @@
     // -------------------- Case 2: existing asset --------------------
     var newPeriod = parseMonthYear(newReport.month_year);
     var prevPeriod = parseMonthYear(previousAsset._lastPeriod);
-    var monthsGap = monthsBetween(prevPeriod ? prevPeriod.key : null, newPeriod ? newPeriod.key : null);
+
+    // An existing asset that has never received a report (e.g. one
+    // created manually rather than via a first PDF/Excel upload, which
+    // is the only path that previously reached Case 1 above) has no
+    // _lastPeriod to compare against. That is NOT the same problem as a
+    // genuinely garbled/unparseable period string — both currently parse
+    // to null, but they mean opposite things. BUG FIXED July 2026: this
+    // used to fall straight into the "period_unparseable" branch below,
+    // which saves to history only and never applies to live state — and
+    // with no way to ever recover, since every subsequent upload would
+    // ALSO see a blank _lastPeriod and hit the identical trap forever.
+    // Treated here as an effective first report instead, merged straight
+    // into the EXISTING asset record (preserving every manually-entered
+    // field — LLPs, specs, checks — that reconstructing a fresh asset
+    // via Case 1 would otherwise silently discard).
+    var isFirstReportForExistingAsset = !previousAsset._lastPeriod && newPeriod !== null;
+
+    var monthsGap = isFirstReportForExistingAsset
+      ? null
+      : monthsBetween(prevPeriod ? prevPeriod.key : null, newPeriod ? newPeriod.key : null);
 
     // Period unparseable: either the new report's month_year or the asset's
     // stored _lastPeriod didn't match any recognised format. This must be
@@ -387,7 +406,7 @@
     // the tightest delta tolerance, since gapDetected and isOutOfOrder both
     // require monthsGap to be a non-null number). Per product decision:
     // an unparseable period must never be treated as "no gap" / "ok".
-    if (newPeriod === null || prevPeriod === null) {
+    if (newPeriod === null || (prevPeriod === null && !isFirstReportForExistingAsset)) {
       var unparseableField = newPeriod === null ? "this report's period" : "the asset's stored last period";
       var unparseableValue = newPeriod === null ? newReport.month_year : previousAsset._lastPeriod;
       var snChangesUP = detectSNChanges(newReport, previousAsset);
@@ -484,9 +503,14 @@
     // surfaced today (only airframe-level), so we preserve that scope.
     // Same-month merges skip delta verification entirely: a partial report
     // for a month already on file isn't reporting a NEW period of flying,
-    // so there's nothing meaningful to diff period-FC against.
+    // so there's nothing meaningful to diff period-FC against. A first
+    // report for an existing asset skips it for the same reason — diffing
+    // against previousAsset.airframe.currentFC (still its blank "0"
+    // default) would produce a huge, entirely false "delta mismatch" on
+    // literally the asset's first-ever report, if that report happens to
+    // state its own period FC/FH figures.
     var fcCheck, fhCheck;
-    if (isSameMonth) {
+    if (isSameMonth || isFirstReportForExistingAsset) {
       fcCheck = { calc: null, reported: (newReport.airframe && newReport.airframe.fc_period) || null, match: null };
       fhCheck = { calc: null, reported: (newReport.airframe && newReport.airframe.fh_period) || null, match: null };
     } else {
@@ -505,12 +529,14 @@
     }
 
     var deltaStatus = "ok";
-    if (isSameMonth) {
+    if (isFirstReportForExistingAsset) {
+      deltaStatus = "first_report_existing_asset";
+    } else if (isSameMonth) {
       deltaStatus = "same_month_merge";
     } else if (gapDetected) {
       deltaStatus = "gap_detected";
     }
-    if (!isSameMonth && (fcCheck.match === false || fhCheck.match === false)) {
+    if (!isSameMonth && !isFirstReportForExistingAsset && (fcCheck.match === false || fhCheck.match === false)) {
       deltaStatus = "mismatch";
     }
 
@@ -571,6 +597,9 @@
     });
 
     var allWarnings = snWarnings.concat(removalWarnings);
+    if (isFirstReportForExistingAsset) {
+      allWarnings = allWarnings.concat(["\u2139 First utilisation report recorded for this asset \u2014 this establishes its baseline TSN/CSN. A real month-over-month rate becomes available from the next report onward."]);
+    }
     if (isSameMonth) {
       allWarnings = allWarnings.concat(["\u2139 Same-month merge: this report updates " +
         (newReport.month_year || "the current period") +
