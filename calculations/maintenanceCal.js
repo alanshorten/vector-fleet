@@ -24,15 +24,36 @@
 // so this file has no load-order dependency on index.html.
 // ---------------------------------------------------------------------
 
-// App-wide date convention is DD/MM/YYYY (see extraction prompt / AddCheckRow).
-function parseDMY(str) {
+// App-wide convention for asset.checks[].lastDate/nextDate is ISO
+// (YYYY-MM-DD) — confirmed against index.html's CheckDateInput, which
+// commits via onCommit(iso, next) directly into checks[i].lastDate/
+// nextDate. DD/MM/YYYY is only ever a transient format at the Quick
+// Extract AI-prompt boundary; normalizeDate() converts it to ISO before
+// it's saved, so it should never actually reach this function — but
+// it's kept as a fallback in case any older/malformed record was saved
+// before that normalization existed, rather than assuming a single
+// format and silently failing on anything else (exactly the bug this
+// fixes: real ISO dates were being reported as "no usable date").
+function parseCheckDate(str) {
   if (!str || typeof str !== "string") return null;
-  const m = str.trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-  if (!m) return null;
-  const day = +m[1], mon = +m[2], year = +m[3];
-  if (mon < 1 || mon > 12 || day < 1 || day > 31) return null;
-  const date = new Date(Date.UTC(year, mon - 1, day));
-  return isNaN(date.getTime()) ? null : date;
+  const trimmed = str.trim();
+
+  const iso = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) {
+    const [, y, mo, d] = iso;
+    const date = new Date(Date.UTC(+y, +mo - 1, +d));
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  const dmy = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (dmy) {
+    const day = +dmy[1], mon = +dmy[2], year = +dmy[3];
+    if (mon < 1 || mon > 12 || day < 1 || day > 31) return null;
+    const date = new Date(Date.UTC(year, mon - 1, day));
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  return null;
 }
 
 function addMonths(date, n) {
@@ -98,10 +119,10 @@ function resolveAnchor(checkType, checksArray) {
       }
     };
   }
-  const next = parseDMY(entry.nextDate);
+  const next = parseCheckDate(entry.nextDate);
   if (next) return { anchorDate: next, gap: null };
 
-  const last = parseDMY(entry.lastDate);
+  const last = parseCheckDate(entry.lastDate);
   if (last) return { anchorDate: addMonths(last, checkType.intervalMonths), gap: null };
 
   return {
