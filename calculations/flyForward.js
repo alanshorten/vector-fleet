@@ -37,6 +37,19 @@ function monthsBetween(a, b) {
   return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
 }
 
+// Looks up Brain 6's per-month grounding fraction for month index m.
+// ctx.groundingAvailability is the array maintenanceCal.js returns
+// ([{monthIndex, availability}, ...], in order) — absent entirely when
+// the caller hasn't wired Brain 6 in yet, which must behave exactly as
+// before (always fully available).
+function availabilityAt(groundingAvailability, m) {
+  if (!groundingAvailability) return 1;
+  const direct = groundingAvailability[m];
+  if (direct && direct.monthIndex === m) return direct.availability;
+  const found = groundingAvailability.find(e => e.monthIndex === m);
+  return found ? found.availability : 1;
+}
+
 // EN-PR only: optional derate override. For every 1% the actual average
 // annual derate differs from the baseline (typically 10%), the rate
 // adjusts +/-1.5%, capped at +/-15% derate. derateModifier is null for
@@ -52,7 +65,12 @@ function applyDerateModifier(rate, derateModifier) {
 
 // Monthly accrual contribution for a pot, escalated to the given month's
 // date. accrualBasis selects which utilisation figure (if any) applies.
-function monthlyAccrual(pot, monthDate, utilisation) {
+// `availability` (default 1) is Brain 6's grounding fraction for this
+// month — 0..1, 1 = fully flying. Calendar pots (per_month) are
+// deliberately NOT multiplied by it (decision 2: calendar pots keep
+// ticking through a grounding); only the utilisation-basis pots are.
+function monthlyAccrual(pot, monthDate, utilisation, availability) {
+  const avail = availability == null ? 1 : availability;
   const escalatedRate = escalateAnnual(
     pot.accrualRate,
     pot.accrualRateBaseYear,
@@ -66,11 +84,11 @@ function monthlyAccrual(pot, monthDate, utilisation) {
     case "per_month":
       return rate;
     case "per_FH":
-      return rate * (utilisation.fhPerMonth || 0);
+      return rate * (utilisation.fhPerMonth || 0) * avail;
     case "per_FC":
-      return rate * (utilisation.fcPerMonth || 0);
+      return rate * (utilisation.fcPerMonth || 0) * avail;
     case "per_APU_hr":
-      return rate * (utilisation.apuHrPerMonth || 0);
+      return rate * (utilisation.apuHrPerMonth || 0) * avail;
     default:
       return 0;
   }
@@ -182,7 +200,7 @@ function apuHourEvents(pot, horizonMonths, apuHrPerMonth, startOffsetMonths) {
 //   warnings: []
 // }
 function projectReservePot(pot, ctx) {
-  const { leaseStart, horizonMonths, utilisation } = ctx;
+  const { leaseStart, horizonMonths, utilisation, groundingAvailability } = ctx;
 
   let eventMonths;
   if (pot.triggerBasis === "calendar_months") {
@@ -223,7 +241,7 @@ function projectReservePot(pot, ctx) {
 
   for (let m = 0; m <= horizonMonths; m++) {
     const date = addMonths(leaseStart, m);
-    if (m > 0) balance += monthlyAccrual(pot, date, utilisation);
+    if (m > 0) balance += monthlyAccrual(pot, date, utilisation, availabilityAt(groundingAvailability, m));
     monthlySeries.push({ monthIndex: m, date, balance });
 
     // Fire any event whose window midpoint falls on this month
@@ -290,7 +308,7 @@ function projectReservePot(pot, ctx) {
 // Returns the same shape as projectReservePot, plus warnings populated
 // from validateStubBuffer (llpCalculator.js, Brain 2) at each shop visit.
 function projectEnLpPot(pot, ctx) {
-  const { leaseStart, horizonMonths, utilisation, llpEngineStart } = ctx;
+  const { leaseStart, horizonMonths, utilisation, llpEngineStart, groundingAvailability } = ctx;
   const fcPerMonth = utilisation.fcPerMonth || 0;
   // llpEngineStart.currentFC is a REAL snapshot taken today, not at
   // lease inception. If leaseStart is set to a real historical date (so
@@ -303,8 +321,19 @@ function projectEnLpPot(pot, ctx) {
 
   // Working copy of the LLP stack — each part's life resets on harvest.
   let llps = llpEngineStart.llps.map(l => ({ ...l }));
-  let baseFC = llpEngineStart.currentFC;
-  let resetMonth = nowOffsetMonths; // the month index at which baseFC was last established (= "now", not lease start)
+
+  // FC accumulator — REPLACES the old closed-form
+  // `baseFC + fcPerMonth*(m-resetMonth)`, which can't respect a
+  // month-by-month grounding fraction (a 6-week check spans two
+  // unevenly-grounded months, not a uniform multiplier). Advances by
+  // exactly one month's worth of (fcPerMonth * availability) per loop
+  // iteration. Needs no explicit reset on harvest — the engine-cycle
+  // clock keeps ticking forward regardless of a shop visit; only each
+  // harvested LLP's own life-remaining resets (below), not this clock.
+  // Behaviour is identical to the old formula whenever availability is
+  // uniformly 1 (i.e. grounding not wired in).
+  let fcAccum = llpEngineStart.currentFC;
+  let accumMonth = Math.max(0, ctx.nowOffsetMonths || 0);
 
   const monthlySeries = [];
   const events = [];
@@ -314,7 +343,7 @@ function projectEnLpPot(pot, ctx) {
 
   for (let m = 0; m <= horizonMonths; m++) {
     const date = addMonths(leaseStart, m);
-    if (m > 0) balance += monthlyAccrual(pot, date, utilisation);
+    if (m > 0) balance += monthlyAccrual(pot, date, utilisation, availabilityAt(groundingAvailability, m));
     monthlySeries.push({ monthIndex: m, date, balance });
 
     // Before "now", there's no real engine-cycle data to check shop
@@ -322,7 +351,11 @@ function projectEnLpPot(pot, ctx) {
     // chart (the historical catch-up period).
     if (m < nowOffsetMonths) continue;
 
-    const currentFC = baseFC + fcPerMonth * (m - resetMonth);
+    while (accumMonth < m) {
+      accumMonth++;
+      fcAccum += fcPerMonth * availabilityAt(groundingAvailability, accumMonth);
+    }
+    const currentFC = fcAccum;
 
     if (!llps.length) continue;
 
@@ -416,8 +449,6 @@ function projectEnLpPot(pot, ctx) {
         }
         return { ...l, startFCRem: 999999, refFC: currentFC };
       });
-      baseFC = currentFC;
-      resetMonth = m;
     }
   }
 
