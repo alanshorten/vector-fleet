@@ -341,22 +341,71 @@ ${(()=>{
 </div>`;
   })()}
 ${(()=>{
-    const avRows=(asset.avionics||[]).filter(r=>!r.hidden&&r.pn);
+    // Avionics LRU List — TECH_DEBT.md 4.45. Replaces the old fixed
+    // 8-field asset.avionics renderer entirely (no back-compat: live data
+    // was not preserved per Alan's confirmation during scoping).
+    const lru=asset.avionicsLRU||{};
+    const allRows=(lru.rows||[]);
+    const hiddenChapters=lru.hiddenChapters||[];
+    const visRows=allRows.filter(r=>!r.hidden&&!(r.ataChapter&&hiddenChapters.includes(r.ataChapter)));
     const avionicsPhotos=(asset.photos||[]).filter(p=>p.label==="Avionics");
-    if(!avRows.length&&!avionicsPhotos.length)return"";
-    const ataNum=(ata)=>{const m=/(\d+)/.exec(ata||"");return m?+m[1]:9999;};
+    if(!visRows.length&&!avionicsPhotos.length)return"";
     const groups={};
-    avRows.forEach(r=>{const key=r.ata||"Other";if(!groups[key])groups[key]=[];groups[key].push(r);});
-    const sortedKeys=Object.keys(groups).sort((a,b)=>ataNum(a)-ataNum(b));
-    const tableHtml=avRows.length?sortedKeys.map(key=>`
-      <table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:9px">
-        <thead><tr><th style="${TH}" colspan="2">${key}</th></tr></thead>
-        <tbody>${groups[key].map(r=>`<tr><td style="color:#6b7280;font-weight:600;width:55%">${r.component||""}</td><td>${r.pn||"—"}</td></tr>`).join("")}</tbody>
-      </table>`).join(""):"";
+    const ungrouped=[];
+    visRows.forEach(r=>{if(r.ataChapter){(groups[r.ataChapter]=groups[r.ataChapter]||[]).push(r);}else ungrouped.push(r);});
+    const sortedKeys=Object.keys(groups).sort((a,b)=>{const m=(k)=>{const mm=/ATA\s+(\d+)/.exec(k||"");return mm?+mm[1]:9999;};return m(a)-m(b);});
+    const chapterList=sortedKeys.map(key=>({key,rows:groups[key]}));
+    // Whole-page (not per-chapter) row-count split — starting threshold
+    // 25, tuned against real generated specs per Alan's "eyeball it"
+    // preference (same tuning approach as the stub-buffer tolerance band).
+    const AVIONICS_LRU_SPLIT_THRESHOLD=25;
+    const rowHtml=(r)=>`<tr><td style="color:#6b7280;font-weight:600;width:55%">${r.description||""}</td><td>${r.partNumber||"—"}</td></tr>`;
+    const headerHtml=(key)=>key?`<thead><tr><th style="${TH}" colspan="2">${key}</th></tr></thead>`:"";
+    const openTable=(key)=>`<table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:9px">${headerHtml(key)}<tbody>`;
+    const closeTableTag=`</tbody></table>`;
+    const allChapters=[...chapterList,...(ungrouped.length?[{key:null,rows:ungrouped}]:[])];
+    const totalRows=allChapters.reduce((n,c)=>n+c.rows.length,0);
+    let tableHtml,twoColumnHtml=null;
+    if(totalRows<=AVIONICS_LRU_SPLIT_THRESHOLD){
+      tableHtml=allChapters.map(c=>openTable(c.key)+c.rows.map(rowHtml).join("")+closeTableTag).join("");
+    }else{
+      // Whole-page split by cumulative visible row count, not per-chapter
+      // boundary — a chapter that straddles the split point continues
+      // into column two with its header REPEATED for visibility (Alan's
+      // call during scoping), rather than snapping to the nearest
+      // chapter boundary. Tables are opened lazily, on the first row
+      // actually written to a column, so a split landing exactly on a
+      // chapter boundary never leaves a stray header-only empty table.
+      const splitPoint=Math.ceil(totalRows/2);
+      let col1="",col2Body="",running=0,col=1;
+      let openInCol={1:null,2:null};
+      const ensureOpen=(colNum,key)=>{
+        if(openInCol[colNum]!==key){
+          if(openInCol[colNum]!==null){if(colNum===1)col1+=closeTableTag;else col2Body+=closeTableTag;}
+          if(colNum===1)col1+=openTable(key);else col2Body+=openTable(key);
+          openInCol[colNum]=key;
+        }
+      };
+      allChapters.forEach(c=>{
+        c.rows.forEach(r=>{
+          if(col===1&&running>=splitPoint){
+            if(openInCol[1]!==null){col1+=closeTableTag;openInCol[1]=null;}
+            col=2;
+          }
+          ensureOpen(col,c.key);
+          const rh=rowHtml(r);
+          if(col===1)col1+=rh;else col2Body+=rh;
+          running++;
+        });
+      });
+      if(openInCol[1]!==null)col1+=closeTableTag;
+      if(openInCol[2]!==null)col2Body+=closeTableTag;
+      twoColumnHtml=col2(`<td style="${CS}">${col1}</td>`,`<td style="${CS}">${col2Body}</td>`);
+    }
     const imgs=avionicsPhotos.map(p=>`<img src="${p.url}" style="width:100%;max-height:680px;object-fit:contain;background:#fff;border-radius:4px;display:block;margin:0 auto 10px"/>`).join("");
     return`${PAGE_FOOTER}<div class="pb"></div>
 <h3>Avionics</h3>
-${tableHtml}
+${twoColumnHtml||tableHtml}
 ${imgs?`<div style="text-align:center;margin-top:10px">${imgs}</div>`:""}`;
   })()}
 ${(()=>{
