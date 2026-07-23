@@ -77,6 +77,37 @@ function App(){
   },[authUser]);
 
   useEffect(()=>{
+    if(!authUser||!userRole)return; // only once signed in and role has resolved
+    // A role change made via /api/set-role revokes the user's refresh
+    // tokens server-side, but their already-issued ID token stays valid
+    // client-side for up to an hour unless something forces a refresh.
+    // Periodically force one so a role change (or a revoked session) takes
+    // effect promptly rather than silently continuing under stale
+    // permissions until the token naturally expires.
+    const checkRole=async()=>{
+      try{
+        const tokenResult=await window._auth.getIdTokenResult(true);
+        if(!tokenResult)return; // already signed out
+        const freshRole=tokenResult.claims.role||'viewer';
+        if(freshRole!==userRole){
+          notify("Your account access has changed — please sign in again.","error");
+          await window._auth.signOut();
+        }
+      }catch(e){
+        // Refresh failing here almost always means the refresh token was
+        // revoked (role changed, or an admin forced this) — treat it the
+        // same way: sign out rather than continuing on a stale token.
+        notify("Your session is no longer valid — please sign in again.","error");
+        await window._auth.signOut().catch(()=>{});
+      }
+    };
+    const interval=setInterval(checkRole,45000);
+    const onFocus=()=>checkRole();
+    window.addEventListener('focus',onFocus);
+    return ()=>{clearInterval(interval);window.removeEventListener('focus',onFocus);};
+  },[authUser,userRole]);
+
+  useEffect(()=>{
     if(!authUser)return; // wait until signed in before touching Firestore
     const doLoad=()=>loadAssets();
     if(window._firebaseReady){
