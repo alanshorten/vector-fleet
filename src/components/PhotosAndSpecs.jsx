@@ -454,9 +454,18 @@ function SpecsQuickImport({asset,saveAsset,notify,open}){
     <div className="card" style={{padding:16,marginBottom:16,gridColumn:"1/-1"}}>
       {open&&<div>
         <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>Upload a tech spec PDF, Excel sheet, or screenshot. TailiQ will extract Date of Manufacture, Operator, Weights, Check History, Specifications, Engine/APU Shop Visits, and Landing Gear Overhaul dates for review before saving.</div>
-        <div className="flab g8" style={{marginBottom:10}}>
-          <input type="file" accept=".pdf,.xlsx,.xls,image/*" onChange={handleFile}/>
-          <button className="btn btn-primary" disabled={!file||extracting} onClick={extract}>{extracting?"Extracting...":"Extract"}</button>
+        <div className="card" style={{padding:20,textAlign:"center",marginBottom:10,border:"2px dashed #1e3048"}}>
+          <div style={{fontSize:28,marginBottom:8}}>📁</div>
+          <input type="file" accept=".pdf,.xlsx,.xls,image/*" id="specsQuickImportFile" onChange={handleFile} style={{display:"none"}}/>
+          <label htmlFor="specsQuickImportFile" style={{cursor:"pointer"}}>
+            <div style={{fontWeight:600,color:file?"#C9A84C":"#64748b",marginBottom:4,fontSize:13}}>{file?file.name:"Click to select file"}</div>
+            <div style={{fontSize:11,color:"#475569"}}>PDF, Excel, or screenshot</div>
+          </label>
+          {file&&(
+            <div style={{marginTop:12}}>
+              <button className="btn btn-primary" disabled={extracting} onClick={extract}>{extracting?"Extracting…":"Extract"}</button>
+            </div>
+          )}
         </div>
         {error&&<div style={{color:"#f87171",fontSize:12,marginBottom:10}}>{error}</div>}
         {extracted&&(()=>{
@@ -610,9 +619,18 @@ function AvionicsLRUUploader({onSaved,notify}){
     <div className="card" style={{padding:14,marginTop:10}}>
       <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6}}>Upload Avionics Listing (PDF)</div>
       <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>Upload an avionics listing (PDF). TailiQ will extract LRU descriptions and part numbers, grouped by ATA chapter, for review before saving.</div>
-      <div className="flab g8">
-        <input type="file" accept="application/pdf" onChange={e=>setFile(e.target.files?.[0]||null)} style={{fontSize:11,flex:1}}/>
-        <button type="button" className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} disabled={!file||extracting} onClick={doExtract}>{extracting?"Extracting…":"Extract"}</button>
+      <div className="card" style={{padding:20,textAlign:"center",border:"2px dashed #1e3048"}}>
+        <div style={{fontSize:28,marginBottom:8}}>📁</div>
+        <input type="file" accept="application/pdf" id="avionicsListingFile" onChange={e=>setFile(e.target.files?.[0]||null)} style={{display:"none"}}/>
+        <label htmlFor="avionicsListingFile" style={{cursor:"pointer"}}>
+          <div style={{fontWeight:600,color:file?"#C9A84C":"#64748b",marginBottom:4,fontSize:13}}>{file?file.name:"Click to select file"}</div>
+          <div style={{fontSize:11,color:"#475569"}}>PDF</div>
+        </label>
+        {file&&(
+          <div style={{marginTop:12}}>
+            <button type="button" className="btn btn-primary" disabled={extracting} onClick={doExtract}>{extracting?"Extracting…":"Extract"}</button>
+          </div>
+        )}
       </div>
       {error&&<div style={{color:"#f87171",fontSize:11,marginTop:6}}>{error}</div>}
     </div>

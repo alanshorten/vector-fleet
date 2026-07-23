@@ -88,11 +88,14 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
           <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={genSpec}>📋 Generate Tech Spec</button>
         </div>
       </div>
-      <div style={{display:"flex",borderBottom:"2px solid #1e3048",marginBottom:16,gap:2,overflowX:"auto",whiteSpace:"nowrap",WebkitOverflowScrolling:"touch"}}>
+      <nav style={{display:"inline-flex",alignItems:"center",gap:4,background:"rgba(13,25,37,0.8)",border:"1px solid #1e3348",borderRadius:8,padding:"5px 6px",marginBottom:24,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
         {LAYERS.map(([v,l])=>(
-          <button key={v} className={`tab-btn layer-tab-btn${layer===v?" active":""}`} style={{flexShrink:0}} onClick={()=>setLayer(v)}>{l}</button>
+          <button key={v} onClick={()=>setLayer(v)}
+            style={{padding:"8px 18px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all 0.15s",background:layer===v?"#1a3050":"transparent",color:layer===v?"#C9A84C":"#6a8aaa",letterSpacing:"0.03em",whiteSpace:"nowrap"}}>
+            {l}
+          </button>
         ))}
-      </div>
+      </nav>
 
       {layer==="details"&&(
         <>
