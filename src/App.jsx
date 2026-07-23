@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AdminView } from './components/AdminView';
-import { AssetView } from './components/AssetView';
+import { AssetView, NavPill } from './components/AssetView';
 import { SetPasswordScreen, SignInScreen } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
 import { GuideView } from './components/GuideView';
@@ -184,37 +184,28 @@ function App(){
               style={{padding:"7px 20px",background:view==="portfolio"?"#f1f5f9":"transparent",border:`1px solid ${view==="portfolio"?"#e2e8f0":"#2a4060"}`,borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:view==="portfolio"?"#0f172a":"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center"}}>
               ✈ Fleet Portfolio
             </button>}
-            {/* Nav pill — four-layer group (Details always; Calendar/Financials/Scenarios
-                gated on canSeeAdvanced), then workflow tools (Prospects always; Upload
-                gated on canUpload), then Admin. Matches VECTORIQ_ROADMAP.md §7a. */}
-            <nav className="app-nav-pill" style={{display:"flex",alignItems:"center",gap:4,background:view==="portfolio"?"#f1f5f9":"rgba(13,25,37,0.8)",border:`1px solid ${view==="portfolio"?"#e2e8f0":"#1e3348"}`,borderRadius:8,padding:"5px 6px"}}>
-              {[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]
-                .map(([v,l])=>(
-                <button key={v} className="app-nav-btn" onClick={()=>{setView(v);setSelectedId(null);}}
-                  style={{padding:"7px 14px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:13,fontWeight:600,cursor:"pointer",transition:"all 0.15s",background:view===v?"#1a3050":"transparent",color:view===v?"#C9A84C":(view==="portfolio"?"#475569":"#6a8aaa"),letterSpacing:"0.02em",flex:1}}>
-                  <span className="app-nav-label-always">{l}</span>
-                </button>
-              ))}
-              <div style={{width:1,height:22,background:view==="portfolio"?"#cbd5e1":"#1e3348",margin:"0 4px"}}/>
-              {[["prospects","Prospects"],...(canUpload?[["upload","Upload"]]:[])]
-                .map(([v,l])=>(
-                <button key={v} className="app-nav-btn" onClick={()=>{setView(v);setSelectedId(null);}}
-                  style={{padding:"7px 14px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:13,fontWeight:600,cursor:"pointer",transition:"all 0.15s",background:view===v?"#1a3050":"transparent",color:view===v?"#C9A84C":(view==="portfolio"?"#475569":"#6a8aaa"),letterSpacing:"0.02em",flex:1}}>
-                  <span className="app-nav-label-always">{l}</span>
-                </button>
-              ))}
-              {userRole==='admin'&&<>
-                <div style={{width:1,height:22,background:view==="portfolio"?"#cbd5e1":"#1e3348",margin:"0 4px"}}/>
-                <button className="app-nav-btn" onClick={()=>{setView("admin");setSelectedId(null);}}
-                  style={{padding:"7px 14px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:13,fontWeight:600,cursor:"pointer",transition:"all 0.15s",background:view==="admin"?"#2a1f00":"transparent",color:view==="admin"?"#C9A84C":(view==="portfolio"?"#475569":"#6a8aaa"),letterSpacing:"0.02em",flex:1}}>
-                  ⚙<span className="app-nav-label"> Admin</span>
-                </button>
-              </>}
+            {/* Two pills: the four-layer group (Details always; Calendar/Financials/
+                Scenarios gated on canSeeAdvanced), and workflow tools (Prospects
+                always; Upload gated on canUpload; Admin for admins). Matches
+                VECTORIQ_ROADMAP.md §7a. Sign Out sits outside both pills. Uses the
+                same NavPill component as the asset-level layer pill, so the two
+                are visually identical. */}
+            <div className="flab g8" style={{flexWrap:"wrap",justifyContent:"flex-end"}}>
+              <NavPill
+                items={[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]}
+                activeValue={view}
+                onSelect={v=>{setView(v);setSelectedId(null);}}
+                theme={view==="portfolio"?"light":"dark"}/>
+              <NavPill
+                items={[["prospects","Prospects"],...(canUpload?[["upload","Upload"]]:[]),...(userRole==='admin'?[["admin","Admin"]]:[])]}
+                activeValue={view}
+                onSelect={v=>{setView(v);setSelectedId(null);}}
+                theme={view==="portfolio"?"light":"dark"}/>
               <button className="app-nav-btn" onClick={()=>window._auth.signOut()} title={authUser?.email||""}
-                style={{padding:"7px 14px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",background:"transparent",color:view==="portfolio"?"#475569":"#6a8aaa",flex:1}}>
+                style={{padding:"9px 14px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",background:"transparent",color:view==="portfolio"?"#475569":"#6a8aaa"}}>
                 ⎋<span className="app-nav-label"> Sign Out</span>
               </button>
-            </nav>
+            </div>
           </div>
         </div>
       </header>
