@@ -3,7 +3,6 @@ import { AdminView } from './components/AdminView';
 import { AssetView } from './components/AssetView';
 import { SetPasswordScreen, SignInScreen } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
-import { FlyForward, MaintenanceCalendarView } from './components/FlyForward';
 import { GuideView } from './components/GuideView';
 import { FleetExposureView, PortfolioView } from './components/PortfolioView';
 import { ProspectEditor, ProspectListView } from './components/Prospects';
@@ -24,7 +23,7 @@ function App(){
   const[error,setError]=useState(null);
   const[view,setView]=useState("dashboard");
   const[selectedId,setSelectedId]=useState(null);
-  const[ffOrigin,setFfOrigin]=useState("asset");
+  const[assetInitialLayer,setAssetInitialLayer]=useState("details");
   const[userRole,setUserRole]=useState(null);
   const[notification,setNotification]=useState(null);
 
@@ -94,6 +93,11 @@ function App(){
   },[loadAssets]);
 
   const notify=(msg,type="success")=>{setNotification({msg,type});setTimeout(()=>setNotification(null),3500);};
+  // Four-role nav visibility (VECTORIQ_ROADMAP.md §7a): Data Entry doesn't see
+  // Calendar/Financials/Scenarios/Portfolio (raw inputs only, no financial
+  // outputs); Viewer doesn't see Upload (read-only, no data entry).
+  const canSeeAdvanced=!!userRole&&userRole!=='dataEntry';
+  const canUpload=!!userRole&&userRole!=='viewer';
   const selectedAsset=assets.find(a=>a.id===selectedId);
   // Prospect assets (type:"prospect") are ad hoc/deal-evaluation aircraft — kept
   // completely separate from the live fleet in Dashboard/Fleet Portfolio/Admin.
@@ -143,15 +147,25 @@ function App(){
           <img src={view==="portfolio"?HEADER_LOGO_WHITE:HEADER_LOGO_NAVY} alt="TailiQ" style={{height:44,maxWidth:"55vw",objectFit:"contain",objectPosition:"left center",borderRadius:0}} className="header-logo"/>
           {/* Right side: Fleet button above nav pill */}
           <div className="app-header-right" style={{display:"flex",flexDirection:"column",gap:5,alignItems:"stretch"}}>
-            {/* Fleet button - full width, colour coded to white theme */}
-            <button onClick={()=>{setView("portfolio");setSelectedId(null);}}
+            {/* Fleet button - full width, colour coded to white theme. Not shown to Data Entry — presentation surface, not a raw-input tool. */}
+            {canSeeAdvanced&&<button onClick={()=>{setView("portfolio");setSelectedId(null);}}
               className="app-fleet-btn"
               style={{padding:"7px 20px",background:view==="portfolio"?"#f1f5f9":"transparent",border:`1px solid ${view==="portfolio"?"#e2e8f0":"#2a4060"}`,borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:view==="portfolio"?"#0f172a":"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center"}}>
               ✈ Fleet Portfolio
-            </button>
-            {/* Nav pill */}
+            </button>}
+            {/* Nav pill — four-layer group (Details always; Calendar/Financials/Scenarios
+                gated on canSeeAdvanced), then workflow tools (Prospects always; Upload
+                gated on canUpload), then Admin. Matches VECTORIQ_ROADMAP.md §7a. */}
             <nav className="app-nav-pill" style={{display:"flex",alignItems:"center",gap:4,background:view==="portfolio"?"#f1f5f9":"rgba(13,25,37,0.8)",border:`1px solid ${view==="portfolio"?"#e2e8f0":"#1e3348"}`,borderRadius:8,padding:"5px 6px"}}>
-              {[["dashboard","Dashboard"],["fleetexposure","Fleet Exposure"],...(userRole==='admin'||userRole==='editor'?[["upload","Upload"]]:[]),["prospects","Prospects"]]
+              {[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]
+                .map(([v,l])=>(
+                <button key={v} className="app-nav-btn" onClick={()=>{setView(v);setSelectedId(null);}}
+                  style={{padding:"7px 14px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:13,fontWeight:600,cursor:"pointer",transition:"all 0.15s",background:view===v?"#1a3050":"transparent",color:view===v?"#C9A84C":(view==="portfolio"?"#475569":"#6a8aaa"),letterSpacing:"0.02em",flex:1}}>
+                  <span className="app-nav-label-always">{l}</span>
+                </button>
+              ))}
+              <div style={{width:1,height:22,background:view==="portfolio"?"#cbd5e1":"#1e3348",margin:"0 4px"}}/>
+              {[["prospects","Prospects"],...(canUpload?[["upload","Upload"]]:[])]
                 .map(([v,l])=>(
                 <button key={v} className="app-nav-btn" onClick={()=>{setView(v);setSelectedId(null);}}
                   style={{padding:"7px 14px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:13,fontWeight:600,cursor:"pointer",transition:"all 0.15s",background:view===v?"#1a3050":"transparent",color:view===v?"#C9A84C":(view==="portfolio"?"#475569":"#6a8aaa"),letterSpacing:"0.02em",flex:1}}>
@@ -185,16 +199,26 @@ function App(){
       )}
 
       <main style={{padding:"20px 22px",maxWidth:1480,margin:"0 auto"}}>
-        {view==="dashboard"&&!selectedId&&<Dashboard assets={liveAssets} onSelect={id=>{setSelectedId(id);setView("asset");}} saveAsset={saveAsset} notify={notify}/>}
-        {view==="asset"&&selectedId&&selectedAsset&&<AssetView asset={selectedAsset} saveAsset={saveAsset} isAdmin={userRole==='admin'||userRole==='editor'} notify={notify} onBack={()=>{setView("dashboard");setSelectedId(null);}} loadAssets={loadAssets} onFlyForward={userRole?()=>{setFfOrigin("asset");setView("flyforward");}:null}/>}
-        {view==="upload"&&(userRole==='admin'||userRole==='editor')&&<UploadView assets={liveAssets} saveAsset={saveAsset} notify={notify}/>}
+        {view==="dashboard"&&!selectedId&&<Dashboard assets={liveAssets} onSelect={id=>{setSelectedId(id);setAssetInitialLayer("details");setView("asset");}} saveAsset={saveAsset} notify={notify}/>}
+        {view==="asset"&&selectedId&&selectedAsset&&<AssetView asset={selectedAsset} saveAsset={saveAsset} isAdmin={userRole==='admin'||userRole==='editor'} userRole={userRole} notify={notify} onBack={()=>{setView("dashboard");setSelectedId(null);}} loadAssets={loadAssets} initialLayer={assetInitialLayer}/>}
+        {view==="upload"&&canUpload&&<UploadView assets={liveAssets} saveAsset={saveAsset} notify={notify}/>}
         {view==="guide"&&<GuideView/>}
-        {view==="portfolio"&&<PortfolioView assets={liveAssets} notify={notify} onSelect={(id)=>{setSelectedId(id);setView("asset");}} onFlyForward={userRole?(id)=>{setSelectedId(id);setFfOrigin("portfolio");setView("flyforward");}:null}/>}
-        {view==="fleetexposure"&&<FleetExposureView assets={liveAssets} onSelectAsset={userRole?(id)=>{setSelectedId(id);setFfOrigin("fleetexposure");setView("flyforward");}:null}/>}
+        {view==="portfolio"&&canSeeAdvanced&&<PortfolioView assets={liveAssets} notify={notify} onSelect={(id)=>{setSelectedId(id);setAssetInitialLayer("details");setView("asset");}} onFlyForward={(id)=>{setSelectedId(id);setAssetInitialLayer("financials");setView("asset");}}/>}
+        {view==="fleetexposure"&&canSeeAdvanced&&<FleetExposureView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetInitialLayer("financials");setView("asset");}}/>}
+        {view==="fleetcalendar"&&canSeeAdvanced&&(
+          <div className="card" style={{padding:24,textAlign:"center",maxWidth:600,margin:"40px auto"}}>
+            <div style={{fontSize:14,fontWeight:700,color:"#e2e8f0",marginBottom:8}}>Calendar</div>
+            <div style={{fontSize:12,color:"#94a3b8"}}>Coming soon — event clustering across the fleet's maintenance calendar.</div>
+          </div>
+        )}
+        {view==="fleetscenarios"&&canSeeAdvanced&&(
+          <div className="card" style={{padding:24,textAlign:"center",maxWidth:600,margin:"40px auto"}}>
+            <div style={{fontSize:14,fontWeight:700,color:"#e2e8f0",marginBottom:8}}>Scenarios</div>
+            <div style={{fontSize:12,color:"#94a3b8"}}>Coming soon — Route Suitability Matcher and fleet-wide "what if" exploration.</div>
+          </div>
+        )}
         {view==="prospects"&&<ProspectListView assets={prospectAssets} saveAsset={saveAsset} notify={notify} userRole={userRole} onSelect={id=>{setSelectedId(id);setView("prospect-editor");}} loadAssets={loadAssets}/>}
         {view==="prospect-editor"&&selectedId&&assets.find(a=>a.id===selectedId)&&<ProspectEditor asset={assets.find(a=>a.id===selectedId)} saveAsset={saveAsset} notify={notify} onBack={()=>{setView("prospects");setSelectedId(null);}}/>}
-        {view==="flyforward"&&selectedId&&selectedAsset&&!!userRole&&<FlyForward asset={selectedAsset} onBack={()=>setView(ffOrigin)} onMaintenanceCal={()=>setView("maintenancecal")}/>}
-        {view==="maintenancecal"&&selectedId&&selectedAsset&&!!userRole&&<MaintenanceCalendarView asset={selectedAsset} onBack={()=>setView("flyforward")}/>}
         {view==="admin"&&userRole==='admin'&&<AdminView assets={liveAssets} saveAsset={saveAsset} notify={notify} loadAssets={loadAssets}/>}
         {view==="admin"&&userRole!=='admin'&&<div style={{padding:60,textAlign:"center",color:"#475569"}}>Admin access required.</div>}
       </main>
