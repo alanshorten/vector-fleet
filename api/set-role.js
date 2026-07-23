@@ -92,6 +92,12 @@ module.exports = async (req, res) => {
 
   try {
     await auth.setCustomUserClaims(uid, { role });
+    // Revoke existing refresh tokens so the change takes effect promptly —
+    // without this, a signed-in user's cached ID token (and the role claim
+    // baked into it) stays valid for up to an hour regardless of what an
+    // admin just changed. The client periodically force-refreshes its token
+    // and detects/reacts to this revocation (see App.jsx).
+    await auth.revokeRefreshTokens(uid);
     return res.status(200).json({ ok: true });
   } catch (e) {
     console.error('set-role POST: setCustomUserClaims failed', e);
