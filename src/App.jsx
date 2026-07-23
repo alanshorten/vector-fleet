@@ -1,0 +1,206 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { AdminView } from './components/AdminView';
+import { AssetView } from './components/AssetView';
+import { SetPasswordScreen, SignInScreen } from './components/Auth';
+import { Dashboard } from './components/Dashboard';
+import { FlyForward, MaintenanceCalendarView } from './components/FlyForward';
+import { GuideView } from './components/GuideView';
+import { FleetExposureView, PortfolioView } from './components/PortfolioView';
+import { ProspectEditor, ProspectListView } from './components/Prospects';
+import { UploadView } from './components/UploadView';
+import { db, logAudit } from './lib/db';
+import { HEADER_LOGO_NAVY, HEADER_LOGO_WHITE } from './lib/techSpec';
+
+function App(){
+  // Invite-link landing — must be checked before any sign-in gate, since
+  // the person clicking this link has no TailiQ account/session yet.
+  if(new URLSearchParams(window.location.search).get("view")==="set-password"){
+    return <SetPasswordScreen/>;
+  }
+  const[authUser,setAuthUser]=useState(window._authUser===undefined?undefined:window._authUser);
+  const[configError,setConfigError]=useState(window._configError||false);
+  const[assets,setAssets]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[error,setError]=useState(null);
+  const[view,setView]=useState("dashboard");
+  const[selectedId,setSelectedId]=useState(null);
+  const[ffOrigin,setFfOrigin]=useState("asset");
+  const[userRole,setUserRole]=useState(null);
+  const[notification,setNotification]=useState(null);
+
+  const loadAssets=useCallback(async()=>{
+    try{
+      const assets=await db.getAssets();
+      setAssets(assets);
+      setError(null);
+    }catch(e){setError(e.message);}
+    setLoading(false);
+  },[]);
+
+  useEffect(()=>{
+    const onConfigError=()=>setConfigError(true);
+    window.addEventListener('firebase-config-error', onConfigError);
+    return ()=>window.removeEventListener('firebase-config-error', onConfigError);
+  },[]);
+
+  useEffect(()=>{
+    const syncAuth=()=>setAuthUser(window._authUser);
+    if(window._authUser!==undefined){
+      syncAuth();
+    }
+    window.addEventListener('auth-state-changed', syncAuth);
+    return ()=>window.removeEventListener('auth-state-changed', syncAuth);
+  },[]);
+
+  useEffect(()=>{
+    if(!authUser)return;
+    const resolveRole=async()=>{
+      try{
+        let tokenResult=await window._auth.getIdTokenResult();
+        if(!tokenResult)return; // not signed in yet
+        let role=tokenResult.claims.role;
+        if(!role){
+          const idToken=await window._auth.getIdToken();
+          const resp=await fetch('/api/bootstrap-admin',{method:'POST',headers:{'Authorization':`Bearer ${idToken}`}});
+          if(resp.ok){
+            tokenResult=await window._auth.getIdTokenResult(true); // force refresh
+            role=tokenResult?.claims?.role;
+          }
+        }
+        setUserRole(role||'viewer');
+        if((role||'viewer')==='viewer') setView('portfolio');
+      }catch(e){
+        console.error('Role resolution failed',e);
+        setUserRole('viewer');
+      }
+    };
+    resolveRole();
+  },[authUser]);
+
+  useEffect(()=>{
+    if(!authUser)return; // wait until signed in before touching Firestore
+    const doLoad=()=>loadAssets();
+    if(window._firebaseReady){
+      doLoad();
+    } else {
+      window.addEventListener('firebase-ready', doLoad, {once:true});
+    }
+  },[loadAssets,authUser]);
+
+  const saveAsset=useCallback(async(asset, action="Updated asset data")=>{
+    await db.saveAsset(asset);
+    await logAudit(asset.id, asset.msn, action);
+    await loadAssets();
+  },[loadAssets]);
+
+  const notify=(msg,type="success")=>{setNotification({msg,type});setTimeout(()=>setNotification(null),3500);};
+  const selectedAsset=assets.find(a=>a.id===selectedId);
+  // Prospect assets (type:"prospect") are ad hoc/deal-evaluation aircraft — kept
+  // completely separate from the live fleet in Dashboard/Fleet Portfolio/Admin.
+  const liveAssets=assets.filter(a=>a.type!=="prospect");
+  const prospectAssets=assets.filter(a=>a.type==="prospect");
+
+  if(configError)return(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh"}}>
+      <div style={{textAlign:"center",maxWidth:400,padding:32}}>
+        <div style={{color:"#f87171",fontSize:14,fontWeight:700,marginBottom:8}}>Configuration Error</div>
+        <p style={{color:"#64748b",fontSize:13}}>Couldn't load app configuration from /api/config. Check that Firebase and Cloudinary environment variables are set in Vercel, then reload.</p>
+      </div>
+    </div>
+  );
+
+  if(authUser===undefined)return(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh"}}>
+      <div style={{width:32,height:32,border:"3px solid #C9A84C",borderTop:"3px solid transparent",borderRadius:"50%",animation:"spin 1s linear infinite"}}/>
+    </div>
+  );
+
+  if(authUser===null)return <SignInScreen/>;
+
+  if(loading)return(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{width:32,height:32,border:"3px solid #C9A84C",borderTop:"3px solid transparent",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 12px"}}/>
+        <p style={{color:"#64748b",fontSize:13}}>Loading fleet data…</p>
+      </div>
+    </div>
+  );
+
+  if(error)return(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh"}}>
+      <div style={{textAlign:"center",maxWidth:400,padding:32}}>
+        <div style={{color:"#f87171",fontSize:14,fontWeight:700,marginBottom:8}}>Connection Error</div>
+        <p style={{color:"#64748b",fontSize:12,marginBottom:16}}>{error}</p>
+        <button onClick={loadAssets} style={{padding:"8px 20px",background:"#1e3a5f",border:"none",borderRadius:6,color:"#60a5fa",cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>Retry</button>
+      </div>
+    </div>
+  );
+
+  return(
+    <div>
+      <header style={{background:view==="portfolio"?"#ffffff":"#0d1c2c",borderBottom:view==="portfolio"?"1px solid #e2e8f0":"1px solid #1e3348",position:"sticky",top:0,zIndex:100,boxShadow:view==="portfolio"?"0 2px 8px rgba(15,23,42,0.08)":"0 2px 8px rgba(0,0,0,0.3)",padding:"8px 16px"}}>
+        <div className="app-header-row" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"nowrap"}}>
+          <img src={view==="portfolio"?HEADER_LOGO_WHITE:HEADER_LOGO_NAVY} alt="TailiQ" style={{height:44,maxWidth:"55vw",objectFit:"contain",objectPosition:"left center",borderRadius:0}} className="header-logo"/>
+          {/* Right side: Fleet button above nav pill */}
+          <div className="app-header-right" style={{display:"flex",flexDirection:"column",gap:5,alignItems:"stretch"}}>
+            {/* Fleet button - full width, colour coded to white theme */}
+            <button onClick={()=>{setView("portfolio");setSelectedId(null);}}
+              className="app-fleet-btn"
+              style={{padding:"7px 20px",background:view==="portfolio"?"#f1f5f9":"transparent",border:`1px solid ${view==="portfolio"?"#e2e8f0":"#2a4060"}`,borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:view==="portfolio"?"#0f172a":"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center"}}>
+              ✈ Fleet Portfolio
+            </button>
+            {/* Nav pill */}
+            <nav className="app-nav-pill" style={{display:"flex",alignItems:"center",gap:4,background:view==="portfolio"?"#f1f5f9":"rgba(13,25,37,0.8)",border:`1px solid ${view==="portfolio"?"#e2e8f0":"#1e3348"}`,borderRadius:8,padding:"5px 6px"}}>
+              {[["dashboard","Dashboard"],["fleetexposure","Fleet Exposure"],...(userRole==='admin'||userRole==='editor'?[["upload","Upload"]]:[]),["prospects","Prospects"]]
+                .map(([v,l])=>(
+                <button key={v} className="app-nav-btn" onClick={()=>{setView(v);setSelectedId(null);}}
+                  style={{padding:"7px 14px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:13,fontWeight:600,cursor:"pointer",transition:"all 0.15s",background:view===v?"#1a3050":"transparent",color:view===v?"#C9A84C":(view==="portfolio"?"#475569":"#6a8aaa"),letterSpacing:"0.02em",flex:1}}>
+                  <span className="app-nav-label-always">{l}</span>
+                </button>
+              ))}
+              {userRole==='admin'&&<>
+                <div style={{width:1,height:22,background:view==="portfolio"?"#cbd5e1":"#1e3348",margin:"0 4px"}}/>
+                <button className="app-nav-btn" onClick={()=>{setView("admin");setSelectedId(null);}}
+                  style={{padding:"7px 14px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:13,fontWeight:600,cursor:"pointer",transition:"all 0.15s",background:view==="admin"?"#2a1f00":"transparent",color:view==="admin"?"#C9A84C":(view==="portfolio"?"#475569":"#6a8aaa"),letterSpacing:"0.02em",flex:1}}>
+                  ⚙<span className="app-nav-label"> Admin</span>
+                </button>
+              </>}
+              <button className="app-nav-btn" onClick={()=>window._auth.signOut()} title={authUser?.email||""}
+                style={{padding:"7px 14px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",background:"transparent",color:view==="portfolio"?"#475569":"#6a8aaa",flex:1}}>
+                ⎋<span className="app-nav-label"> Sign Out</span>
+              </button>
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      {notification&&(
+        <div style={{position:"fixed",bottom:24,right:18,zIndex:300,padding:"10px 16px",borderRadius:8,
+          background:notification.type==="error"?"#2a0e0e":"#0d2818",
+          border:`1px solid ${notification.type==="error"?"#7f1d1d":"#166534"}`,
+          color:notification.type==="error"?"#f87171":"#34d399",
+          fontWeight:600,fontSize:13,animation:"fadeIn 0.2s ease",boxShadow:"0 4px 16px rgba(0,0,0,0.4)"}}>
+          {notification.msg}
+        </div>
+      )}
+
+      <main style={{padding:"20px 22px",maxWidth:1480,margin:"0 auto"}}>
+        {view==="dashboard"&&!selectedId&&<Dashboard assets={liveAssets} onSelect={id=>{setSelectedId(id);setView("asset");}} saveAsset={saveAsset} notify={notify}/>}
+        {view==="asset"&&selectedId&&selectedAsset&&<AssetView asset={selectedAsset} saveAsset={saveAsset} isAdmin={userRole==='admin'||userRole==='editor'} notify={notify} onBack={()=>{setView("dashboard");setSelectedId(null);}} loadAssets={loadAssets} onFlyForward={userRole?()=>{setFfOrigin("asset");setView("flyforward");}:null}/>}
+        {view==="upload"&&(userRole==='admin'||userRole==='editor')&&<UploadView assets={liveAssets} saveAsset={saveAsset} notify={notify}/>}
+        {view==="guide"&&<GuideView/>}
+        {view==="portfolio"&&<PortfolioView assets={liveAssets} notify={notify} onSelect={(id)=>{setSelectedId(id);setView("asset");}} onFlyForward={userRole?(id)=>{setSelectedId(id);setFfOrigin("portfolio");setView("flyforward");}:null}/>}
+        {view==="fleetexposure"&&<FleetExposureView assets={liveAssets} onSelectAsset={userRole?(id)=>{setSelectedId(id);setFfOrigin("fleetexposure");setView("flyforward");}:null}/>}
+        {view==="prospects"&&<ProspectListView assets={prospectAssets} saveAsset={saveAsset} notify={notify} userRole={userRole} onSelect={id=>{setSelectedId(id);setView("prospect-editor");}} loadAssets={loadAssets}/>}
+        {view==="prospect-editor"&&selectedId&&assets.find(a=>a.id===selectedId)&&<ProspectEditor asset={assets.find(a=>a.id===selectedId)} saveAsset={saveAsset} notify={notify} onBack={()=>{setView("prospects");setSelectedId(null);}}/>}
+        {view==="flyforward"&&selectedId&&selectedAsset&&!!userRole&&<FlyForward asset={selectedAsset} onBack={()=>setView(ffOrigin)} onMaintenanceCal={()=>setView("maintenancecal")}/>}
+        {view==="maintenancecal"&&selectedId&&selectedAsset&&!!userRole&&<MaintenanceCalendarView asset={selectedAsset} onBack={()=>setView("flyforward")}/>}
+        {view==="admin"&&userRole==='admin'&&<AdminView assets={liveAssets} saveAsset={saveAsset} notify={notify} loadAssets={loadAssets}/>}
+        {view==="admin"&&userRole!=='admin'&&<div style={{padding:60,textAlign:"center",color:"#475569"}}>Admin access required.</div>}
+      </main>
+    </div>
+  );
+};
+
+
+export { App };
