@@ -3,8 +3,8 @@
 // POST /api/set-role  { uid, role } -> { ok: true }
 //
 // Caller must be a signed-in user with role=admin custom claim.
-// Role may only be set to 'editor' or 'viewer' via this endpoint —
-// admin role is bootstrap-only (see /api/bootstrap-admin).
+// Role may only be set to 'editor', 'viewer', or 'dataEntry' via this
+// endpoint — admin role is bootstrap-only (see /api/bootstrap-admin).
 
 const admin = require('firebase-admin');
 
@@ -66,8 +66,8 @@ module.exports = async (req, res) => {
         email: u.email || '',
         role: u.customClaims?.role || null,
       }));
-      // Sort: admin first, then editor, then viewer, then unset; alphabetical within group
-      const order = { admin: 0, editor: 1, viewer: 2 };
+      // Sort: admin first, then editor, then viewer, then dataEntry, then unset; alphabetical within group
+      const order = { admin: 0, editor: 1, viewer: 2, dataEntry: 3 };
       users.sort((a, b) => {
         const oa = order[a.role] ?? 3;
         const ob = order[b.role] ?? 3;
@@ -86,8 +86,8 @@ module.exports = async (req, res) => {
   if (!uid || typeof uid !== 'string') {
     return res.status(400).json({ error: 'uid is required' });
   }
-  if (!['editor', 'viewer'].includes(role)) {
-    return res.status(400).json({ error: 'Role must be editor or viewer. Admin role cannot be set via this endpoint.' });
+  if (!['editor', 'viewer', 'dataEntry'].includes(role)) {
+    return res.status(400).json({ error: 'Role must be editor, viewer, or dataEntry. Admin role cannot be set via this endpoint.' });
   }
 
   try {

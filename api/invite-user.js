@@ -8,8 +8,8 @@
 //
 // Trust model: caller must be a signed-in user with role=admin custom claim,
 // verified server-side via their Firebase ID token. Only admins can invite users.
-// Role (editor or viewer) is set as a custom claim at invite time — the new user
-// has their role from the moment they first sign in.
+// Role (editor, viewer, or dataEntry) is set as a custom claim at invite time —
+// the new user has their role from the moment they first sign in.
 
 const admin = require('firebase-admin');
 
@@ -37,9 +37,11 @@ function getApp() {
 }
 
 function emailHTML(resetLink, role) {
-  const roleLabel = role === 'editor' ? 'Editor' : 'Viewer';
+  const roleLabel = role === 'editor' ? 'Editor' : role === 'dataEntry' ? 'Data Entry' : 'Viewer';
   const roleDesc = role === 'editor'
     ? 'You have been set up with <strong>Editor</strong> access — you can upload reports and edit asset data.'
+    : role === 'dataEntry'
+    ? 'You have been set up with <strong>Data Entry</strong> access — you can upload reports and enter lease/reserve data for the fleet.'
     : 'You have been set up with <strong>Viewer</strong> access — you can view fleet data and tech specs.';
   return `
   <div style="font-family:'Segoe UI',Arial,sans-serif;background:#0b1520;padding:32px;">
@@ -105,8 +107,8 @@ module.exports = async (req, res) => {
   if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: 'A valid email address is required.' });
   }
-  if (!['editor', 'viewer'].includes(role)) {
-    return res.status(400).json({ error: 'Role must be editor or viewer.' });
+  if (!['editor', 'viewer', 'dataEntry'].includes(role)) {
+    return res.status(400).json({ error: 'Role must be editor, viewer, or dataEntry.' });
   }
   const normalizedEmail = email.trim().toLowerCase();
 
