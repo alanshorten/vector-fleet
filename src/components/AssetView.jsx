@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { APUTab, EnginesTab, LandingGearTab, OverviewTab } from './AssetTabs';
 import { FlyForward, MaintenanceCalendarView } from './FlyForward';
-import { LeaseWizard } from './LeaseWizard';
 import { AvionicsTab, DocumentsTab, HistoryTab, SpecsTab } from './PhotosAndSpecs';
 import { isCFM } from '../lib/assetHelpers';
 import { db } from '../lib/db';
@@ -54,7 +53,6 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
   const[layer,setLayer]=useState(initialLayer||"details");
   const[tab,setTab]=useState("overview");
   const[shareOpen,setShareOpen]=useState(false);
-  const[leaseWizardOpen,setLeaseWizardOpen]=useState(false);
   // Data Entry sees Details only (raw inputs, no financial outputs) — matches
   // the four-role model's Nav visibility table (VECTORIQ_ROADMAP.md §7a).
   const canSeeAdvanced=!!userRole&&userRole!=='dataEntry';
@@ -87,13 +85,12 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
         </div>
         <div className="flab g12 asset-header-actions">
           <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>setShareOpen(true)}>🔗 Share</button>
-          {canEnterLeaseData&&<button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>setLeaseWizardOpen(true)}>📄 Lease</button>}
           <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={genSpec}>📋 Generate Tech Spec</button>
         </div>
       </div>
       <div style={{display:"flex",borderBottom:"2px solid #1e3048",marginBottom:16,gap:2,overflowX:"auto",whiteSpace:"nowrap",WebkitOverflowScrolling:"touch"}}>
         {LAYERS.map(([v,l])=>(
-          <button key={v} className={`tab-btn${layer===v?" active":""}`} style={{flexShrink:0}} onClick={()=>setLayer(v)}>{l}</button>
+          <button key={v} className={`tab-btn layer-tab-btn${layer===v?" active":""}`} style={{flexShrink:0}} onClick={()=>setLayer(v)}>{l}</button>
         ))}
       </div>
 
@@ -101,7 +98,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
         <>
           <div style={{display:"flex",borderBottom:"1px solid #1e3048",marginBottom:20,gap:2,overflowX:"auto",whiteSpace:"nowrap",WebkitOverflowScrolling:"touch"}}>
             {["overview","specs","engines","landing gear","apu","avionics","history","documents"].map(t=>(
-              <button key={t} className={`tab-btn${tab===t?" active":""}`} style={{flexShrink:0,fontSize:12}} onClick={()=>setTab(t)}>{t}</button>
+              <button key={t} className={`tab-btn${tab===t?" active":""}`} style={{flexShrink:0,fontSize:10}} onClick={()=>setTab(t)}>{t}</button>
             ))}
           </div>
           {tab==="overview"&&<OverviewTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
@@ -115,7 +112,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
         </>
       )}
       {layer==="calendar"&&canSeeAdvanced&&<MaintenanceCalendarView asset={asset}/>}
-      {layer==="financials"&&canSeeAdvanced&&<FlyForward asset={asset}/>}
+      {layer==="financials"&&canSeeAdvanced&&<FlyForward asset={asset} saveAsset={saveAsset} notify={notify} canEnterLeaseData={canEnterLeaseData}/>}
       {layer==="scenarios"&&canSeeAdvanced&&(
         <div className="card" style={{padding:24,textAlign:"center"}}>
           <div style={{fontSize:14,fontWeight:700,color:"#e2e8f0",marginBottom:8}}>Scenarios</div>
@@ -123,7 +120,6 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
         </div>
       )}
       {shareOpen&&<ShareModal asset={asset} notify={notify} onClose={()=>setShareOpen(false)}/>}
-      {leaseWizardOpen&&<LeaseWizard asset={asset} saveAsset={saveAsset} notify={notify} onClose={()=>setLeaseWizardOpen(false)}/>}
     </div>
   );
 };

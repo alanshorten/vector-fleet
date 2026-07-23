@@ -1,7 +1,75 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PotNumInput } from './AssetView';
+import { LeaseWizard } from './LeaseWizard';
 import { db } from '../lib/db';
 import { FF_COLORS, buildFlyForwardProjection } from '../lib/flyForwardHelpers';
+
+const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function colorForCode(code) {
+  return FF_COLORS[(code || "").replace(/-/g, "")] || "#64748b";
+}
+
+function MaintenanceCalendarGrid({ events }) {
+  const [hover, setHover] = useState(null); // {year, month, evts, x, y}
+  if (!events.length) return null;
+
+  const byYear = {};
+  events.forEach(evt => {
+    const y = evt.date.getFullYear();
+    const m = evt.date.getMonth();
+    byYear[y] = byYear[y] || Array.from({ length: 12 }, () => []);
+    byYear[y][m].push(evt);
+  });
+  const years = Object.keys(byYear).map(Number).sort((a, b) => a - b);
+
+  return (
+    <div className="card" style={{ padding: 16, marginBottom: 16, position: "relative" }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Calendar Overview</div>
+      {years.map(year => (
+        <div key={year} style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 6 }}>{year}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 4 }}>
+            {MONTH_LABELS.map((label, m) => {
+              const evts = byYear[year][m];
+              return (
+                <div key={m}
+                  onMouseEnter={e => evts.length && setHover({ year, month: m, evts, x: e.currentTarget.offsetLeft, y: e.currentTarget.offsetTop })}
+                  onMouseLeave={() => setHover(null)}
+                  style={{ border: "1px solid #1e3048", borderRadius: 6, padding: "8px 4px", textAlign: "center", cursor: evts.length ? "pointer" : "default", background: evts.length ? "#0d1622" : "transparent" }}>
+                  <div style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>{label}</div>
+                  {evts.length > 0 && (
+                    <div style={{ display: "flex", justifyContent: "center", gap: 2, flexWrap: "wrap" }}>
+                      {evts.slice(0, 3).map((e, i) => (
+                        <span key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: colorForCode(e.code), display: "inline-block" }}/>
+                      ))}
+                      {evts.length > 3 && <span style={{ fontSize: 8, color: "#94a3b8" }}>+{evts.length - 3}</span>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      {hover && (
+        <div style={{ position: "absolute", top: hover.y + 40, left: Math.min(hover.x, 700), zIndex: 20, background: "#111f30", border: "1px solid #2d3f55", borderRadius: 8, padding: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.4)", minWidth: 200, pointerEvents: "none" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", marginBottom: 6 }}>{MONTH_LABELS[hover.month]} {hover.year}</div>
+          {hover.evts.map((e, i) => (
+            <div key={i} style={{ marginBottom: i < hover.evts.length - 1 ? 8 : 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: colorForCode(e.code), display: "inline-block", marginRight: 6 }}/>
+                {e.code} — {e.label}
+              </div>
+              <div style={{ fontSize: 11, color: "#94a3b8" }}>{e.date.toISOString().slice(0, 10)}{e.grounding ? ` · grounds ${e.durationWeeks}wk` : ""}</div>
+              {e.cost && <div style={{ fontSize: 11, color: "#64748b" }}>${Math.round(e.cost.projectedCostLow).toLocaleString()}–${Math.round(e.cost.projectedCostHigh).toLocaleString()}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function MiniLineChart({ labels, datasets, height }) {
   const canvasRef = useRef(null);
@@ -106,7 +174,7 @@ function FFPotCard({ projection, color, anchored }) {
   );
 };
 
-function FlyForward({ asset }) {
+function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
   const [loading, setLoading] = useState(true);
   const [lease, setLease] = useState(null);
   const [reserveDocs, setReserveDocs] = useState([]);
@@ -115,15 +183,7 @@ function FlyForward({ asset }) {
   const [seasonalityProfile, setSeasonalityProfile] = useState(null);
   const [costProjections, setCostProjections] = useState([]);
   const [loadError, setLoadError] = useState(null);
-  const [showSeasonality, setShowSeasonality] = useState(false);
-
-  // Lightweight, seasonality-only refresh — avoids re-running the full
-  // load effect (and re-arming the monthly snapshot effect) just to
-  // pick up a saved profile edit.
-  const reloadSeasonality = useCallback(async () => {
-    const seasonProfile = await db.getSeasonalityProfile(asset.id).catch(() => null);
-    setSeasonalityProfile(seasonProfile);
-  }, [asset.id]);
+  const [leaseWizardOpen, setLeaseWizardOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -203,8 +263,10 @@ function FlyForward({ asset }) {
       <div style={{ animation: "fadeIn 0.2s ease" }}>
         <div className="card" style={{ padding: 24, textAlign: "center" }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>No active lease on this asset</div>
-          <div style={{ fontSize: 12, color: "#94a3b8" }}>Fly-Forward needs a lease and reserve pot data to project against. Set one up via the "📄 Lease" button on this asset (admin/editor only).</div>
+          <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: canEnterLeaseData ? 16 : 0 }}>Fly-Forward needs a lease and reserve pot data to project against.{canEnterLeaseData ? "" : " Ask an Admin, Editor, or Data Entry user to set one up."}</div>
+          {canEnterLeaseData && <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 16px" }} onClick={() => setLeaseWizardOpen(true)}>📄 Set Up Lease</button>}
         </div>
+        {leaseWizardOpen && <LeaseWizard asset={asset} saveAsset={saveAsset} notify={notify} onClose={() => setLeaseWizardOpen(false)}/>}
       </div>
     );
   }
@@ -238,14 +300,12 @@ function FlyForward({ asset }) {
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
-      <div className="flab g12" style={{ marginBottom: 16, justifyContent: "flex-end" }}>
-        <button className="btn btn-ghost" onClick={() => setShowSeasonality(s => !s)}>{showSeasonality ? "Hide" : "🌤 Edit"} Seasonality Profile</button>
-      </div>
-
-      {showSeasonality && (
-        <SeasonalityProfileEditor asset={asset} profile={seasonalityProfile} onSaved={reloadSeasonality}/>
+      {canEnterLeaseData && (
+        <div className="flab g12" style={{ marginBottom: 16, justifyContent: "flex-end" }}>
+          <button className="btn btn-ghost" onClick={() => setLeaseWizardOpen(true)}>📄 Edit Lease</button>
+        </div>
       )}
-
+      {leaseWizardOpen && <LeaseWizard asset={asset} saveAsset={saveAsset} notify={notify} onClose={() => setLeaseWizardOpen(false)}/>}
       <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Fly-Forward — MSN {asset.msn}</div>
         <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
@@ -312,6 +372,8 @@ function MaintenanceCalendarView({ asset }) {
   const [costProjections, setCostProjections] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [busy, setBusy] = useState(null);
+  const [showSeasonality, setShowSeasonality] = useState(false);
+  const [expanded, setExpanded] = useState(null); // key of the one event row currently expanded for editing
 
   const reload = useCallback(async () => {
     const [util, leaseData, reserves, schedEvts, seasonProfile, shopVisits] = await Promise.all([
@@ -415,10 +477,18 @@ function MaintenanceCalendarView({ asset }) {
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
+      <div className="flab g12" style={{ marginBottom: 16, justifyContent: "flex-end" }}>
+        <button className="btn btn-ghost" onClick={() => setShowSeasonality(s => !s)}>{showSeasonality ? "Hide" : "🌤 Edit"} Seasonality Profile</button>
+      </div>
+
+      {showSeasonality && (
+        <SeasonalityProfileEditor asset={asset} profile={seasonalityProfile} onSaved={reload}/>
+      )}
+
       <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Maintenance Calendar — MSN {asset.msn}</div>
         <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-          A financial-projection input, not a maintenance-tracking tool — dates are deliberately loose and self-correct against real utilisation reports over time. Accepting a seasonality suggestion or entering an airline-stated date is a suggestion you confirm here, never an automatic move. Seasonality Profile is now edited from the Fly-Forward page.
+          A financial-projection input, not a maintenance-tracking tool — dates are deliberately loose and self-correct against real utilisation reports over time. Accepting a seasonality suggestion or entering an airline-stated date is a suggestion you confirm here, never an automatic move.
         </div>
       </div>
 
@@ -430,59 +500,68 @@ function MaintenanceCalendarView({ asset }) {
         </div>
       )}
 
+      {maintenanceCal.events.length > 0 && <MaintenanceCalendarGrid events={maintenanceCal.events}/>}
+
       {maintenanceCal.events.map((evt) => {
         const key = `${evt.code}_${evt.dueCycle}`;
         const override = scheduledEvents.find(o => o.code === evt.code && o.dueCycle === evt.dueCycle);
         const sStyle = sourceStyle[evt.source] || sourceStyle.derived;
         const isRowBusy = busy === key;
+        const isExpanded = expanded === key;
         return (
-          <div key={key} className="card" style={{ padding: 14, marginBottom: 10, opacity: isRowBusy ? 0.6 : 1 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>
-                  {evt.code} — {evt.label}
-                  {evt.grounding && <span className="pill" style={{ marginLeft: 8, background: "#2a0e0e", color: "#f87171" }}>Grounds {evt.durationWeeks}wk</span>}
-                </div>
-                <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-                  {evt.date.toISOString().slice(0, 10)}{evt.beyondHorizon ? " (beyond lease horizon)" : ""}
-                  {evt.mergedWithCodes.length > 0 ? ` · absorbed with ${evt.mergedWithCodes.map(c => c.code).join(", ")}` : ""}
+          <div key={key} className="card" style={{ padding: 10, marginBottom: 6, opacity: isRowBusy ? 0.6 : 1 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: colorForCode(evt.code), flexShrink: 0 }}/>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {evt.code} — {evt.label}
+                    {evt.grounding && <span className="pill" style={{ marginLeft: 6, background: "#2a0e0e", color: "#f87171", fontSize: 10 }}>Grounds {evt.durationWeeks}wk</span>}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                    {evt.date.toISOString().slice(0, 10)}{evt.beyondHorizon ? " (beyond horizon)" : ""}
+                    {evt.cost && ` · $${Math.round(evt.cost.projectedCostLow).toLocaleString()}–$${Math.round(evt.cost.projectedCostHigh).toLocaleString()}`}
+                  </div>
                 </div>
               </div>
-              <span className="pill" style={{ background: sStyle.background, color: sStyle.color }}>{sStyle.label}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <span className="pill" style={{ background: sStyle.background, color: sStyle.color, fontSize: 10 }}>{sStyle.label}</span>
+                {evt.seasonalitySuggestion && !override && (
+                  <button className="btn btn-ghost" style={{ fontSize: 11, padding: "3px 8px" }} disabled={isRowBusy} onClick={() => acceptSeasonality(evt)}>💡 Accept</button>
+                )}
+                <button className="btn btn-ghost" style={{ fontSize: 11, padding: "3px 8px" }} onClick={() => setExpanded(isExpanded ? null : key)}>{isExpanded ? "Hide ▴" : "Edit ▾"}</button>
+              </div>
             </div>
 
-            {evt.cost && (
-              <div style={{ fontSize: 11, color: "#64748b", marginTop: 8 }}>
-                Cost band: ${Math.round(evt.cost.projectedCostLow).toLocaleString()} – ${Math.round(evt.cost.projectedCostHigh).toLocaleString()}
+            {isExpanded && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e3048" }}>
+                {evt.mergedWithCodes.length > 0 && (
+                  <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>Absorbed with {evt.mergedWithCodes.map(c => c.code).join(", ")}</div>
+                )}
+                {evt.seasonalitySuggestion && !override && (
+                  <div style={{ marginBottom: 10, padding: 10, background: "#0d1622", borderRadius: 6, fontSize: 11, color: "#a3e635" }}>
+                    💡 Suggested: {evt.seasonalitySuggestion.suggestedDate.toISOString().slice(0, 10)} — {evt.seasonalitySuggestion.reason}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
+                  {evt.grounding && (
+                    <label style={{ fontSize: 10, color: "#94a3b8" }}>Duration (weeks)
+                      <div><PotNumInput value={evt.durationWeeks} onCommit={v => saveDuration(evt, v)} width={70}/></div>
+                    </label>
+                  )}
+                  <label style={{ fontSize: 10, color: "#94a3b8" }}>Airline-stated date
+                    <div>
+                      <input type="date" defaultValue={override?.source === "airline-stated" ? override.scheduledDate : ""}
+                        onBlur={e => saveAirlineStated(evt, e.target.value)}
+                        style={{ fontSize: 12, padding: "4px 6px" }} disabled={isRowBusy}/>
+                    </div>
+                  </label>
+                  {override && (
+                    <button className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} disabled={isRowBusy} onClick={() => revertToDerived(evt)}>Revert to derived</button>
+                  )}
+                </div>
               </div>
             )}
-
-            {evt.seasonalitySuggestion && !override && (
-              <div style={{ marginTop: 10, padding: 10, background: "#0d1622", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 11, color: "#a3e635" }}>
-                  💡 Suggested: {evt.seasonalitySuggestion.suggestedDate.toISOString().slice(0, 10)} — {evt.seasonalitySuggestion.reason}
-                </div>
-                <button className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} disabled={isRowBusy} onClick={() => acceptSeasonality(evt)}>Accept</button>
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 16, alignItems: "flex-end", marginTop: 10, flexWrap: "wrap" }}>
-              {evt.grounding && (
-                <label style={{ fontSize: 10, color: "#94a3b8" }}>Duration (weeks)
-                  <div><PotNumInput value={evt.durationWeeks} onCommit={v => saveDuration(evt, v)} width={70}/></div>
-                </label>
-              )}
-              <label style={{ fontSize: 10, color: "#94a3b8" }}>Airline-stated date
-                <div>
-                  <input type="date" defaultValue={override?.source === "airline-stated" ? override.scheduledDate : ""}
-                    onBlur={e => saveAirlineStated(evt, e.target.value)}
-                    style={{ fontSize: 12, padding: "4px 6px" }} disabled={isRowBusy}/>
-                </div>
-              </label>
-              {override && (
-                <button className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} disabled={isRowBusy} onClick={() => revertToDerived(evt)}>Revert to derived</button>
-              )}
-            </div>
           </div>
         );
       })}
