@@ -297,7 +297,7 @@ const extract=async()=>{
   return(
     <div style={{maxWidth:860,margin:"0 auto"}}>
       <h1 style={{fontSize:20,color:"#C9A84C",fontWeight:700,marginBottom:6}}>Upload</h1>
-      <p style={{color:"#64748b",marginBottom:16,fontSize:13}}>Select report type, upload PDF or Excel, and TailiQ AI extracts the data for your review.</p>
+      <p style={{color:"#64748b",marginBottom:16,fontSize:13}}>Select report type, upload PDF or Excel, and TailiQ extracts the data for your review.</p>
       <div className="flab g8" style={{marginBottom:16}}>
         {[["util","📄 Utilisation Report",null],["llp","Engine LLP Sheet","engine"],["apu_llp","APU LLP Sheet","apu"],["lease","📑 Bulk Lease Import",null]].map(([v,l,icon])=>(
           <button key={v} onClick={()=>{setUploadType(v);setFile(null);setExtracted(null);setError(null);setDone(false);setInstructions("");setShowInstructions(false);setSheetNames([]);setSelectedSheet(null);setXlsxWorkbook(null);}}
@@ -335,7 +335,7 @@ const extract=async()=>{
                 <button className="btn btn-ghost" style={{fontSize:11}} onClick={()=>{setShowInstructions(false);setInstructions("");}}>✕ Clear instructions</button>
               </div>
             }
-            <button className="btn btn-gold" onClick={extract} disabled={extracting}>{extracting?"Extracting…":"Extract with AI"}</button>
+            <button className="btn btn-gold" onClick={extract} disabled={extracting}>{extracting?"Extracting…":"Extract"}</button>
           </div>
         )}
       </div>

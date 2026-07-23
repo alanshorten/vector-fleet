@@ -20,19 +20,19 @@ function GuideView(){
       ["Documents","Store document links (Google Drive URLs) with label and category for certificates, reports, and lease documents."],
     ]},
     {title:"Adding & Managing Assets",icon:"✈",content:[
-      ["Create from Upload","Go to Upload → Utilisation Report → select PDF or Excel → Extract with AI → review extracted data → Confirm & Save. If the MSN doesn't exist in the system, the asset is created automatically with all available data from the report."],
+      ["Create from Upload","Go to Upload → Utilisation Report → select PDF or Excel → Extract → review extracted data → Confirm & Save. If the MSN doesn't exist in the system, the asset is created automatically with all available data from the report."],
       ["Create via Email","Send a utilisation report PDF to maverick@reports.tailiq.app. The system extracts and processes it automatically. Low-severity reports apply immediately; high-severity reports (S/N change, delta mismatch, gap) are held in the Dashboard review queue."],
       ["Create Manually","Go to Admin → Assets → New Asset. Enter MSN (required) and other details. Asset is created with blank data ready to populate."],
       ["Edit Asset Details","Open asset → Overview, Engines, Landing Gear, or APU tab → Edit button. For specs, weights, photos, and check history use the Specs tab → Edit All."],
       ["Delete Asset","Admin → Assets → Delete button beside the asset."],
     ]},
     {title:"Uploading Reports",icon:"📤",content:[
-      ["Utilisation Report — Manual","Go to Upload → Utilisation Report. Select PDF or Excel. TailiQ AI extracts: airframe TSN/CSN/period FH/FC, engine model/S/N/TSN/CSN per position, APU S/N/TSN/CSN, landing gear P/N/S/N per position, and any titled component removals."],
+      ["Utilisation Report — Manual","Go to Upload → Utilisation Report. Select PDF or Excel. TailiQ extracts: airframe TSN/CSN/period FH/FC, engine model/S/N/TSN/CSN per position, APU S/N/TSN/CSN, landing gear P/N/S/N per position, and any titled component removals."],
       ["Utilisation Report — Email","Send the PDF to maverick@reports.tailiq.app. Processing is automatic — the same AI extraction runs server-side and the result appears in the app within seconds. High-severity warnings route to the Dashboard review queue instead of applying immediately."],
       ["Review Panel","Before saving a manual upload, review extracted data. Engine and APU S/Ns highlight amber with ⚠ if changed from the previous month. Engine CSN deltas show in green/amber/red. A delta verification banner confirms whether the period FC matches the calculated airframe CSN difference."],
       ["Delta Verification","Green banner = period FC matches calculated delta. Red banner = mismatch — review the source document before saving."],
       ["S/N Change — Engine Action","After saving, if an engine S/N has changed, an interactive prompt appears: At Shop (captures the removed engine's snapshot — S/N, TSN/CSN, date — and marks it as title engine), Permanent (confirms the new engine as the permanent fitment), or Engine Returned (clears the at-shop state when the original engine comes back). This decision can also be made later from the Engines tab."],
-      ["LLP Status Sheet","Go to Upload → Engine LLP Sheet. Select the PDF. TailiQ AI extracts all LLP descriptors, P/Ns, S/Ns, and FC remaining for both engines across the four module sections (FAN, HPC, HPT, LPT). Uploading replaces existing LLP data. The engine CSN at time of upload is saved as the reference point for the countdown."],
+      ["LLP Status Sheet","Go to Upload → Engine LLP Sheet. Select the PDF. TailiQ extracts all LLP descriptors, P/Ns, S/Ns, and FC remaining for both engines across the four module sections (FAN, HPC, HPT, LPT). Uploading replaces existing LLP data. The engine CSN at time of upload is saved as the reference point for the countdown."],
       ["LOPA","Go to Upload → LOPA. Select a PDF, use the crop tool to isolate the LOPA diagram, then save. The cropped image is stored in Cloudinary under the LOPA label and appears on its own page in the full aircraft tech spec."],
     ]},
     {title:"Lease & Reserve Setup",icon:"📜",content:[

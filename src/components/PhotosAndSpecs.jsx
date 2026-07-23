@@ -453,7 +453,7 @@ function SpecsQuickImport({asset,saveAsset,notify,open}){
   return(
     <div className="card" style={{padding:16,marginBottom:16,gridColumn:"1/-1"}}>
       {open&&<div>
-        <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>Upload a tech spec PDF, Excel sheet, or screenshot. TailiQ AI will extract Date of Manufacture, Operator, Weights, Check History, Specifications, Engine/APU Shop Visits, and Landing Gear Overhaul dates for review before saving.</div>
+        <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>Upload a tech spec PDF, Excel sheet, or screenshot. TailiQ will extract Date of Manufacture, Operator, Weights, Check History, Specifications, Engine/APU Shop Visits, and Landing Gear Overhaul dates for review before saving.</div>
         <div className="flab g8" style={{marginBottom:10}}>
           <input type="file" accept=".pdf,.xlsx,.xls,image/*" onChange={handleFile}/>
           <button className="btn btn-primary" disabled={!file||extracting} onClick={extract}>{extracting?"Extracting...":"Extract"}</button>
@@ -608,7 +608,8 @@ function AvionicsLRUUploader({onSaved,notify}){
   }
   return(
     <div className="card" style={{padding:14,marginTop:10}}>
-      <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6}}>Upload Avionics Spec (PDF)</div>
+      <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6}}>Upload Avionics Listing (PDF)</div>
+      <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>Upload an avionics listing (PDF). TailiQ will extract LRU descriptions and part numbers, grouped by ATA chapter, for review before saving.</div>
       <div className="flab g8">
         <input type="file" accept="application/pdf" onChange={e=>setFile(e.target.files?.[0]||null)} style={{fontSize:11,flex:1}}/>
         <button type="button" className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} disabled={!file||extracting} onClick={doExtract}>{extracting?"Extracting…":"Extract"}</button>
