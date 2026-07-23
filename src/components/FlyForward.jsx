@@ -106,7 +106,7 @@ function FFPotCard({ projection, color, anchored }) {
   );
 };
 
-function FlyForward({ asset, onBack, onMaintenanceCal }) {
+function FlyForward({ asset }) {
   const [loading, setLoading] = useState(true);
   const [lease, setLease] = useState(null);
   const [reserveDocs, setReserveDocs] = useState([]);
@@ -201,9 +201,6 @@ function FlyForward({ asset, onBack, onMaintenanceCal }) {
   if (!asset.currentLeaseId) {
     return (
       <div style={{ animation: "fadeIn 0.2s ease" }}>
-        <div className="flab g12" style={{ marginBottom: 16 }}>
-          <button className="btn btn-ghost" onClick={onBack}>← MSN {asset.msn}</button>
-        </div>
         <div className="card" style={{ padding: 24, textAlign: "center" }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>No active lease on this asset</div>
           <div style={{ fontSize: 12, color: "#94a3b8" }}>Fly-Forward needs a lease and reserve pot data to project against. Set one up via the "📄 Lease" button on this asset (admin/editor only).</div>
@@ -215,9 +212,6 @@ function FlyForward({ asset, onBack, onMaintenanceCal }) {
   if (loadError || !lease) {
     return (
       <div style={{ animation: "fadeIn 0.2s ease" }}>
-        <div className="flab g12" style={{ marginBottom: 16 }}>
-          <button className="btn btn-ghost" onClick={onBack}>← MSN {asset.msn}</button>
-        </div>
         <div className="card" style={{ padding: 24, textAlign: "center", color: "#f87171" }}>Could not load lease data for this asset.</div>
       </div>
     );
@@ -231,9 +225,6 @@ function FlyForward({ asset, onBack, onMaintenanceCal }) {
   if (projectionError) {
     return (
       <div style={{ animation: "fadeIn 0.2s ease" }}>
-        <div className="flab g12" style={{ marginBottom: 16 }}>
-          <button className="btn btn-ghost" onClick={onBack}>← MSN {asset.msn}</button>
-        </div>
         <div className="card" style={{ padding: 24, textAlign: "center", color: "#f87171" }}>
           Couldn't build the projection: {projectionError}
         </div>
@@ -247,12 +238,8 @@ function FlyForward({ asset, onBack, onMaintenanceCal }) {
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
-      <div className="flab g12" style={{ marginBottom: 16, justifyContent: "space-between" }}>
-        <button className="btn btn-ghost" onClick={onBack}>← MSN {asset.msn}</button>
-        <div className="flab g12">
-          <button className="btn btn-ghost" onClick={() => setShowSeasonality(s => !s)}>{showSeasonality ? "Hide" : "🌤 Edit"} Seasonality Profile</button>
-          {onMaintenanceCal && <button className="btn btn-ghost" onClick={onMaintenanceCal}>📅 Maintenance Calendar</button>}
-        </div>
+      <div className="flab g12" style={{ marginBottom: 16, justifyContent: "flex-end" }}>
+        <button className="btn btn-ghost" onClick={() => setShowSeasonality(s => !s)}>{showSeasonality ? "Hide" : "🌤 Edit"} Seasonality Profile</button>
       </div>
 
       {showSeasonality && (
@@ -315,7 +302,7 @@ function FlyForward({ asset, onBack, onMaintenanceCal }) {
   );
 };
 
-function MaintenanceCalendarView({ asset, onBack }) {
+function MaintenanceCalendarView({ asset }) {
   const [loading, setLoading] = useState(true);
   const [lease, setLease] = useState(null);
   const [reserveDocs, setReserveDocs] = useState([]);
@@ -357,9 +344,6 @@ function MaintenanceCalendarView({ asset, onBack }) {
   if (!asset.currentLeaseId || loadError || !lease) {
     return (
       <div style={{ animation: "fadeIn 0.2s ease" }}>
-        <div className="flab g12" style={{ marginBottom: 16 }}>
-          <button className="btn btn-ghost" onClick={onBack}>← Fly-Forward</button>
-        </div>
         <div className="card" style={{ padding: 24, textAlign: "center", color: !asset.currentLeaseId ? "#94a3b8" : "#f87171" }}>
           {!asset.currentLeaseId ? "No active lease on this asset." : "Could not load maintenance calendar data."}
         </div>
@@ -372,9 +356,6 @@ function MaintenanceCalendarView({ asset, onBack }) {
   if (projectionError || !maintenanceCal) {
     return (
       <div style={{ animation: "fadeIn 0.2s ease" }}>
-        <div className="flab g12" style={{ marginBottom: 16 }}>
-          <button className="btn btn-ghost" onClick={onBack}>← Fly-Forward</button>
-        </div>
         <div className="card" style={{ padding: 24, textAlign: "center", color: "#f87171" }}>Couldn't build the calendar: {projectionError}</div>
       </div>
     );
@@ -434,10 +415,6 @@ function MaintenanceCalendarView({ asset, onBack }) {
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
-      <div className="flab g12" style={{ marginBottom: 16 }}>
-        <button className="btn btn-ghost" onClick={onBack}>← Fly-Forward</button>
-      </div>
-
       <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Maintenance Calendar — MSN {asset.msn}</div>
         <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>

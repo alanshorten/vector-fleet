@@ -282,10 +282,11 @@ function InviteUserCard({notify}){
         <select value={role} onChange={e=>setRole(e.target.value)} style={{background:"#0d1c2c",color:"#e2e8f0",border:"1px solid #2d3f55",borderRadius:6,padding:"8px 12px",fontFamily:"inherit",fontSize:13,cursor:"pointer",width:120,flexShrink:0}}>
           <option value="editor">Editor</option>
           <option value="viewer">Viewer</option>
+          <option value="dataEntry">Data Entry</option>
         </select>
         <button className="btn btn-gold" onClick={invite} disabled={busy}>{busy?"Sending…":"Send Invite"}</button>
       </div>
-      <p style={{fontSize:11,color:"#475569",margin:0}}>Editor — can upload reports and edit asset data. Viewer — read-only access.</p>
+      <p style={{fontSize:11,color:"#475569",margin:0}}>Editor — full access except user management. Viewer — sees everything including financials, edits nothing. Data Entry — uploads and lease/reserve entry only, no financial views.</p>
     </div>
   );
 };
@@ -322,7 +323,7 @@ function UsersCard({notify}){
     }catch(e){notify(e.message||"Could not update role","error");}
     setBusy(null);
   };
-  const roleColour={admin:"#C9A84C",editor:"#34d399",viewer:"#94a3b8"};
+  const roleColour={admin:"#C9A84C",editor:"#34d399",viewer:"#94a3b8",dataEntry:"#60a5fa"};
   if(loading)return<p style={{color:"#475569",fontSize:13}}>Loading users…</p>;
   if(!users.length)return<p style={{color:"#475569",fontSize:13}}>No users found.</p>;
   return(
@@ -339,6 +340,7 @@ function UsersCard({notify}){
                   style={{background:"#0d1c2c",color:"#e2e8f0",border:"1px solid #2d3f55",borderRadius:6,padding:"5px 10px",fontFamily:"inherit",fontSize:12,cursor:"pointer"}}>
                   <option value="editor">Editor</option>
                   <option value="viewer">Viewer</option>
+                  <option value="dataEntry">Data Entry</option>
                 </select>
               )}
               {u.role==="admin"&&<span style={{fontSize:11,color:"#475569"}}>Protected</span>}
