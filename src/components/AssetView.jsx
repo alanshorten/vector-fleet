@@ -7,6 +7,20 @@ import { db } from '../lib/db';
 import { extractLLPSheet } from '../lib/extraction';
 import { getDefaultDisclaimer, getTechSpecLogo } from '../lib/techSpec';
 
+function NavPill({items,activeValue,onSelect,theme="dark"}){
+  const isLight=theme==="light";
+  return(
+    <nav className="app-nav-pill" style={{display:"inline-flex",alignItems:"center",gap:4,background:isLight?"#f1f5f9":"rgba(13,25,37,0.8)",border:`1px solid ${isLight?"#e2e8f0":"#1e3348"}`,borderRadius:8,padding:"5px 6px",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+      {items.map(([v,l])=>(
+        <button key={v} className="app-nav-btn" onClick={()=>onSelect(v)}
+          style={{padding:"8px 16px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all 0.15s",background:activeValue===v?"#1a3050":"transparent",color:activeValue===v?"#C9A84C":(isLight?"#475569":"#6a8aaa"),letterSpacing:"0.02em",whiteSpace:"nowrap"}}>
+          {l}
+        </button>
+      ))}
+    </nav>
+  );
+};
+
 function LLPExtractor({kind,label,onApply,notify}){
   const[file,setFile]=useState(null);
   const[extracting,setExtracting]=useState(false);
@@ -75,27 +89,20 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
   };
   return(
     <div style={{animation:"fadeIn 0.2s ease"}}>
-      <div className="flab g12 asset-header-row" style={{marginBottom:16}}>
-        <div className="flab g12 asset-header-top" style={{flex:1}}>
+      <div className="flab g12 asset-header-row" style={{marginBottom:24,justifyContent:"space-between",flexWrap:"wrap"}}>
+        <div className="flab g12 asset-header-top">
           <button className="btn btn-ghost" onClick={onBack}>← Fleet</button>
           <div>
             <h1 style={{fontSize:18,color:"#C9A84C",fontWeight:700}}>MSN {asset.msn} — {asset.registration||"—"}</h1>
             <p style={{color:"#475569",fontSize:12}}>{asset.model} · {asset.operator||"—"}</p>
           </div>
         </div>
+        <NavPill items={LAYERS} activeValue={layer} onSelect={setLayer}/>
         <div className="flab g12 asset-header-actions">
           <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>setShareOpen(true)}>🔗 Share</button>
           <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={genSpec}>📋 Generate Tech Spec</button>
         </div>
       </div>
-      <nav style={{display:"inline-flex",alignItems:"center",gap:4,background:"rgba(13,25,37,0.8)",border:"1px solid #1e3348",borderRadius:8,padding:"5px 6px",marginBottom:24,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
-        {LAYERS.map(([v,l])=>(
-          <button key={v} onClick={()=>setLayer(v)}
-            style={{padding:"8px 18px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all 0.15s",background:layer===v?"#1a3050":"transparent",color:layer===v?"#C9A84C":"#6a8aaa",letterSpacing:"0.03em",whiteSpace:"nowrap"}}>
-            {l}
-          </button>
-        ))}
-      </nav>
 
       {layer==="details"&&(
         <>
@@ -402,4 +409,4 @@ function PotRow({ pot, onField, onSave, onAcknowledge }) {
 };
 
 
-export { AssetView, LLPExtractor, PotNumInput, PotRow, ShareModal };
+export { AssetView, LLPExtractor, NavPill, PotNumInput, PotRow, ShareModal };

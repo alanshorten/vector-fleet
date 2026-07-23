@@ -450,9 +450,11 @@ function SpecsQuickImport({asset,saveAsset,notify,open}){
     setExtracted(null);setFile(null);
   };
 
+  if(!open)return null;
+
   return(
     <div className="card" style={{padding:16,marginBottom:16,gridColumn:"1/-1"}}>
-      {open&&<div>
+      <div>
         <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>Upload a tech spec PDF, Excel sheet, or screenshot. TailiQ will extract Date of Manufacture, Operator, Weights, Check History, Specifications, Engine/APU Shop Visits, and Landing Gear Overhaul dates for review before saving.</div>
         <div className="card" style={{padding:20,textAlign:"center",marginBottom:10,border:"2px dashed #1e3048"}}>
           <div style={{fontSize:28,marginBottom:8}}>📁</div>
@@ -541,7 +543,7 @@ function SpecsQuickImport({asset,saveAsset,notify,open}){
             </div>
           );
         })()}
-      </div>}
+      </div>
     </div>
   );
 };
