@@ -706,9 +706,10 @@ function AvionicsTab({asset,isAdmin,saveAsset,notify}){
   const totalRows=(d.rows||[]).length;
   return(
     <div className="card" style={{padding:20}}>
+      <div className="section-title" style={{marginBottom:14}}>Avionics LRU List</div>
       <div className="flj" style={{marginBottom:14}}>
-        <div className="section-title" style={{margin:0}}>Avionics LRU List</div>
-        {isAdmin&&(!editing?<div className="flab g8"><button className="btn btn-ghost" onClick={()=>setUploaderOpen(!uploaderOpen)}>Upload Spec {uploaderOpen?"▾":"▸"}</button><button className="btn btn-ghost" onClick={startEdit}>Edit</button></div>
+        {isAdmin&&(!editing?<button className="btn btn-ghost" onClick={()=>setUploaderOpen(!uploaderOpen)}>Upload Spec {uploaderOpen?"▾":"▸"}</button>:<span/>)}
+        {isAdmin&&(!editing?<button className="btn btn-ghost" onClick={startEdit}>Edit</button>
           :<div className="flab g8"><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save</button></div>)}
       </div>
       {isAdmin&&uploaderOpen&&!editing&&<AvionicsLRUUploader onSaved={onUploaderSaved} notify={notify}/>}

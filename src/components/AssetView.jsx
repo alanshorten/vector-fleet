@@ -10,7 +10,7 @@ import { getDefaultDisclaimer, getTechSpecLogo } from '../lib/techSpec';
 function NavPill({items,activeValue,onSelect,theme="dark"}){
   const isLight=theme==="light";
   return(
-    <nav className="app-nav-pill" style={{display:"inline-flex",alignItems:"center",gap:4,background:isLight?"#f1f5f9":"rgba(13,25,37,0.8)",border:`1px solid ${isLight?"#e2e8f0":"#1e3348"}`,borderRadius:8,padding:"5px 6px",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+    <nav className="app-nav-pill" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",gap:4,background:isLight?"#f1f5f9":"rgba(13,25,37,0.8)",border:`1px solid ${isLight?"#e2e8f0":"#1e3348"}`,borderRadius:8,padding:"5px 6px",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
       {items.map(([v,l])=>(
         <button key={v} className="app-nav-btn" onClick={()=>onSelect(v)}
           style={{padding:"8px 16px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all 0.15s",background:activeValue===v?"#1a3050":"transparent",color:activeValue===v?"#C9A84C":(isLight?"#475569":"#6a8aaa"),letterSpacing:"0.02em",whiteSpace:"nowrap"}}>
@@ -97,8 +97,8 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
             <p style={{color:"#475569",fontSize:12}}>{asset.model} · {asset.operator||"—"}</p>
           </div>
         </div>
-        <NavPill items={LAYERS} activeValue={layer} onSelect={setLayer}/>
         <div className="flab g12 asset-header-actions">
+          <NavPill items={LAYERS} activeValue={layer} onSelect={setLayer}/>
           <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>setShareOpen(true)}>🔗 Share</button>
           <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={genSpec}>📋 Generate Tech Spec</button>
         </div>
