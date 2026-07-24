@@ -20,70 +20,53 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
       :<div style={{fontSize:13,fontWeight:500,color:isEmpty(val)?"#475569":"#e2e8f0",fontStyle:isEmpty(val)?"italic":"normal"}}>{type==="mmyyyy"?fmtMMYYYY(val):val||"Not entered"}</div>}
     </div>;
   };
-  // Status calcs
-  const llpVals=(asset.engines||[]).map(e=>{const ll=lowestLimiter(e);return{label:`Engine #${e.position||1}`,val:ll,csn:e.currentFC};});
-  if(asset.apu?.llps?.length){const ll=Math.min(...asset.apu.llps.map(l=>calcLLPRem(l,asset.apu.currentFC)));llpVals.push({label:"APU",val:ll});}
+  // Status calcs — grouped per-component (Engine #N / APU), each carrying its own limiter + TSN + CSN
+  const engineBlocks=(asset.engines||[]).map(e=>({
+    label:`Engine #${e.position||1}`,
+    idLabel:`ESN ${e.sn||"TBD"}`,
+    val:lowestLimiter(e),
+    tsn:e.currentFH,
+    csn:e.currentFC,
+  }));
+  const apuBlock=asset.apu?{
+    label:"APU",
+    idLabel:`S/N ${asset.apu.sn||"TBD"}`,
+    val:asset.apu.llps?.length?Math.min(...asset.apu.llps.map(l=>calcLLPRem(l,asset.apu.currentFC))):null,
+    tsn:asset.apu.currentFH,
+    csn:asset.apu.currentFC,
+  }:null;
+  const componentBlocks=apuBlock?[...engineBlocks,apuBlock]:engineBlocks;
   const lgItems=[["NLG",asset.landingGear?.nose],["LH",asset.landingGear?.left],["RH",asset.landingGear?.right]];
   return(
     <div className="grid2">
-      <div className="card" style={{padding:18}}>
-        <div className="flj" style={{marginBottom:12}}>
-          <div className="section-title" style={{margin:0}}>Asset Details</div>
-          {!isAdmin?null:!editing?<button className="btn btn-ghost" onClick={startEdit}>Edit</button>:<div className="flab g8"><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save</button></div>}
-        </div>
-        <div className="grid2" style={{gap:"0 16px"}}>
-          <Field label="MSN" path="msn"/><Field label="Registration" path="registration"/>
-          <div className="form-group">
-            <label className="form-label" style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-              <span>{d.operatorLabel||"Current Operator"}</span>
-              {editing&&isAdmin&&<button type="button" onClick={()=>set("operatorLabel",d.operatorLabel==="Previous Operator"?"Current Operator":"Previous Operator")} style={{fontSize:9,fontWeight:700,padding:"1px 7px",borderRadius:3,border:"1px solid #C9A84C",background:"none",color:"#C9A84C",cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",flexShrink:0}}>{"→ "+(d.operatorLabel==="Previous Operator"?"Current":"Previous")}</button>}
-            </label>
-            {editing&&isAdmin?<input type="text" defaultValue={d.operator||""} onBlur={e=>set("operator",e.target.value)} className={isEmpty(d.operator)?"amber":""}/>:<div style={{fontSize:13,fontWeight:500,color:isEmpty(d.operator)?"#475569":"#e2e8f0",fontStyle:isEmpty(d.operator)?"italic":"normal"}}>{d.operator||"Not entered"}</div>}
-          </div>
-          <Field label="Model" path="model"/>
-          <Field label="Manufacturer" path="manufacturer"/><Field label="Date of Manufacture (MM/YYYY)" path="dom" type="mmyyyy"/>
-        </div>
-        <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid #1e3048"}}>
-          <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Current Airframe</div>
-          <div className="grid2" style={{gap:8}}>
-            {[["AIRFRAME TSN",fmtHHMM(af.currentFH)],["AIRFRAME CSN",af.currentFC?.toLocaleString()||"—"]].map(([l,v])=>(
-              <div key={l} style={{background:"#070f18",border:"1px solid #1B3A6B",borderRadius:8,padding:"12px 14px"}}>
-                <div style={{fontSize:9,color:"#475569",fontWeight:700,letterSpacing:"0.08em"}}>{l}</div>
-                <div style={{fontSize:20,fontWeight:700,color:"#C9A84C",fontFamily:"monospace",marginTop:4}}>{v}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
         <div className="card" style={{padding:18}}>
-          <div className="section-title">Status Summary</div>
-          <div style={{marginBottom:12}}>
-            <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6}}>LLP Limiters</div>
-            {llpVals.map(({label,val})=>{
-              const col=val===null?"#475569":val<1000?"#f87171":val<3000?"#fbbf24":"#34d399";
-              const bg=val===null?"transparent":val<1000?"#2a0e0e":val<3000?"#2a1f0a":"#0d2818";
-              return<div key={label} className="flj" style={{padding:"5px 0",borderBottom:"1px solid #0f2030"}}>
-                <span style={{fontSize:12,color:"#94a3b8"}}>{label}</span>
-                <span className="pill" style={{background:bg,color:col,fontSize:11}}>{val!==null?`${val.toLocaleString()} FC`:"No data"}</span>
-              </div>;
-            })}
-            {llpVals.length===0&&<div style={{fontSize:12,color:"#475569",fontStyle:"italic"}}>No LLP data</div>}
+          <div className="flj" style={{marginBottom:12}}>
+            <div className="section-title" style={{margin:0}}>Asset Details</div>
+            {!isAdmin?null:!editing?<button className="btn btn-ghost" onClick={startEdit}>Edit</button>:<div className="flab g8"><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save</button></div>}
           </div>
-          <div>
-            <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6}}>Landing Gear Overhauls</div>
-            {lgItems.map(([label,g])=>{
-              const days=daysFromNow(g?.nextDue);
-              const col=days===null?"#475569":days<0?"#f87171":days<365?"#fbbf24":"#34d399";
-              const bg=days===null?"transparent":days<0?"#2a0e0e":days<365?"#2a1f0a":"#0a1a0a";
-              return<div key={label} className="flj" style={{padding:"5px 0",borderBottom:"1px solid #0f2030"}}>
-                <span style={{fontSize:12,color:"#94a3b8"}}>{label}</span>
-                <span className="pill" style={{background:bg,color:col,fontSize:11}}>{g?.nextDue?`${fmtDate(g.nextDue)}${days!==null?` (${days<0?Math.abs(days)+"d overdue":days+"d"})`:""}`:"Not entered"}</span>
-              </div>;
-            })}
+          <div className="grid2" style={{gap:"0 16px"}}>
+            <Field label="MSN" path="msn"/><Field label="Registration" path="registration"/>
+            <div className="form-group">
+              <label className="form-label" style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                <span>{d.operatorLabel||"Current Operator"}</span>
+                {editing&&isAdmin&&<button type="button" onClick={()=>set("operatorLabel",d.operatorLabel==="Previous Operator"?"Current Operator":"Previous Operator")} style={{fontSize:9,fontWeight:700,padding:"1px 7px",borderRadius:3,border:"1px solid #C9A84C",background:"none",color:"#C9A84C",cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",flexShrink:0}}>{"→ "+(d.operatorLabel==="Previous Operator"?"Current":"Previous")}</button>}
+              </label>
+              {editing&&isAdmin?<input type="text" defaultValue={d.operator||""} onBlur={e=>set("operator",e.target.value)} className={isEmpty(d.operator)?"amber":""}/>:<div style={{fontSize:13,fontWeight:500,color:isEmpty(d.operator)?"#475569":"#e2e8f0",fontStyle:isEmpty(d.operator)?"italic":"normal"}}>{d.operator||"Not entered"}</div>}
+            </div>
+            <Field label="Model" path="model"/>
+            <Field label="Manufacturer" path="manufacturer"/><Field label="Date of Manufacture (MM/YYYY)" path="dom" type="mmyyyy"/>
           </div>
-          <div style={{marginTop:10,paddingTop:8,borderTop:"1px solid #1e3048"}}>
-            <div className="flj"><span style={{fontSize:11,color:"#475569"}}>Last Report</span><span style={{fontSize:11,fontWeight:600,color:asset._lastPeriod?"#e2e8f0":"#f87171"}}>{asset._lastPeriod||"None"}</span></div>
+          <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid #1e3048"}}>
+            <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Current Airframe</div>
+            <div className="grid2" style={{gap:8}}>
+              {[["AIRFRAME TSN",fmtHHMM(af.currentFH)],["AIRFRAME CSN",af.currentFC?.toLocaleString()||"—"]].map(([l,v])=>(
+                <div key={l} style={{background:"#070f18",border:"1px solid #1B3A6B",borderRadius:8,padding:"12px 14px"}}>
+                  <div style={{fontSize:9,color:"#475569",fontWeight:700,letterSpacing:"0.08em"}}>{l}</div>
+                  <div style={{fontSize:20,fontWeight:700,color:"#C9A84C",fontFamily:"monospace",marginTop:4}}>{v}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
         <div className="card" style={{padding:18}}>
@@ -98,6 +81,46 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
               </div>
             </div>
           ))}
+        </div>
+      </div>
+      <div className="card" style={{padding:18}}>
+        <div className="section-title">Status Summary</div>
+        {componentBlocks.map(({label,idLabel,val,tsn,csn})=>{
+          const col=val===null?"#475569":val<1000?"#f87171":val<3000?"#fbbf24":"#34d399";
+          const bg=val===null?"transparent":val<1000?"#2a0e0e":val<3000?"#2a1f0a":"#0d2818";
+          return(
+            <div key={label} style={{marginBottom:14,paddingBottom:14,borderBottom:"1px solid #1e3048"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#94a3b8",marginBottom:6}}>{label} · {idLabel}</div>
+              <div className="flj" style={{padding:"3px 0"}}>
+                <span style={{fontSize:12,color:"#64748b"}}>Limiter</span>
+                <span className="pill" style={{background:bg,color:col,fontSize:11}}>{val!==null?`${val.toLocaleString()} FC`:"No data"}</span>
+              </div>
+              <div className="flj" style={{padding:"3px 0"}}>
+                <span style={{fontSize:12,color:"#64748b"}}>TSN</span>
+                <span style={{fontSize:12,fontFamily:"monospace",color:"#e2e8f0"}}>{fmtHHMM(tsn)}</span>
+              </div>
+              <div className="flj" style={{padding:"3px 0"}}>
+                <span style={{fontSize:12,color:"#64748b"}}>CSN</span>
+                <span style={{fontSize:12,fontFamily:"monospace",color:"#e2e8f0"}}>{csn!=null?csn.toLocaleString():"—"}</span>
+              </div>
+            </div>
+          );
+        })}
+        {componentBlocks.length===0&&<div style={{fontSize:12,color:"#475569",fontStyle:"italic",marginBottom:14}}>No engine/APU data</div>}
+        <div>
+          <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6}}>Landing Gear Overhauls</div>
+          {lgItems.map(([label,g])=>{
+            const days=daysFromNow(g?.nextDue);
+            const col=days===null?"#475569":days<0?"#f87171":days<365?"#fbbf24":"#34d399";
+            const bg=days===null?"transparent":days<0?"#2a0e0e":days<365?"#2a1f0a":"#0a1a0a";
+            return<div key={label} className="flj" style={{padding:"5px 0",borderBottom:"1px solid #0f2030"}}>
+              <span style={{fontSize:12,color:"#94a3b8"}}>{label}</span>
+              <span className="pill" style={{background:bg,color:col,fontSize:11}}>{g?.nextDue?`${fmtDate(g.nextDue)}${days!==null?` (${days<0?Math.abs(days)+"d overdue":days+"d"})`:""}`:"Not entered"}</span>
+            </div>;
+          })}
+        </div>
+        <div style={{marginTop:10,paddingTop:8,borderTop:"1px solid #1e3048"}}>
+          <div className="flj"><span style={{fontSize:11,color:"#475569"}}>Last Report</span><span style={{fontSize:11,fontWeight:600,color:asset._lastPeriod?"#e2e8f0":"#f87171"}}>{asset._lastPeriod||"None"}</span></div>
         </div>
       </div>
     </div>

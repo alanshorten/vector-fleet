@@ -764,6 +764,7 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
       </div>
     <SpecsQuickImport asset={asset} saveAsset={saveAsset} notify={notify} open={quickImportOpen}/>
     <div className="grid2">
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
       <div className="card" style={{padding:18}}>
         <div className="section-title">Operating Weights</div>
         <table><thead><tr><th>Parameter</th><th>kg</th><th>lb</th></tr></thead><tbody>
@@ -773,6 +774,35 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
             <td style={{color:"#475569"}}>{editing&&isAdmin?<input type="number" value={d.weights?.[klb]||""} onChange={e=>{const lb=+e.target.value;const f=JSON.parse(JSON.stringify(form));if(!f.weights)f.weights={};f.weights[klb]=lb;if(lb)f.weights[k]=Math.round(lb/2.20462);else f.weights[k]="";setForm(f);}} style={{width:100}}/>:d.weights?.[klb]?.toLocaleString()||"—"}</td></tr>
           ))}
         </tbody></table>
+      </div>
+      <div className="card" style={{padding:18}}>
+        <div className="flj" style={{marginBottom:2}}>
+          <div className="section-title" style={{margin:0}}>Check History</div>
+        </div>
+        {(editing?form:asset).checks?.length?(editing?form:asset).checks.map((c,i)=>(
+          <div key={i} style={{marginTop:12,paddingTop:12,borderTop:i>0?"1px solid #1e3048":"none"}}>
+            <div className="flj" style={{marginBottom:6}}>
+              <span style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.04em"}}>{c.name}</span>
+              {editing&&isAdmin&&<button className="btn-danger btn" style={{fontSize:9,padding:"3px 7px"}} onClick={()=>{const f=JSON.parse(JSON.stringify(form));f.checks.splice(i,1);setForm(f);}}>✕</button>}
+            </div>
+            <div className="flab g8" style={{marginBottom:4,flexWrap:"wrap"}}>
+              <span style={{fontSize:11,color:"#64748b"}}>TSN</span>
+              {editing&&isAdmin?<input type="text" defaultValue={c.lastFH||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastFH=e.target.value?+e.target.value:null;setForm(f);}} style={{width:80}}/>:<span style={{fontSize:12,fontFamily:"monospace",color:"#e2e8f0"}}>{c.lastFH?.toLocaleString()||"—"}</span>}
+              <span style={{fontSize:11,color:"#334155"}}>·</span>
+              <span style={{fontSize:11,color:"#64748b"}}>CSN</span>
+              {editing&&isAdmin?<input type="number" defaultValue={c.lastFC||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastFC=e.target.value?+e.target.value:null;setForm(f);}} style={{width:80}}/>:<span style={{fontSize:12,fontFamily:"monospace",color:"#e2e8f0"}}>{c.lastFC?.toLocaleString()||"—"}</span>}
+            </div>
+            <div className="flab g8" style={{flexWrap:"wrap"}}>
+              <span style={{fontSize:11,color:"#64748b"}}>Last</span>
+              {editing&&isAdmin?<CheckDateInput val={c.lastDate} onCommit={(iso,next)=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastDate=iso;if(next)f.checks[i].nextDate=next;setForm(f);}} yrs={(()=>{const m=/(\d+)\s*Year/i.exec(c.name);return m?+m[1]:null;})()}/>:<span style={{fontSize:12,color:"#e2e8f0"}}>{fmtDate(c.lastDate)}</span>}
+              <span style={{fontSize:11,color:"#334155"}}>→</span>
+              <span style={{fontSize:11,color:"#64748b"}}>Next Due</span>
+              {editing&&isAdmin?<CheckDateInput val={c.nextDate} onCommit={(iso)=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].nextDate=iso;setForm(f);}} yrs={null}/>:<span style={{fontSize:12,fontWeight:700,color:daysFromNow(c.nextDate)<365?"#fbbf24":"#34d399"}}>{fmtDate(c.nextDate)||"—"}</span>}
+            </div>
+          </div>
+        )):<div style={{color:"#475569",fontStyle:"italic",fontSize:12}}>No check history recorded</div>}
+        {editing&&isAdmin&&<div style={{marginTop:12}}><AddCheckRow existing={(form.checks||[]).map(c=>c.name)} onAdd={name=>{const f=JSON.parse(JSON.stringify(form));if(!f.checks)f.checks=[];f.checks.push({name,lastDate:"",lastFH:0,lastFC:0,nextDate:""});setForm(f);}}/></div>}
+      </div>
       </div>
       <div className="card" style={{padding:18}}>
         <div className="section-title">Specifications</div>
@@ -804,21 +834,6 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
             </div>;
           })}
         </div>
-      </div>
-      <div className="card" style={{padding:18,gridColumn:"1/-1"}}>
-        <div className="section-title">Check History</div>
-        <table><thead><tr><th>Check</th><th>Last Date</th><th>Last TSN</th><th>Last CSN</th><th>Next Due</th>{editing&&isAdmin&&<th style={{width:30}}></th>}</tr></thead>
-        <tbody>{(editing?form:asset).checks?.length?(editing?form:asset).checks.map((c,i)=>(
-          <tr key={i}>
-            <td style={{fontWeight:600,color:"#94a3b8"}}>{c.name}</td>
-            <td>{editing&&isAdmin?<CheckDateInput val={c.lastDate} onCommit={(iso,next)=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastDate=iso;if(next)f.checks[i].nextDate=next;setForm(f);}} yrs={(()=>{const m=/(\d+)\s*Year/i.exec(c.name);return m?+m[1]:null;})()}/>:fmtDate(c.lastDate)}</td>
-            <td style={{fontFamily:"monospace"}}>{editing&&isAdmin?<input type="text" defaultValue={c.lastFH||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastFH=e.target.value?+e.target.value:null;setForm(f);}} style={{width:80}}/>:c.lastFH?.toLocaleString()||"—"}</td>
-            <td style={{fontFamily:"monospace"}}>{editing&&isAdmin?<input type="number" defaultValue={c.lastFC||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastFC=e.target.value?+e.target.value:null;setForm(f);}} style={{width:80}}/>:c.lastFC?.toLocaleString()||"—"}</td>
-            <td style={{fontWeight:700,color:daysFromNow(c.nextDate)<365?"#fbbf24":"#34d399"}}>{editing&&isAdmin?<CheckDateInput val={c.nextDate} onCommit={(iso)=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].nextDate=iso;setForm(f);}} yrs={null}/>:fmtDate(c.nextDate)||"—"}</td>
-            {editing&&isAdmin&&<td><button className="btn-danger btn" style={{fontSize:9,padding:"3px 7px"}} onClick={()=>{const f=JSON.parse(JSON.stringify(form));f.checks.splice(i,1);setForm(f);}}>✕</button></td>}
-          </tr>
-        )):<tr><td colSpan={editing&&isAdmin?6:5} style={{color:"#475569",fontStyle:"italic"}}>No check history recorded</td></tr>}</tbody></table>
-        {editing&&isAdmin&&<AddCheckRow existing={(form.checks||[]).map(c=>c.name)} onAdd={name=>{const f=JSON.parse(JSON.stringify(form));if(!f.checks)f.checks=[];f.checks.push({name,lastDate:"",lastFH:0,lastFC:0,nextDate:""});setForm(f);}}/>}
       </div>
       <div className="card" style={{padding:18,marginTop:16}}>
         <div className="section-title">Tech Spec Disclaimer</div>
