@@ -173,8 +173,8 @@ function App(){
 
   return(
     <div>
-      <header style={{background:view==="portfolio"?"#ffffff":"#0d1c2c",borderBottom:view==="portfolio"?"1px solid #e2e8f0":"1px solid #1e3348",position:"sticky",top:0,zIndex:100,boxShadow:view==="portfolio"?"0 2px 8px rgba(15,23,42,0.08)":"0 2px 8px rgba(0,0,0,0.3)",padding:"8px 16px"}}>
-        <div className="app-header-row" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"nowrap"}}>
+      <header style={{background:view==="portfolio"?"#ffffff":"#0d1c2c",borderBottom:view==="portfolio"?"1px solid #e2e8f0":"1px solid #1e3348",position:"sticky",top:0,zIndex:100,boxShadow:view==="portfolio"?"0 2px 8px rgba(15,23,42,0.08)":"0 2px 8px rgba(0,0,0,0.3)"}}>
+        <div className="app-header-row" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"nowrap",maxWidth:1480,margin:"0 auto",padding:"8px 22px",boxSizing:"border-box"}}>
           <img src={view==="portfolio"?HEADER_LOGO_WHITE:HEADER_LOGO_NAVY} alt="TailiQ" style={{height:44,maxWidth:"55vw",objectFit:"contain",objectPosition:"left center",borderRadius:0}} className="header-logo"/>
           {/* Right side: Fleet button above nav pill */}
           <div className="app-header-right" style={{display:"flex",flexDirection:"column",gap:5,alignItems:"stretch"}}>
