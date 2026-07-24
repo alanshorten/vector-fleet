@@ -41,6 +41,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#0f2030}
     header{padding:16px 32px!important}
   }
   @media(max-width:768px){.grid2{grid-template-columns:1fr!important}.grid3{grid-template-columns:1fr!important}.grid4{grid-template-columns:1fr 1fr!important}main{padding:12px!important}.app-header-row{padding:12px!important}.tab-btn{padding:6px 8px!important;font-size:11px!important}table{font-size:11px!important}th,td{padding:5px 6px!important}.nav-btn{padding:5px 7px!important;font-size:11px!important}.btn-ghost{padding:4px 6px!important;font-size:10px!important}.btn-gold{padding:4px 6px!important;font-size:10px!important}.prospect-split{flex-direction:column!important}.prospect-split>div{flex:1 1 100%!important;position:static!important;max-height:none!important}}
+  @media(max-width:900px){.app-nav-btn{padding:6px 10px!important;font-size:12px!important}.trailing-pill{width:280px!important}}
   @media(max-width:680px){
     .asset-header-row{flex-wrap:wrap!important}
     .asset-header-top{flex:1 1 100%!important}

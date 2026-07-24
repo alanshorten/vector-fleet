@@ -19,7 +19,7 @@ const TRAILING_PILL_WIDTH=400;
 function NavPill({items,activeValue,onSelect,theme="dark",width}){
   const isLight=theme==="light";
   return(
-    <nav className="app-nav-pill" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",gap:4,background:isLight?"#f1f5f9":"rgba(13,25,37,0.8)",border:`1px solid ${isLight?"#e2e8f0":"#1e3348"}`,borderRadius:8,padding:"5px 6px",...(width?{overflowX:"auto",WebkitOverflowScrolling:"touch",width}:{}),flexShrink:0}}>
+    <nav className={`app-nav-pill${width?" trailing-pill":""}`} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",gap:4,background:isLight?"#f1f5f9":"rgba(13,25,37,0.8)",border:`1px solid ${isLight?"#e2e8f0":"#1e3348"}`,borderRadius:8,padding:"5px 6px",...(width?{overflowX:"auto",WebkitOverflowScrolling:"touch",width}:{}),flexShrink:0}}>
       {items.map(([v,l])=>(
         <button key={v} className="app-nav-btn" onClick={()=>onSelect(v)}
           style={{padding:"8px 16px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all 0.15s",background:activeValue===v?"#1a3050":"transparent",color:activeValue===v?"#C9A84C":(isLight?"#475569":"#6a8aaa"),letterSpacing:"0.02em",whiteSpace:"nowrap"}}>
@@ -108,7 +108,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
         </div>
         <div className="flab g12 asset-header-actions" style={{flexShrink:0}}>
           <NavPill items={LAYERS} activeValue={layer} onSelect={setLayer}/>
-          <div className="app-nav-pill" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",gap:8,background:"rgba(13,25,37,0.8)",border:"1px solid #1e3348",borderRadius:8,padding:"5px 6px",width:TRAILING_PILL_WIDTH,flexShrink:0}}>
+          <div className="app-nav-pill trailing-pill" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",gap:8,background:"rgba(13,25,37,0.8)",border:"1px solid #1e3348",borderRadius:8,padding:"5px 6px",width:TRAILING_PILL_WIDTH,flexShrink:0}}>
             <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>setShareOpen(true)}>🔗 Share</button>
             <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={genSpec}>📋 Generate Tech Spec</button>
           </div>
