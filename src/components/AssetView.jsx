@@ -14,7 +14,7 @@ import { getDefaultDisclaimer, getTechSpecLogo } from '../lib/techSpec';
 // width is what guarantees the layer pill itself lands at the same X
 // position in both headers, regardless of how many items the trailing pill
 // holds for a given role.
-const TRAILING_PILL_WIDTH=340;
+const TRAILING_PILL_WIDTH=400;
 
 function NavPill({items,activeValue,onSelect,theme="dark",width}){
   const isLight=theme==="light";
