@@ -186,25 +186,22 @@ function App(){
             </button>}
             {/* Two pills: the four-layer group (Details always; Calendar/Financials/
                 Scenarios gated on canSeeAdvanced), and workflow tools (Prospects
-                always; Upload gated on canUpload; Admin for admins). Matches
-                VECTORIQ_ROADMAP.md §7a. Sign Out sits outside both pills. Uses the
-                same NavPill component as the asset-level layer pill, so the two
-                are visually identical. */}
-            <div className="flab g8" style={{flexWrap:"wrap",justifyContent:"flex-end"}}>
+                always; Upload gated on canUpload; Admin for admins; Sign Out last).
+                Matches VECTORIQ_ROADMAP.md §7a. Sign Out folded into this pill
+                rather than standalone — a separate button was getting squeezed
+                off-screen on mobile. Uses the same NavPill component as the
+                asset-level layer pill, so the two are visually identical. */}
+            <div className="flab g8 app-nav-tools-row" style={{flexWrap:"nowrap",whiteSpace:"nowrap",justifyContent:"flex-end"}}>
               <NavPill
                 items={[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]}
                 activeValue={view}
                 onSelect={v=>{setView(v);setSelectedId(null);}}
                 theme={view==="portfolio"?"light":"dark"}/>
               <NavPill
-                items={[["prospects","Prospects"],...(canUpload?[["upload","Upload"]]:[]),...(userRole==='admin'?[["admin","Admin"]]:[])]}
+                items={[["prospects","Prospects"],...(canUpload?[["upload","Upload"]]:[]),...(userRole==='admin'?[["admin","Admin"]]:[]),["signout","⎋ Sign Out"]]}
                 activeValue={view}
-                onSelect={v=>{setView(v);setSelectedId(null);}}
+                onSelect={v=>v==='signout'?window._auth.signOut():(setView(v),setSelectedId(null))}
                 theme={view==="portfolio"?"light":"dark"}/>
-              <button className="app-nav-btn" onClick={()=>window._auth.signOut()} title={authUser?.email||""}
-                style={{padding:"9px 14px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",background:"transparent",color:view==="portfolio"?"#475569":"#6a8aaa"}}>
-                ⎋<span className="app-nav-label"> Sign Out</span>
-              </button>
             </div>
           </div>
         </div>
