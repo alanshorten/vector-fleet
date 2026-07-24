@@ -705,10 +705,10 @@ function AvionicsTab({asset,isAdmin,saveAsset,notify}){
   };
   const totalRows=(d.rows||[]).length;
   return(
-    <div className="card" style={{padding:20}}>
+    <div>
       <div className="section-title" style={{marginBottom:14}}>Avionics LRU List</div>
       <div className="flj" style={{marginBottom:14}}>
-        {isAdmin&&(!editing?<button className="btn btn-ghost" onClick={()=>setUploaderOpen(!uploaderOpen)}>Upload Spec {uploaderOpen?"▾":"▸"}</button>:<span/>)}
+        {isAdmin&&(!editing?<button className="btn btn-ghost" onClick={()=>setUploaderOpen(!uploaderOpen)}>Upload {uploaderOpen?"▾":"▸"}</button>:<span/>)}
         {isAdmin&&(!editing?<button className="btn btn-ghost" onClick={startEdit}>Edit</button>
           :<div className="flab g8"><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save</button></div>)}
       </div>
@@ -759,7 +759,7 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
   return(
     <div>
       <div className="flj" style={{marginBottom:14}}>
-        <button className="btn btn-ghost" onClick={()=>setQuickImportOpen(!quickImportOpen)}>Quick Import {quickImportOpen?"▾":"▸"}</button>
+        <button className="btn btn-ghost" onClick={()=>setQuickImportOpen(!quickImportOpen)}>Upload {quickImportOpen?"▾":"▸"}</button>
         {!editing?<button className="btn btn-ghost" onClick={startEdit}>Edit All</button>:<div className="flab g8"><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save All</button></div>}
       </div>
     <SpecsQuickImport asset={asset} saveAsset={saveAsset} notify={notify} open={quickImportOpen}/>
