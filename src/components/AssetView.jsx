@@ -99,11 +99,11 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
   return(
     <div style={{animation:"fadeIn 0.2s ease"}}>
       <div className="flab g12 asset-header-row" style={{marginBottom:24,justifyContent:"space-between",flexWrap:"nowrap"}}>
-        <div className="flab g12 asset-header-top">
+        <div className="flab g12 asset-header-top" style={{flexShrink:0}}>
           <button className="btn btn-ghost" onClick={onBack}>← Fleet</button>
           <div>
-            <h1 style={{fontSize:18,color:"#C9A84C",fontWeight:700}}>MSN {asset.msn} — {asset.registration||"—"}</h1>
-            <p style={{color:"#475569",fontSize:12}}>{asset.model} · {asset.operator||"—"}</p>
+            <h1 style={{fontSize:18,color:"#C9A84C",fontWeight:700,whiteSpace:"nowrap"}}>MSN {asset.msn} — {asset.registration||"—"}</h1>
+            <p style={{color:"#475569",fontSize:12,whiteSpace:"nowrap"}}>{asset.model} · {asset.operator||"—"}</p>
           </div>
         </div>
         <div className="flab g12 asset-header-actions">
