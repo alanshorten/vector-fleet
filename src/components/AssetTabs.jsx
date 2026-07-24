@@ -547,15 +547,15 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
   const ll=apu.llps?.length?Math.min(...apu.llps.map(l=>calcLLPRem(l,apu.currentFC))):null;
   const ed=editing?form.apu||{}:apu;
   return(
-    <div className="card" style={{padding:20}}>
+    <div>
       <div className="flj" style={{marginBottom:14}}>
-        <div className="section-title" style={{margin:0}}>APU — S/N {apu.sn||"TBD"}</div>
-        <div className="flab g8">
-          {isAdmin&&!editing&&<button className="btn btn-ghost" onClick={startEdit}>Edit</button>}
-          {isAdmin&&editing&&<><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save</button></>}
-        </div>
+        <div/>
+        {isAdmin&&!editing&&<button className="btn btn-ghost" onClick={startEdit}>Edit</button>}
+        {isAdmin&&editing&&<div className="flab g8"><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save</button></div>}
       </div>
-      <div className="grid4" style={{marginBottom:14}}>
+      <div className="card" style={{padding:14,marginBottom:14}}>
+        <div className="section-title" style={{fontSize:12,margin:0,marginBottom:10}}>APU — S/N {apu.sn||"TBD"}</div>
+        <div className="grid4" style={{marginBottom:14}}>
         {[["Manufacturer","mfr"],["P/N","pn"],["S/N","sn"]].map(([l,k])=>(
           <div key={k} style={{background:"#0d1925",borderRadius:6,padding:"8px 10px"}}>
             <div style={{fontSize:9,color:"#475569"}}>{l}</div>
@@ -571,10 +571,11 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
           <div style={{fontSize:9,color:"#475569"}}>CSN</div>
           <div style={{fontSize:14,fontWeight:700,fontFamily:"monospace",color:"#C9A84C"}}>{(apu.currentFC||0).toLocaleString()}</div>
         </div>
-      </div>
-      <div style={{background:"#0d1925",borderRadius:6,padding:"8px 10px",marginBottom:14,display:"inline-block"}}>
-        <div style={{fontSize:9,color:"#475569"}}>Lowest LLP Limiter</div>
-        <div style={{fontSize:14,fontWeight:700,color:ll===null?"#475569":ll<1000?"#f87171":ll<3000?"#fbbf24":"#34d399",fontFamily:"monospace"}}>{ll!==null?ll.toLocaleString()+" FC":"No data"}</div>
+        </div>
+        <div style={{background:"#0d1925",borderRadius:6,padding:"8px 10px",display:"inline-block"}}>
+          <div style={{fontSize:9,color:"#475569"}}>Lowest LLP Limiter</div>
+          <div style={{fontSize:14,fontWeight:700,color:ll===null?"#475569":ll<1000?"#f87171":ll<3000?"#fbbf24":"#34d399",fontFamily:"monospace"}}>{ll!==null?ll.toLocaleString()+" FC":"No data"}</div>
+        </div>
       </div>
       <div style={{marginBottom:16}}>
         <div className="flj" style={{marginBottom:8}}>

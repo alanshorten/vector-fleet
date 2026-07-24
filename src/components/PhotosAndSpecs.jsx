@@ -760,7 +760,7 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
     <div>
       <div className="flj" style={{marginBottom:14}}>
         <button className="btn btn-ghost" onClick={()=>setQuickImportOpen(!quickImportOpen)}>Upload {quickImportOpen?"▾":"▸"}</button>
-        {!editing?<button className="btn btn-ghost" onClick={startEdit}>Edit All</button>:<div className="flab g8"><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save All</button></div>}
+        {!editing?<button className="btn btn-ghost" onClick={startEdit}>Edit</button>:<div className="flab g8"><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save</button></div>}
       </div>
     <SpecsQuickImport asset={asset} saveAsset={saveAsset} notify={notify} open={quickImportOpen}/>
     <div className="grid2">

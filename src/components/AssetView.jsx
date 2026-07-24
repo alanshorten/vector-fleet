@@ -117,7 +117,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
 
       {layer==="details"&&(
         <>
-          <div style={{display:"flex",borderBottom:"1px solid #1e3048",marginBottom:20,gap:2,overflowX:"auto",whiteSpace:"nowrap",WebkitOverflowScrolling:"touch"}}>
+          <div className="subtab-scroll" style={{display:"flex",borderBottom:"1px solid #1e3048",marginBottom:20,gap:2,overflowX:"auto",whiteSpace:"nowrap",WebkitOverflowScrolling:"touch"}}>
             {["overview","specs","engines","landing gear","apu","avionics","history","documents"].map(t=>(
               <button key={t} className={`tab-btn${tab===t?" active":""}`} style={{flexShrink:0,fontSize:10}} onClick={()=>setTab(t)}>{t}</button>
             ))}
