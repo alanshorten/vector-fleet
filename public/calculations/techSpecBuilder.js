@@ -79,16 +79,31 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
     const llpRows=(llps,csn)=>!llps?.length?'<tr><td colspan="4" style="color:#aaa;font-style:italic">No LLP data entered</td></tr>':llps.map(l=>{const r=calcLLPRem(l,csn);return`<tr><td>${l.desc||""}</td><td style="font-family:monospace">${l.pn||""}</td><td style="font-family:monospace">${l.sn||""}</td><td style="font-weight:700;color:${r<1000?"#dc2626":r<3000?"#d97706":"#111"}">${r.toLocaleString()}</td></tr>`;}).join("");
   const svRows=(visits,currentFH,currentFC)=>{if(!visits||!visits.length)return'<tr><td colspan="4" style="color:#aaa;font-style:italic">No shop visits recorded</td></tr>';const mroLine=(mro)=>mro?'<br/><span style="font-size:9px;color:#6b7280">'+mro+'</span>':"";const rows=visits.map(sv=>'<tr><td>'+(sv.details||"")+'</td><td>'+fmtDate(sv.date)+mroLine(sv.mro)+'</td><td style="font-family:monospace">'+(fmtHHMM(sv.fh)||"")+'</td><td style="font-family:monospace">'+(sv.fc?sv.fc.toLocaleString():"")+'</td></tr>').join("");const last=visits[visits.length-1];const sinceFH=currentFH&&last.fh?currentFH-last.fh:null;const sinceFC=currentFC&&last.fc?currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;const sinceRow='<tr style="background:#f1f5f9"><td colspan="2" style="color:#323F42;font-weight:700">Since Last Shop Visit</td><td style="font-family:monospace">'+(sinceFH!==null?fmtHHMM(sinceFH):"—")+'</td><td style="font-family:monospace">'+(sinceFC!==null?sinceFC.toLocaleString():"—")+'</td></tr><tr style="background:#f1f5f9"><td colspan="4" style="color:#6b7280;font-size:9px">Days since last shop visit: '+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td></tr>';return rows+sinceRow;};
   const operatorHistoryRows=(rows)=>{if(!rows?.length)return'<tr><td colspan="7" style="color:#aaa;font-style:italic">No operator history recorded</td></tr>';return[...rows].sort((a,b)=>{if(!a.installDate)return 1;if(!b.installDate)return -1;return new Date(a.installDate)-new Date(b.installDate);}).map(r=>'<tr'+(r._gapFlag?' style="background:#fef3cd"':'')+'><td>'+(r.operator||"—")+'</td><td style="font-family:monospace">'+(r.aircraft||"—")+'</td><td>'+fmtDate(r.installDate)+'</td><td>'+(r.removalDate?fmtDate(r.removalDate):'Still on wing')+'</td><td style="font-family:monospace">'+(r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—")+'</td><td style="font-family:monospace">'+(r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—")+'</td><td>'+(r.reason||"—")+'</td></tr>').join("");};
-  const engSec=(eng,pos,fullHistory=false)=>{if(!eng)return"";const ll=lowestLimiter(eng);const svList=fullHistory?(eng.shopVisits||[]):(eng.shopVisits||[]).slice(-1);const svTitle=fullHistory?"Shop Visit History":"Most Recent Shop Visit";return`<h3>Engine #${pos} — ESN ${eng.sn||"—"}</h3>
-<table class="kv"><tr><td>Engine Type</td><td>${eng.type||"—"}</td><td style="color:#6b7280;font-weight:600;width:120px">Thrust</td><td>${eng.thrust||"—"}</td></tr>
-<tr><td>TSN</td><td>${fmtHHMM(eng.currentFH)}</td><td style="color:#6b7280;font-weight:600">CSN</td><td>${(eng.currentFC||0).toLocaleString()}</td></tr>
-<tr><td>Lowest LLP Limiter</td><td colspan="3" style="font-weight:700;color:${ll!==null&&ll<1000?"#dc2626":ll!==null&&ll<3000?"#d97706":"#111"}">${ll!==null?ll.toLocaleString()+" FC":"No LLP data"}</td></tr></table>
-<p style="font-weight:700;font-size:10px;margin:8px 0 4px">Life Limited Parts</p>
-<table><thead><tr><th>LLP Descriptor</th><th>P/N</th><th>S/N</th><th>FC Remaining</th></tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>
-<p style="font-weight:700;font-size:10px;margin:8px 0 4px">${svTitle}</p>
-<table><thead><tr><th>Details</th><th>Date / MRO</th><th>TSN</th><th>CSN</th></tr></thead><tbody>${svRows(svList,eng.currentFH,eng.currentFC)}</tbody></table>
-${eng.operatorHistory?.length?`<p style="font-weight:700;font-size:10px;margin:8px 0 4px">Operator History</p>
-<table><thead><tr><th>Operator</th><th>Aircraft</th><th>Installed</th><th>Removed</th><th>TSN</th><th>CSN</th><th>Reason</th></tr></thead><tbody>${operatorHistoryRows(eng.operatorHistory)}</tbody></table>`:""}`;};
+  const engSec=(eng,pos,fullHistory=false)=>{if(!eng)return"";const ll=lowestLimiter(eng);const llDesc=lowestLLPDesc(eng);const svRecent=(eng.shopVisits||[]).slice(-1);const svAll=eng.shopVisits||[];return`
+${pgH(`Engine #${pos} \u2014 ESN ${eng.sn||"\u2014"}`)}
+${col2(
+  `<td style="${CS}">
+    ${IH(`Engine #${pos} \u2014 ESN ${eng.sn||"\u2014"}`,svgEngine)}
+    <table width="100%" cellpadding="0" cellspacing="0">
+      ${kvR("Model / Thrust",`${eng.type||"\u2014"} \u00b7 ${eng.thrust||"\u2014"}`)}
+      ${kvR("Flight Hours Since New",`${fmtHHMM(eng.currentFH)} FH`)}
+      ${kvR("Flight Cycles Since New",`${(eng.currentFC||0).toLocaleString()} FC`)}
+    </table>
+    ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
+  </td>`,
+  svRecent.length
+    ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svRecent,eng.currentFH,eng.currentFC)}</tbody></table></td>`
+    :`<td style="border:none;padding:0"></td>`
+)}
+${cO("Life Limited Parts",svgList)}
+<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th></tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>
+${cC}
+${fullHistory?`${PAGE_FOOTER}<div class="pb"></div>
+${pgH(`Engine #${pos} \u2014 Maintenance History`)}
+${cO("Shop Visit History",svgCal)}
+<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svAll,eng.currentFH,eng.currentFC)}</tbody></table>
+${cC}
+${eng.operatorHistory?.length?`${cO("Operator History",svgList)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Operator</th><th style="${TH}">Aircraft</th><th style="${TH}">Installed</th><th style="${TH}">Removed</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th><th style="${TH}">Reason</th></tr></thead><tbody>${operatorHistoryRows(eng.operatorHistory)}</tbody></table>${cC}`:""}`:""}`;};
   const lgFromDDMMYYYY=(s)=>{if(!s)return"";const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);if(m)return m[3]+"-"+m[2]+"-"+m[1];return s;};
   const lgFmtDate=(s)=>fmtDate(s);
   const lgSec=(g,title)=>{
@@ -155,7 +170,7 @@ ${eng.operatorHistory?.length?`<p style="font-weight:700;font-size:10px;margin:8
     ${(()=>{
     const iconFH=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12,6 12,12 16,14"/></svg>`;
     const iconFC=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51,9a9,9,0,0,1,14.85-3.36L23,10M1,14l4.64,4.36A9,9,0,0,0,20.49,15"/></svg>`;
-    const iconType=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 22,8.5 22,15.5 12,22 2,15.5 2,8.5"/><line x1="12" y1="22" x2="12" y2="15.5"/><polyline points="2,8.5 12,15.5 22,8.5"/></svg>`;
+    const iconType=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8c3-2 13-2 15 0l4 4-4 4c-2 2-12 2-15 0l1-4-1-4zM7 8v8M18 9v6M14 8a12 12 0 010 8"/></svg>`;
     const iconThrust=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13,2L3,14h9l-1,8,10-12h-9l1-8z"/></svg>`;
     return`<table width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col width="25%"/><col width="25%"/><col width="25%"/><col width="25%"/></colgroup><tr>
       <td width="25%" style="width:25%;padding:0 4px 0 0;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFH}</div><div class="sc-val">${fmtHHMM(eng?.currentFH)}</div><div class="sc-lbl">Flight Hours</div></div></td>

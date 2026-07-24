@@ -844,11 +844,16 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
           })}
         </div>
       </div>
-      <div className="card" style={{padding:18,marginTop:16,gridColumn:"1/-1"}}>
-        <div className="section-title">Asset Photos</div>
-        <PhotoManager asset={asset} saveAsset={saveAsset} notify={notify} field="photos"/>
-      </div>
     </div>
+    </div>
+  );
+};
+
+function PhotosTab({asset,isAdmin,saveAsset,notify}){
+  return(
+    <div className="card" style={{padding:18}}>
+      <div className="section-title">Asset Photos</div>
+      <PhotoManager asset={asset} saveAsset={saveAsset} notify={notify} field="photos"/>
     </div>
   );
 };
@@ -898,4 +903,4 @@ function DocumentsTab({asset}){
 };
 
 
-export { AddCheckRow, AvionicsLRUReviewRow, AvionicsLRUUploader, AvionicsTab, CheckDateInput, DocumentsTab, HistoryTab, LopaCropTool, PhotoManager, SpecsQuickImport, SpecsTab };
+export { AddCheckRow, AvionicsLRUReviewRow, AvionicsLRUUploader, AvionicsTab, CheckDateInput, DocumentsTab, HistoryTab, LopaCropTool, PhotoManager, PhotosTab, SpecsQuickImport, SpecsTab };

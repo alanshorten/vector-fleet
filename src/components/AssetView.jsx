@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { APUTab, EnginesTab, LandingGearTab, OverviewTab } from './AssetTabs';
 import { FlyForward, MaintenanceCalendarView } from './FlyForward';
-import { AvionicsTab, DocumentsTab, HistoryTab, SpecsTab } from './PhotosAndSpecs';
+import { AvionicsTab, DocumentsTab, HistoryTab, PhotosTab, SpecsTab } from './PhotosAndSpecs';
 import { assetEngineStockPhotoKey, airframeStockPhotoKey } from '../lib/assetHelpers';
 import { db } from '../lib/db';
 import { extractLLPSheet } from '../lib/extraction';
@@ -121,7 +121,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
       {layer==="details"&&(
         <>
           <div className="subtab-scroll" style={{display:"flex",borderBottom:"1px solid #1e3048",marginBottom:20,gap:2,overflowX:"auto",whiteSpace:"nowrap",WebkitOverflowScrolling:"touch"}}>
-            {["overview","specs","engines","landing gear","apu","avionics","history","documents"].map(t=>(
+            {["overview","specs","engines","landing gear","apu","avionics","photos","history","documents"].map(t=>(
               <button key={t} className={`tab-btn${tab===t?" active":""}`} style={{flexShrink:0,fontSize:10}} onClick={()=>setTab(t)}>{t}</button>
             ))}
           </div>
@@ -130,6 +130,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
           {tab==="landing gear"&&<LandingGearTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
           {tab==="apu"&&<APUTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
           {tab==="avionics"&&<AvionicsTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
+          {tab==="photos"&&<PhotosTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
           {tab==="specs"&&<SpecsTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
           {tab==="history"&&<HistoryTab asset={asset} isAdmin={isAdmin} notify={notify} loadAssets={loadAssets}/>}
           {tab==="documents"&&<DocumentsTab asset={asset}/>}

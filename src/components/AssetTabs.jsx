@@ -266,7 +266,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
   const rows=eng.operatorHistory||[];
 
   return(
-    <div style={{marginTop:20}}>
+    <div>
       <div className="flj" style={{marginBottom:8}}>
         <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em"}}>Operator History</div>
         {isAdmin&&<div className="flab g8">
@@ -455,8 +455,12 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
                 </div>
               )}
             </div>
-            <ShopVisitEditor eng={eng} engIdx={ei} asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>
-            <OperatorHistoryEditor eng={eng} engIdx={ei} asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>
+            <div style={{marginTop:20,paddingTop:20,borderTop:"1px solid #1B3A6B"}}>
+              <ShopVisitEditor eng={eng} engIdx={ei} asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>
+            </div>
+            <div style={{marginTop:20,paddingTop:20,borderTop:"1px solid #1B3A6B"}}>
+              <OperatorHistoryEditor eng={eng} engIdx={ei} asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>
+            </div>
           </div>
         );
       })}
