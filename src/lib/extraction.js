@@ -1,4 +1,4 @@
-import { APU_LLP_PROMPT, ENGINE_LLP_PROMPT } from './assetHelpers';
+import { APU_LLP_PROMPT, ENGINE_LLP_PROMPT, OPERATOR_HISTORY_PROMPT } from './assetHelpers';
 
 async function extractLLPSheet(file,kind){
   if(file.type!=="application/pdf")throw new Error("Please upload a PDF file.");
@@ -33,6 +33,82 @@ async function extractLLPSheet(file,kind){
     throw new Error("The AI returned an unexpected format. Check the file is a valid report and try again.");
   }
   return parsed;
+};
+
+async function extractOperatorHistory(file){
+  if(file.type!=="application/pdf")throw new Error("Please upload a PDF file.");
+  if(file.size>10*1024*1024)throw new Error("File is too large (maximum 10 MB).");
+  const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Could not read the file. Please try again."));r.readAsDataURL(file);});
+  // Sonnet, not Haiku — the schema is simpler than an LLP sheet but real-world
+  // format variation (combined vs paired rows, header vs per-row operator,
+  // still-on-wing detection) is high (operator-history-scoping-handoff.md §6).
+  const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:OPERATOR_HISTORY_PROMPT}]}]})});
+  if(!resp.ok){
+    const status=resp.status;
+    if(status===401||status===403)throw new Error("Authentication error with the AI service. Please contact your administrator.");
+    if(status===429)throw new Error("Too many requests — please wait a moment and try again.");
+    if(status>=500)throw new Error("The extraction service is temporarily unavailable. Please try again in a few minutes.");
+    throw new Error("Extraction request failed (error "+status+"). Please try again.");
+  }
+  let result;
+  try{result=await resp.json();}catch(jsonErr){throw new Error("Received an unexpected response from the server. Please try again.");}
+  if(result.error){
+    const msg=result.error;
+    if(msg.includes("credit")||msg.includes("billing"))throw new Error("AI service billing issue — please contact your administrator.");
+    if(msg.includes("overloaded")||msg.includes("capacity"))throw new Error("The AI service is busy right now. Please wait a moment and try again.");
+    throw new Error("Extraction failed. Please check the file is a valid operator history document and try again.");
+  }
+  let parsed;
+  try{
+    const rawParsed=result.ok?result.data:JSON.parse((result.raw||"").replace(/```json|```/g,"").trim());
+    parsed=Array.isArray(rawParsed)?rawParsed[rawParsed.length-1]:rawParsed;
+  }catch(parseErr){
+    throw new Error("The AI could not extract structured data from this file. Check it is a valid operator history document.");
+  }
+  if(!parsed||typeof parsed!=="object"||!Array.isArray(parsed.rows)){
+    throw new Error("The AI returned an unexpected format. Check the file is a valid operator history document.");
+  }
+  return parsed.rows
+    .filter(r=>r&&(r.installDate||r.removalDate||r.operator))
+    .map((r,i)=>({
+      id:"oh_"+Date.now()+"_"+i,
+      operator:r.operator||"",
+      aircraft:r.aircraft||"",
+      installDate:r.installDate||"",
+      removalDate:r.removalDate||"",
+      tsnAtRemoval:r.tsnAtRemoval!=null?+r.tsnAtRemoval:null,
+      csnAtRemoval:r.csnAtRemoval!=null?+r.csnAtRemoval:null,
+      reason:r.reason||"",
+      source:"extracted",
+      extractedFrom:file.name
+    }));
+};
+
+// Sorts by installDate ascending and flags any stint whose TSN/CSN comes in
+// lower than the previous stint's beyond simple rounding drift. This is the
+// practical equivalent of the handoff-continuity check described in
+// operator-history-scoping-handoff.md §8 for this schema — only the
+// removal/current TSN-CSN is stored per stint (not an install-time reading),
+// so a genuine handoff mismatch shows up as TSN/CSN going backwards in time.
+// Tolerance matches the spec: ~2 hours / 1 cycle accepted silently as
+// rounding; beyond that is flagged for the user to dismiss or investigate,
+// never a hard block on saving.
+function mergeOperatorHistory(existingRows,newRows){
+  const merged=[...(existingRows||[]),...(newRows||[])];
+  const sorted=[...merged].sort((a,b)=>{
+    if(!a.installDate)return 1;
+    if(!b.installDate)return -1;
+    return new Date(a.installDate)-new Date(b.installDate);
+  });
+  let prevFH=null,prevFC=null;
+  return sorted.map(row=>{
+    let gapFlag=false;
+    if(prevFH!=null&&row.tsnAtRemoval!=null&&row.tsnAtRemoval<prevFH-2)gapFlag=true;
+    if(prevFC!=null&&row.csnAtRemoval!=null&&row.csnAtRemoval<prevFC-1)gapFlag=true;
+    if(row.tsnAtRemoval!=null)prevFH=row.tsnAtRemoval;
+    if(row.csnAtRemoval!=null)prevFC=row.csnAtRemoval;
+    return{...row,_gapFlag:gapFlag};
+  });
 };
 
 const fileToBase64=file=>new Promise((res,rej)=>{
@@ -279,4 +355,4 @@ async function extractAvionicsLRU(file){
 };
 
 
-export { ATA_CHAPTER_MAP, AVIONICS_LRU_PROMPT, DOLLAR_FIGURE_RE, LEASE_EXTRACT_PROMPT, LEASE_PAGE_KEYWORDS, RATE_CONSTRUCT_RE, ataChapterLabel, ataChapterSortNum, escapeRegex, extractAvionicsLRU, extractDocxSectionChunks, extractLLPSheet, extractPdfPageTexts, fileToBase64, isBoldPseudoHeading, isDocxFile, isSupportedLeaseFile, matchAssetForText, quickParseLeaseFile, runLeaseExtraction, scoreLeaseChunks };
+export { ATA_CHAPTER_MAP, AVIONICS_LRU_PROMPT, DOLLAR_FIGURE_RE, LEASE_EXTRACT_PROMPT, LEASE_PAGE_KEYWORDS, RATE_CONSTRUCT_RE, ataChapterLabel, ataChapterSortNum, escapeRegex, extractAvionicsLRU, extractDocxSectionChunks, extractLLPSheet, extractOperatorHistory, extractPdfPageTexts, fileToBase64, isBoldPseudoHeading, isDocxFile, isSupportedLeaseFile, matchAssetForText, mergeOperatorHistory, quickParseLeaseFile, runLeaseExtraction, scoreLeaseChunks };

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { APUTab, EnginesTab, LandingGearTab, OverviewTab } from './AssetTabs';
 import { FlyForward, MaintenanceCalendarView } from './FlyForward';
 import { AvionicsTab, DocumentsTab, HistoryTab, SpecsTab } from './PhotosAndSpecs';
-import { isCFM } from '../lib/assetHelpers';
+import { assetEngineStockPhotoKey, airframeStockPhotoKey } from '../lib/assetHelpers';
 import { db } from '../lib/db';
 import { extractLLPSheet } from '../lib/extraction';
 import { getDefaultDisclaimer, getTechSpecLogo } from '../lib/techSpec';
@@ -84,12 +84,15 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
   const canEnterLeaseData=!!userRole&&userRole!=='viewer';
   const LAYERS=[["details","Details"],...(canSeeAdvanced?[["calendar","Calendar"],["financials","Financials"],["scenarios","Scenarios"]]:[])];
   const genSpec=async()=>{
-    const isCFMAsset=isCFM(asset);
-    const photoKey=isCFMAsset?"engine_photo_cfm56":"engine_photo_v2500";
-    const engPhoto=await db.getSetting(photoKey).catch(()=>null);
-    const logo=await getTechSpecLogo();
-    const defaultDisclaimer=await getDefaultDisclaimer();
-    const base=buildTechSpecHTML(asset,engPhoto,logo,defaultDisclaimer);
+    const photoKey=assetEngineStockPhotoKey(asset);
+    const airframePhotoKey=airframeStockPhotoKey(asset.model);
+    const[engPhoto,stockAirframePhoto,logo,defaultDisclaimer]=await Promise.all([
+      photoKey?db.getSetting(photoKey).catch(()=>null):Promise.resolve(null),
+      airframePhotoKey?db.getSetting(airframePhotoKey).catch(()=>null):Promise.resolve(null),
+      getTechSpecLogo(),
+      getDefaultDisclaimer()
+    ]);
+    const base=buildTechSpecHTML(asset,engPhoto,logo,defaultDisclaimer,stockAirframePhoto||"");
     const withBar=base.replace('<body>',`<body><div style="position:fixed;top:0;left:0;right:0;background:#1B3A6B;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.3);print-color-adjust:exact;-webkit-print-color-adjust:exact"><span style="color:#C9A84C;font-weight:700;font-size:14px;flex:1">TailiQ — Tech Spec MSN ${asset.msn}</span><button onclick="window.print()" style="background:#C9A84C;color:#0a1520;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button><button onclick="window.close()" style="background:transparent;color:#94a3b8;border:1px solid #2d3f55;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">✕ Close</button></div><div style="height:52px"></div>`);
     const withPrint=withBar.replace('</style>','@media print{body>div:first-child{display:none!important}div[style*="height:52px"]{display:none!important}}</style>');
     const win=window.open();

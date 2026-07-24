@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ShareModal } from './AssetView';
-import { assetStatus, daysFromNow, isCFM } from '../lib/assetHelpers';
+import { assetStatus, daysFromNow, assetEngineStockPhotoKey, airframeStockPhotoKey } from '../lib/assetHelpers';
 import { db } from '../lib/db';
 import { FLEET_EXPOSURE_HORIZON_MONTHS, buildFleetExposureData } from '../lib/flyForwardHelpers';
 import { getDefaultDisclaimer, getTechSpecLogo, openTechSpec } from '../lib/techSpec';
@@ -145,12 +145,15 @@ function PortfolioView({assets, notify, onSelect}){
                         onMouseLeave={e=>e.currentTarget.style.background="#C9A84C"}
                         onClick={async e=>{
                           e.stopPropagation();
-                          const isCFMAsset=isCFM(a);
-                          const photoKey=isCFMAsset?"engine_photo_cfm56":"engine_photo_v2500";
-                          const engPhoto=await db.getSetting(photoKey).catch(()=>null)||"";
-                          const logo=await getTechSpecLogo();
-                          const defaultDisclaimer=await getDefaultDisclaimer();
-                          openTechSpec(buildTechSpecHTML(a,engPhoto,logo,defaultDisclaimer));
+                          const photoKey=assetEngineStockPhotoKey(a);
+                          const airframePhotoKey=airframeStockPhotoKey(a.model);
+                          const[engPhoto,stockAirframePhoto,logo,defaultDisclaimer]=await Promise.all([
+                            photoKey?db.getSetting(photoKey).catch(()=>null):Promise.resolve(null),
+                            airframePhotoKey?db.getSetting(airframePhotoKey).catch(()=>null):Promise.resolve(null),
+                            getTechSpecLogo(),
+                            getDefaultDisclaimer()
+                          ]);
+                          openTechSpec(buildTechSpecHTML(a,engPhoto||"",logo,defaultDisclaimer,stockAirframePhoto||""));
                         }}>
                         📋 Tech Spec
                       </button>

@@ -117,13 +117,25 @@ function DisclaimerSettings({notify}) {
   );
 };
 
+const ENGINE_PHOTO_TYPES = [
+  ['cfm56', 'CFM56-5B'],
+  ['cfm567b', 'CFM56-7B'],
+  ['v2500', 'V2500-A5 / IAE'],
+  ['leap1a', 'LEAP-1A'],
+  ['leap1b', 'LEAP-1B'],
+  ['pw1100g', 'PW1100G'],
+  ['cf34', 'CF34'],
+  ['cf6', 'CF6'],
+];
+
 function EnginePhotoSettings({notify}) {
-  const [photos, setPhotos] = useState({v2500: null, cfm56: null});
+  const [photos, setPhotos] = useState({});
   const [uploading, setUploading] = useState(null);
 
   useEffect(() => {
-    db.getSetting('engine_photo_v2500').then(v => { if(v) setPhotos(p => ({...p, v2500: v})); });
-    db.getSetting('engine_photo_cfm56').then(v => { if(v) setPhotos(p => ({...p, cfm56: v})); });
+    ENGINE_PHOTO_TYPES.forEach(([type]) => {
+      db.getSetting(`engine_photo_${type}`).then(v => { if(v) setPhotos(p => ({...p, [type]: v})); });
+    });
   }, []);
 
   const handleUpload = async (type, file) => {
@@ -142,7 +154,64 @@ function EnginePhotoSettings({notify}) {
 
   return (
     <div className="grid2" style={{gap:16}}>
-      {[['v2500','V2500 / IAE'],['cfm56','CFM56']].map(([type, label]) => (
+      {ENGINE_PHOTO_TYPES.map(([type, label]) => (
+        <div key={type} style={{background:'#0d1925',borderRadius:8,overflow:'hidden',border:'1px solid #1e3348'}}>
+          {photos[type]
+            ? <img src={photos[type]} alt={label} style={{width:'100%',height:140,objectFit:'cover',display:'block'}}/>
+            : <div style={{width:'100%',height:140,background:'#0a1620',display:'flex',alignItems:'center',justifyContent:'center',color:'#475569',fontSize:12}}>No photo</div>
+          }
+          <div style={{padding:'10px 12px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontSize:12,fontWeight:600,color:'#e2e8f0'}}>{label}</span>
+            <label style={{cursor:'pointer'}}>
+              <input type="file" accept="image/*" onChange={e=>handleUpload(type,e.target.files?.[0])} style={{display:'none'}}/>
+              <span className="btn btn-primary" style={{fontSize:11,padding:'5px 10px'}}>
+                {uploading===type ? '⏳ Uploading…' : photos[type] ? 'Replace' : 'Upload'}
+              </span>
+            </label>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const AIRFRAME_PHOTO_TYPES = [
+  ['a319', 'A319'],
+  ['a320', 'A320'],
+  ['a321', 'A321'],
+  ['a330', 'A330'],
+  ['b737', 'B737 (Classic/NG)'],
+  ['b737max', 'B737 MAX'],
+  ['b787', 'B787'],
+];
+
+function AirframePhotoSettings({notify}) {
+  const [photos, setPhotos] = useState({});
+  const [uploading, setUploading] = useState(null);
+
+  useEffect(() => {
+    AIRFRAME_PHOTO_TYPES.forEach(([type]) => {
+      db.getSetting(`airframe_photo_${type}`).then(v => { if(v) setPhotos(p => ({...p, [type]: v})); });
+    });
+  }, []);
+
+  const handleUpload = async (type, file) => {
+    if (!file) return;
+    setUploading(type);
+    try {
+      const url = await uploadToCloudinary(file);
+      await db.setSetting(`airframe_photo_${type}`, url);
+      setPhotos(p => ({...p, [type]: url}));
+      notify(`${type.toUpperCase()} photo updated`);
+    } catch(err) {
+      notify('Upload failed: ' + err.message, 'error');
+    }
+    setUploading(null);
+  };
+
+  return (
+    <div className="grid2" style={{gap:16}}>
+      {AIRFRAME_PHOTO_TYPES.map(([type, label]) => (
         <div key={type} style={{background:'#0d1925',borderRadius:8,overflow:'hidden',border:'1px solid #1e3348'}}>
           {photos[type]
             ? <img src={photos[type]} alt={label} style={{width:'100%',height:140,objectFit:'cover',display:'block'}}/>
@@ -244,6 +313,11 @@ function AdminView({assets,saveAsset,notify,loadAssets}){
             <div className="section-title">Engine Stock Photos</div>
             <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Upload default photos for each engine type. These appear on engine tech specs.</p>
             <EnginePhotoSettings notify={notify}/>
+          </div>
+          <div className="card" style={{padding:20}}>
+            <div className="section-title">Airframe Stock Photos</div>
+            <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Upload default photos for each airframe type. Used on the tech spec cover whenever an asset has no per-asset "Airframe" photo uploaded (coarse match on model, e.g. any "737 MAX..." model uses the B737 MAX photo).</p>
+            <AirframePhotoSettings notify={notify}/>
           </div>
         </div>
       )}
@@ -353,4 +427,4 @@ function UsersCard({notify}){
 };
 
 
-export { AdminView, DisclaimerSettings, EnginePhotoSettings, InviteUserCard, LogoSettings, UsersCard };
+export { AdminView, AirframePhotoSettings, DisclaimerSettings, EnginePhotoSettings, InviteUserCard, LogoSettings, UsersCard };

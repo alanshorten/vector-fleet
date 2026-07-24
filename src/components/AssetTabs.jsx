@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { daysFromNow, isEmpty, parseHHMM } from '../lib/assetHelpers';
+import { daysFromNow, isEmpty, parseHHMM, engineStockPhotoKey } from '../lib/assetHelpers';
 import { db } from '../lib/db';
 import { getDefaultDisclaimer, getTechSpecLogo } from '../lib/techSpec';
+import { extractOperatorHistory, mergeOperatorHistory } from '../lib/extraction';
 
 function OverviewTab({asset,isAdmin,saveAsset,notify}){
   const[editing,setEditing]=useState(false);
@@ -185,6 +186,163 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
   );
 };
 
+function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
+  const[uploading,setUploading]=useState(false);
+  const[reviewRows,setReviewRows]=useState(null);
+  const[manualAdd,setManualAdd]=useState(false);
+  const[newRow,setNewRow]=useState({operator:"",aircraft:"",installDate:"",removalDate:"",tsnAtRemoval:"",csnAtRemoval:"",reason:""});
+  const[editIdx,setEditIdx]=useState(null);
+  const[editForm,setEditForm]=useState(null);
+
+  const handleUpload=async(file)=>{
+    if(!file)return;
+    setUploading(true);
+    try{
+      const extracted=await extractOperatorHistory(file);
+      if(!extracted.length){notify("No operator history rows found in this document","error");setUploading(false);return;}
+      setReviewRows(extracted);
+    }catch(err){
+      notify(err.message,"error");
+    }
+    setUploading(false);
+  };
+
+  const confirmReview=async()=>{
+    const engines=JSON.parse(JSON.stringify(asset.engines||[]));
+    const existing=engines[engIdx].operatorHistory||[];
+    engines[engIdx].operatorHistory=mergeOperatorHistory(existing,reviewRows);
+    await saveAsset({...asset,engines});
+    setReviewRows(null);
+    notify("Operator history saved");
+  };
+
+  const updateReviewRow=(i,field,val)=>{
+    const rows=[...reviewRows];
+    rows[i]={...rows[i],[field]:val};
+    setReviewRows(rows);
+  };
+
+  const addManualRow=async()=>{
+    const engines=JSON.parse(JSON.stringify(asset.engines||[]));
+    const existing=engines[engIdx].operatorHistory||[];
+    const row={
+      id:"oh_"+Date.now(),
+      operator:newRow.operator,aircraft:newRow.aircraft,installDate:newRow.installDate,removalDate:newRow.removalDate,
+      tsnAtRemoval:newRow.tsnAtRemoval===""?null:+newRow.tsnAtRemoval,
+      csnAtRemoval:newRow.csnAtRemoval===""?null:+newRow.csnAtRemoval,
+      reason:newRow.reason,source:"manual",extractedFrom:null
+    };
+    engines[engIdx].operatorHistory=mergeOperatorHistory(existing,[row]);
+    await saveAsset({...asset,engines});
+    setManualAdd(false);
+    setNewRow({operator:"",aircraft:"",installDate:"",removalDate:"",tsnAtRemoval:"",csnAtRemoval:"",reason:""});
+    notify("Row added");
+  };
+
+  const saveEditRow=async(i)=>{
+    const engines=JSON.parse(JSON.stringify(asset.engines||[]));
+    const rows=[...(engines[engIdx].operatorHistory||[])];
+    rows[i]={
+      ...rows[i],...editForm,
+      tsnAtRemoval:editForm.tsnAtRemoval===""||editForm.tsnAtRemoval==null?null:+editForm.tsnAtRemoval,
+      csnAtRemoval:editForm.csnAtRemoval===""||editForm.csnAtRemoval==null?null:+editForm.csnAtRemoval
+    };
+    engines[engIdx].operatorHistory=mergeOperatorHistory(rows,[]);
+    await saveAsset({...asset,engines});
+    setEditIdx(null);setEditForm(null);
+    notify("Row updated");
+  };
+
+  const deleteRow=async(i)=>{
+    if(!confirm("Delete this operator history row?"))return;
+    const engines=JSON.parse(JSON.stringify(asset.engines||[]));
+    const rows=[...(engines[engIdx].operatorHistory||[])];
+    rows.splice(i,1);
+    engines[engIdx].operatorHistory=mergeOperatorHistory(rows,[]);
+    await saveAsset({...asset,engines});
+    notify("Deleted");
+  };
+
+  const rows=eng.operatorHistory||[];
+
+  return(
+    <div style={{marginTop:20}}>
+      <div className="flj" style={{marginBottom:8}}>
+        <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em"}}>Operator History</div>
+        {isAdmin&&<div className="flab g8">
+          <label style={{cursor:uploading?"default":"pointer"}}>
+            <input type="file" accept="application/pdf" style={{display:"none"}} disabled={uploading} onChange={e=>{handleUpload(e.target.files?.[0]);e.target.value="";}}/>
+            <span className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}}>{uploading?"⏳ Parsing…":"Upload Operator History"}</span>
+          </label>
+          <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setManualAdd(true)}>+ Add Row</button>
+        </div>}
+      </div>
+
+      {rows.length?(
+        <table><thead><tr><th>Operator</th><th>Aircraft</th><th>Installed</th><th>Removed</th><th>TSN</th><th>CSN</th><th>Reason</th>{isAdmin&&<th></th>}</tr></thead>
+        <tbody>{rows.map((r,i)=>{
+          const isEditingRow=editIdx===i;
+          const ed=isEditingRow?editForm:r;
+          if(isEditingRow)return(
+            <tr key={r.id||i}>
+              <td><input value={ed.operator||""} onChange={e=>setEditForm({...editForm,operator:e.target.value})} style={{width:100}}/></td>
+              <td><input value={ed.aircraft||""} onChange={e=>setEditForm({...editForm,aircraft:e.target.value})} style={{width:80}}/></td>
+              <td><input type="date" value={ed.installDate||""} onChange={e=>setEditForm({...editForm,installDate:e.target.value})}/></td>
+              <td><input type="date" value={ed.removalDate||""} onChange={e=>setEditForm({...editForm,removalDate:e.target.value})} placeholder="Still on wing"/></td>
+              <td><input type="number" value={ed.tsnAtRemoval??""} onChange={e=>setEditForm({...editForm,tsnAtRemoval:e.target.value})} style={{width:70}}/></td>
+              <td><input type="number" value={ed.csnAtRemoval??""} onChange={e=>setEditForm({...editForm,csnAtRemoval:e.target.value})} style={{width:70}}/></td>
+              <td><input value={ed.reason||""} onChange={e=>setEditForm({...editForm,reason:e.target.value})} style={{width:90}}/></td>
+              <td><div className="flab g8"><button className="btn btn-ghost" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>{setEditIdx(null);setEditForm(null);}}>Cancel</button><button className="btn btn-gold" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>saveEditRow(i)}>Save</button></div></td>
+            </tr>
+          );
+          return(
+            <tr key={r.id||i} style={r._gapFlag?{background:"#1a1306"}:undefined}>
+              <td style={{fontWeight:500}}>{r.operator||"—"}</td>
+              <td style={{fontFamily:"monospace"}}>{r.aircraft||"—"}</td>
+              <td>{fmtDate(r.installDate)}</td>
+              <td>{r.removalDate?fmtDate(r.removalDate):<span style={{color:"#34d399"}}>Still on wing</span>}</td>
+              <td style={{fontFamily:"monospace"}}>{r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—"}</td>
+              <td style={{fontFamily:"monospace"}}>{r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—"}</td>
+              <td style={{color:"#94a3b8"}}>{r.reason||"—"}{r._gapFlag&&<span title="TSN/CSN doesn't line up with the previous stint — check this row" style={{color:"#fbbf24",marginLeft:6}}>⚠</span>}</td>
+              {isAdmin&&<td><div className="flab g8"><button className="btn btn-ghost" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>{setEditIdx(i);setEditForm({...r});}}>Edit</button><button className="btn-danger btn" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>deleteRow(i)}>✕</button></div></td>}
+            </tr>
+          );
+        })}</tbody></table>
+      ):<div style={{color:"#475569",fontSize:12,fontStyle:"italic",padding:"6px 0"}}>No operator history recorded yet.</div>}
+
+      {manualAdd&&(
+        <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #1e3048"}}>
+          <div className="grid3" style={{gap:6,marginBottom:8}}>
+            {[["Operator","operator","text"],["Aircraft","aircraft","text"],["Install Date","installDate","date"],["Removal Date (blank = still on wing)","removalDate","date"],["TSN at Removal","tsnAtRemoval","number"],["CSN at Removal","csnAtRemoval","number"],["Reason","reason","text"]].map(([l,k,t])=>(
+              <div key={k}><label className="form-label">{l}</label><input type={t} value={newRow[k]} onChange={e=>setNewRow({...newRow,[k]:e.target.value})}/></div>
+            ))}
+          </div>
+          <div className="flab g8"><button className="btn btn-ghost" onClick={()=>setManualAdd(false)}>Cancel</button><button className="btn btn-gold" onClick={addManualRow}>Add Row</button></div>
+        </div>
+      )}
+
+      {reviewRows&&(
+        <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #C9A84C"}}>
+          <div style={{fontSize:11,color:"#C9A84C",fontWeight:700,marginBottom:8}}>Review extracted rows before saving — {reviewRows.length} stint{reviewRows.length===1?"":"s"} found</div>
+          <table><thead><tr><th>Operator</th><th>Aircraft</th><th>Installed</th><th>Removed</th><th>TSN</th><th>CSN</th><th>Reason</th></tr></thead>
+          <tbody>{reviewRows.map((r,i)=>(
+            <tr key={i}>
+              <td><input value={r.operator} onChange={e=>updateReviewRow(i,"operator",e.target.value)} style={{width:100}}/></td>
+              <td><input value={r.aircraft} onChange={e=>updateReviewRow(i,"aircraft",e.target.value)} style={{width:80}}/></td>
+              <td><input type="date" value={r.installDate} onChange={e=>updateReviewRow(i,"installDate",e.target.value)}/></td>
+              <td><input type="date" value={r.removalDate} onChange={e=>updateReviewRow(i,"removalDate",e.target.value)} placeholder="Still on wing"/></td>
+              <td><input type="number" value={r.tsnAtRemoval??""} onChange={e=>updateReviewRow(i,"tsnAtRemoval",e.target.value===""?null:+e.target.value)} style={{width:70}}/></td>
+              <td><input type="number" value={r.csnAtRemoval??""} onChange={e=>updateReviewRow(i,"csnAtRemoval",e.target.value===""?null:+e.target.value)} style={{width:70}}/></td>
+              <td><input value={r.reason} onChange={e=>updateReviewRow(i,"reason",e.target.value)} style={{width:90}}/></td>
+            </tr>
+          ))}</tbody></table>
+          <div className="flab g8" style={{marginTop:10}}><button className="btn btn-ghost" onClick={()=>setReviewRows(null)}>Discard</button><button className="btn btn-gold" onClick={confirmReview}>Confirm & Save</button></div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 function EnginesTab({asset,isAdmin,saveAsset,notify}){
   const[editIdx,setEditIdx]=useState(null);
   const[form,setForm]=useState(null);
@@ -207,9 +365,8 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
               </div>
               <div className="flab g8">
                 <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={async()=>{
-                  const isCFMEng=(eng.type||"").toUpperCase().includes("CFM");
-                  const photoKey=isCFMEng?"engine_photo_cfm56":"engine_photo_v2500";
-                  const engPhoto=await db.getSetting(photoKey).catch(()=>null)||"";
+                  const photoKey=engineStockPhotoKey(eng.type);
+                  const engPhoto=photoKey?(await db.getSetting(photoKey).catch(()=>null)||""):"";
                   const logo=await getTechSpecLogo();
                   const defaultDisclaimer=await getDefaultDisclaimer();
                   const base=buildTechSpecHTML({...asset,engines:[eng],_engineOnly:true,_enginePos:eng.position||ei+1},engPhoto,logo,defaultDisclaimer);
@@ -299,6 +456,7 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
               )}
             </div>
             <ShopVisitEditor eng={eng} engIdx={ei} asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>
+            <OperatorHistoryEditor eng={eng} engIdx={ei} asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>
           </div>
         );
       })}

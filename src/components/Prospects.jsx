@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LLPExtractor, ShareModal } from './AssetView';
 import { CheckDateInput, PhotoManager } from './PhotosAndSpecs';
-import { isCFM, makeBlankAsset, makeBlankEngineProspect, parseHHMM } from '../lib/assetHelpers';
+import { assetEngineStockPhotoKey, airframeStockPhotoKey, makeBlankAsset, makeBlankEngineProspect, parseHHMM } from '../lib/assetHelpers';
 import { db, logAudit } from '../lib/db';
 import { generateTechSpec, getDefaultDisclaimer, getTechSpecLogo } from '../lib/techSpec';
 
@@ -138,14 +138,15 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
 
   const regeneratePreview=useCallback(async(current)=>{
     const specAsset=current.prospectKind==="engine"?{...current,_engineOnly:true,_enginePos:1}:current;
-    const isCFMAsset=isCFM(specAsset);
-    const photoKey=isCFMAsset?"engine_photo_cfm56":"engine_photo_v2500";
-    const[engPhoto,logo,defaultDisclaimer]=await Promise.all([
-      db.getSetting(photoKey).catch(()=>null),
+    const photoKey=assetEngineStockPhotoKey(specAsset);
+    const airframePhotoKey=airframeStockPhotoKey(specAsset.model);
+    const[engPhoto,stockAirframePhoto,logo,defaultDisclaimer]=await Promise.all([
+      photoKey?db.getSetting(photoKey).catch(()=>null):Promise.resolve(null),
+      airframePhotoKey?db.getSetting(airframePhotoKey).catch(()=>null):Promise.resolve(null),
       getTechSpecLogo(),
       getDefaultDisclaimer()
     ]);
-    setPreviewHtml(buildTechSpecHTML(specAsset,engPhoto,logo,defaultDisclaimer));
+    setPreviewHtml(buildTechSpecHTML(specAsset,engPhoto,logo,defaultDisclaimer,stockAirframePhoto||""));
   },[]);
 
   useEffect(()=>{regeneratePreview(form);},[]); // eslint-disable-line
