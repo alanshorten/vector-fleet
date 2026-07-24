@@ -98,7 +98,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
   };
   return(
     <div style={{animation:"fadeIn 0.2s ease"}}>
-      <div className="flab g12 asset-header-row" style={{marginBottom:24,justifyContent:"space-between",flexWrap:"wrap"}}>
+      <div className="flab g12 asset-header-row" style={{marginBottom:24,justifyContent:"space-between",flexWrap:"nowrap"}}>
         <div className="flab g12 asset-header-top">
           <button className="btn btn-ghost" onClick={onBack}>← Fleet</button>
           <div>
@@ -108,7 +108,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
         </div>
         <div className="flab g12 asset-header-actions">
           <NavPill items={LAYERS} activeValue={layer} onSelect={setLayer}/>
-          <div className="app-nav-pill" style={{display:"inline-flex",alignItems:"center",justifyContent:"space-evenly",gap:8,background:"rgba(13,25,37,0.8)",border:"1px solid #1e3348",borderRadius:8,padding:"5px 6px",width:TRAILING_PILL_WIDTH,flexShrink:0}}>
+          <div className="app-nav-pill" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",gap:8,background:"rgba(13,25,37,0.8)",border:"1px solid #1e3348",borderRadius:8,padding:"5px 6px",width:TRAILING_PILL_WIDTH,flexShrink:0}}>
             <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>setShareOpen(true)}>🔗 Share</button>
             <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={genSpec}>📋 Generate Tech Spec</button>
           </div>
