@@ -177,7 +177,7 @@ function App(){
         <div className="app-header-row" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"nowrap",maxWidth:1480,margin:"0 auto",padding:"8px 22px",boxSizing:"border-box"}}>
           <img src={view==="portfolio"?HEADER_LOGO_WHITE:HEADER_LOGO_NAVY} alt="TailiQ" style={{height:44,maxWidth:"55vw",objectFit:"contain",objectPosition:"left center",borderRadius:0}} className="header-logo"/>
           {/* Right side: Fleet button above nav pill */}
-          <div className="app-header-right" style={{display:"flex",flexDirection:"column",gap:5,alignItems:"stretch"}}>
+          <div className="app-header-right" style={{display:"flex",flexDirection:"column",gap:5,alignItems:"stretch",flexShrink:0}}>
             {/* Fleet button - full width, colour coded to white theme. Not shown to Data Entry — presentation surface, not a raw-input tool. */}
             {canSeeAdvanced&&<button onClick={()=>{setView("portfolio");setSelectedId(null);}}
               className="app-fleet-btn"
@@ -191,7 +191,7 @@ function App(){
                 rather than standalone — a separate button was getting squeezed
                 off-screen on mobile. Uses the same NavPill component as the
                 asset-level layer pill, so the two are visually identical. */}
-            <div className="flab g8 app-nav-tools-row" style={{flexWrap:"nowrap",whiteSpace:"nowrap",justifyContent:"flex-end"}}>
+            <div className="flab g8 app-nav-tools-row" style={{flexWrap:"nowrap",whiteSpace:"nowrap",justifyContent:"flex-end",flexShrink:0}}>
               <NavPill
                 items={[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]}
                 activeValue={view}
