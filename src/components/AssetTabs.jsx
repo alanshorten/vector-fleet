@@ -264,6 +264,17 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
   };
 
   const rows=eng.operatorHistory||[];
+  // "Still on wing" is only meaningful for the chronologically last stint overall —
+  // an earlier stint with a blank removalDate just means removal date wasn't known
+  // at extraction time (e.g. two documents uploaded separately, each covering a
+  // different date range), not that the engine is still there. Recomputed at
+  // render time rather than trusted from storage, so it self-corrects even for
+  // rows saved before this fix existed.
+  const mostRecentRow=rows.length?[...rows].sort((a,b)=>{
+    if(!a.installDate)return 1;
+    if(!b.installDate)return -1;
+    return new Date(a.installDate)-new Date(b.installDate);
+  })[rows.length-1]:null;
 
   return(
     <div>
@@ -288,7 +299,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
               <td><input value={ed.operator||""} onChange={e=>setEditForm({...editForm,operator:e.target.value})} style={{width:100}}/></td>
               <td><input value={ed.aircraft||""} onChange={e=>setEditForm({...editForm,aircraft:e.target.value})} style={{width:80}}/></td>
               <td><input type="date" value={ed.installDate||""} onChange={e=>setEditForm({...editForm,installDate:e.target.value})}/></td>
-              <td><input type="date" value={ed.removalDate||""} onChange={e=>setEditForm({...editForm,removalDate:e.target.value})} placeholder="Still on wing"/></td>
+              <td><input type="date" value={ed.removalDate||""} onChange={e=>setEditForm({...editForm,removalDate:e.target.value})} placeholder="Blank if not removed"/></td>
               <td><input type="number" value={ed.tsnAtRemoval??""} onChange={e=>setEditForm({...editForm,tsnAtRemoval:e.target.value})} style={{width:70}}/></td>
               <td><input type="number" value={ed.csnAtRemoval??""} onChange={e=>setEditForm({...editForm,csnAtRemoval:e.target.value})} style={{width:70}}/></td>
               <td><input value={ed.reason||""} onChange={e=>setEditForm({...editForm,reason:e.target.value})} style={{width:90}}/></td>
@@ -300,7 +311,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
               <td style={{fontWeight:500}}>{r.operator||"—"}</td>
               <td style={{fontFamily:"monospace"}}>{r.aircraft||"—"}</td>
               <td>{fmtDate(r.installDate)}</td>
-              <td>{r.removalDate?fmtDate(r.removalDate):<span style={{color:"#34d399"}}>Still on wing</span>}</td>
+              <td>{r.removalDate?fmtDate(r.removalDate):(r===mostRecentRow?<span style={{color:"#94a3b8"}}>No removal recorded{r.asOfDate?` (as of ${fmtDate(r.asOfDate)})`:""}</span>:<span style={{color:"#64748b",fontStyle:"italic"}}>Unknown</span>)}</td>
               <td style={{fontFamily:"monospace"}}>{r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—"}</td>
               <td style={{fontFamily:"monospace"}}>{r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—"}</td>
               <td style={{color:"#94a3b8"}}>{r.reason||"—"}{r._gapFlag&&<span title="TSN/CSN doesn't line up with the previous stint — check this row" style={{color:"#fbbf24",marginLeft:6}}>⚠</span>}</td>
@@ -313,7 +324,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
       {manualAdd&&(
         <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #1e3048"}}>
           <div className="grid3" style={{gap:6,marginBottom:8}}>
-            {[["Operator","operator","text"],["Aircraft","aircraft","text"],["Install Date","installDate","date"],["Removal Date (blank = still on wing)","removalDate","date"],["TSN at Removal","tsnAtRemoval","number"],["CSN at Removal","csnAtRemoval","number"],["Reason","reason","text"]].map(([l,k,t])=>(
+            {[["Operator","operator","text"],["Aircraft","aircraft","text"],["Install Date","installDate","date"],["Removal Date (blank if not yet removed)","removalDate","date"],["TSN at Removal","tsnAtRemoval","number"],["CSN at Removal","csnAtRemoval","number"],["Reason","reason","text"]].map(([l,k,t])=>(
               <div key={k}><label className="form-label">{l}</label><input type={t} value={newRow[k]} onChange={e=>setNewRow({...newRow,[k]:e.target.value})}/></div>
             ))}
           </div>
@@ -330,7 +341,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
               <td><input value={r.operator} onChange={e=>updateReviewRow(i,"operator",e.target.value)} style={{width:100}}/></td>
               <td><input value={r.aircraft} onChange={e=>updateReviewRow(i,"aircraft",e.target.value)} style={{width:80}}/></td>
               <td><input type="date" value={r.installDate} onChange={e=>updateReviewRow(i,"installDate",e.target.value)}/></td>
-              <td><input type="date" value={r.removalDate} onChange={e=>updateReviewRow(i,"removalDate",e.target.value)} placeholder="Still on wing"/></td>
+              <td><input type="date" value={r.removalDate} onChange={e=>updateReviewRow(i,"removalDate",e.target.value)} placeholder="Blank if not removed"/></td>
               <td><input type="number" value={r.tsnAtRemoval??""} onChange={e=>updateReviewRow(i,"tsnAtRemoval",e.target.value===""?null:+e.target.value)} style={{width:70}}/></td>
               <td><input type="number" value={r.csnAtRemoval??""} onChange={e=>updateReviewRow(i,"csnAtRemoval",e.target.value===""?null:+e.target.value)} style={{width:70}}/></td>
               <td><input value={r.reason} onChange={e=>updateReviewRow(i,"reason",e.target.value)} style={{width:90}}/></td>

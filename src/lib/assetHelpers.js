@@ -95,6 +95,8 @@ const APU_LLP_PROMPT="Extract APU LLP data ONLY from this document. The APU seri
 
 const OPERATOR_HISTORY_PROMPT=`Extract the engine operator/movement history (chain of custody) from this document. Real documents vary hugely in format: some use a combined row (install date and removal date on the same row), some use paired rows (a separate IN row and OUT row for the same stint). Normalise every stint (one continuous installation on one aircraft) into a single output row.
 
+Also find the document's own stated effective/status date - the date the document itself claims to be current as of, NOT today's date and NOT any stint's install/removal date. Look for labels like "EFFECT DATE", "Status on:", "Date:", or similar, usually near the top or bottom of the document. Return this as "asOfDate" (ISO YYYY-MM-DD), or null if the document has no such stated date anywhere.
+
 For each stint extract:
 - operator: the airline/operator name for that stint. Use a per-row value if the table has one; otherwise use the document's letterhead/header operator name for every stint in that document.
 - aircraft: the registration or fleet/tail number for that stint (e.g. VT-SCA, B-2332, G-EUPK, 2930).
@@ -111,7 +113,7 @@ Position labels (1/2, LH/RH, Port/Stbd, POS:1/POS:2) may appear ONLY to help pai
 Date formats vary (DD-MMM-YY, DD-MMM-YYYY, YYYY/MM/DD, D-Mon-YY, DD-Mon-YYYY) - normalise all dates to ISO YYYY-MM-DD.
 
 You may reason through the document section by section before answering. Once finished, output the final result as a single fenced code block starting with \`\`\`json and ending with \`\`\` - this fenced block must contain ONLY the JSON object below and nothing else inside the fences:
-{"rows":[{"operator":"string or null","aircraft":"string or null","installDate":"YYYY-MM-DD or null","removalDate":"YYYY-MM-DD or null","tsnAtRemoval":number_or_null,"csnAtRemoval":number_or_null,"reason":"string or null"}]}`;
+{"asOfDate":"YYYY-MM-DD or null","rows":[{"operator":"string or null","aircraft":"string or null","installDate":"YYYY-MM-DD or null","removalDate":"YYYY-MM-DD or null","tsnAtRemoval":number_or_null,"csnAtRemoval":number_or_null,"reason":"string or null"}]}`;
 
 function assetStatus(asset){
   const llpVals=(asset.engines||[]).flatMap(e=>(e.llps||[]).map(l=>calcLLPRem(l,e.currentFC)));

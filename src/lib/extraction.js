@@ -68,6 +68,7 @@ async function extractOperatorHistory(file){
   if(!parsed||typeof parsed!=="object"||!Array.isArray(parsed.rows)){
     throw new Error("The AI returned an unexpected format. Check the file is a valid operator history document.");
   }
+  const asOfDate=parsed.asOfDate||null;
   return parsed.rows
     .filter(r=>r&&(r.installDate||r.removalDate||r.operator))
     .map((r,i)=>({
@@ -80,7 +81,8 @@ async function extractOperatorHistory(file){
       csnAtRemoval:r.csnAtRemoval!=null?+r.csnAtRemoval:null,
       reason:r.reason||"",
       source:"extracted",
-      extractedFrom:file.name
+      extractedFrom:file.name,
+      asOfDate
     }));
 };
 
