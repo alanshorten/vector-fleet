@@ -780,23 +780,25 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
           <div className="section-title" style={{margin:0}}>Check History</div>
         </div>
         {(editing?form:asset).checks?.length?(editing?form:asset).checks.map((c,i)=>(
-          <div key={i} style={{marginTop:12,paddingTop:12,borderTop:i>0?"1px solid #1e3048":"none"}}>
+          <div key={i} style={{marginTop:i>0?14:0,paddingTop:i>0?14:0,borderTop:i>0?"1px solid #1e3048":"none"}}>
             <div className="flj" style={{marginBottom:6}}>
               <span style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.04em"}}>{c.name}</span>
               {editing&&isAdmin&&<button className="btn-danger btn" style={{fontSize:9,padding:"3px 7px"}} onClick={()=>{const f=JSON.parse(JSON.stringify(form));f.checks.splice(i,1);setForm(f);}}>✕</button>}
             </div>
-            <div className="flab g8" style={{marginBottom:4,flexWrap:"wrap"}}>
-              <span style={{fontSize:11,color:"#64748b"}}>TSN</span>
-              {editing&&isAdmin?<input type="text" defaultValue={c.lastFH||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastFH=e.target.value?+e.target.value:null;setForm(f);}} style={{width:80}}/>:<span style={{fontSize:12,fontFamily:"monospace",color:"#e2e8f0"}}>{c.lastFH?.toLocaleString()||"—"}</span>}
-              <span style={{fontSize:11,color:"#334155"}}>·</span>
-              <span style={{fontSize:11,color:"#64748b"}}>CSN</span>
-              {editing&&isAdmin?<input type="number" defaultValue={c.lastFC||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastFC=e.target.value?+e.target.value:null;setForm(f);}} style={{width:80}}/>:<span style={{fontSize:12,fontFamily:"monospace",color:"#e2e8f0"}}>{c.lastFC?.toLocaleString()||"—"}</span>}
+            <div className="flj" style={{padding:"3px 0"}}>
+              <span style={{fontSize:12,color:"#64748b"}}>TSN</span>
+              {editing&&isAdmin?<input type="text" defaultValue={c.lastFH||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastFH=e.target.value?+e.target.value:null;setForm(f);}} style={{width:90,textAlign:"right"}}/>:<span style={{fontSize:12,fontFamily:"monospace",color:isEmpty(c.lastFH)?"#475569":"#e2e8f0"}}>{c.lastFH?.toLocaleString()||"—"}</span>}
             </div>
-            <div className="flab g8" style={{flexWrap:"wrap"}}>
-              <span style={{fontSize:11,color:"#64748b"}}>Last</span>
-              {editing&&isAdmin?<CheckDateInput val={c.lastDate} onCommit={(iso,next)=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastDate=iso;if(next)f.checks[i].nextDate=next;setForm(f);}} yrs={(()=>{const m=/(\d+)\s*Year/i.exec(c.name);return m?+m[1]:null;})()}/>:<span style={{fontSize:12,color:"#e2e8f0"}}>{fmtDate(c.lastDate)}</span>}
-              <span style={{fontSize:11,color:"#334155"}}>→</span>
-              <span style={{fontSize:11,color:"#64748b"}}>Next Due</span>
+            <div className="flj" style={{padding:"3px 0"}}>
+              <span style={{fontSize:12,color:"#64748b"}}>CSN</span>
+              {editing&&isAdmin?<input type="number" defaultValue={c.lastFC||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastFC=e.target.value?+e.target.value:null;setForm(f);}} style={{width:90,textAlign:"right"}}/>:<span style={{fontSize:12,fontFamily:"monospace",color:isEmpty(c.lastFC)?"#475569":"#e2e8f0"}}>{c.lastFC?.toLocaleString()||"—"}</span>}
+            </div>
+            <div className="flj" style={{padding:"3px 0"}}>
+              <span style={{fontSize:12,color:"#64748b"}}>Last</span>
+              {editing&&isAdmin?<CheckDateInput val={c.lastDate} onCommit={(iso,next)=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastDate=iso;if(next)f.checks[i].nextDate=next;setForm(f);}} yrs={(()=>{const m=/(\d+)\s*Year/i.exec(c.name);return m?+m[1]:null;})()}/>:<span style={{fontSize:12,color:isEmpty(c.lastDate)?"#475569":"#e2e8f0"}}>{fmtDate(c.lastDate)||"—"}</span>}
+            </div>
+            <div className="flj" style={{padding:"3px 0"}}>
+              <span style={{fontSize:12,color:"#64748b"}}>Next Due</span>
               {editing&&isAdmin?<CheckDateInput val={c.nextDate} onCommit={(iso)=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].nextDate=iso;setForm(f);}} yrs={null}/>:<span style={{fontSize:12,fontWeight:700,color:daysFromNow(c.nextDate)<365?"#fbbf24":"#34d399"}}>{fmtDate(c.nextDate)||"—"}</span>}
             </div>
           </div>

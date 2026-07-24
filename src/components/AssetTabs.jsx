@@ -72,15 +72,27 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
         <div className="card" style={{padding:18}}>
           <div className="section-title">Check History</div>
           {(asset.checks||[]).map((c,i)=>(
-            <div key={i} style={{marginBottom:10,paddingBottom:10,borderBottom:i<(asset.checks.length-1)?"1px solid #1e3048":"none"}}>
-              <div style={{fontSize:11,fontWeight:600,color:"#94a3b8",marginBottom:6}}>{c.name}</div>
-              <div className="grid2" style={{gap:"4px 10px"}}>
-                {[["Last Date",c.lastDate,"date"],["Next Due",c.nextDate,"date"]].map(([l,v,t])=>(
-                  <div key={l}><div style={{fontSize:10,color:"#475569"}}>{l}</div><div style={{fontSize:12,fontWeight:500,color:isEmpty(v)?"#475569":"#e2e8f0"}}>{t==="date"?fmtDate(v):v||"—"}</div></div>
-                ))}
+            <div key={i} style={{marginTop:i>0?14:0,paddingTop:i>0?14:0,borderTop:i>0?"1px solid #1e3048":"none"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>{c.name}</div>
+              <div className="flj" style={{padding:"3px 0"}}>
+                <span style={{fontSize:12,color:"#64748b"}}>TSN</span>
+                <span style={{fontSize:12,fontFamily:"monospace",color:isEmpty(c.lastFH)?"#475569":"#e2e8f0"}}>{c.lastFH?.toLocaleString()||"—"}</span>
+              </div>
+              <div className="flj" style={{padding:"3px 0"}}>
+                <span style={{fontSize:12,color:"#64748b"}}>CSN</span>
+                <span style={{fontSize:12,fontFamily:"monospace",color:isEmpty(c.lastFC)?"#475569":"#e2e8f0"}}>{c.lastFC?.toLocaleString()||"—"}</span>
+              </div>
+              <div className="flj" style={{padding:"3px 0"}}>
+                <span style={{fontSize:12,color:"#64748b"}}>Last</span>
+                <span style={{fontSize:12,color:isEmpty(c.lastDate)?"#475569":"#e2e8f0"}}>{fmtDate(c.lastDate)||"—"}</span>
+              </div>
+              <div className="flj" style={{padding:"3px 0"}}>
+                <span style={{fontSize:12,color:"#64748b"}}>Next Due</span>
+                <span style={{fontSize:12,fontWeight:700,color:daysFromNow(c.nextDate)<365?"#fbbf24":"#34d399"}}>{fmtDate(c.nextDate)||"—"}</span>
               </div>
             </div>
           ))}
+          {(asset.checks||[]).length===0&&<div style={{fontSize:12,color:"#475569",fontStyle:"italic"}}>No check history recorded</div>}
         </div>
       </div>
       <div className="card" style={{padding:18}}>
