@@ -805,6 +805,13 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
         )):<div style={{color:"#475569",fontStyle:"italic",fontSize:12}}>No check history recorded</div>}
         {editing&&isAdmin&&<div style={{marginTop:12}}><AddCheckRow existing={(form.checks||[]).map(c=>c.name)} onAdd={name=>{const f=JSON.parse(JSON.stringify(form));if(!f.checks)f.checks=[];f.checks.push({name,lastDate:"",lastFH:0,lastFC:0,nextDate:""});setForm(f);}}/></div>}
       </div>
+      <div className="card" style={{padding:18}}>
+        <div className="section-title">Tech Spec Disclaimer</div>
+        <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>Shown at the bottom of the generated tech spec document for this asset only. Leave blank to use the company-wide default set in Admin → Settings.</div>
+        {editing&&isAdmin
+          ?<textarea defaultValue={d.disclaimer||""} onBlur={e=>set("disclaimer",e.target.value)} rows={3} style={{width:"100%",fontFamily:"inherit",fontSize:13,resize:"vertical"}}/>
+          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(d.disclaimer)?"#475569":"#e2e8f0"}}>{d.disclaimer||"Not entered — company-wide default will be used"}</div>}
+      </div>
       </div>
       <div className="card" style={{padding:18}}>
         <div className="section-title">Specifications</div>
@@ -837,14 +844,7 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
           })}
         </div>
       </div>
-      <div className="card" style={{padding:18,marginTop:16}}>
-        <div className="section-title">Tech Spec Disclaimer</div>
-        <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>Shown at the bottom of the generated tech spec document for this asset only. Leave blank to use the company-wide default set in Admin → Settings.</div>
-        {editing&&isAdmin
-          ?<textarea defaultValue={d.disclaimer||""} onBlur={e=>set("disclaimer",e.target.value)} rows={3} style={{width:"100%",fontFamily:"inherit",fontSize:13,resize:"vertical"}}/>
-          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(d.disclaimer)?"#475569":"#e2e8f0"}}>{d.disclaimer||"Not entered — company-wide default will be used"}</div>}
-      </div>
-      <div className="card" style={{padding:18,marginTop:16}}>
+      <div className="card" style={{padding:18,marginTop:16,gridColumn:"1/-1"}}>
         <div className="section-title">Asset Photos</div>
         <PhotoManager asset={asset} saveAsset={saveAsset} notify={notify} field="photos"/>
       </div>
