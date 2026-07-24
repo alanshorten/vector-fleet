@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AdminView } from './components/AdminView';
-import { AssetView, NavPill } from './components/AssetView';
+import { AssetView, NavPill, TRAILING_PILL_WIDTH } from './components/AssetView';
 import { SetPasswordScreen, SignInScreen } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
 import { GuideView } from './components/GuideView';
@@ -201,7 +201,8 @@ function App(){
                 items={[["prospects","Prospects"],...(canUpload?[["upload","Upload"]]:[]),...(userRole==='admin'?[["admin","Admin"]]:[]),["signout","⎋ Sign Out"]]}
                 activeValue={view}
                 onSelect={v=>v==='signout'?window._auth.signOut():(setView(v),setSelectedId(null))}
-                theme={view==="portfolio"?"light":"dark"}/>
+                theme={view==="portfolio"?"light":"dark"}
+                width={TRAILING_PILL_WIDTH}/>
             </div>
           </div>
         </div>

@@ -706,13 +706,13 @@ function AvionicsTab({asset,isAdmin,saveAsset,notify}){
   const totalRows=(d.rows||[]).length;
   return(
     <div>
-      <div className="section-title" style={{marginBottom:14}}>Avionics LRU List</div>
       <div className="flj" style={{marginBottom:14}}>
         {isAdmin&&(!editing?<button className="btn btn-ghost" onClick={()=>setUploaderOpen(!uploaderOpen)}>Upload {uploaderOpen?"▾":"▸"}</button>:<span/>)}
         {isAdmin&&(!editing?<button className="btn btn-ghost" onClick={startEdit}>Edit</button>
           :<div className="flab g8"><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save</button></div>)}
       </div>
       {isAdmin&&uploaderOpen&&!editing&&<AvionicsLRUUploader onSaved={onUploaderSaved} notify={notify}/>}
+      <div className="section-title" style={{marginBottom:14}}>Avionics LRU List</div>
       {!totalRows&&!editing?(
         <div style={{fontSize:12,color:"#475569",padding:"20px 0",textAlign:"center"}}>No avionics LRU data yet — upload a spec sheet above to get started.</div>
       ):(
