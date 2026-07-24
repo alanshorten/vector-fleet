@@ -5,7 +5,7 @@ import { db } from '../lib/db';
 import { FLEET_EXPOSURE_HORIZON_MONTHS, buildFleetExposureData } from '../lib/flyForwardHelpers';
 import { getDefaultDisclaimer, getTechSpecLogo, openTechSpec } from '../lib/techSpec';
 
-function PortfolioView({assets, notify, onSelect, onFlyForward}){
+function PortfolioView({assets, notify, onSelect}){
   const[shareOpenId,setShareOpenId]=useState(null);
   const ageFromDOM=(dom)=>{
     if(!dom)return null;
@@ -140,10 +140,6 @@ function PortfolioView({assets, notify, onSelect, onFlyForward}){
                         onClick={e=>{e.stopPropagation();setShareOpenId(a.id);}}>
                         🔗 Share
                       </button>
-                      {onFlyForward&&a.currentLeaseId&&<button style={{background:"transparent",color:"#475569",border:"1px solid #e2e8f0",borderRadius:7,padding:"8px 14px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:"0.03em",transition:"all 0.15s"}}
-                        onClick={e=>{e.stopPropagation();onFlyForward(a.id);}}>
-                        🚀 Fly Forward
-                      </button>}
                       <button style={{background:"#C9A84C",color:"#0a1520",border:"none",borderRadius:7,padding:"8px 16px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:"0.03em",transition:"all 0.15s"}}
                         onMouseEnter={e=>e.currentTarget.style.background="#d4b060"}
                         onMouseLeave={e=>e.currentTarget.style.background="#C9A84C"}
