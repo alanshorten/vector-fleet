@@ -80,12 +80,19 @@ function reconstructPotWithStatus(doc) {
 };
 
 async function loadFleetExposureBundle(asset) {
-  if (!asset.currentLeaseId) {
-    return { asset, lease: null, reserveDocs: [], utilRate: null, apuHrPerMonth: 0, scheduledEvents: [], seasonalityProfile: null, costProjections: [] };
-  }
+  // Confirmed bug (Alan, July 2026 — TECH_DEBT.md 4.85 follow-up): this
+  // used to short-circuit entirely for any asset without an active lease,
+  // returning empty utilisation/reserves/etc. without ever querying
+  // Firestore — even when real utilisation reports and confirmed pots
+  // existed for that asset. That was fine for Fleet Exposure (genuinely
+  // can't compute a financial gap without a lease) but wrong for the
+  // Calendar tab and clash detection, which need this data regardless of
+  // lease status. Only the lease document itself is conditionally
+  // fetched now, since there's no ID to fetch it by without one — every
+  // other query always runs.
   const [util, leaseData, reserves, schedEvts, seasonProfile, shopVisits] = await Promise.all([
     db.getUtilisation(asset.id).catch(() => []),
-    db.getLease(asset.currentLeaseId).catch(() => null),
+    asset.currentLeaseId ? db.getLease(asset.currentLeaseId).catch(() => null) : Promise.resolve(null),
     db.getReservePots(asset.id).catch(() => []),
     db.getScheduledEvents(asset.id).catch(() => []),
     db.getSeasonalityProfile(asset.id).catch(() => null),
@@ -99,7 +106,12 @@ async function loadFleetExposureBundle(asset) {
 function buildFleetExposureEntry({ asset, lease, reserveDocs, utilRate, apuHrPerMonth, scheduledEvents, seasonalityProfile, costProjections }) {
   const confirmedPots = (reserveDocs || []).map(reconstructPotWithStatus).filter(p => !!p.triggerBasis);
   const rate = utilRate || { fhPerMonth: 0, fcPerMonth: 0 };
-  const pots = lease ? anchorReservePots({ asset, confirmedPots, rate, leaseStart: new Date() }) : confirmedPots;
+  // Anchoring only needs rate/checks/asset/leaseStart(=today) — never the
+  // lease object itself (see anchorReservePots) — so this no longer gates
+  // on `lease` being truthy. Fleet Exposure's own NO_LEASE exclusion
+  // (buildAssetAtoms) still runs downstream and is unaffected: an
+  // excluded asset's anchored pots are simply never read.
+  const pots = anchorReservePots({ asset, confirmedPots, rate, leaseStart: new Date() });
 
   return {
     assetId: asset.id,
