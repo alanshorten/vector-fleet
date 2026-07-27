@@ -4,7 +4,7 @@ import { AssetView, NavPill, TRAILING_PILL_WIDTH } from './components/AssetView'
 import { SetPasswordScreen, SignInScreen } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
 import { GuideView } from './components/GuideView';
-import { FleetExposureView, PortfolioView, RouteMatcherView } from './components/PortfolioView';
+import { FleetCalendarView, FleetExposureView, PandemicScenarioView, PortfolioView, RouteMatcherView } from './components/PortfolioView';
 import { ProspectEditor, ProspectListView } from './components/Prospects';
 import { UploadView } from './components/UploadView';
 import { db, logAudit } from './lib/db';
@@ -234,13 +234,13 @@ function App(){
         {view==="guide"&&<GuideView/>}
         {view==="portfolio"&&canSeeAdvanced&&<PortfolioView assets={liveAssets} notify={notify} onSelect={(id)=>{setSelectedId(id);setAssetInitialLayer("details");setView("asset");}} onFlyForward={(id)=>{setSelectedId(id);setAssetInitialLayer("financials");setView("asset");}}/>}
         {view==="fleetexposure"&&canSeeAdvanced&&<FleetExposureView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetInitialLayer("financials");setView("asset");}}/>}
-        {view==="fleetcalendar"&&canSeeAdvanced&&(
-          <div className="card" style={{padding:24,textAlign:"center",maxWidth:600,margin:"40px auto"}}>
-            <div style={{fontSize:14,fontWeight:700,color:"#e2e8f0",marginBottom:8}}>Calendar</div>
-            <div style={{fontSize:12,color:"#94a3b8"}}>Coming soon — event clustering across the fleet's maintenance calendar.</div>
-          </div>
+        {view==="fleetcalendar"&&canSeeAdvanced&&<FleetCalendarView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetInitialLayer("financials");setView("asset");}}/>}
+        {view==="fleetscenarios"&&canSeeAdvanced&&(
+          <>
+            <RouteMatcherView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetInitialLayer("financials");setView("asset");}}/>
+            <PandemicScenarioView assets={liveAssets}/>
+          </>
         )}
-        {view==="fleetscenarios"&&canSeeAdvanced&&<RouteMatcherView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetInitialLayer("financials");setView("asset");}}/>}
         {view==="prospects"&&<ProspectListView assets={prospectAssets} saveAsset={saveAsset} notify={notify} userRole={userRole} onSelect={id=>{setSelectedId(id);setView("prospect-editor");}} loadAssets={loadAssets}/>}
         {view==="prospect-editor"&&selectedId&&assets.find(a=>a.id===selectedId)&&<ProspectEditor asset={assets.find(a=>a.id===selectedId)} saveAsset={saveAsset} notify={notify} onBack={()=>{setView("prospects");setSelectedId(null);}}/>}
         {view==="admin"&&userRole==='admin'&&<AdminView assets={liveAssets} saveAsset={saveAsset} notify={notify} loadAssets={loadAssets}/>}

@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ShareModal } from './AssetView';
 import { assetStatus, daysFromNow, assetEngineStockPhotoKey, airframeStockPhotoKey } from '../lib/assetHelpers';
 import { db } from '../lib/db';
-import { FLEET_EXPOSURE_HORIZON_MONTHS, buildFleetExposureData, buildRouteMatchData } from '../lib/flyForwardHelpers';
+import { FLEET_EXPOSURE_HORIZON_MONTHS, buildFleetCalendarData, buildFleetExposureData, buildRouteMatchData } from '../lib/flyForwardHelpers';
 import { getDefaultDisclaimer, getTechSpecLogo, openTechSpec } from '../lib/techSpec';
+import { MaintenanceCalendarGrid } from './FlyForward';
+import { ScenarioSlider } from './Scenarios';
 
 function PortfolioView({assets, notify, onSelect}){
   const[shareOpenId,setShareOpenId]=useState(null);
@@ -462,6 +464,11 @@ function RouteMatcherView({ assets, onSelectAsset }) {
                       <span style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>MSN {r.msn}</span>
                     </div>
                     <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
+                      {r.clashes.length > 0 && (
+                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6, background: "#2a0e0e", color: "#f87171", fontWeight: 700 }}>
+                          ⚠ {r.clashes.length} clash{r.clashes.length === 1 ? "" : "es"}
+                        </span>
+                      )}
                       <span style={{ fontSize: 11, color: "#64748b" }}>
                         Disruption <span style={{ color: disruptionColor(r.disruptionMonths), fontWeight: 700 }}>{r.disruptionMonths} mo</span>
                       </span>
@@ -474,32 +481,44 @@ function RouteMatcherView({ assets, onSelectAsset }) {
                     </div>
                   </div>
                   {expanded && (
-                    <table style={{ fontSize: 12, width: "100%", marginTop: 10 }}>
-                      <thead><tr>
-                        <th style={{ color: "#64748b", textAlign: "left" }}>Pot</th>
-                        <th style={{ color: "#64748b", textAlign: "right" }}>Current profile</th>
-                        <th style={{ color: "#64748b", textAlign: "right" }}>On this route</th>
-                        <th style={{ color: "#64748b", textAlign: "right" }}>Shift</th>
-                      </tr></thead>
-                      <tbody>
-                        {r.potDeltas.map(p => (
-                          <tr key={p.code}>
-                            <td style={{ padding: "5px 0", color: "#e2e8f0" }}>{p.code} — {p.label}</td>
-                            <td style={{ textAlign: "right", color: "#94a3b8" }}>
-                              {p.baseDate ? fmtMonthYear(p.baseDate) : "Beyond horizon"}
-                              {p.baseShortfallHigh != null && <div style={{ fontSize: 10, color: financialColor(p.baseShortfallHigh > 0 ? 1 : 0) }}>${Math.round(p.baseShortfallHigh).toLocaleString()}</div>}
-                            </td>
-                            <td style={{ textAlign: "right", color: "#94a3b8" }}>
-                              {p.routeDate ? fmtMonthYear(p.routeDate) : "Beyond horizon"}
-                              {p.routeShortfallHigh != null && <div style={{ fontSize: 10, color: financialColor(p.routeShortfallHigh > 0 ? 1 : 0) }}>${Math.round(p.routeShortfallHigh).toLocaleString()}</div>}
-                            </td>
-                            <td style={{ textAlign: "right", fontSize: 11, color: p.shiftMonths == null ? "#94a3b8" : (p.shiftMonths < 0 ? "#f87171" : p.shiftMonths > 0 ? "#34d399" : "#64748b") }}>
-                              {formatShiftLabel(p)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <>
+                      <table style={{ fontSize: 12, width: "100%", marginTop: 10 }}>
+                        <thead><tr>
+                          <th style={{ color: "#64748b", textAlign: "left" }}>Pot</th>
+                          <th style={{ color: "#64748b", textAlign: "right" }}>Current profile</th>
+                          <th style={{ color: "#64748b", textAlign: "right" }}>On this route</th>
+                          <th style={{ color: "#64748b", textAlign: "right" }}>Shift</th>
+                        </tr></thead>
+                        <tbody>
+                          {r.potDeltas.map(p => (
+                            <tr key={p.code}>
+                              <td style={{ padding: "5px 0", color: "#e2e8f0" }}>{p.code} — {p.label}</td>
+                              <td style={{ textAlign: "right", color: "#94a3b8" }}>
+                                {p.baseDate ? fmtMonthYear(p.baseDate) : "Beyond horizon"}
+                                {p.baseShortfallHigh != null && <div style={{ fontSize: 10, color: financialColor(p.baseShortfallHigh > 0 ? 1 : 0) }}>${Math.round(p.baseShortfallHigh).toLocaleString()}</div>}
+                              </td>
+                              <td style={{ textAlign: "right", color: "#94a3b8" }}>
+                                {p.routeDate ? fmtMonthYear(p.routeDate) : "Beyond horizon"}
+                                {p.routeShortfallHigh != null && <div style={{ fontSize: 10, color: financialColor(p.routeShortfallHigh > 0 ? 1 : 0) }}>${Math.round(p.routeShortfallHigh).toLocaleString()}</div>}
+                              </td>
+                              <td style={{ textAlign: "right", fontSize: 11, color: p.shiftMonths == null ? "#94a3b8" : (p.shiftMonths < 0 ? "#f87171" : p.shiftMonths > 0 ? "#34d399" : "#64748b") }}>
+                                {formatShiftLabel(p)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {r.clashes.length > 0 && (
+                        <div style={{ marginTop: 10, padding: 10, background: "#2a0e0e", borderRadius: 6 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#f87171", marginBottom: 6 }}>Scheduling clashes on this route</div>
+                          {r.clashes.map((c, i) => (
+                            <div key={i} style={{ fontSize: 11, color: "#fca5a5", padding: "3px 0" }}>
+                              {c.code} ({fmtMonthYear(c.groundingStart)}–{fmtMonthYear(c.groundingEnd)}) overlaps MSN {c.withMsn}'s {c.withCode} ({fmtMonthYear(c.withGroundingStart)}–{fmtMonthYear(c.withGroundingEnd)})
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
                   {onSelectAsset && (
                     <div style={{ marginTop: 6 }}>
@@ -517,4 +536,158 @@ function RouteMatcherView({ assets, onSelectAsset }) {
 };
 
 
-export { FleetExposureView, PortfolioView, RouteMatcherView };
+// ---------------------------------------------------------------------
+// Fleet Calendar — fleet-level "Calendar" nav tab (layer3-scenarios-
+// build-handoff.md §7 four-layer nav; content itself was unscoped until
+// this session — Alan's decision: reuse the asset-level calendar view
+// rather than build something new). Every asset's own scheduled events,
+// at its own real utilisation rate, flattened into one list and fed to
+// the SAME MaintenanceCalendarGrid the asset-level Calendar tab already
+// uses — MSN now shown per event since one grid cell can hold events from
+// several assets. Read-only: no editing here, that stays on the asset's
+// own Calendar tab. No cost figures surfaced deliberately — that's what
+// Financials (Fleet Exposure) is for; this tab answers "what's happening
+// when," not "what will it cost."
+// ---------------------------------------------------------------------
+
+function FleetCalendarView({ assets, onSelectAsset }) {
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [showExcluded, setShowExcluded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    buildFleetCalendarData(assets)
+      .then(result => { if (!cancelled) { setData(result); setLoadError(null); } })
+      .catch(e => { if (!cancelled) setLoadError(e.message || String(e)); })
+      .then(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assets]);
+
+  if (loading) {
+    return <div style={{ padding: 40, textAlign: "center", color: "#64748b" }}>Loading fleet calendar…</div>;
+  }
+  if (loadError || !data) {
+    return (
+      <div className="card" style={{ padding: 24, textAlign: "center", color: "#f87171" }}>
+        Couldn't build the fleet calendar{loadError ? `: ${loadError}` : "."}
+      </div>
+    );
+  }
+
+  const included = data.filter(a => !a.excluded);
+  const excluded = data.filter(a => a.excluded);
+  const events = included.flatMap(a => (a.events || []).map(e => ({ ...e, msn: a.msn, assetId: a.assetId })));
+
+  return (
+    <div style={{ animation: "fadeIn 0.2s ease" }}>
+      <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Calendar</div>
+        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+          Event clustering across the fleet's maintenance calendar — scheduling only, no cost figures. See Financials for the money view.
+        </div>
+        {excluded.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <button onClick={() => setShowExcluded(s => !s)} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", textDecoration: "underline", font: "inherit", padding: 0, fontSize: 12 }}>
+              {excluded.length} asset{excluded.length === 1 ? "" : "s"} not shown
+            </button>
+            {showExcluded && (
+              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                {excluded.map((e, i) => (
+                  <div key={i} className="flj" style={{ fontSize: 12, color: "#94a3b8", cursor: onSelectAsset ? "pointer" : "default" }} onClick={() => onSelectAsset && onSelectAsset(e.assetId)}>
+                    <span>MSN {e.msn}</span>
+                    <span style={{ color: e.excluded.code === "COMPUTE_ERROR" ? "#f87171" : "#fbbf24" }}>{e.excluded.code.replace(/_/g, " ")} — {e.excluded.message}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {events.length === 0
+        ? <div className="card" style={{ padding: 24, textAlign: "center", color: "#64748b" }}>No scheduled events across the fleet.</div>
+        : <MaintenanceCalendarGrid events={events}/>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
+// Pandemic scenario — fleet-level Scenarios, alongside Route Matcher
+// (layer3-scenarios-build-handoff.md §4a; replaces the killed fleet-wide
+// chat box for this one hypothetical, per Alan's decision to keep the
+// slider version). Grounds every asset from today for N months, combined
+// with each asset's own real maintenance grounding via Math.min — no
+// stacking (fleetExposure.js's applyPandemicGrounding). Non-destructive,
+// same as everything else in Scenarios: nothing writes to Firestore.
+// ---------------------------------------------------------------------
+
+function PandemicScenarioView({ assets }) {
+  const [months, setMonths] = useState(4);
+  const [loading, setLoading] = useState(false);
+  const [base, setBase] = useState(null);
+  const [scenario, setScenario] = useState(null);
+  const [error, setError] = useState(null);
+  const [active, setActive] = useState(false);
+
+  const run = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [baseResult, scenarioResult] = await Promise.all([
+        buildFleetExposureData(assets, 0),
+        buildFleetExposureData(assets, months)
+      ]);
+      setBase(baseResult);
+      setScenario(scenarioResult);
+      setActive(true);
+    } catch (e) {
+      setError(e.message || String(e));
+    }
+    setLoading(false);
+  }, [assets, months]);
+
+  const reset = () => { setActive(false); setBase(null); setScenario(null); };
+
+  const deltaColor = (b, s) => (s > b ? "#f87171" : s < b ? "#34d399" : "#94a3b8");
+
+  return (
+    <div className="card" style={{ padding: 16, marginTop: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Pandemic Scenario</div>
+      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+        Grounds the entire fleet from today for the selected period, combined with each asset's own real maintenance grounding — whichever grounds harder wins, downtime never stacks. Exploratory only; nothing here is saved.
+      </div>
+      <ScenarioSlider label="Grounding duration" value={months} onChange={setMonths} min={1} max={12} step={1} format={v => `${v} mo`}/>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: active ? 16 : 0 }}>
+        {active && <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} onClick={reset}>Reset</button>}
+        <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 18px" }} disabled={loading} onClick={run}>
+          {loading ? "Running…" : "Run pandemic scenario"}
+        </button>
+      </div>
+      {error && <div style={{ fontSize: 12, color: "#f87171" }}>Couldn't run the scenario: {error}</div>}
+      {active && base && scenario && (
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          <div className="card" style={{ padding: 16, flex: 1, minWidth: 220 }}>
+            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>Base Case — High-case gap</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0" }}>${Math.round(base.headline.totalHighCaseGap).toLocaleString()}</div>
+          </div>
+          <div className="card" style={{ padding: 16, flex: 1, minWidth: 220 }}>
+            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>{months}-Month Grounding — High-case gap</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: deltaColor(base.headline.totalHighCaseGap, scenario.headline.totalHighCaseGap) }}>
+              ${Math.round(scenario.headline.totalHighCaseGap).toLocaleString()}
+            </div>
+            <div style={{ fontSize: 11, marginTop: 4, color: deltaColor(base.headline.totalHighCaseGap, scenario.headline.totalHighCaseGap) }}>
+              {scenario.headline.totalHighCaseGap > base.headline.totalHighCaseGap ? "▲" : scenario.headline.totalHighCaseGap < base.headline.totalHighCaseGap ? "▼" : "—"}{" "}
+              ${Math.round(Math.abs(scenario.headline.totalHighCaseGap - base.headline.totalHighCaseGap)).toLocaleString()} vs. base case
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export { FleetCalendarView, FleetExposureView, PandemicScenarioView, PortfolioView, RouteMatcherView };

@@ -115,7 +115,7 @@ function buildFleetExposureEntry({ asset, lease, reserveDocs, utilRate, apuHrPer
   };
 };
 
-async function buildFleetExposureData(assets) {
+async function buildFleetExposureData(assets, pandemicGroundingMonths = 0) {
   const bundles = await Promise.all(assets.map(loadFleetExposureBundle));
   const entries = bundles.map(buildFleetExposureEntry);
   // Knowledge Base check-duration defaults ({"2Y","6Y","12Y"} weeks) —
@@ -130,6 +130,27 @@ async function buildFleetExposureData(assets) {
   return window.buildFleetExposure({
     assets: entries,
     horizonPastLeaseEndMonths: FLEET_EXPOSURE_HORIZON_MONTHS,
+    pandemicGroundingMonths,
+    brains: {
+      projectReservePot: window.projectReservePot,
+      projectEnLpPot: window.projectEnLpPot,
+      buildMaintenanceCalendar: (input) => window.buildMaintenanceCalendar({ ...input, durationDefaults })
+    }
+  });
+};
+
+// Fleet Calendar tab (layer3-scenarios-build-handoff.md §7, Alan's "reuse
+// the asset calendar view" decision) — every asset's own scheduled events
+// at its real utilisation rate, flattened for MaintenanceCalendarGrid.
+// Same Body-layer shape as buildFleetExposureData, just calling
+// fleetExposure.js's lighter buildFleetMaintenanceEvents instead (no pot
+// financial pass — nothing here needs cost, only scheduling).
+async function buildFleetCalendarData(assets) {
+  const bundles = await Promise.all(assets.map(loadFleetExposureBundle));
+  const entries = bundles.map(buildFleetExposureEntry);
+  const durationDefaults = getCheckDurationDefaults();
+  return window.buildFleetMaintenanceEvents({
+    assets: entries,
     brains: {
       projectReservePot: window.projectReservePot,
       projectEnLpPot: window.projectEnLpPot,
@@ -188,14 +209,26 @@ async function buildRouteMatchData(assets, route) {
   const bundles = await Promise.all(assets.map(loadFleetExposureBundle));
   const entries = bundles.map(b => buildRouteMatchEntry(b, route));
   const durationDefaults = getCheckDurationDefaults();
+  const brains = {
+    projectReservePot: window.projectReservePot,
+    projectEnLpPot: window.projectEnLpPot,
+    buildMaintenanceCalendar: (input) => window.buildMaintenanceCalendar({ ...input, durationDefaults })
+  };
+  // Clash detection (Alan, July 2026 — unblocked now Route Matcher itself
+  // exists): every OTHER asset's own base-case scheduled events, computed
+  // once per run from the SAME bundles already loaded above (no second
+  // Firestore round-trip), reusing buildFleetExposureEntry's shape since
+  // buildFleetMaintenanceEvents takes the identical per-asset entry
+  // contract buildFleetExposure does.
+  const fleetMaintenanceEvents = window.buildFleetMaintenanceEvents({
+    assets: bundles.map(buildFleetExposureEntry),
+    brains
+  });
   return window.matchRouteToFleet({
     assets: entries,
     route,
-    brains: {
-      projectReservePot: window.projectReservePot,
-      projectEnLpPot: window.projectEnLpPot,
-      buildMaintenanceCalendar: (input) => window.buildMaintenanceCalendar({ ...input, durationDefaults })
-    }
+    brains,
+    fleetMaintenanceEvents
   });
 };
 
@@ -316,4 +349,4 @@ function buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, schedu
 };
 
 
-export { FF_COLORS, FLEET_EXPOSURE_HORIZON_MONTHS, addMonthsFF, anchorReservePots, buildFleetExposureData, buildFleetExposureEntry, buildFlyForwardProjection, buildRouteMatchData, buildRouteMatchEntry, loadFleetExposureBundle, reconstructPot, reconstructPotWithStatus };
+export { FF_COLORS, FLEET_EXPOSURE_HORIZON_MONTHS, addMonthsFF, anchorReservePots, buildFleetCalendarData, buildFleetExposureData, buildFleetExposureEntry, buildFlyForwardProjection, buildRouteMatchData, buildRouteMatchEntry, loadFleetExposureBundle, reconstructPot, reconstructPotWithStatus };

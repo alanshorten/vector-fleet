@@ -337,4 +337,4 @@ function Scenarios({ asset }) {
   );
 }
 
-export { Scenarios };
+export { Scenarios, ScenarioSlider };

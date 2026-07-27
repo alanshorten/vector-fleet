@@ -138,7 +138,67 @@ function runProjection(entry, pots, utilisation, brains) {
 
   const totalShortfallHigh = potSummaries.reduce((s, p) => s + Math.max(0, p.worstShortfallHigh || 0), 0);
 
-  return { potSummaries, totalShortfallHigh, horizonMonths };
+  // Grounding windows (C-Checks only — the only events with real duration,
+  // per Brain 6's downtime asymmetry rule) within the projection horizon,
+  // for clash detection against the rest of the fleet. Non-grounding
+  // events (engine/LG/APU — ~a weekend) carry no meaningful window and are
+  // deliberately excluded here, same reasoning Brain 6 uses to exclude
+  // them from groundingAvailability.
+  const groundingWindows = (maintenanceCal.events || [])
+    .filter(e => e.grounding && e.groundingStart && e.groundingEnd)
+    .map(e => ({ code: e.code, dueCycle: e.dueCycle, groundingStart: e.groundingStart, groundingEnd: e.groundingEnd }));
+
+  return { potSummaries, totalShortfallHigh, horizonMonths, groundingWindows };
+}
+
+// ---------------------------------------------------------------------
+// Clash detection — does moving this candidate onto the route put one of
+// its C-Check windows on top of another asset's own scheduled C-Check?
+// Confirmed design (Alan, July 2026): overlapping DATE WINDOWS accounting
+// for check duration, not just same-month — a 6-week C-Check in month M
+// and another asset's 6-week C-Check starting the following week both fall
+// in the same calendar month bucket but genuinely overlap in real time,
+// while two checks in the same month that don't actually overlap
+// shouldn't be flagged. Uses groundingStart/groundingEnd exactly as
+// maintenanceCal.js computes them — no new date logic invented here.
+//
+// Compared against `fleetMaintenanceEvents` — every OTHER asset's own
+// BASE-case (real utilisation, unmodified) grounding windows, built once
+// per Route Matcher run by buildFleetMaintenanceEvents (fleetExposure.js)
+// and passed in by the Body layer (flyForwardHelpers.js). The candidate is
+// never checked against itself.
+// ---------------------------------------------------------------------
+
+function windowsOverlap(aStart, aEnd, bStart, bEnd) {
+  return aStart < bEnd && bStart < aEnd;
+}
+
+function detectClashes(assetId, routeGroundingWindows, fleetMaintenanceEvents) {
+  if (!routeGroundingWindows || !routeGroundingWindows.length || !fleetMaintenanceEvents || !fleetMaintenanceEvents.length) {
+    return [];
+  }
+  const clashes = [];
+  for (const w of routeGroundingWindows) {
+    for (const other of fleetMaintenanceEvents) {
+      if (!other || other.assetId === assetId || other.excluded || !other.events) continue;
+      for (const oEvt of other.events) {
+        if (!oEvt.grounding || !oEvt.groundingStart || !oEvt.groundingEnd) continue;
+        if (windowsOverlap(w.groundingStart, w.groundingEnd, oEvt.groundingStart, oEvt.groundingEnd)) {
+          clashes.push({
+            code: w.code,
+            groundingStart: w.groundingStart,
+            groundingEnd: w.groundingEnd,
+            withAssetId: other.assetId,
+            withMsn: other.msn,
+            withCode: oEvt.code,
+            withGroundingStart: oEvt.groundingStart,
+            withGroundingEnd: oEvt.groundingEnd
+          });
+        }
+      }
+    }
+  }
+  return clashes;
 }
 
 // ---------------------------------------------------------------------
@@ -148,7 +208,7 @@ function runProjection(entry, pots, utilisation, brains) {
 // surface the gap, never silently skip or zero-fill it.
 // ---------------------------------------------------------------------
 
-function compareAsset(entry, route, brains) {
+function compareAsset(entry, route, brains, fleetMaintenanceEvents) {
   const { assetId, msn, lease, basePots = [], routePots = [], baseUtilisation, routeUtilisation } = entry;
 
   if (!lease || !lease.leaseEnd) {
@@ -186,6 +246,7 @@ function compareAsset(entry, route, brains) {
     // moving later on one pot doesn't "cancel out" another moving earlier.
     const disruptionMonths = potDeltas.reduce((s, p) => s + (p.shiftMonths != null ? Math.max(0, -p.shiftMonths) : 0), 0);
     const financialDeltaHigh = routeRun.totalShortfallHigh - baseRun.totalShortfallHigh;
+    const clashes = detectClashes(assetId, routeRun.groundingWindows, fleetMaintenanceEvents);
 
     return {
       assetId,
@@ -195,7 +256,8 @@ function compareAsset(entry, route, brains) {
       routeTotalShortfallHigh: routeRun.totalShortfallHigh,
       financialDeltaHigh,
       disruptionMonths,
-      potDeltas
+      potDeltas,
+      clashes
     };
   } catch (e) {
     return { assetId, msn, excluded: { code: "COMPUTE_ERROR", message: e.message || String(e) } };
@@ -213,13 +275,18 @@ function compareAsset(entry, route, brains) {
 //             correctly-derived apuHrPerMonth), plus lease, engines, checks,
 //             scheduledEvents, seasonalityProfile, costProjections ],
 //   route: { fhPerMonth, fcPerMonth, startDate, endDate },
-//   brains: { projectReservePot, projectEnLpPot, buildMaintenanceCalendar }
+//   brains: { projectReservePot, projectEnLpPot, buildMaintenanceCalendar },
+//   fleetMaintenanceEvents: optional — output of fleetExposure.js's
+//     buildFleetMaintenanceEvents(assets), i.e. every fleet asset's OWN
+//     base-case scheduled events with duration windows. Powers clash
+//     detection (see detectClashes above); omit and every result's
+//     `clashes` array is simply empty, not an error.
 // }
 //
 // output: { ranked: [...best fit first...], excludedAssets: [...], route }
 
 function matchRouteToFleet(input) {
-  const { assets = [], route, brains } = input;
+  const { assets = [], route, brains, fleetMaintenanceEvents = [] } = input;
   if (!brains || !brains.projectReservePot || !brains.projectEnLpPot || !brains.buildMaintenanceCalendar) {
     throw new Error("matchRouteToFleet: brains.{projectReservePot,projectEnLpPot,buildMaintenanceCalendar} are required");
   }
@@ -229,7 +296,7 @@ function matchRouteToFleet(input) {
 
   const results = assets.map(entry => {
     try {
-      return compareAsset(entry, route, brains);
+      return compareAsset(entry, route, brains, fleetMaintenanceEvents);
     } catch (e) {
       return { assetId: entry && entry.assetId, msn: entry && entry.msn, excluded: { code: "COMPUTE_ERROR", message: e.message || String(e) } };
     }
@@ -255,5 +322,5 @@ if (typeof window !== "undefined") {
   window.matchRouteToFleet = matchRouteToFleet;
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { matchRouteToFleet, compareAsset, runProjection, monthDelta, monthsBetween };
+  module.exports = { matchRouteToFleet, compareAsset, runProjection, monthDelta, monthsBetween, windowsOverlap, detectClashes };
 }

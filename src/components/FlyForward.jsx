@@ -60,7 +60,7 @@ function MaintenanceCalendarGrid({ events }) {
             <div key={i} style={{ marginBottom: i < hover.evts.length - 1 ? 8 : 0 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: colorForCode(e.code), display: "inline-block", marginRight: 6 }}/>
-                {e.code} — {e.label}
+                {e.msn ? `MSN ${e.msn} — ` : ""}{e.code} — {e.label}
               </div>
               <div style={{ fontSize: 11, color: "#94a3b8" }}>{e.date.toISOString().slice(0, 10)}{e.grounding ? ` · grounds ${e.durationWeeks}wk` : ""}</div>
               {e.cost && <div style={{ fontSize: 11, color: "#64748b" }}>${Math.round(e.cost.projectedCostLow).toLocaleString()}–${Math.round(e.cost.projectedCostHigh).toLocaleString()}</div>}
@@ -682,4 +682,4 @@ function SeasonalityProfileEditor({ asset, profile, onSaved }) {
 };
 
 
-export { FFPotCard, FlyForward, MaintenanceCalendarView, MiniLineChart, SeasonalityProfileEditor };
+export { FFPotCard, FlyForward, MaintenanceCalendarGrid, MaintenanceCalendarView, MiniLineChart, SeasonalityProfileEditor };
