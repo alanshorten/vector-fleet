@@ -423,15 +423,24 @@ function LLPCatalogueEditor({assets, notify}) {
       const parsed = isCatalogueExcelFile(file)
         ? await parseExcelCatalogueFile(file)
         : await parsePdfCatalogueFile(file);
+      // Diagnostic logging — kept in permanently (not just for this
+      // session): a silent "0 matched" is otherwise very hard to debug,
+      // since the notify toast disappears in seconds and there's no
+      // other visibility into what the parser actually extracted vs
+      // what the fleet's own shopping list contains.
+      console.log(`[LLP Catalogue upload] Parsed ${parsed.length} rows from "${file.name}":`, parsed.map(p => p.partNumber));
+      console.log(`[LLP Catalogue upload] Fleet shopping list has ${rows.length} part numbers for ${family}:`, rows.map(r => r.partNumber));
       const byPn = Object.fromEntries(parsed.map(p => [p.partNumber, p.unitPrice]));
       let matched = 0;
+      const unmatchedFleetPns = [];
       setRows(r => r.map(row => {
-        if (byPn[row.partNumber] == null) return row;
+        if (byPn[row.partNumber] == null) { unmatchedFleetPns.push(row.partNumber); return row; }
         matched++;
         return { ...row, unitPrice: byPn[row.partNumber] };
       }));
       if (!matched) {
-        notify("Uploaded file parsed, but none of its part numbers matched this fleet's LLP sheets for " + (family === 'CFM' ? 'CFM56' : 'V2500') + " — check you picked the right family tab.", "error");
+        console.log(`[LLP Catalogue upload] Zero matches. Fleet part numbers that found no counterpart in the upload:`, unmatchedFleetPns);
+        notify(`Parsed ${parsed.length} rows from the upload, but none of the ${rows.length} fleet part numbers for ${family === 'CFM' ? 'CFM56' : 'V2500'} matched — open the browser console for a side-by-side comparison (Parsed vs Fleet), or check you picked the right family tab.`, "error");
       } else {
         notify(`Matched ${matched} of ${rows.length} fleet part numbers from the upload — review prices below before saving.`);
       }
