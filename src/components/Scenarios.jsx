@@ -56,6 +56,30 @@ function formatShift(months) {
   return months < 0 ? `${Math.abs(months)} mo earlier` : `${months} mo later`;
 }
 
+// Verbalises a potRows entry — NOT an AI call, NOT an analysis step. Every
+// value used here (cost, balance, date, shift) already exists in the row
+// object powering the visible table; this only composes it into a
+// sentence. Nothing here can introduce a fact that isn't already on
+// screen — the "explain the maths, don't guess" requirement is enforced
+// structurally, not by prompting, since there's no model in the loop at
+// all for this path.
+function describeShortfallSide(label, high, costLow, costHigh, balance, date, beyondLease, tracked) {
+  if (!tracked) return `${label}: not tracked for this asset.`;
+  if (high == null) return `${label}: no event projected within the next ${BEYOND_LEASE_LOOKAHEAD_YEARS} years.`;
+  const low = costLow - balance;
+  const dateStr = date ? date.toISOString().slice(0, 7) : "an unknown date";
+  const leaseNote = beyondLease ? " (falls after this lease ends — the next lessee's exposure, not counted in the totals above)" : "";
+  return `${label}, projected ${dateStr}${leaseNote}: cost $${Math.round(costLow).toLocaleString()}–$${Math.round(costHigh).toLocaleString()}, balance at event $${Math.round(balance).toLocaleString()} → shortfall $${Math.round(low).toLocaleString()}–$${Math.round(high).toLocaleString()}.`;
+}
+
+function explainPotRow(row, scenarioActive) {
+  const baseLine = describeShortfallSide("Base case", row.baseHigh, row.baseCostLow, row.baseCostHigh, row.baseBalance, row.baseDate, row.baseBeyondLease, row.baseTracked);
+  if (!scenarioActive) return `${row.code} — ${row.label}\n${baseLine}`;
+  const scenarioLine = describeShortfallSide("Scenario", row.scenarioHigh, row.scenarioCostLow, row.scenarioCostHigh, row.scenarioBalance, row.scenarioDate, row.scenarioBeyondLease, row.scenarioTracked);
+  const shiftLine = row.shiftMonths != null ? ` Timing shift vs. base case: ${formatShift(row.shiftMonths)}.` : "";
+  return `${row.code} — ${row.label}\n${baseLine}\n${scenarioLine}${shiftLine}`;
+}
+
 // buildFlyForwardProjection derives its own horizonMonths from
 // lease.leaseEnd and simply never generates events past it — that's
 // correct for the headline shortfall totals and risk peaks (this lease's
@@ -163,6 +187,7 @@ function Scenarios({ asset }) {
   const [chatNote, setChatNote] = useState(null);
   const [chatCount, setChatCount] = useState(0);
   const [chatInterpretation, setChatInterpretation] = useState(null);
+  const [explainedCode, setExplainedCode] = useState(null);
   const lastChatAt = useRef(0);
   const chatCapped = chatCount >= MAX_SCENARIO_CHATS_PER_SESSION;
 
@@ -221,6 +246,35 @@ function Scenarios({ asset }) {
   // misinterpretation easy to spot rather than compounding silently.
   const applyChat = async () => {
     if (!chatText.trim() || chatBusy) return;
+
+    // Explain-a-pot requests are answered WITHOUT calling the AI at all —
+    // explainPotRow only reads fields already computed in potRows, so
+    // there's nothing to translate or guess. This deliberately does NOT
+    // reopen the previously-killed general chatbot/query interface: it
+    // can only ever narrate a number already visible in the table below,
+    // never answer an open-ended question or introduce a new fact. Not
+    // rate-limited or cooldown-gated either, since no model call is made.
+    const normalized = chatText.trim().toUpperCase();
+    const matchedRow = potRows.find(r => normalized.includes(r.code.toUpperCase()) || normalized.includes(r.label.toUpperCase()));
+    const isGenericExplainAsk = !matchedRow && /\b(WHY|EXPLAIN|SHORTFALL|BREAKDOWN)\b/.test(normalized);
+    if (matchedRow) {
+      setChatError(null);
+      setChatNote(null);
+      setChatInterpretation(explainPotRow(matchedRow, scenarioActive));
+      return;
+    }
+    if (isGenericExplainAsk) {
+      const shortfallRows = potRows.filter(r => (scenarioActive ? r.scenarioHigh : r.baseHigh) != null);
+      setChatError(null);
+      setChatNote(null);
+      if (shortfallRows.length) {
+        setChatInterpretation(shortfallRows.map(r => explainPotRow(r, scenarioActive)).join('\n\n'));
+      } else {
+        setChatInterpretation("No shortfall is currently projected on any pot for this asset.");
+      }
+      return;
+    }
+
     if (chatCapped) {
       setChatError("That's a lot of scenarios explored already — try the sliders above directly for more.");
       return;
@@ -385,10 +439,10 @@ function Scenarios({ asset }) {
 
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 2 }}>💬 Ask TailiQ</div>
-        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>Describe a scenario in plain English and it'll set the sliders above for you.</div>
+        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>Describe a scenario and it'll set the sliders above — or ask about a pot's shortfall and it'll read back exactly what's already computed below, nothing guessed.</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input type="text" value={chatText} onChange={e => setChatText(e.target.value)}
-            placeholder={'e.g. "lease extends 12 months" or "utilisation drops 20%"'}
+            placeholder={'e.g. "lease extends 12 months" or "why is EN-PR-1 short?"'}
             disabled={chatCapped}
             style={{ flex: 1, minWidth: 220, fontSize: 12, padding: "8px 10px" }}
             onKeyDown={e => { if (e.key === "Enter") applyChat(); }}/>
@@ -396,7 +450,7 @@ function Scenarios({ asset }) {
             {chatBusy ? "Thinking…" : "Ask TailiQ"}
           </button>
         </div>
-        {chatInterpretation && !chatError && <div style={{ marginTop: 8, fontSize: 11, color: "#94a3b8" }}>{chatInterpretation}</div>}
+        {chatInterpretation && !chatError && <div style={{ marginTop: 8, fontSize: 11, color: "#94a3b8", whiteSpace: "pre-line", lineHeight: 1.6 }}>{chatInterpretation}</div>}
         {chatError && <div style={{ marginTop: 8, fontSize: 11, color: "#f87171" }}>{chatError}</div>}
         {chatNote && <div style={{ marginTop: 8, fontSize: 11, color: "#fbbf24" }}>ℹ {chatNote}</div>}
       </div>
@@ -455,10 +509,16 @@ function Scenarios({ asset }) {
           </tr></thead>
           <tbody>
             {potRows.map(row => (
-              <tr key={row.code}>
+              <React.Fragment key={row.code}>
+              <tr>
                 <td style={{ padding: "6px 0" }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: colorForCode(row.code), display: "inline-block", marginRight: 6 }}/>
                   {row.code} — {row.label}
+                  {(row.baseHigh != null || row.scenarioHigh != null) && (
+                    <button className="btn btn-ghost" style={{ fontSize: 10, padding: "1px 6px", marginLeft: 8 }} onClick={() => setExplainedCode(explainedCode === row.code ? null : row.code)}>
+                      {explainedCode === row.code ? "Hide ▴" : "Explain ▾"}
+                    </button>
+                  )}
                 </td>
                 <td style={{ textAlign: "right", verticalAlign: "top", padding: "6px 0" }}>
                   <div style={{ color: row.baseBeyondLease ? "#94a3b8" : shortfallColor(row.baseHigh) }}>
@@ -482,6 +542,14 @@ function Scenarios({ asset }) {
                     : (row.scenarioDate && !row.baseDate ? "Now within horizon" : (row.baseDate && !row.scenarioDate ? "No longer within horizon" : "—"))}
                 </td>
               </tr>
+              {explainedCode === row.code && (
+                <tr>
+                  <td colSpan={4} style={{ padding: "8px 10px", background: "#0d1622", borderRadius: 6, fontSize: 11, color: "#94a3b8", whiteSpace: "pre-line", lineHeight: 1.6 }}>
+                    {explainPotRow(row, scenarioActive)}
+                  </td>
+                </tr>
+              )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
