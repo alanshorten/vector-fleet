@@ -27,6 +27,19 @@ function worstEvent(projection) {
   return projection.events.reduce((worst, e) => (!worst || e.shortfallHigh > worst.shortfallHigh) ? e : worst, null);
 }
 
+// Used ONLY for the beyond-lease lookahead pass, not the real in-term
+// figures. A 15-year lookahead can span multiple cycles of a ~5-year
+// interval pot (e.g. EN-PR) — picking the worst event across that whole
+// window can surface a distant, heavily-compounded cycle whose balance
+// math the underlying Brain likely never validated for multi-cycle
+// projections (a negative balanceAtEvent was observed this way, live
+// test MSN 4821 — Alan, "surely this is not correct"). The nearest
+// post-lease event is both the more honest answer to "what's due after
+// this lease ends" and avoids that distant, unvalidated territory.
+function earliestEvent(projection) {
+  return projection && projection.events.length ? projection.events[0] : null;
+}
+
 function eventDate(evt) {
   if (!evt) return null;
   return evt.dateWindow ? evt.dateWindow.start : evt.date;
@@ -364,8 +377,8 @@ function Scenarios({ asset }) {
     // If nothing falls within the actual lease term, fall back to the
     // lookahead pass so a real, beyond-lease shortfall still shows a
     // number instead of just "Beyond horizon" — tagged as such below.
-    const bWorstLookahead = bWorstReal ? null : worstEvent(baseLookahead.find(p => p.code === code));
-    const sWorstLookahead = sWorstReal ? null : worstEvent(scenarioLookahead.find(p => p.code === code));
+    const bWorstLookahead = bWorstReal ? null : earliestEvent(baseLookahead.find(p => p.code === code));
+    const sWorstLookahead = sWorstReal ? null : earliestEvent(scenarioLookahead.find(p => p.code === code));
     const bWorst = bWorstReal || bWorstLookahead;
     const sWorst = sWorstReal || sWorstLookahead;
     // Real in-horizon (or lookahead) event date if one exists, else the
@@ -499,7 +512,7 @@ function Scenarios({ asset }) {
 
       <div className="card" style={{ padding: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Per-Pot Worst-Case Shortfall — Base vs. Scenario</div>
-        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>Cost and balance shown underneath each figure are the exact inputs to that shortfall (cost − balance at event = shortfall) — check them directly rather than taking the total on faith. A shortfall tagged "beyond lease" falls after this lease ends — it's the next lessee's exposure, not this one's, so it's shown for visibility only and is NOT included in the shortfall totals or risk peaks above. Lease-boundary redelivery conditions are a separate check (End-of-Lease Position), not covered here.</div>
+        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>Cost and balance shown underneath each figure are the exact inputs to that shortfall (cost − balance at event = shortfall) — check them directly rather than taking the total on faith. Within the lease term, this is the worst-case event; a shortfall tagged "beyond lease" instead shows the NEXT event after this lease ends (not the worst one found looking further out — that's the next lessee's exposure, shown for visibility only, and is NOT included in the shortfall totals or risk peaks above). Lease-boundary redelivery conditions are a separate check (End-of-Lease Position), not covered here.</div>
         <table style={{ fontSize: 12, width: "100%" }}>
           <thead><tr>
             <th style={{ color: "#64748b", textAlign: "left" }}>Pot</th>
