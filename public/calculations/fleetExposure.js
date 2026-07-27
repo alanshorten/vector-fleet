@@ -380,10 +380,25 @@ function buildFleetExposure(input) {
 // carry. Do not consolidate without a fresh look at both call sites.
 //
 // input: same per-asset entry shape as buildFleetExposure's `assets`.
-// output: [{ assetId, msn, excluded: {code,message}|null, events: [...] }]
+// output: [{ assetId, msn, excluded: {code,message}|null, events: [...], partial }]
 // `events` is maintenanceCal.events verbatim (code, label, dueCycle, date,
 // grounding, durationWeeks, groundingStart, groundingEnd, cost) — see
 // maintenanceCal.js's buildMaintenanceCalendar output contract.
+// `excluded` is now COMPUTE_ERROR-only — no asset is excluded for lacking
+// a lease/pots/utilisation (Alan, July 2026 — see buildAssetMaintenanceEvents
+// below). `partial: true` means engine/APU/landing-gear events couldn't be
+// projected (no rate to derive a forward due date from) — C-Check events
+// are still present and complete regardless.
+
+// Fallback lookahead window when an asset has no active lease to bound the
+// horizon against — the check still happens whether or not there's a
+// lease on file, so this can't be "no lease = no horizon = nothing shown."
+// Matches FLEET_EXPOSURE_HORIZON_MONTHS's existing 24-month convention
+// (flyForwardHelpers.js) for consistency, kept as its own local constant
+// since the two mean different things (that one extends PAST a real
+// lease end for disclosure; this one is the whole horizon when there's no
+// lease end to measure from at all).
+const DEFAULT_CALENDAR_HORIZON_MONTHS = 24;
 
 function buildAssetMaintenanceEvents(entry, brains) {
   const {
@@ -398,55 +413,62 @@ function buildAssetMaintenanceEvents(entry, brains) {
     costProjections = []
   } = entry;
 
-  if (!lease || !lease.leaseEnd) {
-    return { assetId, msn, excluded: { code: "NO_LEASE", message: "No active lease on this asset." } };
-  }
+  // Confirmed design (Alan, July 2026 — TECH_DEBT.md 4.85 follow-up): no
+  // asset is excluded from the fleet Calendar/clash-detection view for
+  // lacking a lease, confirmed pots, or utilisation history. C-Check dates
+  // (AF-6Y/AF-12Y) are derived purely from asset.checks via Brain 6 and
+  // don't need any of the three — the check happens whether or not there's
+  // a lease on file. Only the utilisation-RATE-dependent events (engine/
+  // APU/landing-gear, which need a real FH/FC/APU-hr rate to project a
+  // forward due date at all) get skipped when that data is genuinely
+  // missing — never the whole asset. `partial: true` flags this case so
+  // the UI can show it's an incomplete picture, not silently omit it.
+  const hasLeaseHorizon = !!(lease && lease.leaseEnd && !isNaN(new Date(lease.leaseEnd).getTime()));
   const confirmedPots = pots.filter(p => p && p.triggerBasis && p.status !== "outstanding");
-  if (!confirmedPots.length) {
-    return { assetId, msn, excluded: { code: "POTS_OUTSTANDING", message: "No confirmed reserve pots — pots are still outstanding from setup." } };
-  }
-  if (!utilisation || (!utilisation.fhPerMonth && !utilisation.fcPerMonth && !utilisation.apuHrPerMonth)) {
-    return { assetId, msn, excluded: { code: "STALE_UTILISATION", message: "Insufficient or stale utilisation history for a reliable projection." } };
-  }
+  const hasUtilisation = !!(utilisation && (utilisation.fhPerMonth || utilisation.fcPerMonth || utilisation.apuHrPerMonth));
+  const canProjectNonGrounding = confirmedPots.length > 0 && hasUtilisation;
 
   try {
     const leaseStart = new Date();
-    const leaseEnd = new Date(lease.leaseEnd);
-    if (isNaN(leaseEnd.getTime())) {
-      throw new Error(`Invalid lease.leaseEnd value: "${lease.leaseEnd}"`);
-    }
-    const horizonMonths = Math.max(1, monthsBetween(leaseStart, leaseEnd));
+    const horizonMonths = hasLeaseHorizon
+      ? Math.max(1, monthsBetween(leaseStart, new Date(lease.leaseEnd)))
+      : DEFAULT_CALENDAR_HORIZON_MONTHS;
     const baseCtx = { leaseStart, horizonMonths, utilisation };
 
-    const eligiblePots = confirmedPots.filter(pot => {
-      if (pot.triggerBasis !== "llp_cycles") return true;
-      const eng = engines.find(e => e.position === pot.enginePosition);
-      return eng && eng.llps && eng.llps.length;
-    });
-
-    // PASS 1 only — ungrounded dates, exactly as buildAssetAtoms sources
-    // them. No pass 2: nothing here needs a financial projection.
-    const pass1 = eligiblePots.map(pot => {
-      if (pot.triggerBasis === "llp_cycles") {
+    let nonGroundingEvents = [];
+    if (canProjectNonGrounding) {
+      const eligiblePots = confirmedPots.filter(pot => {
+        if (pot.triggerBasis !== "llp_cycles") return true;
         const eng = engines.find(e => e.position === pot.enginePosition);
-        return brains.projectEnLpPot(pot, { ...baseCtx, llpEngineStart: { llps: eng.llps, currentFC: eng.currentFC } });
-      }
-      return brains.projectReservePot(pot, baseCtx);
-    });
-
-    const nonGroundingEvents = pass1
-      .filter(p => p.code !== "AF-6Y" && p.code !== "AF-12Y")
-      .flatMap(p => {
-        const sourcePot = eligiblePots.find(pp => pp.code === p.code);
-        return (p.events || []).map((evt, idx) => ({
-          code: p.code,
-          label: p.label,
-          dueCycle: idx + 1,
-          date: evt.date,
-          enginePosition: sourcePot ? sourcePot.enginePosition : null
-        }));
+        return eng && eng.llps && eng.llps.length;
       });
 
+      // PASS 1 only — ungrounded dates, exactly as buildAssetAtoms sources
+      // them. No pass 2: nothing here needs a financial projection.
+      const pass1 = eligiblePots.map(pot => {
+        if (pot.triggerBasis === "llp_cycles") {
+          const eng = engines.find(e => e.position === pot.enginePosition);
+          return brains.projectEnLpPot(pot, { ...baseCtx, llpEngineStart: { llps: eng.llps, currentFC: eng.currentFC } });
+        }
+        return brains.projectReservePot(pot, baseCtx);
+      });
+
+      nonGroundingEvents = pass1
+        .filter(p => p.code !== "AF-6Y" && p.code !== "AF-12Y")
+        .flatMap(p => {
+          const sourcePot = eligiblePots.find(pp => pp.code === p.code);
+          return (p.events || []).map((evt, idx) => ({
+            code: p.code,
+            label: p.label,
+            dueCycle: idx + 1,
+            date: evt.date,
+            enginePosition: sourcePot ? sourcePot.enginePosition : null
+          }));
+        });
+    }
+
+    // Brain 6 runs regardless — checks/leaseStart/horizonMonths are all it
+    // needs for the C-Check side, no lease/pots/utilisation involved.
     const maintenanceCal = brains.buildMaintenanceCalendar({
       leaseStart,
       horizonMonths,
@@ -457,7 +479,7 @@ function buildAssetMaintenanceEvents(entry, brains) {
       costProjections
     });
 
-    return { assetId, msn, excluded: null, events: maintenanceCal.events };
+    return { assetId, msn, excluded: null, events: maintenanceCal.events, partial: !canProjectNonGrounding };
   } catch (e) {
     return { assetId, msn, excluded: { code: "COMPUTE_ERROR", message: e.message || String(e) } };
   }

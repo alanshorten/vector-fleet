@@ -578,8 +578,16 @@ function FleetCalendarView({ assets, onSelectAsset }) {
     );
   }
 
+  // Only genuine compute errors are excluded now (Alan, July 2026 —
+  // TECH_DEBT.md 4.85 follow-up: no asset is dropped from this view for
+  // lacking a lease, confirmed pots, or utilisation history — the checks
+  // still happen whether or not that data exists on file). `partial`
+  // assets show C-Check dates but not engine/APU/landing-gear events,
+  // since those need a real utilisation rate to project a due date at
+  // all — flagged in the UI, not hidden.
   const included = data.filter(a => !a.excluded);
   const excluded = data.filter(a => a.excluded);
+  const partial = included.filter(a => a.partial);
   const events = included.flatMap(a => (a.events || []).map(e => ({ ...e, msn: a.msn, assetId: a.assetId })));
 
   return (
@@ -587,8 +595,13 @@ function FleetCalendarView({ assets, onSelectAsset }) {
       <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Calendar</div>
         <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-          Event clustering across the fleet's maintenance calendar — scheduling only, no cost figures. See Financials for the money view.
+          Event clustering across the fleet's maintenance calendar — scheduling only, no cost figures. See Financials for the money view. Every asset appears here regardless of lease status — a scheduled check happens whether or not there's a lease on file.
         </div>
+        {partial.length > 0 && (
+          <div style={{ marginTop: 8, fontSize: 12, color: "#fbbf24" }}>
+            ⚠ {partial.length} asset{partial.length === 1 ? "" : "s"} showing C-Check dates only — no confirmed reserve pots or utilisation history to project engine/APU/landing-gear events ({partial.map(a => `MSN ${a.msn}`).join(", ")})
+          </div>
+        )}
         {excluded.length > 0 && (
           <div style={{ marginTop: 8 }}>
             <button onClick={() => setShowExcluded(s => !s)} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", textDecoration: "underline", font: "inherit", padding: 0, fontSize: 12 }}>
@@ -599,7 +612,7 @@ function FleetCalendarView({ assets, onSelectAsset }) {
                 {excluded.map((e, i) => (
                   <div key={i} className="flj" style={{ fontSize: 12, color: "#94a3b8", cursor: onSelectAsset ? "pointer" : "default" }} onClick={() => onSelectAsset && onSelectAsset(e.assetId)}>
                     <span>MSN {e.msn}</span>
-                    <span style={{ color: e.excluded.code === "COMPUTE_ERROR" ? "#f87171" : "#fbbf24" }}>{e.excluded.code.replace(/_/g, " ")} — {e.excluded.message}</span>
+                    <span style={{ color: "#f87171" }}>{e.excluded.code.replace(/_/g, " ")} — {e.excluded.message}</span>
                   </div>
                 ))}
               </div>
