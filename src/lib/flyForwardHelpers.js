@@ -1,4 +1,5 @@
 import { db } from './db';
+import { getCheckDurationDefaults } from './knowledgeBase';
 
 const FF_COLORS = { AF6Y: "#60a5fa", AF12Y: "#a78bfa", LGOH: "#34d399", APOH: "#fbbf24", ENPR1: "#f472b6", ENLP1: "#f87171", ENPR2: "#fb923c", ENLP2: "#e879f9" };
 
@@ -117,13 +118,22 @@ function buildFleetExposureEntry({ asset, lease, reserveDocs, utilRate, apuHrPer
 async function buildFleetExposureData(assets) {
   const bundles = await Promise.all(assets.map(loadFleetExposureBundle));
   const entries = bundles.map(buildFleetExposureEntry);
+  // Knowledge Base check-duration defaults ({"2Y","6Y","12Y"} weeks) —
+  // resolved once per call and closed over in the buildMaintenanceCalendar
+  // wrapper below, since fleetExposure.js's buildAssetAtoms calls
+  // brains.buildMaintenanceCalendar(...) without a durationDefaults field
+  // of its own (it's a pure Brain module, deliberately no window/KB
+  // lookups — see its file header). This wrapper is the Body-layer spot
+  // where the KB tier actually gets injected, without touching
+  // fleetExposure.js itself.
+  const durationDefaults = getCheckDurationDefaults();
   return window.buildFleetExposure({
     assets: entries,
     horizonPastLeaseEndMonths: FLEET_EXPOSURE_HORIZON_MONTHS,
     brains: {
       projectReservePot: window.projectReservePot,
       projectEnLpPot: window.projectEnLpPot,
-      buildMaintenanceCalendar: window.buildMaintenanceCalendar
+      buildMaintenanceCalendar: (input) => window.buildMaintenanceCalendar({ ...input, durationDefaults })
     }
   });
 };
@@ -199,9 +209,11 @@ function buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, schedu
     // BRAIN 6 — full maintenance calendar + grounding vector. Real
     // scheduledEvents/seasonalityProfile/shopVisitProjections now wired
     // through here (TECH_DEBT.md 4.38-4.40 follow-up session) — these
-    // were always passed as empty defaults before. No change needed in
-    // maintenanceCal.js or flyForward.js themselves, per the original
-    // design note — only this input-assembly layer changes.
+    // were always passed as empty defaults before. durationDefaults
+    // (Knowledge Base tier 2, falling back to Brain 6's own built-in
+    // 2/4/8-week defaults if the Knowledge Base hasn't been populated)
+    // added in the Knowledge Base build session — no change needed in
+    // maintenanceCal.js itself, it already accepted this parameter.
     maintenanceCal = window.buildMaintenanceCalendar({
       leaseStart,
       horizonMonths,
@@ -209,7 +221,8 @@ function buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, schedu
       nonGroundingEvents,
       overrides: scheduledEvents,
       seasonalityProfile,
-      costProjections
+      costProjections,
+      durationDefaults: getCheckDurationDefaults()
     });
 
     // PASS 2 — grounded. Same pots, same ctx, plus the availability

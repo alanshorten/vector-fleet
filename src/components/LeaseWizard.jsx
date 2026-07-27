@@ -4,6 +4,7 @@ import { isCFM } from '../lib/assetHelpers';
 import { db } from '../lib/db';
 import { extractDocxSectionChunks, extractPdfPageTexts, isDocxFile, isSupportedLeaseFile, quickParseLeaseFile, runLeaseExtraction, scoreLeaseChunks } from '../lib/extraction';
 import { FIXED_RESERVE_POT_DEFS, buildRealEnginePotDefs, validatePotWithAI } from '../lib/pots';
+import { getCheckCostBand, getOutflowEscalationPct } from '../lib/knowledgeBase';
 
 function LeaseWizard({asset,saveAsset,notify,onClose}){
   const[step,setStep]=useState(asset.currentLeaseId?"loading":"tier");
@@ -64,6 +65,12 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
       const cfm=isCFM(asset);
       const engineFamily=cfm?"CFM":"V2500";
       const catalogueEsc=window.LLP_CATALOGUE_PRICES?.[engineFamily]?.escalationPctPerYr;
+      // Knowledge Base tier 2 default for accrual/outflow escalation on
+      // non-engine pots — knowledge-base-scoping-handoff.md §2/§3.
+      // getOutflowEscalationPct() already falls back to the same 2.5
+      // literal that used to be hardcoded here if no Knowledge Base
+      // defaults have been saved yet, so pre-KB behaviour is unchanged.
+      const kbOutflowEsc=getOutflowEscalationPct();
       const baseDefs=[...FIXED_RESERVE_POT_DEFS,...buildRealEnginePotDefs(asset)];
       const customDefs=existingPots.filter(p=>p.potCategory==="custom"&&!baseDefs.some(d=>d.code===p.code))
         .map(p=>({code:p.code,label:p.label,potCategory:"custom",enginePosition:null,accrualBasis:p.accrualBasis}));
@@ -85,6 +92,13 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
       const merged={};
       [...baseDefs,...customDefs].forEach(def=>{
         const ex=existingByCode[def.code];
+        // Knowledge Base tier 2 cost band for FIXED (non-engine) pots
+        // only — EN-PR's band is already KB-resolved upstream inside
+        // buildRealEnginePotDefs (there's no per-code KB entry for
+        // "EN-PR-1", the KB key is the engine family), so def.defaultCostLow/
+        // High there is already the correct value and shouldn't be
+        // re-resolved here.
+        const kbCostBand = def.potCategory!=="engine" ? getCheckCostBand(def.code) : null;
         merged[def.code]={
           ...def,
           // Existing saved pots must keep whatever accrualBasis is
@@ -102,7 +116,7 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
           accrualBasis: ex?.accrualBasis ?? def.accrualBasis,
           accrualRate: ex?ex.accrualRate:aiRateFor(def.code),
           accrualRateBaseYear: ex?(ex.accrualRateBaseYear||new Date().getFullYear()):new Date().getFullYear(),
-          escalationPctPerYr: ex?ex.escalationPctPerYr:(def.potCategory==="engine"?(catalogueEsc??2.5):2.5),
+          escalationPctPerYr: ex?ex.escalationPctPerYr:(def.potCategory==="engine"?(catalogueEsc??2.5):kbOutflowEsc),
           openingBalance: ex?ex.openingBalance:"",
           openingBalanceAsOf: ex?(ex.openingBalanceAsOf||today):today,
 
@@ -121,10 +135,13 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
           // the structural/default value rather than staying undefined.
           triggerBasis: ex?.triggerBasis ?? def.triggerBasis ?? "calendar_months",
           triggerInterval: ex?.triggerInterval ?? def.triggerInterval ?? { months: 72 },
-          outflowEscalationPct: ex?.outflowEscalationPct ?? def.outflowEscalationPct ?? 2.5,
+          outflowEscalationPct: ex?.outflowEscalationPct ?? def.outflowEscalationPct ?? kbOutflowEsc,
           outflowCostBaseYear: ex?.outflowCostBaseYear ?? new Date().getFullYear(),
-          projectedCostLow: ex?.projectedCostLow ?? def.defaultCostLow ?? "",
-          projectedCostHigh: ex?.projectedCostHigh ?? def.defaultCostHigh ?? "",
+          // Knowledge Base tier 2, then the def's own tier-3 fallback —
+          // see kbCostBand above. A saved pot (ex) always wins (tier 1),
+          // unchanged from before.
+          projectedCostLow: ex?.projectedCostLow ?? kbCostBand?.low ?? def.defaultCostLow ?? "",
+          projectedCostHigh: ex?.projectedCostHigh ?? kbCostBand?.high ?? def.defaultCostHigh ?? "",
           escalationRegime: def.escalationRegime || "flat_annual",
           catalogueRef: def.catalogueRef || null,
 
@@ -170,8 +187,9 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
     const label=customLabel.trim();
     if(!code||!label){notify("Enter both a code and a label for the custom pot","error");return;}
     if(pots[code]){notify("A pot with that code already exists","error");return;}
-    setPots(prev=>({...prev,[code]:{code,label,potCategory:"custom",enginePosition:null,accrualBasis:"per_FH",accrualRate:"",accrualRateBaseYear:new Date().getFullYear(),escalationPctPerYr:2.5,openingBalance:"",openingBalanceAsOf:today,
-      triggerBasis:"calendar_months",triggerInterval:{months:72},outflowEscalationPct:2.5,outflowCostBaseYear:new Date().getFullYear(),projectedCostLow:"",projectedCostHigh:"",escalationRegime:"flat_annual",catalogueRef:null,
+    const kbOutflowEsc=getOutflowEscalationPct();
+    setPots(prev=>({...prev,[code]:{code,label,potCategory:"custom",enginePosition:null,accrualBasis:"per_FH",accrualRate:"",accrualRateBaseYear:new Date().getFullYear(),escalationPctPerYr:kbOutflowEsc,openingBalance:"",openingBalanceAsOf:today,
+      triggerBasis:"calendar_months",triggerInterval:{months:72},outflowEscalationPct:kbOutflowEsc,outflowCostBaseYear:new Date().getFullYear(),projectedCostLow:"",projectedCostHigh:"",escalationRegime:"flat_annual",catalogueRef:null,
       saved:false,savedId:null,validationWarning:null,warningAcknowledged:false,validationChecked:false,checking:false}}));
     setCustomCode("");setCustomLabel("");
   };

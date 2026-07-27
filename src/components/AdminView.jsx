@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GuideView } from './GuideView';
 import { makeBlankAsset } from '../lib/assetHelpers';
+import { isCFM } from '../lib/assetHelpers';
 import { db, logAudit } from '../lib/db';
 import { uploadToCloudinary } from '../lib/uploadHelpers';
+import { bootstrapKnowledgeBaseGlobals, CODE_FALLBACK_DEFAULTS } from '../lib/knowledgeBase';
+import { isCatalogueExcelFile, isCatalogueUploadFile, parseExcelCatalogueFile, parsePdfCatalogueFile } from '../lib/llpCatalogueImport';
 
 function LogoSettings({notify}) {
   const [logoUrl, setLogoUrl] = useState(null);
@@ -232,6 +235,297 @@ function AirframePhotoSettings({notify}) {
   );
 };
 
+// ============================================================
+// Knowledge Base — knowledge-base-scoping-handoff.md
+// Two sections: Forecasting Defaults (company-level settings form) and
+// LLP Catalogue (per-part-number pricing, scanned live off the fleet's
+// own LLP sheets, editable manually or via Excel/PDF upload+review).
+// Admin/Editor only, per firestore.rules.
+// ============================================================
+
+const ENGINE_FAMILIES = [['CFM','CFM56 family (5B/7B)'],['V2500','V2500-A5 / IAE']];
+const CHECK_BAND_FIELDS = [["AF-6Y","Airframe 6-Year Check"],["AF-12Y","Airframe 12-Year Check"],["LG-OH","Landing Gear Overhaul"],["AP-OH","APU Overhaul"]];
+
+function ForecastingDefaultsForm({notify}) {
+  const [form, setForm] = useState(null); // null = loading
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    const kb = await db.getKnowledgeBase().catch(() => null);
+    setForm({
+      outflowEscalationPct: kb?.outflowEscalationPct ?? CODE_FALLBACK_DEFAULTS.outflowEscalationPct,
+      checkCostBands: Object.fromEntries(CHECK_BAND_FIELDS.map(([code]) => [code, {
+        ...CODE_FALLBACK_DEFAULTS.checkCostBands[code],
+        ...(kb?.checkCostBands?.[code] || {})
+      }])),
+      enPrBandsByFamily: Object.fromEntries(ENGINE_FAMILIES.map(([fam]) => [fam, {
+        ...CODE_FALLBACK_DEFAULTS.enPrBandsByFamily[fam],
+        ...(kb?.enPrBandsByFamily?.[fam] || {})
+      }])),
+      llpEscalationPctByFamily: Object.fromEntries(ENGINE_FAMILIES.map(([fam]) => [fam,
+        kb?.llpEscalationPctByFamily?.[fam] ?? CODE_FALLBACK_DEFAULTS.llpEscalationPctByFamily[fam]
+      ])),
+      llpBlendedRatePerFCByFamily: Object.fromEntries(ENGINE_FAMILIES.map(([fam]) => [fam,
+        kb?.llpBlendedRatePerFCByFamily?.[fam] ?? ""
+      ])),
+      // Brain 6 (maintenanceCal.js) built-in defaults are 2/4/8 weeks for
+      // the 2/6/12 Year Checks respectively — matches CODE_FALLBACK_DEFAULTS
+      // in knowledgeBase.js exactly, so this merge behaves the same way
+      // as every other field here (KB value if saved, else the code fallback).
+      checkDurationWeeks: {
+        "2Y": kb?.checkDurationWeeks?.["2Y"] ?? CODE_FALLBACK_DEFAULTS.checkDurationWeeks["2Y"],
+        "6Y": kb?.checkDurationWeeks?.["6Y"] ?? CODE_FALLBACK_DEFAULTS.checkDurationWeeks["6Y"],
+        "12Y": kb?.checkDurationWeeks?.["12Y"] ?? CODE_FALLBACK_DEFAULTS.checkDurationWeeks["12Y"]
+      }
+    });
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const setBand = (code, side, v) => setForm(f => ({...f, checkCostBands: {...f.checkCostBands, [code]: {...f.checkCostBands[code], [side]: v}}}));
+  const setEnPr = (fam, field, v) => setForm(f => ({...f, enPrBandsByFamily: {...f.enPrBandsByFamily, [fam]: {...f.enPrBandsByFamily[fam], [field]: v}}}));
+  const setEsc = (fam, v) => setForm(f => ({...f, llpEscalationPctByFamily: {...f.llpEscalationPctByFamily, [fam]: v}}));
+  const setBlended = (fam, v) => setForm(f => ({...f, llpBlendedRatePerFCByFamily: {...f.llpBlendedRatePerFCByFamily, [fam]: v}}));
+  const setDuration = (key, v) => setForm(f => ({...f, checkDurationWeeks: {...f.checkDurationWeeks, [key]: v}}));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await db.saveKnowledgeBase(null, form);
+      await bootstrapKnowledgeBaseGlobals(); // refresh window globals for this session immediately
+      notify('Knowledge Base defaults saved');
+    } catch(e) {
+      notify('Failed to save: ' + e.message, 'error');
+    }
+    setSaving(false);
+  };
+
+  if (!form) return <p style={{color:'#475569',fontSize:13}}>Loading…</p>;
+
+  return (
+    <div>
+      <div className="grid2" style={{gap:16,marginBottom:16}}>
+        {CHECK_BAND_FIELDS.map(([code,label]) => (
+          <div key={code} style={{background:'#0d1925',borderRadius:8,border:'1px solid #1e3348',padding:14}}>
+            <div style={{fontSize:12,fontWeight:700,color:'#e2e8f0',marginBottom:8}}>{label}</div>
+            <div style={{display:'flex',gap:10}}>
+              <label style={{fontSize:10,color:'#94a3b8',flex:1}}>Low ($)
+                <input type="number" value={form.checkCostBands[code].low} onChange={e=>setBand(code,'low',+e.target.value)} style={{width:'100%'}}/>
+              </label>
+              <label style={{fontSize:10,color:'#94a3b8',flex:1}}>High ($)
+                <input type="number" value={form.checkCostBands[code].high} onChange={e=>setBand(code,'high',+e.target.value)} style={{width:'100%'}}/>
+              </label>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="grid2" style={{gap:16,marginBottom:16}}>
+        {ENGINE_FAMILIES.map(([fam,label]) => (
+          <div key={fam} style={{background:'#0d1925',borderRadius:8,border:'1px solid #1e3348',padding:14}}>
+            <div style={{fontSize:12,fontWeight:700,color:'#e2e8f0',marginBottom:8}}>{label} — Engine Restoration (EN-PR)</div>
+            <div style={{display:'flex',gap:10,marginBottom:8}}>
+              <label style={{fontSize:10,color:'#94a3b8',flex:1}}>Low ($)
+                <input type="number" value={form.enPrBandsByFamily[fam].costLow} onChange={e=>setEnPr(fam,'costLow',+e.target.value)} style={{width:'100%'}}/>
+              </label>
+              <label style={{fontSize:10,color:'#94a3b8',flex:1}}>High ($)
+                <input type="number" value={form.enPrBandsByFamily[fam].costHigh} onChange={e=>setEnPr(fam,'costHigh',+e.target.value)} style={{width:'100%'}}/>
+              </label>
+            </div>
+            <label style={{fontSize:10,color:'#94a3b8',display:'block'}}>Interval (FH)
+              <input type="number" value={form.enPrBandsByFamily[fam].intervalFH} onChange={e=>setEnPr(fam,'intervalFH',+e.target.value)} style={{width:'100%'}}/>
+            </label>
+            <label style={{fontSize:10,color:'#94a3b8',marginTop:8,display:'block'}}>LLP escalation (%/yr) — derived from catalogue history, overrideable
+              <input type="number" step="0.01" value={form.llpEscalationPctByFamily[fam]} onChange={e=>setEsc(fam,+e.target.value)} style={{width:'100%'}}/>
+            </label>
+            <label style={{fontSize:10,color:'#94a3b8',marginTop:8,display:'block'}}>Blended LLP rate ($/FC) — used for the pot-entry sanity check
+              <input type="number" step="0.01" value={form.llpBlendedRatePerFCByFamily[fam]} onChange={e=>setBlended(fam,+e.target.value)} style={{width:'100%'}}/>
+            </label>
+          </div>
+        ))}
+      </div>
+      <div style={{background:'#0d1925',borderRadius:8,border:'1px solid #1e3348',padding:14,marginBottom:16,maxWidth:420}}>
+        <div style={{fontSize:12,fontWeight:700,color:'#e2e8f0',marginBottom:8}}>Check Durations (grounding weeks)</div>
+        <div style={{fontSize:11,color:'#64748b',marginBottom:10}}>How long each C-check grounds the aircraft — feeds Brain 6's grounding calendar directly. Real per-occurrence overrides in the Calendar tab always take priority over these.</div>
+        <div style={{display:'flex',gap:10}}>
+          <label style={{fontSize:10,color:'#94a3b8',flex:1}}>2 Year Check
+            <input type="number" value={form.checkDurationWeeks["2Y"]} onChange={e=>setDuration("2Y",+e.target.value)} style={{width:'100%'}}/>
+          </label>
+          <label style={{fontSize:10,color:'#94a3b8',flex:1}}>6 Year Check
+            <input type="number" value={form.checkDurationWeeks["6Y"]} onChange={e=>setDuration("6Y",+e.target.value)} style={{width:'100%'}}/>
+          </label>
+          <label style={{fontSize:10,color:'#94a3b8',flex:1}}>12 Year Check
+            <input type="number" value={form.checkDurationWeeks["12Y"]} onChange={e=>setDuration("12Y",+e.target.value)} style={{width:'100%'}}/>
+          </label>
+        </div>
+      </div>
+      <label style={{fontSize:11,color:'#94a3b8',display:'block',marginBottom:14,maxWidth:280}}>Default outflow escalation (%/yr) — pre-fills new non-engine pots
+        <input type="number" step="0.1" value={form.outflowEscalationPct} onChange={e=>setForm(f=>({...f,outflowEscalationPct:+e.target.value}))} style={{width:'100%'}}/>
+      </label>
+      <button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Forecasting Defaults'}</button>
+      <p style={{fontSize:11,color:'#475569',marginTop:10}}>Pre-fills NEW reserve pots only — existing confirmed pots are never retroactively changed, and any per-asset entry always takes priority over these company defaults.</p>
+    </div>
+  );
+};
+
+function LLPCatalogueEditor({assets, notify}) {
+  const [family, setFamily] = useState('CFM');
+  const [catalogue, setCatalogue] = useState(null); // null = loading
+  const [rows, setRows] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState(null);
+  const thisYear = new Date().getFullYear();
+  const [year, setYear] = useState(`${thisYear}-${String(thisYear+1).slice(2)}`);
+
+  const load = useCallback(async () => {
+    setCatalogue(null);
+    const stored = await db.getLLPCatalogue().catch(() => []);
+    setCatalogue(stored);
+    // Scan every asset's engines for LLP part numbers in the selected
+    // family — reuses isCFM(asset) at the asset level (the same family
+    // detection already used everywhere else in pots.js/LeaseWizard),
+    // rather than guessing at a per-engine field.
+    const partNumbers = new Map();
+    assets.forEach(a => {
+      const fam = isCFM(a) ? 'CFM' : 'V2500';
+      if (fam !== family) return;
+      (a.engines || []).forEach(e => {
+        (e.llps || []).forEach(l => {
+          if (l.pn) partNumbers.set(l.pn, l.desc || '');
+        });
+      });
+    });
+    const storedByPn = Object.fromEntries(stored.filter(p => p.engineFamily === family).map(p => [p.partNumber, p]));
+    const merged = [...partNumbers.entries()].map(([pn, desc]) => ({
+      partNumber: pn, desc,
+      storedPrice: storedByPn[pn]?.unitPrice ?? null,
+      unitPrice: storedByPn[pn]?.unitPrice ?? '',
+      hasPrice: storedByPn[pn]?.unitPrice != null
+    }));
+    setRows(merged);
+  }, [assets, family]);
+
+  useEffect(() => { load(); setParseError(null); }, [load]);
+
+  const setPrice = (pn, v) => setRows(r => r.map(row => row.partNumber === pn ? {...row, unitPrice: v} : row));
+
+  // Upload path — knowledge-base-scoping-handoff.md §1: Excel (client-
+  // side column matching, no AI) or PDF (text extraction + /api/extract).
+  // Either way, parsed prices only PRE-FILL the existing fleet shopping
+  // list (rows) by matching partNumber — they never add rows for parts
+  // not on the fleet, and the user still reviews/confirms every value
+  // via the same table + Save button as manual entry, nothing is
+  // written until Save Catalogue Prices is clicked.
+  const handleUpload = async (file) => {
+    setParseError(null);
+    setParsing(true);
+    try {
+      const parsed = isCatalogueExcelFile(file)
+        ? await parseExcelCatalogueFile(file)
+        : await parsePdfCatalogueFile(file);
+      const byPn = Object.fromEntries(parsed.map(p => [p.partNumber, p.unitPrice]));
+      let matched = 0;
+      setRows(r => r.map(row => {
+        if (byPn[row.partNumber] == null) return row;
+        matched++;
+        return { ...row, unitPrice: byPn[row.partNumber] };
+      }));
+      if (!matched) {
+        notify("Uploaded file parsed, but none of its part numbers matched this fleet's LLP sheets for " + (family === 'CFM' ? 'CFM56' : 'V2500') + " — check you picked the right family tab.", "error");
+      } else {
+        notify(`Matched ${matched} of ${rows.length} fleet part numbers from the upload — review prices below before saving.`);
+      }
+    } catch(e) {
+      setParseError(e.message || "Couldn't parse this file.");
+    }
+    setParsing(false);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const entries = rows
+        .filter(r => r.unitPrice !== '' && r.unitPrice != null)
+        .map(r => ({ partNumber: r.partNumber, unitPrice: +r.unitPrice, engineFamily: family, catalogueYear: year }));
+      if (!entries.length) { notify('No prices entered', 'error'); setSaving(false); return; }
+      await db.saveLLPCataloguePrices(null, entries);
+      await bootstrapKnowledgeBaseGlobals();
+      notify(`${entries.length} ${family} part price${entries.length===1?'':'s'} saved`);
+      await load();
+    } catch(e) {
+      notify('Failed to save: ' + e.message, 'error');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div>
+      <div className="flab g8" style={{marginBottom:14,alignItems:'center',flexWrap:'wrap'}}>
+        {ENGINE_FAMILIES.map(([f,label]) => (
+          <button key={f} className={`tab-btn${family===f?' active':''}`} onClick={()=>setFamily(f)}>{label}</button>
+        ))}
+        <input type="text" value={year} onChange={e=>setYear(e.target.value)} placeholder="Catalogue year e.g. 2026-27" style={{width:150,fontSize:12,marginLeft:'auto'}}/>
+        <label style={{cursor: parsing ? 'default' : 'pointer'}}>
+          <input type="file" accept=".xlsx,.xls,.pdf,application/pdf" disabled={parsing} style={{display:'none'}}
+            onChange={e=>{ const f=e.target.files?.[0]; if(f && isCatalogueUploadFile(f)) handleUpload(f); else if(f) setParseError("That doesn't look like an Excel or PDF file."); e.target.value=''; }}/>
+          <span className="btn btn-primary" style={{fontSize:11,padding:'7px 14px'}}>{parsing ? '⏳ Parsing…' : '⬆ Upload Catalogue (Excel/PDF)'}</span>
+        </label>
+      </div>
+      {parseError && <div style={{fontSize:12,color:'#f87171',marginBottom:12}}>⚠ {parseError}</div>}
+      {catalogue===null && <p style={{color:'#475569',fontSize:13}}>Scanning fleet LLP sheets…</p>}
+      {catalogue!==null && rows.length===0 && <p style={{color:'#475569',fontSize:13}}>No {family==='CFM'?'CFM56':'V2500'} LLP part numbers found across the fleet yet.</p>}
+      {rows.length>0 && (
+        <div style={{overflow:'auto',marginBottom:14}}>
+          <table style={{width:'100%'}}>
+            <thead><tr>
+              <th style={{textAlign:'left'}}>Part Number</th>
+              <th style={{textAlign:'left'}}>Description</th>
+              <th style={{textAlign:'right'}}>Current Price ($)</th>
+              <th style={{textAlign:'right'}}>New Price ($)</th>
+            </tr></thead>
+            <tbody>
+              {rows.map(r => {
+                const delta = r.storedPrice != null && r.unitPrice !== '' && +r.unitPrice !== r.storedPrice;
+                return (
+                  <tr key={r.partNumber}>
+                    <td style={{fontFamily:'monospace',fontSize:12,color:'#C9A84C'}}>{r.partNumber}</td>
+                    <td style={{fontSize:12,color:'#94a3b8'}}>{r.desc||'—'}</td>
+                    <td style={{textAlign:'right',fontSize:12,color:'#64748b'}}>{r.storedPrice!=null?r.storedPrice.toLocaleString():'—'}</td>
+                    <td style={{textAlign:'right'}}>
+                      <input type="number" value={r.unitPrice} onChange={e=>setPrice(r.partNumber,e.target.value)}
+                        style={{width:130,textAlign:'right',background: r.hasPrice?'transparent':'#2a1f0a'}}
+                        placeholder={r.hasPrice?'':'no price'}/>
+                      {delta && <div style={{fontSize:10,color:'#fbbf24',marginTop:2}}>changed from ${r.storedPrice.toLocaleString()}</div>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <button className="btn btn-gold" disabled={saving||!rows.length} onClick={save}>{saving?'Saving…':'Save Catalogue Prices'}</button>
+      <p style={{fontSize:11,color:'#475569',marginTop:10}}>Upload matches against this fleet's own part numbers only — it never adds parts the fleet doesn't have, and nothing is written to the Knowledge Base until you click Save. Part numbers with no price after upload or manual entry stay flagged amber.</p>
+    </div>
+  );
+};
+
+function KnowledgeBaseSettings({assets, notify}) {
+  const [section, setSection] = useState('defaults');
+  return (
+    <div>
+      <div className="flab g8" style={{marginBottom:16}}>
+        <button className={`tab-btn${section==='defaults'?' active':''}`} onClick={()=>setSection('defaults')}>Forecasting Defaults</button>
+        <button className={`tab-btn${section==='catalogue'?' active':''}`} onClick={()=>setSection('catalogue')}>LLP Catalogue</button>
+      </div>
+      <div className="card" style={{padding:20}}>
+        {section==='defaults' && <ForecastingDefaultsForm notify={notify}/>}
+        {section==='catalogue' && <LLPCatalogueEditor assets={assets} notify={notify}/>}
+      </div>
+    </div>
+  );
+};
+
 function AdminView({assets,saveAsset,notify,loadAssets}){
   const[tab,setTab]=useState("assets");
   const[showNew,setShowNew]=useState(false);
@@ -245,8 +539,8 @@ function AdminView({assets,saveAsset,notify,loadAssets}){
   return(
     <div>
       <h1 style={{fontSize:20,color:"#C9A84C",fontWeight:700,marginBottom:18}}>Admin Panel</h1>
-      <div style={{display:"flex",borderBottom:"2px solid #1e3048",marginBottom:20,gap:2}}>
-        {["assets","users","settings","guide"].map(t=><button key={t} className={`tab-btn${tab===t?" active":""}`} onClick={()=>setTab(t)}>{t}</button>)}
+      <div style={{display:"flex",borderBottom:"2px solid #1e3048",marginBottom:20,gap:2,flexWrap:"wrap"}}>
+        {["assets","users","knowledgebase","settings","guide"].map(t=><button key={t} className={`tab-btn${tab===t?" active":""}`} onClick={()=>setTab(t)}>{t==="knowledgebase"?"Knowledge Base":t}</button>)}
       </div>
       {tab==="assets"&&(
         <div>
@@ -296,6 +590,12 @@ function AdminView({assets,saveAsset,notify,loadAssets}){
             <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>View all users and change their roles. Admin role can only be set via server configuration.</p>
             <UsersCard notify={notify}/>
           </div>
+        </div>
+      )}
+      {tab==="knowledgebase"&&(
+        <div style={{maxWidth:900}}>
+          <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>House-view forecasting assumptions and LLP catalogue pricing that pre-fill new reserve pots and feed Brain 3's cost estimates. Per-asset entries always take priority over these company defaults, and existing confirmed pots are never retroactively changed.</p>
+          <KnowledgeBaseSettings assets={assets} notify={notify}/>
         </div>
       )}
       {tab==="guide"&&<div style={{maxWidth:920}}><GuideView/></div>}
@@ -427,4 +727,4 @@ function UsersCard({notify}){
 };
 
 
-export { AdminView, AirframePhotoSettings, DisclaimerSettings, EnginePhotoSettings, InviteUserCard, LogoSettings, UsersCard };
+export { AdminView, AirframePhotoSettings, DisclaimerSettings, EnginePhotoSettings, InviteUserCard, KnowledgeBaseSettings, LogoSettings, UsersCard };

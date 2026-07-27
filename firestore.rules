@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Financial reserve/lease data — writes restricted to admin/editor/
+    // dataEntry roles. "role" is the Firebase Auth custom claim already
+    // set by /api/bootstrap-admin and /api/set-role, and already read
+    // client-side via getIdTokenResult().claims.role. dataEntry is
+    // included here (not on scheduledEvents/seasonalityProfile below)
+    // because lease/reserve pot entry is explicitly part of the Data
+    // Entry role's job (raw inputs), per VECTORIQ_ROADMAP.md's four-role
+    // model — Viewer is deliberately excluded everywhere, since Viewer
+    // edits nothing permanent. Reads stay open to any signed-in user for
+    // now, matching every other collection below, pending the fuller
+    // Viewer/Editor/Admin read-scoping pass in Section 7.
+    match /leases/{leaseId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.token.role in ['admin', 'editor', 'dataEntry'];
+    }
+    match /reserves/{reserveId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.token.role in ['admin', 'editor', 'dataEntry'];
+    }
+    // Core asset records — same role gate as above. Specs, engines, LLP
+    // sheets, and avionics listings are all written onto the asset doc
+    // via the Quick Import / Upload-tab extraction flows, which are part
+    // of Data Entry's raw-input job just as much as lease/reserve entry.
+    // The app's own UI still keeps manual field-editing in the Details
+    // tabs admin/editor-only (isAdmin) — this rule only governs the
+    // collection-level write, not which in-app flow produced it.
+    match /assets/{assetId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.token.role in ['admin', 'editor', 'dataEntry'];
+    }
+
+    // Maintenance calendar overrides — admin/editor ONLY, deliberately
+    // NOT dataEntry. These feed the Calendar tab, which Data Entry never
+    // sees in the nav (VECTORIQ_ROADMAP.md §7a) — date, duration,
+    // downtime, and concurrency overrides stay financial-projection-
+    // shaping edits reserved for Admin/Editor. Doc id is the
+    // assetId_code_dueCycle identity key from Brain 6's own join.
+    match /scheduledEvents/{eventId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.token.role in ['admin', 'editor'];
+    }
+    // One reviewed seasonality profile per asset (doc id = assetId),
+    // same role gate as scheduledEvents — Brain 6 reads this for
+    // placement suggestions. Also Calendar-tab-only, not dataEntry.
+    match /seasonalityProfile/{assetId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.token.role in ['admin', 'editor'];
+    }
+
+    // Knowledge Base — house-view forecasting defaults (checkCostBands,
+    // enPrBandsByFamily, llpEscalationPctByFamily, outflowEscalationPct)
+    // plus the LLP Catalogue subcollection. Admin/Editor ONLY, deliberately
+    // NOT dataEntry (knowledge-base-scoping-handoff.md §4: "Only
+    // Admin/Editor roles can edit") — this is house-view assumption data,
+    // a different category from raw per-asset input. Reads open to any
+    // signed-in user, since Fly-Forward's read-only Assumptions panel is
+    // visible to Viewer too. Doc id is `${companyId}` per the scoping
+    // doc's shape; a literal "default" id is used pre-multi-tenancy (see
+    // db.js), same null-companyId-for-now pattern as every other
+    // collection here.
+    match /knowledgeBase/{companyId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.token.role in ['admin', 'editor'];
+      match /llpCatalogue/{partNumber} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null
+                     && request.auth.token.role in ['admin', 'editor'];
+      }
+    }
+
+    // Audit trail — appendable by any signed-in user (logAudit() fires
+    // alongside ordinary asset saves, not just admin actions), but
+    // genuinely immutable once written. There is no legitimate app path
+    // that ever updates or deletes a past entry — allowing it anyway
+    // would mean the log could be silently altered or erased after the
+    // fact, defeating its purpose.
+    match /auditLog/{entryId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+    // Shop visit cost projections — append-only, same immutable-log
+    // pattern as auditLog. Create is deliberately open to any signed-in
+    // user, including Viewer, since a Viewer can trigger the monthly
+    // snapshot just by having the Financials tab open. Update/delete are
+    // blocked outright — every recompute writes a new doc rather than
+    // touching a prior one.
+    match /shopVisitProjections/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+
+    // Everything else — unchanged from before: any signed-in Firebase
+    // Auth user. Written as explicit per-collection matches rather than
+    // a single {document=**} wildcard, because Firestore rules are
+    // additive across matching blocks — a broad catch-all below the
+    // rules above would otherwise still independently grant broader
+    // access to those same documents, silently undoing the restrictions
+    // just added.
+    match /utilisation/{docId} { allow read, write: if request.auth != null; }
+    match /shareTokens/{token} { allow read, write: if request.auth != null; }
+    match /pendingReports/{docId} { allow read, write: if request.auth != null; }
+    match /settings/{key} { allow read, write: if request.auth != null; }
+  }
+}

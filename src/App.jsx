@@ -8,6 +8,7 @@ import { FleetExposureView, PortfolioView } from './components/PortfolioView';
 import { ProspectEditor, ProspectListView } from './components/Prospects';
 import { UploadView } from './components/UploadView';
 import { db, logAudit } from './lib/db';
+import { bootstrapKnowledgeBaseGlobals } from './lib/knowledgeBase';
 import { HEADER_LOGO_NAVY, HEADER_LOGO_WHITE } from './lib/techSpec';
 
 function App(){
@@ -109,7 +110,15 @@ function App(){
 
   useEffect(()=>{
     if(!authUser)return; // wait until signed in before touching Firestore
-    const doLoad=()=>loadAssets();
+    // Knowledge Base globals (window.LLP_CATALOGUE_PRICES,
+    // window.lookupLLPCataloguePrice) are fetched alongside assets, not
+    // gated behind them — pots.js/flyForward.js read these globals
+    // defensively and fall back cleanly if this hasn't resolved yet, so
+    // it doesn't need to block the loading screen the way loadAssets does.
+    const doLoad=()=>{
+      loadAssets();
+      bootstrapKnowledgeBaseGlobals().catch(e=>console.warn('Knowledge Base bootstrap failed — falling back to code defaults:', e));
+    };
     if(window._firebaseReady){
       doLoad();
     } else {

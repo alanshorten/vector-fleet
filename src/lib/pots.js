@@ -1,4 +1,5 @@
 import { isCFM } from './assetHelpers';
+import { getCheckCostBand, getEnPrBand, getOutflowEscalationPct } from './knowledgeBase';
 
 const FIXED_RESERVE_POT_DEFS = [
   { code: "AF-6Y", label: "Airframe 6-Year Check", potCategory: "fixed", accrualBasis: "per_month",
@@ -19,6 +20,14 @@ const FIXED_RESERVE_POT_DEFS = [
     defaultCostLow: 350000, defaultCostHigh: 600000 }
 ];
 
+// Tier-3 code fallback only, matched 1:1 with CODE_FALLBACK_DEFAULTS in
+// knowledgeBase.js. This const stays as literal ground truth for the
+// structural fields (code, interval, accrualBasis); the *cost* fields
+// here are never read directly anymore for pre-fill — buildPotFromDef
+// resolves cost bands through getCheckCostBand()/getEnPrBand() instead,
+// which check the Knowledge Base first. Kept on the defs themselves too
+// so anything that still reads def.defaultCostLow directly (e.g. a
+// display fallback) isn't left with nothing.
 const EN_PR_FAMILY_DEFAULTS = {
   CFM: { intervalFH: 10000, costLow: 1200000, costHigh: 1600000 },
   V2500: { intervalFH: 6000, costLow: 1400000, costHigh: 1800000 }
@@ -28,7 +37,11 @@ function buildRealEnginePotDefs(asset) {
   const cfm = isCFM(asset);
   const engineFamily = cfm ? "CFM" : "V2500";
   const familyCatalogue = window.LLP_CATALOGUE_PRICES?.[engineFamily];
-  const prDefaults = EN_PR_FAMILY_DEFAULTS[engineFamily];
+  // Knowledge Base tier 2 first (already falls to tier 3 internally if
+  // the KB hasn't been populated) — this is what makes a Forecasting
+  // Defaults edit actually change what new EN-PR pots pre-fill to.
+  const kbEnPr = getEnPrBand(engineFamily);
+  const prDefaults = kbEnPr || EN_PR_FAMILY_DEFAULTS[engineFamily];
   const catalogueEsc = familyCatalogue?.escalationPctPerYr ?? 2.5;
   const engines = (asset.engines || []).filter(e => e.sn && String(e.sn).trim());
   const defs = [];
@@ -152,13 +165,24 @@ function buildPotDefsForActivation(asset){
   const cfm=isCFM(asset);
   const engineFamily=cfm?"CFM":"V2500";
   const catalogueEsc=window.LLP_CATALOGUE_PRICES?.[engineFamily]?.escalationPctPerYr;
+  const kbOutflowEsc=getOutflowEscalationPct();
   return [...FIXED_RESERVE_POT_DEFS,...buildRealEnginePotDefs(asset)].map(def=>({
     ...def,
-    escalationPctPerYr: def.potCategory==="engine"?(catalogueEsc??2.5):2.5
+    escalationPctPerYr: def.potCategory==="engine"?(catalogueEsc??2.5):kbOutflowEsc,
+    outflowEscalationPct: def.potCategory==="engine"?def.outflowEscalationPct:kbOutflowEsc
   }));
 };
 
 function buildPotFromDef(def,accrualRate,today){
+  // Knowledge Base tier 2 for cost bands, non-engine pots only — engine
+  // pots (EN-PR) already have their cost band resolved at the KB tier
+  // inside buildRealEnginePotDefs, via prDefaults, so def.defaultCostLow/
+  // High there is already the correct KB-or-fallback value and shouldn't
+  // be re-resolved (there's no per-code KB entry for "EN-PR-1" — the KB
+  // key is the engine family, not the individual pot code).
+  const kbBand = def.potCategory !== "engine" ? getCheckCostBand(def.code) : null;
+  const costLow = kbBand?.low ?? def.defaultCostLow ?? "";
+  const costHigh = kbBand?.high ?? def.defaultCostHigh ?? "";
   return {
     code:def.code,label:def.label,potCategory:def.potCategory,enginePosition:def.enginePosition??null,
     accrualBasis:def.accrualBasis,accrualRate,accrualRateBaseYear:new Date().getFullYear(),
@@ -166,10 +190,10 @@ function buildPotFromDef(def,accrualRate,today){
     openingBalance:"",openingBalanceAsOf:today,
     triggerBasis:def.triggerBasis||"calendar_months",
     triggerInterval:def.triggerInterval||{months:72},
-    outflowEscalationPct:def.outflowEscalationPct??2.5,
+    outflowEscalationPct:def.outflowEscalationPct??getOutflowEscalationPct(),
     outflowCostBaseYear:new Date().getFullYear(),
-    projectedCostLow:def.defaultCostLow??"",
-    projectedCostHigh:def.defaultCostHigh??"",
+    projectedCostLow:costLow,
+    projectedCostHigh:costHigh,
     escalationRegime:def.escalationRegime||"flat_annual",
     catalogueRef:def.catalogueRef||null,
     harvestThresholdFC:def.defaultHarvestThresholdFC??2000,

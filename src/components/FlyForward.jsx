@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PotNumInput } from './AssetView';
 import { LeaseWizard } from './LeaseWizard';
+import { isCFM } from '../lib/assetHelpers';
 import { db } from '../lib/db';
 import { FF_COLORS, buildFlyForwardProjection } from '../lib/flyForwardHelpers';
 
@@ -174,6 +175,49 @@ function FFPotCard({ projection, color, anchored }) {
   );
 };
 
+// Read-only Knowledge Base summary for the projection currently on
+// screen — knowledge-base-scoping-handoff.md §4: "a button on the
+// Fly-Forward page... shows the Knowledge Base values driving the
+// current projection. Read-only. Accessible to all roles including
+// Viewer." Fetches fresh on open rather than relying on the cached
+// window globals (which may not have resolved yet if this panel opens
+// very early in the session) — same pattern as SeasonalityProfileEditor.
+function AssumptionsPanel({ engineFamily }) {
+  const [kb, setKb] = useState(undefined); // undefined = loading, null = none saved yet
+  const [catalogue, setCatalogue] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    db.getKnowledgeBase().then(v => { if (!cancelled) setKb(v); }).catch(() => { if (!cancelled) setKb(null); });
+    db.getLLPCatalogue().then(v => { if (!cancelled) setCatalogue(v); }).catch(() => { if (!cancelled) setCatalogue([]); });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (kb === undefined || catalogue === null) {
+    return <div className="card" style={{ padding: 14, marginBottom: 16, color: "#64748b", fontSize: 12 }}>Loading assumptions…</div>;
+  }
+
+  const bands = kb?.checkCostBands || {};
+  const enPr = kb?.enPrBandsByFamily?.[engineFamily];
+  const partsInFamily = catalogue.filter(p => p.engineFamily === engineFamily);
+
+  return (
+    <div className="card" style={{ padding: 14, marginBottom: 16, fontSize: 12 }}>
+      <div style={{ fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Assumptions driving this projection</div>
+      <div style={{ color: "#94a3b8", lineHeight: 1.8 }}>
+        {["AF-6Y", "AF-12Y", "LG-OH", "AP-OH"].map(code => bands[code] && (
+          <div key={code}>{code}: ${bands[code].low?.toLocaleString()}–${bands[code].high?.toLocaleString()}</div>
+        ))}
+        {enPr && <div>EN-PR ({engineFamily}): ${enPr.costLow?.toLocaleString()}–${enPr.costHigh?.toLocaleString()} every {enPr.intervalFH?.toLocaleString()} FH</div>}
+        <div>LLP catalogue: {partsInFamily.length} priced part{partsInFamily.length===1?"":"s"} on file for {engineFamily}, escalation {kb?.llpEscalationPctByFamily?.[engineFamily] ?? "—"}%/yr</div>
+        {kb?.checkDurationWeeks && <div>Check durations: 2Y {kb.checkDurationWeeks["2Y"]}wk · 6Y {kb.checkDurationWeeks["6Y"]}wk · 12Y {kb.checkDurationWeeks["12Y"]}wk</div>}
+        {!kb && <div style={{ marginTop: 4, color: "#fbbf24" }}>⚠ No Knowledge Base defaults saved yet — figures above are code fallbacks. Set real values in Admin → Knowledge Base.</div>}
+        <div style={{ marginTop: 6, color: "#475569" }}>Read-only here — edit in Admin → Knowledge Base.</div>
+      </div>
+    </div>
+  );
+}
+
 function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
   const [loading, setLoading] = useState(true);
   const [lease, setLease] = useState(null);
@@ -184,6 +228,8 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
   const [costProjections, setCostProjections] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [leaseWizardOpen, setLeaseWizardOpen] = useState(false);
+  const [showAssumptions, setShowAssumptions] = useState(false);
+  const engineFamily = isCFM(asset) ? "CFM" : "V2500";
 
   useEffect(() => {
     let cancelled = false;
@@ -300,12 +346,12 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
-      {canEnterLeaseData && (
-        <div className="flab g12" style={{ marginBottom: 16, justifyContent: "flex-end" }}>
-          <button className="btn btn-ghost" onClick={() => setLeaseWizardOpen(true)}>📄 Edit Lease</button>
-        </div>
-      )}
+      <div className="flab g12" style={{ marginBottom: 16, justifyContent: "flex-end" }}>
+        <button className="btn btn-ghost" onClick={() => setShowAssumptions(s => !s)}>{showAssumptions ? "Hide " : "📋 "}Assumptions</button>
+        {canEnterLeaseData && <button className="btn btn-ghost" onClick={() => setLeaseWizardOpen(true)}>📄 Edit Lease</button>}
+      </div>
       {leaseWizardOpen && <LeaseWizard asset={asset} saveAsset={saveAsset} notify={notify} onClose={() => setLeaseWizardOpen(false)}/>}
+      {showAssumptions && <AssumptionsPanel engineFamily={engineFamily}/>}
       <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Fly-Forward — MSN {asset.msn}</div>
         <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
