@@ -1,5 +1,6 @@
 import { db } from './db';
 import { getCheckDurationDefaults } from './knowledgeBase';
+import { buildPotDefsForActivation, buildPotFromDef } from './pots';
 
 const FF_COLORS = { AF6Y: "#60a5fa", AF12Y: "#a78bfa", LGOH: "#34d399", APOH: "#fbbf24", ENPR1: "#f472b6", ENLP1: "#f87171", ENPR2: "#fb923c", ENLP2: "#e879f9" };
 
@@ -157,18 +158,94 @@ async function buildFleetExposureData(assets, pandemicGroundingMonths = 0) {
 // Same Body-layer shape as buildFleetExposureData, just calling
 // fleetExposure.js's lighter buildFleetMaintenanceEvents instead (no pot
 // financial pass — nothing here needs cost, only scheduling).
+// Calendar-only entry builder (Alan, July 2026 — TECH_DEBT.md 4.85 follow-
+// up): confirmed reserve pot documents only exist once the Lease/Reserve
+// Setup wizard has actually been run, which requires a lease. But the
+// component data those pots' DATES are derived from — landing gear
+// next-due dates (asset.landingGear), engine LLP remaining life
+// (asset.engines[].llps/currentFC) — is real Layer-1 tracking data that
+// exists independently of any lease or reserve pot. When no confirmed pot
+// exists, this synthesizes pot STRUCTURE (triggerBasis/triggerInterval/
+// harvestThresholdFC/engineFamily) from the exact same generator the Lease
+// Wizard itself uses to pre-populate its checklist (pots.js's
+// buildPotDefsForActivation/buildPotFromDef, KB-backed with fixed-
+// engineering-constant fallback) — then anchorReservePots (below) attaches
+// the REAL due date from the asset's own tracked component data, exactly
+// as it already does for confirmed pots.
+//
+// CRITICAL: this is Calendar/clash-detection ONLY. buildFleetExposureData
+// (Financial) must never see synthetic pots — accrualRate is always 0
+// here (deliberately never a real $ figure), so a financial projection
+// built off these would show a fabricated balance. That's why this is a
+// separate function from buildFleetExposureEntry, not a shared one with a
+// flag — the separation itself is the safeguard.
+//
+// What's real vs. estimated once this runs:
+//   - AF-6Y/AF-12Y: always real (asset.checks) — unaffected either way.
+//   - LG-OH: real — anchored from asset.landingGear's actual next-due date.
+//   - EN-LP: real — anchored from the engine's actual LLP stack/currentFC.
+//   - EN-PR: an ESTIMATE when synthesized — no real "last PR date" is
+//     tracked on the asset, so with a synthetic pot's opening balance at
+//     0, anchoring assumes a full interval from today (same "starting
+//     fresh" assumption the KB-family-interval fallback always makes).
+//   - AP-OH: already an app-wide approximation regardless of synthetic vs.
+//     real pots — `nowOffsetMonths` (how far into the APU-hour trigger
+//     band the asset already sits) is never actually populated by any
+//     caller anywhere in the app today, so AP-OH always assumes "starting
+//     fresh." Not a new gap introduced here.
+// `usedSyntheticPots` is returned so the caller can flag EN-PR/AP-OH as
+// estimated where it matters, without withholding the genuinely real
+// LG-OH/EN-LP dates.
+function buildCalendarEntry({ asset, lease, reserveDocs, utilRate, apuHrPerMonth, scheduledEvents, seasonalityProfile, costProjections }) {
+  const confirmedPots = (reserveDocs || []).map(reconstructPotWithStatus).filter(p => !!p.triggerBasis && p.status !== "outstanding");
+  const rate = utilRate || { fhPerMonth: 0, fcPerMonth: 0 };
+  const leaseStart = new Date();
+
+  let pots;
+  let usedSyntheticPots = false;
+  if (confirmedPots.length > 0) {
+    pots = anchorReservePots({ asset, confirmedPots, rate, leaseStart });
+  } else {
+    const defs = buildPotDefsForActivation(asset);
+    const synthesizedPots = defs.map(def => buildPotFromDef(def, 0, leaseStart.toISOString().slice(0, 10)));
+    pots = anchorReservePots({ asset, confirmedPots: synthesizedPots, rate, leaseStart });
+    usedSyntheticPots = true;
+  }
+
+  return {
+    assetId: asset.id,
+    msn: asset.msn,
+    lease,
+    pots,
+    engines: asset.engines || [],
+    checks: asset.checks || [],
+    utilisation: utilRate ? { fhPerMonth: utilRate.fhPerMonth, fcPerMonth: utilRate.fcPerMonth, apuHrPerMonth } : null,
+    scheduledEvents: scheduledEvents || [],
+    seasonalityProfile: seasonalityProfile || null,
+    costProjections: costProjections || [],
+    usedSyntheticPots
+  };
+};
+
 async function buildFleetCalendarData(assets) {
   const bundles = await Promise.all(assets.map(loadFleetExposureBundle));
-  const entries = bundles.map(buildFleetExposureEntry);
+  const entries = bundles.map(buildCalendarEntry);
   const durationDefaults = getCheckDurationDefaults();
-  return window.buildFleetMaintenanceEvents({
+  const results = await Promise.resolve(window.buildFleetMaintenanceEvents({
     assets: entries,
     brains: {
       projectReservePot: window.projectReservePot,
       projectEnLpPot: window.projectEnLpPot,
       buildMaintenanceCalendar: (input) => window.buildMaintenanceCalendar({ ...input, durationDefaults })
     }
-  });
+  }));
+  // fleetExposure.js's buildAssetMaintenanceEvents doesn't know or care
+  // whether pots came from real Firestore docs or were synthesized here —
+  // that distinction is Body-layer-only (Brain/Body separation), so it's
+  // merged back onto each result by assetId after the fact rather than
+  // threaded through the pure calc module.
+  const syntheticByAssetId = new Map(entries.map(e => [e.assetId, e.usedSyntheticPots]));
+  return results.map(r => ({ ...r, usedSyntheticPots: !!syntheticByAssetId.get(r.assetId) }));
 };
 
 // Route Suitability Matcher (Brain 8, routeMatcher.js) — Body-layer wiring.
@@ -229,11 +306,13 @@ async function buildRouteMatchData(assets, route) {
   // Clash detection (Alan, July 2026 — unblocked now Route Matcher itself
   // exists): every OTHER asset's own base-case scheduled events, computed
   // once per run from the SAME bundles already loaded above (no second
-  // Firestore round-trip), reusing buildFleetExposureEntry's shape since
-  // buildFleetMaintenanceEvents takes the identical per-asset entry
-  // contract buildFleetExposure does.
+  // Firestore round-trip). Uses buildCalendarEntry (not
+  // buildFleetExposureEntry) so a leaseless asset's real landing-gear/LLP
+  // dates are still visible to clash detection, same reasoning as the
+  // Calendar tab — see buildCalendarEntry's own comment for why this is
+  // safe (Calendar/clash-detection only, never financial).
   const fleetMaintenanceEvents = window.buildFleetMaintenanceEvents({
-    assets: bundles.map(buildFleetExposureEntry),
+    assets: bundles.map(buildCalendarEntry),
     brains
   });
   return window.matchRouteToFleet({
