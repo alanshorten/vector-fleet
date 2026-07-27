@@ -56,6 +56,27 @@ function formatShift(months) {
   return months < 0 ? `${Math.abs(months)} mo earlier` : `${months} mo later`;
 }
 
+// buildFlyForwardProjection derives its own horizonMonths from
+// lease.leaseEnd and simply never generates events past it — that's
+// correct for the headline shortfall totals and risk peaks (this lease's
+// actual exposure), but it means a real, computed shortfall due just
+// after lease end was previously invisible, shown only as "Beyond
+// horizon" (Alan: "we need to show shortfalls regardless of when the
+// event falls due... with a note about beyond lease"). Rather than
+// touching buildFlyForwardProjection itself, this runs a second pass with
+// an artificially pushed-out leaseEnd — same trick the lease-extension
+// slider already uses — purely to surface that pot's next event for
+// visibility. This lookup NEVER feeds the portfolio shortfall totals,
+// risk peaks, or the balance chart above — those stay scoped to the
+// real (or scenario) lease term only.
+const BEYOND_LEASE_LOOKAHEAD_YEARS = 15;
+
+function buildLookaheadLease(lease) {
+  if (!lease) return lease;
+  const pushedOut = addMonthsFF(new Date(lease.leaseEnd), BEYOND_LEASE_LOOKAHEAD_YEARS * 12);
+  return { ...lease, leaseEnd: pushedOut.toISOString().slice(0, 10) };
+}
+
 // Whole-asset scope, not per-pot (layer3-scenarios-build-handoff.md §2) —
 // utilisation and sector-length sliders reshape the same fhPerMonth/
 // fcPerMonth pair that buildFlyForwardProjection already takes as ctx
@@ -268,6 +289,13 @@ function Scenarios({ asset }) {
     );
   }
 
+  // Lookahead-only passes, purely to surface a real number for events that
+  // fall after lease end — never used for the totals/risk-peaks below.
+  const baseLookaheadPF = buildFlyForwardProjection({ asset, lease: buildLookaheadLease(lease), reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections });
+  const scenarioLookaheadPF = buildFlyForwardProjection({ asset, lease: buildLookaheadLease(scenarioLease), reserveDocs, utilRate: scenarioUtilRate, scheduledEvents, seasonalityProfile, costProjections });
+  const baseLookahead = baseLookaheadPF.projectionError ? [] : baseLookaheadPF.projections;
+  const scenarioLookahead = scenarioLookaheadPF.projectionError ? [] : scenarioLookaheadPF.projections;
+
   const baseSummary = window.summarisePortfolioShortfall(basePF.projections);
   const baseRiskPeaks = window.findPortfolioRiskPeaks(basePF.projections);
   const scenarioSummary = window.summarisePortfolioShortfall(scenarioPF.projections);
@@ -277,11 +305,18 @@ function Scenarios({ asset }) {
   const potRows = allCodes.map(code => {
     const b = basePF.projections.find(p => p.code === code);
     const s = scenarioPF.projections.find(p => p.code === code);
-    const bWorst = worstEvent(b);
-    const sWorst = worstEvent(s);
-    // Real in-horizon event date if one exists, else the underlying
-    // anchored date even when it falls beyond the horizon (Alan: "still
-    // doesn't say how much this advanced" — this is the fix).
+    const bWorstReal = worstEvent(b);
+    const sWorstReal = worstEvent(s);
+    // If nothing falls within the actual lease term, fall back to the
+    // lookahead pass so a real, beyond-lease shortfall still shows a
+    // number instead of just "Beyond horizon" — tagged as such below.
+    const bWorstLookahead = bWorstReal ? null : worstEvent(baseLookahead.find(p => p.code === code));
+    const sWorstLookahead = sWorstReal ? null : worstEvent(scenarioLookahead.find(p => p.code === code));
+    const bWorst = bWorstReal || bWorstLookahead;
+    const sWorst = sWorstReal || sWorstLookahead;
+    // Real in-horizon (or lookahead) event date if one exists, else the
+    // underlying anchored date as a last resort (Alan: "still doesn't say
+    // how much this advanced" — this is the fix).
     const bDate = eventDate(bWorst) || anchoredDateForCode(basePF.anchoredPots, code);
     const sDate = eventDate(sWorst) || anchoredDateForCode(scenarioPF.anchoredPots, code);
     return {
@@ -289,8 +324,10 @@ function Scenarios({ asset }) {
       label: (s || b)?.label,
       baseTracked: !!b,
       scenarioTracked: !!s,
-      baseInHorizon: !!bWorst,
-      scenarioInHorizon: !!sWorst,
+      baseInHorizon: !!bWorstReal,
+      scenarioInHorizon: !!sWorstReal,
+      baseBeyondLease: !bWorstReal && !!bWorstLookahead,
+      scenarioBeyondLease: !sWorstReal && !!sWorstLookahead,
       baseHigh: bWorst ? bWorst.shortfallHigh : null,
       scenarioHigh: sWorst ? sWorst.shortfallHigh : null,
       baseCostLow: bWorst ? bWorst.costLow : null,
@@ -304,6 +341,7 @@ function Scenarios({ asset }) {
       shiftMonths: (bDate && sDate) ? monthDelta(bDate, sDate) : null
     };
   });
+
 
   const baseAgg = aggregateBalanceSeries(basePF.projections);
   const scenarioAgg = aggregateBalanceSeries(scenarioPF.projections);
@@ -407,7 +445,7 @@ function Scenarios({ asset }) {
 
       <div className="card" style={{ padding: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Per-Pot Worst-Case Shortfall — Base vs. Scenario</div>
-        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>Cost and balance shown underneath each figure are the exact inputs to that shortfall (cost − balance at event = shortfall) — check them directly rather than taking the total on faith. "Beyond horizon" pots still show the projected month the underlying date lands on, even though no event or cost applies yet at today's lease term.</div>
+        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>Cost and balance shown underneath each figure are the exact inputs to that shortfall (cost − balance at event = shortfall) — check them directly rather than taking the total on faith. A shortfall tagged "beyond lease" falls after this lease ends — it's the next lessee's exposure, not this one's, so it's shown for visibility only and is NOT included in the shortfall totals or risk peaks above. Lease-boundary redelivery conditions are a separate check (End-of-Lease Position), not covered here.</div>
         <table style={{ fontSize: 12, width: "100%" }}>
           <thead><tr>
             <th style={{ color: "#64748b", textAlign: "left" }}>Pot</th>
@@ -423,14 +461,20 @@ function Scenarios({ asset }) {
                   {row.code} — {row.label}
                 </td>
                 <td style={{ textAlign: "right", verticalAlign: "top", padding: "6px 0" }}>
-                  <div style={{ color: shortfallColor(row.baseHigh) }}>{row.baseHigh == null ? (row.baseTracked ? "Beyond horizon" : "—") : `$${Math.round(row.baseHigh).toLocaleString()}`}</div>
+                  <div style={{ color: row.baseBeyondLease ? "#94a3b8" : shortfallColor(row.baseHigh) }}>
+                    {row.baseHigh == null ? (row.baseTracked ? "No event within 15yr" : "—") : `$${Math.round(row.baseHigh).toLocaleString()}`}
+                    {row.baseBeyondLease && <div style={{ fontSize: 9, color: "#64748b" }}>(beyond lease)</div>}
+                  </div>
                   {row.baseDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.baseInHorizon ? "" : "proj. "}{row.baseDate.toISOString().slice(0, 7)}</div>}
-                  {row.baseInHorizon && <div style={{ fontSize: 10, color: "#64748b" }}>Cost ${Math.round(row.baseCostLow).toLocaleString()}–${Math.round(row.baseCostHigh).toLocaleString()} · Bal ${Math.round(row.baseBalance).toLocaleString()}</div>}
+                  {row.baseHigh != null && <div style={{ fontSize: 10, color: "#64748b" }}>Cost ${Math.round(row.baseCostLow).toLocaleString()}–${Math.round(row.baseCostHigh).toLocaleString()} · Bal ${Math.round(row.baseBalance).toLocaleString()}</div>}
                 </td>
                 <td style={{ textAlign: "right", verticalAlign: "top", padding: "6px 0" }}>
-                  <div style={{ color: scenarioActive ? deltaColor(row.baseHigh, row.scenarioHigh) : shortfallColor(row.scenarioHigh) }}>{row.scenarioHigh == null ? (row.scenarioTracked ? "Beyond horizon" : "—") : `$${Math.round(row.scenarioHigh).toLocaleString()}`}</div>
+                  <div style={{ color: row.scenarioBeyondLease ? "#94a3b8" : (scenarioActive ? deltaColor(row.baseHigh, row.scenarioHigh) : shortfallColor(row.scenarioHigh)) }}>
+                    {row.scenarioHigh == null ? (row.scenarioTracked ? "No event within 15yr" : "—") : `$${Math.round(row.scenarioHigh).toLocaleString()}`}
+                    {row.scenarioBeyondLease && <div style={{ fontSize: 9, color: "#64748b" }}>(beyond lease)</div>}
+                  </div>
                   {row.scenarioDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.scenarioInHorizon ? "" : "proj. "}{row.scenarioDate.toISOString().slice(0, 7)}</div>}
-                  {row.scenarioInHorizon && <div style={{ fontSize: 10, color: "#64748b" }}>Cost ${Math.round(row.scenarioCostLow).toLocaleString()}–${Math.round(row.scenarioCostHigh).toLocaleString()} · Bal ${Math.round(row.scenarioBalance).toLocaleString()}</div>}
+                  {row.scenarioHigh != null && <div style={{ fontSize: 10, color: "#64748b" }}>Cost ${Math.round(row.scenarioCostLow).toLocaleString()}–${Math.round(row.scenarioCostHigh).toLocaleString()} · Bal ${Math.round(row.scenarioBalance).toLocaleString()}</div>}
                 </td>
                 <td style={{ textAlign: "right", verticalAlign: "top", fontSize: 11, color: row.shiftMonths == null ? "#475569" : (row.shiftMonths < 0 ? "#f87171" : row.shiftMonths > 0 ? "#34d399" : "#64748b") }}>
                   {row.shiftMonths != null
