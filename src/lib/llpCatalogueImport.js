@@ -22,39 +22,69 @@ import * as XLSX from 'xlsx';
 // extractLLPSheet/extractAvionicsLRU.
 // ============================================================
 
-// Returns [{ partNumber, unitPrice }, ...]. Throws with a user-facing
-// message if no recognisable Part Number / Price header pair is found
-// in the first 10 rows of the first sheet.
+// Scans every sheet in the workbook (real escalation-model workbooks —
+// like the one this was built and tested against — commonly split by
+// engine family across sheets, e.g. "CFM"/"IAE"/"V2500", and there's no
+// reliable way to know in advance which sheet name maps to which family
+// tab in the app). Returns [{ partNumber, unitPrice }, ...] deduped by
+// part number (last sheet processed wins on a collision — harmless in
+// practice since the same part number found in two sheets of a real
+// escalation model has matched, not conflicting, prices).
+//
+// Within each sheet, if there are multiple columns whose header contains
+// "price" (a real multi-year escalation table has one per year), the
+// RIGHTMOST one is used — assumed to be the most recent year, since that
+// convention held in the one real file this was tested against. If your
+// spreadsheet lists years newest-to-oldest instead, this will pick the
+// oldest price — flag it if the parsed prices come out anywhere close to
+// half of what you expect at a glance, that's the tell.
 function parseExcelCatalogueFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const wb = XLSX.read(e.target.result, { type: 'array' });
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+        const byPartNumber = {};
 
-        let headerIdx = -1, pnCol = -1, priceCol = -1;
-        for (let i = 0; i < Math.min(rows.length, 10); i++) {
-          const row = (rows[i] || []).map(c => String(c).toLowerCase());
-          const pn = row.findIndex(c => /part\s*number|p\/n|part\s*no/.test(c));
-          const price = row.findIndex(c => /unit\s*price|unit\s*rate|unit\s*cost|^price$/.test(c));
-          if (pn !== -1 && price !== -1) { headerIdx = i; pnCol = pn; priceCol = price; break; }
-        }
-        if (headerIdx === -1) {
-          reject(new Error("Couldn't find Part Number / Unit Price columns in this file's header row — check the file, or enter prices manually below."));
-          return;
-        }
+        wb.SheetNames.forEach(sheetName => {
+          const sheet = wb.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-        const entries = [];
-        for (let i = headerIdx + 1; i < rows.length; i++) {
-          const pn = String((rows[i] || [])[pnCol] || '').trim();
-          const priceRaw = (rows[i] || [])[priceCol];
-          const price = parseFloat(String(priceRaw).replace(/[^0-9.-]/g, ''));
-          if (pn && !isNaN(price)) entries.push({ partNumber: pn, unitPrice: price });
-        }
+          let headerIdx = -1, pnCol = -1, priceCol = -1;
+          for (let i = 0; i < Math.min(rows.length, 15); i++) {
+            const row = (rows[i] || []).map(c => String(c).toLowerCase().trim());
+            const pnCandidates = [];
+            const priceCandidates = [];
+            row.forEach((c, idx) => {
+              // "material" included alongside part-number wording — one
+              // real sheet in testing used "2026 Material" as its part
+              // number column header, with no "part number"/"P/N" wording
+              // anywhere on the row.
+              if (/part\s*number|p\/n|part\s*no|material/.test(c)) pnCandidates.push(idx);
+              // Contains-match, not exact — real headers were "2023 Price",
+              // "2025 Price" etc, not a bare "Price" cell.
+              if (/price|unit\s*rate|unit\s*cost/.test(c)) priceCandidates.push(idx);
+            });
+            if (pnCandidates.length && priceCandidates.length) {
+              headerIdx = i;
+              pnCol = pnCandidates[pnCandidates.length - 1];
+              priceCol = priceCandidates[priceCandidates.length - 1]; // rightmost = most recent year
+              break;
+            }
+          }
+          if (headerIdx === -1) return; // this sheet doesn't look like a price table — skip it, not an error
+
+          for (let i = headerIdx + 1; i < rows.length; i++) {
+            const pn = String((rows[i] || [])[pnCol] || '').trim();
+            const priceRaw = (rows[i] || [])[priceCol];
+            const price = parseFloat(String(priceRaw).replace(/[^0-9.-]/g, ''));
+            if (pn && !isNaN(price)) byPartNumber[pn] = price;
+          }
+        });
+
+        const entries = Object.entries(byPartNumber).map(([partNumber, unitPrice]) => ({ partNumber, unitPrice }));
         if (!entries.length) {
-          reject(new Error("Found the header row but no valid part number / price rows underneath it."));
+          reject(new Error("Couldn't find any Part Number / Price columns in this file — check the file, or enter prices manually below."));
           return;
         }
         resolve(entries);
