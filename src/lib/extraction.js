@@ -356,5 +356,58 @@ async function extractAvionicsLRU(file){
     }));
 };
 
+// --- Scenarios chat box (layer3-scenarios-build-handoff.md §2) ---
+// This translates a natural-language "what if" into the three levers the
+// Scenarios sliders already expose (utilisation %, lease extension months,
+// sector-length %). It is deliberately a TRANSLATION step only — it never
+// generates narrative text or interprets the financial result. AI narrative
+// summarising the delta between base case and scenario is Brain 9
+// (narrativeGen.js), scoped separately and layered on last, per the locked
+// build order in TECH_DEBT.md.
+const SCENARIO_CHAT_PROMPT=`You are translating a lessor's plain-English "what if" question about a single leased aircraft into three numeric levers for a financial scenario tool. This is for hypothetical exploration only — it never changes real recorded data. Return ONLY valid JSON, no markdown, matching exactly this shape:
+{"utilisationPctChange":number,"leaseExtensionMonths":number,"sectorLengthPctChange":number,"unmapped":"string"}
 
-export { ATA_CHAPTER_MAP, AVIONICS_LRU_PROMPT, DOLLAR_FIGURE_RE, LEASE_EXTRACT_PROMPT, LEASE_PAGE_KEYWORDS, RATE_CONSTRUCT_RE, ataChapterLabel, ataChapterSortNum, escapeRegex, extractAvionicsLRU, extractDocxSectionChunks, extractLLPSheet, extractOperatorHistory, extractPdfPageTexts, fileToBase64, isBoldPseudoHeading, isDocxFile, isSupportedLeaseFile, matchAssetForText, mergeOperatorHistory, quickParseLeaseFile, runLeaseExtraction, scoreLeaseChunks };
+Lever meanings:
+- utilisationPctChange: percentage change in overall utilisation (flight hours and cycles move together). "utilisation drops 20%" -> -20. "flies 10% more" -> 10. 0 if not mentioned.
+- leaseExtensionMonths: whole months added to the current lease end date. "lease extends 12 months" -> 12. "one more year" -> 12. Never negative — this tool cannot shorten a lease. 0 if not mentioned.
+- sectorLengthPctChange: percentage change in average sector length (flight hours per cycle), a rough proxy for route/mission change. Longer sectors mean fewer cycles for the same flying. "moves onto longer routes" -> a positive number. "shorter hops" -> a negative number. 0 if not mentioned.
+
+Set "unmapped" to an empty string if the request maps cleanly onto these three levers. Otherwise, give a short plain-English note (one sentence) about the part of the request these levers can't represent — this tool has no other levers. If the request isn't a "what if" about utilisation, lease length, or route/sector profile at all, set all three numbers to 0 and explain briefly in "unmapped".`;
+
+async function translateScenarioChat(text){
+  const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:400,messages:[{role:"user",content:[{type:"text",text:SCENARIO_CHAT_PROMPT+'\n\nUser request: "'+text+'"'}]}]})});
+  if(!resp.ok){
+    const status=resp.status;
+    if(status===401||status===403)throw new Error("Authentication error with the AI service. Please contact your administrator.");
+    if(status===429)throw new Error("Too many requests — please wait a moment and try again.");
+    if(status>=500)throw new Error("The scenario service is temporarily unavailable. Please try again in a few minutes.");
+    throw new Error("Scenario request failed (error "+status+"). Please try again.");
+  }
+  let result;
+  try{result=await resp.json();}catch(jsonErr){throw new Error("Received an unexpected response from the server. Please try again.");}
+  if(result.error){
+    const msg=result.error;
+    if(msg.includes("credit")||msg.includes("billing"))throw new Error("AI service billing issue — please contact your administrator.");
+    if(msg.includes("overloaded")||msg.includes("capacity"))throw new Error("The AI service is busy right now. Please wait a moment and try again.");
+    throw new Error("Couldn't interpret that scenario. Please try rephrasing.");
+  }
+  let parsed;
+  try{
+    const rawParsed=result.ok?result.data:JSON.parse((result.raw||"").replace(/```json|```/g,"").trim());
+    parsed=Array.isArray(rawParsed)?rawParsed[rawParsed.length-1]:rawParsed;
+  }catch(parseErr){
+    throw new Error("Couldn't interpret that scenario. Please try rephrasing, or use the sliders directly.");
+  }
+  if(!parsed||typeof parsed!=="object"||Array.isArray(parsed)){
+    throw new Error("Couldn't interpret that scenario. Please try rephrasing, or use the sliders directly.");
+  }
+  const clamp=(n,lo,hi)=>Math.max(lo,Math.min(hi,n));
+  const utilisationPctChange=clamp(Number(parsed.utilisationPctChange)||0,-90,300);
+  const leaseExtensionMonths=Math.max(0,Math.round(Number(parsed.leaseExtensionMonths)||0));
+  const sectorLengthPctChange=clamp(Number(parsed.sectorLengthPctChange)||0,-90,300);
+  const unmapped=typeof parsed.unmapped==="string"?parsed.unmapped:"";
+  return{utilisationPctChange,leaseExtensionMonths,sectorLengthPctChange,unmapped};
+};
+
+
+export { ATA_CHAPTER_MAP, AVIONICS_LRU_PROMPT, DOLLAR_FIGURE_RE, LEASE_EXTRACT_PROMPT, LEASE_PAGE_KEYWORDS, RATE_CONSTRUCT_RE, SCENARIO_CHAT_PROMPT, ataChapterLabel, ataChapterSortNum, escapeRegex, extractAvionicsLRU, extractDocxSectionChunks, extractLLPSheet, extractOperatorHistory, extractPdfPageTexts, fileToBase64, isBoldPseudoHeading, isDocxFile, isSupportedLeaseFile, matchAssetForText, mergeOperatorHistory, quickParseLeaseFile, runLeaseExtraction, scoreLeaseChunks, translateScenarioChat };

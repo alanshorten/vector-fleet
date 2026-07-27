@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { APUTab, EnginesTab, LandingGearTab, OverviewTab } from './AssetTabs';
 import { FlyForward, MaintenanceCalendarView } from './FlyForward';
+import { Scenarios } from './Scenarios';
 import { AvionicsTab, DocumentsTab, HistoryTab, PhotosTab, SpecsTab } from './PhotosAndSpecs';
 import { assetEngineStockPhotoKey, airframeStockPhotoKey } from '../lib/assetHelpers';
 import { db } from '../lib/db';
@@ -138,12 +139,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
       )}
       {layer==="calendar"&&canSeeAdvanced&&<MaintenanceCalendarView asset={asset}/>}
       {layer==="financials"&&canSeeAdvanced&&<FlyForward asset={asset} saveAsset={saveAsset} notify={notify} canEnterLeaseData={canEnterLeaseData}/>}
-      {layer==="scenarios"&&canSeeAdvanced&&(
-        <div className="card" style={{padding:24,textAlign:"center"}}>
-          <div style={{fontSize:14,fontWeight:700,color:"#e2e8f0",marginBottom:8}}>Scenarios</div>
-          <div style={{fontSize:12,color:"#94a3b8"}}>Coming soon — sliders and a chat box for exploring "what if" projections against this asset's numbers.</div>
-        </div>
-      )}
+      {layer==="scenarios"&&canSeeAdvanced&&<Scenarios asset={asset}/>}
       {shareOpen&&<ShareModal asset={asset} notify={notify} onClose={()=>setShareOpen(false)}/>}
     </div>
   );
