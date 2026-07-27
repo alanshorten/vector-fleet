@@ -180,28 +180,31 @@ async function buildFleetExposureData(assets, pandemicGroundingMonths = 0) {
 // separate function from buildFleetExposureEntry, not a shared one with a
 // flag — the separation itself is the safeguard.
 //
-// What's real vs. estimated vs. omitted once this runs:
+// What's real vs. omitted once this runs — there is no "estimated" tier
+// anymore (Alan, July 2026 — corrected an earlier version of this fix
+// that estimated both EN-PR and AP-OH; both are now omitted instead, see
+// below):
 //   - AF-6Y/AF-12Y: always real (asset.checks) — unaffected either way.
 //   - LG-OH: real — anchored from asset.landingGear's actual next-due date.
 //   - EN-LP: real — anchored from the engine's actual LLP stack/currentFC.
-//   - EN-PR: OMITTED when synthesized, not estimated (Alan, July 2026 —
-//     corrected from an earlier version of this fix that DID estimate it).
-//     No real "last PR date" is tracked on the asset, so a synthetic pot's
-//     opening balance can only ever be 0 — anchoring from that would just
-//     assume "a full interval from today," a fabricated guess. Per Alan,
-//     that goes against the app's deterministic-outputs principle: if
-//     there's no real data, ignore it, don't show an estimate dressed up
-//     as a date. See the EN-PR filter below.
-//   - AP-OH: already an app-wide approximation regardless of synthetic vs.
-//     real pots — `nowOffsetMonths` (how far into the APU-hour trigger
-//     band the asset already sits) is never actually populated by any
-//     caller anywhere in the app today, so AP-OH always assumes "starting
-//     fresh." Pre-existing, not introduced here — left unchanged pending
-//     its own decision on whether the same "omit, don't estimate" rule
-//     should apply (flagged separately, not assumed).
-// `usedSyntheticPots` is returned so the caller can flag AP-OH as an
-// estimate where it matters, without withholding the genuinely real
-// LG-OH/EN-LP dates or fabricating an EN-PR one.
+//   - EN-PR: OMITTED when synthesized. No real "last PR date" is tracked
+//     anywhere, so a synthetic pot's opening balance can only ever be 0 —
+//     anchoring from that would just assume "a full interval from today,"
+//     a fabricated guess. If there's no real data, ignore it, don't show
+//     an estimate dressed up as a date.
+//   - AP-OH: OMITTED when synthesized, same reasoning — `nowOffsetMonths`
+//     (how far into the APU-hour trigger band the asset already sits) is
+//     never populated by any caller anywhere in the app, synthetic or
+//     confirmed pot alike, so any AP-OH date is always an assume-fresh
+//     guess. Note this is narrower than fixing the underlying app-wide gap
+//     (AP-OH is still an unflagged approximation in Fly-Forward/Fleet
+//     Exposure for assets WITH confirmed pots) — this only stops the
+//     Calendar tab from manufacturing an AP-OH date out of nothing when
+//     there was never any pot at all to begin with.
+// `usedSyntheticPots` still distinguishes these assets from ones with a
+// real Lease/Reserve Setup on file, but no longer implies "some shown
+// dates are estimates" — every date actually shown for a synthetic-pot
+// asset is real.
 function buildCalendarEntry({ asset, lease, reserveDocs, utilRate, apuHrPerMonth, scheduledEvents, seasonalityProfile, costProjections }) {
   const confirmedPots = (reserveDocs || []).map(reconstructPotWithStatus).filter(p => !!p.triggerBasis && p.status !== "outstanding");
   const rate = utilRate || { fhPerMonth: 0, fcPerMonth: 0 };
@@ -212,21 +215,19 @@ function buildCalendarEntry({ asset, lease, reserveDocs, utilRate, apuHrPerMonth
   if (confirmedPots.length > 0) {
     pots = anchorReservePots({ asset, confirmedPots, rate, leaseStart });
   } else {
-    // EN-PR excluded from the synthetic fallback (Alan, July 2026): unlike
-    // LG-OH (anchored from asset.landingGear's real next-due date) and
-    // EN-LP (anchored from the engine's real LLP stack), there is no real
-    // per-asset "last PR date" tracked anywhere — a synthetic EN-PR pot's
-    // opening balance is always 0, so anchoring can only ever assume "a
-    // full interval from today," which is a fabricated guess dressed up as
-    // a date. That's exactly the kind of estimate the app's deterministic-
-    // outputs principle exists to prevent. If there's no real data to
-    // anchor EN-PR against, it's simply not shown here — not shown as an
-    // estimate. (AP-OH has the same underlying problem — `nowOffsetMonths`
-    // is never populated by any caller anywhere in the app — but that's a
-    // pre-existing, app-wide gap predating this session, not something
-    // newly introduced by the synthetic-pot fallback; left as-is pending
-    // its own decision rather than silently changed here.)
-    const defs = buildPotDefsForActivation(asset).filter(def => !def.code.startsWith("EN-PR"));
+    // EN-PR and AP-OH both excluded from the synthetic fallback (Alan,
+    // July 2026): neither has any real per-asset anchor data anywhere in
+    // the app. EN-PR has no tracked "last PR date"; AP-OH's
+    // `nowOffsetMonths` (how far into the APU-hour trigger band the asset
+    // already sits) is never populated by any caller anywhere, synthetic
+    // or confirmed pot alike. A synthetic pot for either can only ever
+    // assume "starting fresh from today" — a fabricated guess dressed up
+    // as a date. Per Alan, that goes against the app's deterministic-
+    // outputs principle: no real data means omit it, not estimate it.
+    // LG-OH and EN-LP are unaffected — both have genuine real anchor data
+    // (asset.landingGear's next-due date; the engine's actual LLP stack)
+    // and are unchanged.
+    const defs = buildPotDefsForActivation(asset).filter(def => !def.code.startsWith("EN-PR") && def.code !== "AP-OH");
     const synthesizedPots = defs.map(def => buildPotFromDef(def, 0, leaseStart.toISOString().slice(0, 10)));
     pots = anchorReservePots({ asset, confirmedPots: synthesizedPots, rate, leaseStart });
     usedSyntheticPots = true;

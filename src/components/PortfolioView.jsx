@@ -579,19 +579,19 @@ function FleetCalendarView({ assets, onSelectAsset }) {
   }
 
   // Only genuine compute errors are excluded now (Alan, July 2026 —
-  // TECH_DEBT.md 4.85 follow-up: no asset is dropped from this view for
-  // lacking a lease, confirmed pots, or utilisation history — the checks
-  // still happen whether or not that data exists on file). Two distinct
-  // data-quality flags, not one: `partial` (no utilisation rate at all —
-  // only C-Check dates can show, nothing else can project) is a harder
-  // gap than `usedSyntheticPots` (no lease/reserve setup on file, but
-  // real component data still drives most dates — landing gear next-due
-  // and engine LLP remaining life are both real; only EN-PR/APU dates are
-  // engineering-default estimates in that case, not fabricated fleet-wide).
+  // TECH_DEBT.md 4.85/4.86 follow-up: no asset is dropped from this view
+  // for lacking a lease, confirmed pots, or utilisation history — the
+  // checks still happen whether or not that data exists on file). Two
+  // distinct data-quality flags, not one: `partial` (no utilisation rate
+  // at all — only C-Check dates can show, nothing else can project) is a
+  // harder gap than `usedSyntheticPots` (no lease/reserve setup on file,
+  // but real component data still drives what IS shown — landing gear
+  // next-due and engine LLP remaining life are both real; EN-PR/APU
+  // simply don't appear for these assets rather than showing a guess).
   const included = data.filter(a => !a.excluded);
   const excluded = data.filter(a => a.excluded);
   const partial = included.filter(a => a.partial);
-  const estimated = included.filter(a => !a.partial && a.usedSyntheticPots);
+  const noReserveSetup = included.filter(a => !a.partial && a.usedSyntheticPots);
   const events = included.flatMap(a => (a.events || []).map(e => ({ ...e, msn: a.msn, assetId: a.assetId })));
 
   return (
@@ -601,9 +601,9 @@ function FleetCalendarView({ assets, onSelectAsset }) {
         <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
           Event clustering across the fleet's maintenance calendar — scheduling only, no cost figures. See Financials for the money view. Every asset appears here regardless of lease status — a scheduled check happens whether or not there's a lease on file.
         </div>
-        {estimated.length > 0 && (
+        {noReserveSetup.length > 0 && (
           <div style={{ marginTop: 8, fontSize: 12, color: "#94a3b8" }}>
-            ℹ {estimated.length} asset{estimated.length === 1 ? "" : "s"} with no lease/reserve setup on file — landing gear and engine LLP dates shown are real (from tracked component data); Engine PR dates are not shown for these assets (no real data to anchor them, so they're omitted rather than estimated); APU dates shown are an engineering-default estimate ({estimated.map(a => `MSN ${a.msn}`).join(", ")})
+            ℹ {noReserveSetup.length} asset{noReserveSetup.length === 1 ? "" : "s"} with no lease/reserve setup on file — landing gear and engine LLP dates shown are real (from tracked component data). Engine PR and APU dates aren't shown for these assets — no real data to derive them from, so they're omitted rather than guessed at ({noReserveSetup.map(a => `MSN ${a.msn}`).join(", ")})
           </div>
         )}
         {partial.length > 0 && (
