@@ -375,7 +375,11 @@ Lever meanings:
 Set "unmapped" to an empty string if the request maps cleanly onto these three levers. Otherwise, give a short plain-English note (one sentence) about the part of the request these levers can't represent — this tool has no other levers. If the request isn't a "what if" about utilisation, lease length, or route/sector profile at all, set all three numbers to 0 and explain briefly in "unmapped".`;
 
 async function translateScenarioChat(text){
-  const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:400,messages:[{role:"user",content:[{type:"text",text:SCENARIO_CHAT_PROMPT+'\n\nUser request: "'+text+'"'}]}]})});
+  // Sonnet, not Haiku — real "what if" phrasing varies too much (compound
+  // requests, imprecise numbers, non-native phrasing) to trust to the
+  // cheaper model, same reasoning as the lease/LLP/avionics extraction
+  // functions above. Cost difference is negligible at this call volume.
+  const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:400,messages:[{role:"user",content:[{type:"text",text:SCENARIO_CHAT_PROMPT+'\n\nUser request: "'+text+'"'}]}]})});
   if(!resp.ok){
     const status=resp.status;
     if(status===401||status===403)throw new Error("Authentication error with the AI service. Please contact your administrator.");
