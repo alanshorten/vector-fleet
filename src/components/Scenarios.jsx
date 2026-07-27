@@ -1,8 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../lib/db';
 import { FF_COLORS, addMonthsFF, buildFlyForwardProjection } from '../lib/flyForwardHelpers';
 import { translateScenarioChat } from '../lib/extraction';
 import { MiniLineChart } from './FlyForward';
+
+// Guards against rapid-fire chat submission. Not cost-driven — a single
+// call is a fraction of a cent — this is about Anthropic's own rate limits
+// and a UX where sliders don't jump faster than a person can read them.
+// Both are client-side only (no Firestore, no server tracking), matching
+// Scenarios' fully non-destructive design — the sliders always keep
+// working at zero AI cost even once the cap is hit.
+const MAX_SCENARIO_CHATS_PER_SESSION = 20;
+const MIN_SCENARIO_CHAT_INTERVAL_MS = 2000;
 
 function colorForCode(code) {
   return FF_COLORS[(code || "").replace(/-/g, "")] || "#64748b";
@@ -96,6 +105,10 @@ function Scenarios({ asset }) {
   const [chatBusy, setChatBusy] = useState(false);
   const [chatError, setChatError] = useState(null);
   const [chatNote, setChatNote] = useState(null);
+  const [chatCount, setChatCount] = useState(0);
+  const [chatInterpretation, setChatInterpretation] = useState(null);
+  const lastChatAt = useRef(0);
+  const chatCapped = chatCount >= MAX_SCENARIO_CHATS_PER_SESSION;
 
   useEffect(() => {
     let cancelled = false;
@@ -131,6 +144,19 @@ function Scenarios({ asset }) {
     setSectorPct(0);
     setChatError(null);
     setChatNote(null);
+    setChatInterpretation(null);
+  };
+
+  // Builds the "here's what I heard" caption shown right under the sliders
+  // — always visible the instant a chat request applies, no separate
+  // confirm step. Lets a misread be caught at a glance instead of only
+  // showing up as an unexplained change in the numbers below.
+  const describeInterpretation = (result) => {
+    const parts = [];
+    parts.push(result.utilisationPctChange === 0 ? "no change to utilisation" : `utilisation ${result.utilisationPctChange > 0 ? "+" : ""}${result.utilisationPctChange}%`);
+    parts.push(result.leaseExtensionMonths === 0 ? "no change to lease length" : `lease +${result.leaseExtensionMonths} mo`);
+    parts.push(result.sectorLengthPctChange === 0 ? "no change to sector length" : `sector length ${result.sectorLengthPctChange > 0 ? "+" : ""}${result.sectorLengthPctChange}%`);
+    return `Applied from your last request: ${parts.join(", ")}.`;
   };
 
   // One scenario at a time (VECTORIQ_ROADMAP.md Deliberate Design
@@ -138,15 +164,27 @@ function Scenarios({ asset }) {
   // values, never adds to whatever was set before. This is what keeps a
   // misinterpretation easy to spot rather than compounding silently.
   const applyChat = async () => {
-    if (!chatText.trim()) return;
+    if (!chatText.trim() || chatBusy) return;
+    if (chatCapped) {
+      setChatError("That's a lot of scenarios explored already — try the sliders above directly for more.");
+      return;
+    }
+    const sinceLast = Date.now() - lastChatAt.current;
+    if (sinceLast < MIN_SCENARIO_CHAT_INTERVAL_MS) {
+      setChatError("One moment — please wait a couple of seconds between scenario requests.");
+      return;
+    }
     setChatBusy(true);
     setChatError(null);
     setChatNote(null);
     try {
       const result = await translateScenarioChat(chatText.trim());
+      lastChatAt.current = Date.now();
+      setChatCount(c => c + 1);
       setUtilPct(result.utilisationPctChange);
       setLeaseExtMonths(result.leaseExtensionMonths);
       setSectorPct(result.sectorLengthPctChange);
+      setChatInterpretation(describeInterpretation(result));
       if (result.unmapped) setChatNote(result.unmapped);
     } catch (e) {
       setChatError(e.message || "Couldn't interpret that scenario.");
@@ -252,12 +290,14 @@ function Scenarios({ asset }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input type="text" value={chatText} onChange={e => setChatText(e.target.value)}
             placeholder={'e.g. "lease extends 12 months" or "utilisation drops 20%"'}
+            disabled={chatCapped}
             style={{ flex: 1, minWidth: 220, fontSize: 12, padding: "8px 10px" }}
             onKeyDown={e => { if (e.key === "Enter") applyChat(); }}/>
-          <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 16px" }} disabled={chatBusy || !chatText.trim()} onClick={applyChat}>
+          <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 16px" }} disabled={chatBusy || chatCapped || !chatText.trim()} onClick={applyChat}>
             {chatBusy ? "Thinking…" : "Apply as scenario"}
           </button>
         </div>
+        {chatInterpretation && !chatError && <div style={{ marginTop: 8, fontSize: 11, color: "#94a3b8" }}>{chatInterpretation}</div>}
         {chatError && <div style={{ marginTop: 8, fontSize: 11, color: "#f87171" }}>{chatError}</div>}
         {chatNote && <div style={{ marginTop: 8, fontSize: 11, color: "#fbbf24" }}>ℹ {chatNote}</div>}
       </div>
