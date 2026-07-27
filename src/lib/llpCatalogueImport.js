@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { extractPdfPageTexts } from './extraction';
 
 // ============================================================
 // LLP Catalogue upload parsers — knowledge-base-scoping-handoff.md §1
@@ -7,19 +8,19 @@ import * as XLSX from 'xlsx';
 //
 // Excel: pure client-side column matching, no AI needed.
 //
-// PDF: follows extraction.js's DOCUMENT-BLOCK pattern (extractLLPSheet,
-// extractOperatorHistory, extractAvionicsLRU) — the raw PDF is sent as a
-// base64 document content block straight to Claude via /api/extract, NOT
-// extracted to text client-side first. That text-extraction path
-// (extractPdfPageTexts + runLeaseExtraction) is specific to LeaseWizard's
-// Confidential Extract tier, which exists only because lease documents
-// are sensitive enough to need page-by-page confirmation before anything
-// leaves the browser. A catalogue price list has no such privacy
-// requirement, so it follows the same pattern as every other plain
-// document extraction in this app: whole PDF in, structured JSON out,
-// with the same status-code/error-message handling and result-parsing
-// (including the Array.isArray(...) last-element fallback) as
-// extractLLPSheet/extractAvionicsLRU.
+// PDF: a LOOKUP, not a full extraction — deliberately redesigned after a
+// real 100+ page full CFM spare parts catalogue broke the original
+// "send the whole PDF, extract every row" approach (function timeout,
+// and even with more time, thousands of rows of structured JSON wouldn't
+// fit in one model response regardless). Since the fleet only ever needs
+// ~50-60 specific known part numbers (never the full manufacturer
+// catalogue — see the scoping doc), the fix is to look those up rather
+// than extract everything: extract page text client-side
+// (extractPdfPageTexts — no AI, no cost, scales to any page count),
+// string-search it for each target part number, and send only the
+// matched short text snippets to /api/extract. Cost and time are
+// proportional to the number of fleet part numbers, not to how long the
+// source catalogue is.
 // ============================================================
 
 // Scans every sheet in the workbook (real escalation-model workbooks —
@@ -97,42 +98,97 @@ function parseExcelCatalogueFile(file) {
   });
 }
 
-const LLP_CATALOGUE_PROMPT = `Extract every part number and its unit price from this LLP (Life Limited Parts) catalogue/price list document. Documents vary in layout — some are simple two-column tables, some have additional columns (description, engine family, notes) that should be ignored. Extract ONLY rows that clearly have both a part number and a unit price.
+// Finds the best snippet of surrounding text for a part number anywhere
+// in the document's per-page extracted text. Prefers an occurrence whose
+// nearby text contains something that looks like a price (3+ digit
+// number, optionally with commas/decimals) over one that doesn't — real
+// price-table rows have a price nearby; an incidental cross-reference or
+// index mention of the same part number usually doesn't. Falls back to
+// the first occurrence found if no candidate has a nearby price-looking
+// number, rather than giving up. Returns null if the part number doesn't
+// appear anywhere in the document.
+function findSnippetForPartNumber(pages, partNumber) {
+  const needle = partNumber.toLowerCase();
+  let firstAnyMatch = null;
+  for (const page of pages) {
+    const text = page.text || '';
+    const lower = text.toLowerCase();
+    let searchFrom = 0;
+    while (true) {
+      const idx = lower.indexOf(needle, searchFrom);
+      if (idx === -1) break;
+      const start = Math.max(0, idx - 60);
+      const end = Math.min(text.length, idx + partNumber.length + 120);
+      const snippet = text.slice(start, end).replace(/\s+/g, ' ').trim();
+      if (firstAnyMatch == null) firstAnyMatch = snippet;
+      if (/\d[\d,]{2,}(\.\d+)?/.test(snippet)) return snippet;
+      searchFrom = idx + needle.length;
+    }
+  }
+  return firstAnyMatch;
+}
 
-For each row, extract ONLY:
-- "partNumber": the part number as printed (e.g. "1234-56-789").
-- "unitPrice": the unit price as a plain number, no currency symbol and no thousands separators (e.g. 125000.50, not "$125,000.50").
+function buildLookupPrompt(entries) {
+  const list = entries.map((e, i) => `${i + 1}. Part number "${e.partNumber}": "${e.snippet}"`).join('\n');
+  return `You are looking up unit prices for specific known part numbers within short text snippets extracted from a spare parts catalogue PDF. Each snippet is the raw text surrounding one part number exactly as it appeared in the source document — formatting may be imperfect (columns run together, irregular spacing) since it came from PDF text extraction, not a clean table.
 
-Ignore any other columns present (description, quantity, notes, etc.) — they are not needed. Skip rows missing either value.
+For each numbered entry below, find the unit price associated with that exact part number in its own snippet. If you cannot confidently identify a price for an entry, OMIT it from your response entirely — never guess or estimate.
+
+${list}
 
 Return ONLY valid JSON, no markdown: {"rows":[{"partNumber":"string","unitPrice":number}]}`;
+}
 
-// Same shape and error handling as extractLLPSheet/extractAvionicsLRU in
-// extraction.js — Sonnet, not Haiku (dense multi-page tabular extraction
-// is at/above Haiku's reliable ceiling, same reasoning as ENGINE_LLP_PROMPT
-// and AVIONICS_LRU_PROMPT there).
-async function parsePdfCatalogueFile(file) {
+// Looks up prices for a KNOWN, SMALL set of target part numbers — the
+// fleet's own shopping list (knowledge-base-scoping-handoff.md's ~50-60
+// parts, never the full manufacturer catalogue) — within a PDF of ANY
+// length. This is a deliberate redesign from an earlier "send the whole
+// PDF, extract every row" approach, which broke against a real 100+ page
+// full CFM spare parts catalogue: a single /api/extract call can't
+// process that much source material within the function's timeout, and
+// even given more time, structured JSON for thousands of rows wouldn't
+// fit in one model response anyway. Since only ~50-60 specific values are
+// ever needed, the fix is to look them up rather than extract everything:
+//   1. Extract raw text per page CLIENT-SIDE (extractPdfPageTexts — the
+//      same function LeaseWizard's Confidential Extract already uses;
+//      no AI call, no cost, and it scales to any page count).
+//   2. Plain string-search that text for each target part number.
+//   3. Send only the matched snippets (a handful of short text
+//      fragments) to /api/extract — proportional to the number of fleet
+//      part numbers, NOT to the catalogue's total size.
+// Target part numbers with no match anywhere in the document are simply
+// absent from the result — same "not found, stays flagged amber"
+// outcome as before, just reached without ever sending the whole
+// document anywhere. No document/base64 content block is used at all
+// here — every /api/extract call in this function is plain text.
+async function parsePdfCatalogueFile(file, targetPartNumbers) {
   if (file.type !== "application/pdf") throw new Error("Please upload a PDF file.");
-  if (file.size > 15 * 1024 * 1024) throw new Error("File is too large (maximum 15 MB).");
-  const base64 = await new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result.split(",")[1]);
-    r.onerror = () => rej(new Error("Could not read the file. Please try again."));
-    r.readAsDataURL(file);
-  });
+  // No longer bound by an API payload size limit (the PDF itself is
+  // never sent to /api/extract) — this is just a sanity ceiling against
+  // an accidental multi-hundred-MB upload hanging the browser's own
+  // client-side text extraction.
+  if (file.size > 60 * 1024 * 1024) throw new Error("File is too large (maximum 60 MB).");
+  if (!targetPartNumbers || !targetPartNumbers.length) {
+    throw new Error("No fleet part numbers to look up yet — the scan hasn't found any LLP part numbers for this family across the fleet.");
+  }
+
+  const pages = await extractPdfPageTexts(file); // [{label, text}, ...]
+
+  const snippetEntries = targetPartNumbers
+    .map(pn => ({ partNumber: pn, snippet: findSnippetForPartNumber(pages, pn) }))
+    .filter(e => e.snippet != null);
+
+  if (!snippetEntries.length) {
+    throw new Error(`None of this fleet's ${targetPartNumbers.length} part numbers were found anywhere in this document — check it's the right catalogue file.`);
+  }
+
   const resp = await fetch("/api/extract", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 6000,
-      messages: [{
-        role: "user",
-        content: [
-          { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
-          { type: "text", text: LLP_CATALOGUE_PROMPT }
-        ]
-      }]
+      max_tokens: 2000,
+      messages: [{ role: "user", content: [{ type: "text", text: buildLookupPrompt(snippetEntries) }] }]
     })
   });
   if (!resp.ok) {

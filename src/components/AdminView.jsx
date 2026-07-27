@@ -443,7 +443,7 @@ function LLPCatalogueEditor({assets, notify}) {
     try {
       const parsed = isCatalogueExcelFile(file)
         ? await parseExcelCatalogueFile(file)
-        : await parsePdfCatalogueFile(file);
+        : await parsePdfCatalogueFile(file, rows.map(r => r.partNumber));
       console.log(`[LLP Catalogue upload] Parsed ${parsed.length} rows from "${file.name}":`, parsed.map(p => p.partNumber));
       console.log(`[LLP Catalogue upload] Fleet shopping list has ${rows.length} part numbers for ${family}:`, rows.map(r => r.partNumber));
       const byPn = Object.fromEntries(parsed.map(p => [p.partNumber, p.unitPrice]));
@@ -536,7 +536,7 @@ function LLPCatalogueEditor({assets, notify}) {
         </div>
       )}
       <button className="btn btn-gold" disabled={saving||!rows.length} onClick={save}>{saving?'Saving…':'Save Catalogue Prices'}</button>
-      <p style={{fontSize:11,color:'#475569',marginTop:10}}>Upload matches against this fleet's own part numbers only — it never adds parts the fleet doesn't have, and nothing is written to the Knowledge Base until you click Save. Part numbers with no price after upload or manual entry stay flagged amber.</p>
+      <p style={{fontSize:11,color:'#475569',marginTop:10}}>Upload matches against this fleet's own part numbers only — it never adds parts the fleet doesn't have, and nothing is written to the Knowledge Base until you click Save. A PDF upload looks up each of the fleet's known part numbers within the document rather than reading the whole thing, so a full manufacturer catalogue of any length works fine. Part numbers with no price after upload or manual entry stay flagged amber.</p>
     </div>
   );
 };
