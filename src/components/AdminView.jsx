@@ -377,6 +377,21 @@ function LLPCatalogueEditor({assets, notify}) {
   const thisYear = new Date().getFullYear();
   const [year, setYear] = useState(`${thisYear}-${String(thisYear+1).slice(2)}`);
 
+  // Kept in a ref, NOT as a `load` dependency — App.jsx recomputes
+  // `liveAssets = assets.filter(...)` inline on every render, so it's a
+  // brand-new array reference every time App re-renders (e.g. every time
+  // notify() fires a toast, which is a state update in App). If `load`
+  // depended on `assets` directly, that unstable reference would give
+  // `load` a new identity on every such re-render, re-firing the effect
+  // below and re-scanning the fleet from scratch — silently wiping out
+  // just-uploaded-but-not-yet-saved catalogue prices moments after they
+  // appeared (the "flashes up then disappears" bug). The ref still
+  // always reads the latest real asset data when load() actually runs;
+  // it just stops load's own identity from churning on irrelevant
+  // parent re-renders.
+  const assetsRef = useRef(assets);
+  useEffect(() => { assetsRef.current = assets; }, [assets]);
+
   const load = useCallback(async () => {
     setCatalogue(null);
     const stored = await db.getLLPCatalogue().catch(() => []);
@@ -386,7 +401,7 @@ function LLPCatalogueEditor({assets, notify}) {
     // detection already used everywhere else in pots.js/LeaseWizard),
     // rather than guessing at a per-engine field.
     const partNumbers = new Map();
-    assets.forEach(a => {
+    assetsRef.current.forEach(a => {
       const fam = isCFM(a) ? 'CFM' : 'V2500';
       if (fam !== family) return;
       (a.engines || []).forEach(e => {
@@ -403,8 +418,14 @@ function LLPCatalogueEditor({assets, notify}) {
       hasPrice: storedByPn[pn]?.unitPrice != null
     }));
     setRows(merged);
-  }, [assets, family]);
+  }, [family]);
 
+  // Runs on mount and whenever `family` changes (switching tabs) — NOT on
+  // every parent re-render, since `load`'s identity is now stable across
+  // those. If the fleet's own LLP data changes while this tab is open in
+  // another browser tab/session, it won't be picked up until the family
+  // tab is re-selected or the page is reloaded — acceptable tradeoff for
+  // not silently discarding in-progress upload matches.
   useEffect(() => { load(); setParseError(null); }, [load]);
 
   const setPrice = (pn, v) => setRows(r => r.map(row => row.partNumber === pn ? {...row, unitPrice: v} : row));
