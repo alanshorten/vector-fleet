@@ -21,6 +21,30 @@ function worstShortfallHigh(projection) {
   return projection && projection.events.length ? Math.max(...projection.events.map(e => e.shortfallHigh)) : null;
 }
 
+// The first (earliest) projected event for a pot, used to show WHEN a
+// scenario moves an event, not just what it costs — flagged as missing
+// from the base-vs-scenario comparison table (Alan, live test, MSN 4821:
+// "it doesn't show how far forward the SVs come compared to base case").
+function earliestEvent(projection) {
+  return projection && projection.events.length ? projection.events[0] : null;
+}
+
+function eventDate(evt) {
+  if (!evt) return null;
+  return evt.dateWindow ? evt.dateWindow.start : evt.date;
+}
+
+// Signed whole-month delta, from -> to. Negative = scenario event lands
+// EARLIER than base case (brought forward); positive = later (pushed back).
+function monthDelta(fromDate, toDate) {
+  return (toDate.getFullYear() - fromDate.getFullYear()) * 12 + (toDate.getMonth() - fromDate.getMonth());
+}
+
+function formatShift(months) {
+  if (months === 0) return "No change";
+  return months < 0 ? `${Math.abs(months)} mo earlier` : `${months} mo later`;
+}
+
 // Whole-asset scope, not per-pot (layer3-scenarios-build-handoff.md §2) —
 // utilisation and sector-length sliders reshape the same fhPerMonth/
 // fcPerMonth pair that buildFlyForwardProjection already takes as ctx
@@ -242,7 +266,21 @@ function Scenarios({ asset }) {
   const potRows = allCodes.map(code => {
     const b = basePF.projections.find(p => p.code === code);
     const s = scenarioPF.projections.find(p => p.code === code);
-    return { code, label: (s || b)?.label, baseHigh: worstShortfallHigh(b), scenarioHigh: worstShortfallHigh(s) };
+    const bEvt = earliestEvent(b);
+    const sEvt = earliestEvent(s);
+    const bDate = eventDate(bEvt);
+    const sDate = eventDate(sEvt);
+    return {
+      code,
+      label: (s || b)?.label,
+      baseHigh: worstShortfallHigh(b),
+      scenarioHigh: worstShortfallHigh(s),
+      baseTracked: !!b,
+      scenarioTracked: !!s,
+      baseDate: bDate,
+      scenarioDate: sDate,
+      shiftMonths: (bDate && sDate) ? monthDelta(bDate, sDate) : null
+    };
   });
 
   const baseAgg = aggregateBalanceSeries(basePF.projections);
@@ -345,12 +383,14 @@ function Scenarios({ asset }) {
       </div>
 
       <div className="card" style={{ padding: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Per-Pot Worst-Case Shortfall — Base vs. Scenario</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Per-Pot Worst-Case Shortfall — Base vs. Scenario</div>
+        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>Timing shift shows how many months the same projected event moves under this scenario — a pot showing "Beyond horizon" in base case had no event within the lease term until the scenario pulled it forward.</div>
         <table style={{ fontSize: 12, width: "100%" }}>
           <thead><tr>
             <th style={{ color: "#64748b", textAlign: "left" }}>Pot</th>
             <th style={{ color: "#64748b", textAlign: "right" }}>Base Case</th>
             <th style={{ color: "#64748b", textAlign: "right" }}>Scenario</th>
+            <th style={{ color: "#64748b", textAlign: "right" }}>Timing Shift</th>
           </tr></thead>
           <tbody>
             {potRows.map(row => (
@@ -359,8 +399,19 @@ function Scenarios({ asset }) {
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: colorForCode(row.code), display: "inline-block", marginRight: 6 }}/>
                   {row.code} — {row.label}
                 </td>
-                <td style={{ textAlign: "right", color: shortfallColor(row.baseHigh) }}>{row.baseHigh == null ? "—" : `$${Math.round(row.baseHigh).toLocaleString()}`}</td>
-                <td style={{ textAlign: "right", color: scenarioActive ? deltaColor(row.baseHigh, row.scenarioHigh) : shortfallColor(row.scenarioHigh) }}>{row.scenarioHigh == null ? "—" : `$${Math.round(row.scenarioHigh).toLocaleString()}`}</td>
+                <td style={{ textAlign: "right", color: shortfallColor(row.baseHigh) }}>
+                  {row.baseHigh == null ? (row.baseTracked ? "Beyond horizon" : "—") : `$${Math.round(row.baseHigh).toLocaleString()}`}
+                  {row.baseDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.baseDate.toISOString().slice(0, 7)}</div>}
+                </td>
+                <td style={{ textAlign: "right", color: scenarioActive ? deltaColor(row.baseHigh, row.scenarioHigh) : shortfallColor(row.scenarioHigh) }}>
+                  {row.scenarioHigh == null ? (row.scenarioTracked ? "Beyond horizon" : "—") : `$${Math.round(row.scenarioHigh).toLocaleString()}`}
+                  {row.scenarioDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.scenarioDate.toISOString().slice(0, 7)}</div>}
+                </td>
+                <td style={{ textAlign: "right", fontSize: 11, color: row.shiftMonths == null ? "#475569" : (row.shiftMonths < 0 ? "#f87171" : row.shiftMonths > 0 ? "#34d399" : "#64748b") }}>
+                  {row.shiftMonths != null
+                    ? formatShift(row.shiftMonths)
+                    : (row.scenarioDate && !row.baseDate ? "Now within horizon" : (row.baseDate && !row.scenarioDate ? "No longer within horizon" : "—"))}
+                </td>
               </tr>
             ))}
           </tbody>
