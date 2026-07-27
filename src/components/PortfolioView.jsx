@@ -331,10 +331,20 @@ function fmtMonthYear(date) {
   return date ? date.toISOString().slice(0, 7) : "—";
 }
 
-function formatShiftLabel(months) {
-  if (months == null) return "—";
-  if (months === 0) return "No change";
-  return months < 0 ? `${Math.abs(months)} mo earlier` : `${months} mo later`;
+function formatShiftLabel(p) {
+  if (p.shiftMonths != null) {
+    return p.shiftMonths === 0 ? "No change" : (p.shiftMonths < 0 ? `${Math.abs(p.shiftMonths)} mo earlier` : `${p.shiftMonths} mo later`);
+  }
+  // Every pot in this table is a tracked/confirmed pot (routeMatcher.js
+  // only produces a row for eligible pots) — a null date here means "no
+  // event within the projection horizon under that profile," not "no
+  // data." Distinguishing the two matters: a lower-utilisation route
+  // routinely pushes a pot's next event past lease end, which looks
+  // identical to a real gap unless labelled — this was flagged as
+  // confusing in a real test pass before the label existed.
+  if (p.routeDate && !p.baseDate) return "Now within horizon";
+  if (p.baseDate && !p.routeDate) return "Beyond horizon on this route";
+  return "Beyond horizon in both";
 }
 
 function RouteMatcherView({ assets, onSelectAsset }) {
@@ -476,15 +486,15 @@ function RouteMatcherView({ assets, onSelectAsset }) {
                           <tr key={p.code}>
                             <td style={{ padding: "5px 0", color: "#e2e8f0" }}>{p.code} — {p.label}</td>
                             <td style={{ textAlign: "right", color: "#94a3b8" }}>
-                              {p.baseDate ? fmtMonthYear(p.baseDate) : "—"}
+                              {p.baseDate ? fmtMonthYear(p.baseDate) : "Beyond horizon"}
                               {p.baseShortfallHigh != null && <div style={{ fontSize: 10, color: financialColor(p.baseShortfallHigh > 0 ? 1 : 0) }}>${Math.round(p.baseShortfallHigh).toLocaleString()}</div>}
                             </td>
                             <td style={{ textAlign: "right", color: "#94a3b8" }}>
-                              {p.routeDate ? fmtMonthYear(p.routeDate) : "—"}
+                              {p.routeDate ? fmtMonthYear(p.routeDate) : "Beyond horizon"}
                               {p.routeShortfallHigh != null && <div style={{ fontSize: 10, color: financialColor(p.routeShortfallHigh > 0 ? 1 : 0) }}>${Math.round(p.routeShortfallHigh).toLocaleString()}</div>}
                             </td>
-                            <td style={{ textAlign: "right", fontSize: 11, color: p.shiftMonths == null ? "#475569" : (p.shiftMonths < 0 ? "#f87171" : p.shiftMonths > 0 ? "#34d399" : "#64748b") }}>
-                              {formatShiftLabel(p.shiftMonths)}
+                            <td style={{ textAlign: "right", fontSize: 11, color: p.shiftMonths == null ? "#94a3b8" : (p.shiftMonths < 0 ? "#f87171" : p.shiftMonths > 0 ? "#34d399" : "#64748b") }}>
+                              {formatShiftLabel(p)}
                             </td>
                           </tr>
                         ))}

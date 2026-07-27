@@ -1,41 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import { FF_COLORS, addMonthsFF, buildFlyForwardProjection } from '../lib/flyForwardHelpers';
-import { translateScenarioChat } from '../lib/extraction';
 import { MiniLineChart } from './FlyForward';
-
-// Guards against rapid-fire chat submission. Not cost-driven — a single
-// call is a fraction of a cent — this is about Anthropic's own rate limits
-// and a UX where sliders don't jump faster than a person can read them.
-// Both are client-side only (no Firestore, no server tracking), matching
-// Scenarios' fully non-destructive design — the sliders always keep
-// working at zero AI cost even once the cap is hit.
-const MAX_SCENARIO_CHATS_PER_SESSION = 20;
-const MIN_SCENARIO_CHAT_INTERVAL_MS = 2000;
 
 function colorForCode(code) {
   return FF_COLORS[(code || "").replace(/-/g, "")] || "#64748b";
 }
 
-// The single event actually driving the displayed shortfall figure — NOT
-// necessarily the earliest one. Returns the whole event object so its
-// date, cost band, and balanceAtEvent are always shown consistently with
-// the shortfall number itself, rather than pairing a shortfall from one
-// event with a date from another.
-function worstEvent(projection) {
-  if (!projection || !projection.events.length) return null;
-  return projection.events.reduce((worst, e) => (!worst || e.shortfallHigh > worst.shortfallHigh) ? e : worst, null);
+function worstShortfallHigh(projection) {
+  return projection && projection.events.length ? Math.max(...projection.events.map(e => e.shortfallHigh)) : null;
 }
 
-// Used ONLY for the beyond-lease lookahead pass, not the real in-term
-// figures. A 15-year lookahead can span multiple cycles of a ~5-year
-// interval pot (e.g. EN-PR) — picking the worst event across that whole
-// window can surface a distant, heavily-compounded cycle whose balance
-// math the underlying Brain likely never validated for multi-cycle
-// projections (a negative balanceAtEvent was observed this way, live
-// test MSN 4821 — Alan, "surely this is not correct"). The nearest
-// post-lease event is both the more honest answer to "what's due after
-// this lease ends" and avoids that distant, unvalidated territory.
+// The first (earliest) projected event for a pot, used to show WHEN a
+// scenario moves an event, not just what it costs — flagged as missing
+// from the base-vs-scenario comparison table (Alan, live test, MSN 4821:
+// "it doesn't show how far forward the SVs come compared to base case").
 function earliestEvent(projection) {
   return projection && projection.events.length ? projection.events[0] : null;
 }
@@ -43,19 +22,6 @@ function earliestEvent(projection) {
 function eventDate(evt) {
   if (!evt) return null;
   return evt.dateWindow ? evt.dateWindow.start : evt.date;
-}
-
-// anchorReservePots (flyForwardHelpers.js) computes firstEventOverrideDate
-// for engine_fh and calendar-check pots UNCONDITIONALLY — even when that
-// date falls beyond the lease horizon and therefore never produces a
-// visible event. This reads that always-available date, so "Beyond
-// horizon" pots still show a real projected month instead of just a
-// beyond/within label (Alan, live test, MSN 4821: "still doesn't say how
-// much this advanced"). Falls back to null for pot types anchorReservePots
-// doesn't override (e.g. AP-OH's apu_hours condition-based trigger).
-function anchoredDateForCode(anchoredPots, code) {
-  const p = (anchoredPots || []).find(a => a.code === code);
-  return p && p.firstEventOverrideDate ? p.firstEventOverrideDate : null;
 }
 
 // Signed whole-month delta, from -> to. Negative = scenario event lands
@@ -67,51 +33,6 @@ function monthDelta(fromDate, toDate) {
 function formatShift(months) {
   if (months === 0) return "No change";
   return months < 0 ? `${Math.abs(months)} mo earlier` : `${months} mo later`;
-}
-
-// Verbalises a potRows entry — NOT an AI call, NOT an analysis step. Every
-// value used here (cost, balance, date, shift) already exists in the row
-// object powering the visible table; this only composes it into a
-// sentence. Nothing here can introduce a fact that isn't already on
-// screen — the "explain the maths, don't guess" requirement is enforced
-// structurally, not by prompting, since there's no model in the loop at
-// all for this path.
-function describeShortfallSide(label, high, costLow, costHigh, balance, date, beyondLease, tracked) {
-  if (!tracked) return `${label}: not tracked for this asset.`;
-  if (high == null) return `${label}: no event projected within the next ${BEYOND_LEASE_LOOKAHEAD_YEARS} years.`;
-  const low = costLow - balance;
-  const dateStr = date ? date.toISOString().slice(0, 7) : "an unknown date";
-  const leaseNote = beyondLease ? " (falls after this lease ends — the next lessee's exposure, not counted in the totals above)" : "";
-  return `${label}, projected ${dateStr}${leaseNote}: cost $${Math.round(costLow).toLocaleString()}–$${Math.round(costHigh).toLocaleString()}, balance at event $${Math.round(balance).toLocaleString()} → shortfall $${Math.round(low).toLocaleString()}–$${Math.round(high).toLocaleString()}.`;
-}
-
-function explainPotRow(row, scenarioActive) {
-  const baseLine = describeShortfallSide("Base case", row.baseHigh, row.baseCostLow, row.baseCostHigh, row.baseBalance, row.baseDate, row.baseBeyondLease, row.baseTracked);
-  if (!scenarioActive) return `${row.code} — ${row.label}\n${baseLine}`;
-  const scenarioLine = describeShortfallSide("Scenario", row.scenarioHigh, row.scenarioCostLow, row.scenarioCostHigh, row.scenarioBalance, row.scenarioDate, row.scenarioBeyondLease, row.scenarioTracked);
-  const shiftLine = row.shiftMonths != null ? ` Timing shift vs. base case: ${formatShift(row.shiftMonths)}.` : "";
-  return `${row.code} — ${row.label}\n${baseLine}\n${scenarioLine}${shiftLine}`;
-}
-
-// buildFlyForwardProjection derives its own horizonMonths from
-// lease.leaseEnd and simply never generates events past it — that's
-// correct for the headline shortfall totals and risk peaks (this lease's
-// actual exposure), but it means a real, computed shortfall due just
-// after lease end was previously invisible, shown only as "Beyond
-// horizon" (Alan: "we need to show shortfalls regardless of when the
-// event falls due... with a note about beyond lease"). Rather than
-// touching buildFlyForwardProjection itself, this runs a second pass with
-// an artificially pushed-out leaseEnd — same trick the lease-extension
-// slider already uses — purely to surface that pot's next event for
-// visibility. This lookup NEVER feeds the portfolio shortfall totals,
-// risk peaks, or the balance chart above — those stay scoped to the
-// real (or scenario) lease term only.
-const BEYOND_LEASE_LOOKAHEAD_YEARS = 15;
-
-function buildLookaheadLease(lease) {
-  if (!lease) return lease;
-  const pushedOut = addMonthsFF(new Date(lease.leaseEnd), BEYOND_LEASE_LOOKAHEAD_YEARS * 12);
-  return { ...lease, leaseEnd: pushedOut.toISOString().slice(0, 10) };
 }
 
 // Whole-asset scope, not per-pot (layer3-scenarios-build-handoff.md §2) —
@@ -194,16 +115,6 @@ function Scenarios({ asset }) {
   const [leaseExtMonths, setLeaseExtMonths] = useState(0);
   const [sectorPct, setSectorPct] = useState(0);
 
-  const [chatText, setChatText] = useState("");
-  const [chatBusy, setChatBusy] = useState(false);
-  const [chatError, setChatError] = useState(null);
-  const [chatNote, setChatNote] = useState(null);
-  const [chatCount, setChatCount] = useState(0);
-  const [chatInterpretation, setChatInterpretation] = useState(null);
-  const [explainedCode, setExplainedCode] = useState(null);
-  const lastChatAt = useRef(0);
-  const chatCapped = chatCount >= MAX_SCENARIO_CHATS_PER_SESSION;
-
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -236,83 +147,6 @@ function Scenarios({ asset }) {
     setUtilPct(0);
     setLeaseExtMonths(0);
     setSectorPct(0);
-    setChatError(null);
-    setChatNote(null);
-    setChatInterpretation(null);
-  };
-
-  // Builds the "here's what I heard" caption shown right under the sliders
-  // — always visible the instant a chat request applies, no separate
-  // confirm step. Lets a misread be caught at a glance instead of only
-  // showing up as an unexplained change in the numbers below.
-  const describeInterpretation = (result) => {
-    const parts = [];
-    parts.push(result.utilisationPctChange === 0 ? "no change to utilisation" : `utilisation ${result.utilisationPctChange > 0 ? "+" : ""}${result.utilisationPctChange}%`);
-    parts.push(result.leaseExtensionMonths === 0 ? "no change to lease length" : `lease +${result.leaseExtensionMonths} mo`);
-    parts.push(result.sectorLengthPctChange === 0 ? "no change to sector length" : `sector length ${result.sectorLengthPctChange > 0 ? "+" : ""}${result.sectorLengthPctChange}%`);
-    return `Applied from your last request: ${parts.join(", ")}.`;
-  };
-
-  // One scenario at a time (VECTORIQ_ROADMAP.md Deliberate Design
-  // Decisions) — a new chat request always REPLACES the current lever
-  // values, never adds to whatever was set before. This is what keeps a
-  // misinterpretation easy to spot rather than compounding silently.
-  const applyChat = async () => {
-    if (!chatText.trim() || chatBusy) return;
-
-    // Explain-a-pot requests are answered WITHOUT calling the AI at all —
-    // explainPotRow only reads fields already computed in potRows, so
-    // there's nothing to translate or guess. This deliberately does NOT
-    // reopen the previously-killed general chatbot/query interface: it
-    // can only ever narrate a number already visible in the table below,
-    // never answer an open-ended question or introduce a new fact. Not
-    // rate-limited or cooldown-gated either, since no model call is made.
-    const normalized = chatText.trim().toUpperCase();
-    const matchedRow = potRows.find(r => normalized.includes(r.code.toUpperCase()) || normalized.includes(r.label.toUpperCase()));
-    const isGenericExplainAsk = !matchedRow && /\b(WHY|EXPLAIN|SHORTFALL|BREAKDOWN)\b/.test(normalized);
-    if (matchedRow) {
-      setChatError(null);
-      setChatNote(null);
-      setChatInterpretation(explainPotRow(matchedRow, scenarioActive));
-      return;
-    }
-    if (isGenericExplainAsk) {
-      const shortfallRows = potRows.filter(r => (scenarioActive ? r.scenarioHigh : r.baseHigh) != null);
-      setChatError(null);
-      setChatNote(null);
-      if (shortfallRows.length) {
-        setChatInterpretation(shortfallRows.map(r => explainPotRow(r, scenarioActive)).join('\n\n'));
-      } else {
-        setChatInterpretation("No shortfall is currently projected on any pot for this asset.");
-      }
-      return;
-    }
-
-    if (chatCapped) {
-      setChatError("That's a lot of scenarios explored already — try the sliders above directly for more.");
-      return;
-    }
-    const sinceLast = Date.now() - lastChatAt.current;
-    if (sinceLast < MIN_SCENARIO_CHAT_INTERVAL_MS) {
-      setChatError("One moment — please wait a couple of seconds between scenario requests.");
-      return;
-    }
-    setChatBusy(true);
-    setChatError(null);
-    setChatNote(null);
-    try {
-      const result = await translateScenarioChat(chatText.trim());
-      lastChatAt.current = Date.now();
-      setChatCount(c => c + 1);
-      setUtilPct(result.utilisationPctChange);
-      setLeaseExtMonths(result.leaseExtensionMonths);
-      setSectorPct(result.sectorLengthPctChange);
-      setChatInterpretation(describeInterpretation(result));
-      if (result.unmapped) setChatNote(result.unmapped);
-    } catch (e) {
-      setChatError(e.message || "Couldn't interpret that scenario.");
-    }
-    setChatBusy(false);
   };
 
   if (loading) {
@@ -356,13 +190,6 @@ function Scenarios({ asset }) {
     );
   }
 
-  // Lookahead-only passes, purely to surface a real number for events that
-  // fall after lease end — never used for the totals/risk-peaks below.
-  const baseLookaheadPF = buildFlyForwardProjection({ asset, lease: buildLookaheadLease(lease), reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections });
-  const scenarioLookaheadPF = buildFlyForwardProjection({ asset, lease: buildLookaheadLease(scenarioLease), reserveDocs, utilRate: scenarioUtilRate, scheduledEvents, seasonalityProfile, costProjections });
-  const baseLookahead = baseLookaheadPF.projectionError ? [] : baseLookaheadPF.projections;
-  const scenarioLookahead = scenarioLookaheadPF.projectionError ? [] : scenarioLookaheadPF.projections;
-
   const baseSummary = window.summarisePortfolioShortfall(basePF.projections);
   const baseRiskPeaks = window.findPortfolioRiskPeaks(basePF.projections);
   const scenarioSummary = window.summarisePortfolioShortfall(scenarioPF.projections);
@@ -372,43 +199,22 @@ function Scenarios({ asset }) {
   const potRows = allCodes.map(code => {
     const b = basePF.projections.find(p => p.code === code);
     const s = scenarioPF.projections.find(p => p.code === code);
-    const bWorstReal = worstEvent(b);
-    const sWorstReal = worstEvent(s);
-    // If nothing falls within the actual lease term, fall back to the
-    // lookahead pass so a real, beyond-lease shortfall still shows a
-    // number instead of just "Beyond horizon" — tagged as such below.
-    const bWorstLookahead = bWorstReal ? null : earliestEvent(baseLookahead.find(p => p.code === code));
-    const sWorstLookahead = sWorstReal ? null : earliestEvent(scenarioLookahead.find(p => p.code === code));
-    const bWorst = bWorstReal || bWorstLookahead;
-    const sWorst = sWorstReal || sWorstLookahead;
-    // Real in-horizon (or lookahead) event date if one exists, else the
-    // underlying anchored date as a last resort (Alan: "still doesn't say
-    // how much this advanced" — this is the fix).
-    const bDate = eventDate(bWorst) || anchoredDateForCode(basePF.anchoredPots, code);
-    const sDate = eventDate(sWorst) || anchoredDateForCode(scenarioPF.anchoredPots, code);
+    const bEvt = earliestEvent(b);
+    const sEvt = earliestEvent(s);
+    const bDate = eventDate(bEvt);
+    const sDate = eventDate(sEvt);
     return {
       code,
       label: (s || b)?.label,
+      baseHigh: worstShortfallHigh(b),
+      scenarioHigh: worstShortfallHigh(s),
       baseTracked: !!b,
       scenarioTracked: !!s,
-      baseInHorizon: !!bWorstReal,
-      scenarioInHorizon: !!sWorstReal,
-      baseBeyondLease: !bWorstReal && !!bWorstLookahead,
-      scenarioBeyondLease: !sWorstReal && !!sWorstLookahead,
-      baseHigh: bWorst ? bWorst.shortfallHigh : null,
-      scenarioHigh: sWorst ? sWorst.shortfallHigh : null,
-      baseCostLow: bWorst ? bWorst.costLow : null,
-      baseCostHigh: bWorst ? bWorst.costHigh : null,
-      baseBalance: bWorst ? bWorst.balanceAtEvent : null,
-      scenarioCostLow: sWorst ? sWorst.costLow : null,
-      scenarioCostHigh: sWorst ? sWorst.costHigh : null,
-      scenarioBalance: sWorst ? sWorst.balanceAtEvent : null,
       baseDate: bDate,
       scenarioDate: sDate,
       shiftMonths: (bDate && sDate) ? monthDelta(bDate, sDate) : null
     };
   });
-
 
   const baseAgg = aggregateBalanceSeries(basePF.projections);
   const scenarioAgg = aggregateBalanceSeries(scenarioPF.projections);
@@ -436,7 +242,7 @@ function Scenarios({ asset }) {
       <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Scenarios — MSN {asset.msn}</div>
         <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-          Exploratory only — nothing here is saved. One scenario at a time; a new chat request replaces the current sliders rather than stacking on top of them. Escalation rates aren't adjustable here — they're reviewed yearly against the real catalogue, not a hypothetical.
+          Exploratory only — nothing here is saved. Escalation rates aren't adjustable here — they're reviewed yearly against the real catalogue, not a hypothetical.
         </div>
       </div>
 
@@ -448,24 +254,6 @@ function Scenarios({ asset }) {
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} disabled={!scenarioActive} onClick={resetScenario}>Reset to base case</button>
         </div>
-      </div>
-
-      <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 2 }}>💬 Ask TailiQ</div>
-        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>Describe a scenario and it'll set the sliders above — or ask about a pot's shortfall and it'll read back exactly what's already computed below, nothing guessed.</div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input type="text" value={chatText} onChange={e => setChatText(e.target.value)}
-            placeholder={'e.g. "lease extends 12 months" or "why is EN-PR-1 short?"'}
-            disabled={chatCapped}
-            style={{ flex: 1, minWidth: 220, fontSize: 12, padding: "8px 10px" }}
-            onKeyDown={e => { if (e.key === "Enter") applyChat(); }}/>
-          <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 16px" }} disabled={chatBusy || chatCapped || !chatText.trim()} onClick={applyChat}>
-            {chatBusy ? "Thinking…" : "Ask TailiQ"}
-          </button>
-        </div>
-        {chatInterpretation && !chatError && <div style={{ marginTop: 8, fontSize: 11, color: "#94a3b8", whiteSpace: "pre-line", lineHeight: 1.6 }}>{chatInterpretation}</div>}
-        {chatError && <div style={{ marginTop: 8, fontSize: 11, color: "#f87171" }}>{chatError}</div>}
-        {chatNote && <div style={{ marginTop: 8, fontSize: 11, color: "#fbbf24" }}>ℹ {chatNote}</div>}
       </div>
 
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
@@ -512,7 +300,7 @@ function Scenarios({ asset }) {
 
       <div className="card" style={{ padding: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Per-Pot Worst-Case Shortfall — Base vs. Scenario</div>
-        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>Cost and balance shown underneath each figure are the exact inputs to that shortfall (cost − balance at event = shortfall) — check them directly rather than taking the total on faith. Within the lease term, this is the worst-case event; a shortfall tagged "beyond lease" instead shows the NEXT event after this lease ends (not the worst one found looking further out — that's the next lessee's exposure, shown for visibility only, and is NOT included in the shortfall totals or risk peaks above). Lease-boundary redelivery conditions are a separate check (End-of-Lease Position), not covered here.</div>
+        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>Timing shift shows how many months the same projected event moves under this scenario — a pot showing "Beyond horizon" in base case had no event within the lease term until the scenario pulled it forward.</div>
         <table style={{ fontSize: 12, width: "100%" }}>
           <thead><tr>
             <th style={{ color: "#64748b", textAlign: "left" }}>Pot</th>
@@ -522,47 +310,25 @@ function Scenarios({ asset }) {
           </tr></thead>
           <tbody>
             {potRows.map(row => (
-              <React.Fragment key={row.code}>
-              <tr>
+              <tr key={row.code}>
                 <td style={{ padding: "6px 0" }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: colorForCode(row.code), display: "inline-block", marginRight: 6 }}/>
                   {row.code} — {row.label}
-                  {(row.baseHigh != null || row.scenarioHigh != null) && (
-                    <button className="btn btn-ghost" style={{ fontSize: 10, padding: "1px 6px", marginLeft: 8 }} onClick={() => setExplainedCode(explainedCode === row.code ? null : row.code)}>
-                      {explainedCode === row.code ? "Hide ▴" : "Explain ▾"}
-                    </button>
-                  )}
                 </td>
-                <td style={{ textAlign: "right", verticalAlign: "top", padding: "6px 0" }}>
-                  <div style={{ color: row.baseBeyondLease ? "#94a3b8" : shortfallColor(row.baseHigh) }}>
-                    {row.baseHigh == null ? (row.baseTracked ? "No event within 15yr" : "—") : `$${Math.round(row.baseHigh).toLocaleString()}`}
-                    {row.baseBeyondLease && <div style={{ fontSize: 9, color: "#64748b" }}>(beyond lease)</div>}
-                  </div>
-                  {row.baseDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.baseInHorizon ? "" : "proj. "}{row.baseDate.toISOString().slice(0, 7)}</div>}
-                  {row.baseHigh != null && <div style={{ fontSize: 10, color: "#64748b" }}>Cost ${Math.round(row.baseCostLow).toLocaleString()}–${Math.round(row.baseCostHigh).toLocaleString()} · Bal ${Math.round(row.baseBalance).toLocaleString()}</div>}
+                <td style={{ textAlign: "right", color: shortfallColor(row.baseHigh) }}>
+                  {row.baseHigh == null ? (row.baseTracked ? "Beyond horizon" : "—") : `$${Math.round(row.baseHigh).toLocaleString()}`}
+                  {row.baseDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.baseDate.toISOString().slice(0, 7)}</div>}
                 </td>
-                <td style={{ textAlign: "right", verticalAlign: "top", padding: "6px 0" }}>
-                  <div style={{ color: row.scenarioBeyondLease ? "#94a3b8" : (scenarioActive ? deltaColor(row.baseHigh, row.scenarioHigh) : shortfallColor(row.scenarioHigh)) }}>
-                    {row.scenarioHigh == null ? (row.scenarioTracked ? "No event within 15yr" : "—") : `$${Math.round(row.scenarioHigh).toLocaleString()}`}
-                    {row.scenarioBeyondLease && <div style={{ fontSize: 9, color: "#64748b" }}>(beyond lease)</div>}
-                  </div>
-                  {row.scenarioDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.scenarioInHorizon ? "" : "proj. "}{row.scenarioDate.toISOString().slice(0, 7)}</div>}
-                  {row.scenarioHigh != null && <div style={{ fontSize: 10, color: "#64748b" }}>Cost ${Math.round(row.scenarioCostLow).toLocaleString()}–${Math.round(row.scenarioCostHigh).toLocaleString()} · Bal ${Math.round(row.scenarioBalance).toLocaleString()}</div>}
+                <td style={{ textAlign: "right", color: scenarioActive ? deltaColor(row.baseHigh, row.scenarioHigh) : shortfallColor(row.scenarioHigh) }}>
+                  {row.scenarioHigh == null ? (row.scenarioTracked ? "Beyond horizon" : "—") : `$${Math.round(row.scenarioHigh).toLocaleString()}`}
+                  {row.scenarioDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.scenarioDate.toISOString().slice(0, 7)}</div>}
                 </td>
-                <td style={{ textAlign: "right", verticalAlign: "top", fontSize: 11, color: row.shiftMonths == null ? "#475569" : (row.shiftMonths < 0 ? "#f87171" : row.shiftMonths > 0 ? "#34d399" : "#64748b") }}>
+                <td style={{ textAlign: "right", fontSize: 11, color: row.shiftMonths == null ? "#475569" : (row.shiftMonths < 0 ? "#f87171" : row.shiftMonths > 0 ? "#34d399" : "#64748b") }}>
                   {row.shiftMonths != null
                     ? formatShift(row.shiftMonths)
                     : (row.scenarioDate && !row.baseDate ? "Now within horizon" : (row.baseDate && !row.scenarioDate ? "No longer within horizon" : "—"))}
                 </td>
               </tr>
-              {explainedCode === row.code && (
-                <tr>
-                  <td colSpan={4} style={{ padding: "8px 10px", background: "#0d1622", borderRadius: 6, fontSize: 11, color: "#94a3b8", whiteSpace: "pre-line", lineHeight: 1.6 }}>
-                    {explainPotRow(row, scenarioActive)}
-                  </td>
-                </tr>
-              )}
-              </React.Fragment>
             ))}
           </tbody>
         </table>
