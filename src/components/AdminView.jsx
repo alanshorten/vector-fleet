@@ -423,26 +423,27 @@ function LLPCatalogueEditor({assets, notify}) {
       const parsed = isCatalogueExcelFile(file)
         ? await parseExcelCatalogueFile(file)
         : await parsePdfCatalogueFile(file);
-      // Diagnostic logging — kept in permanently (not just for this
-      // session): a silent "0 matched" is otherwise very hard to debug,
-      // since the notify toast disappears in seconds and there's no
-      // other visibility into what the parser actually extracted vs
-      // what the fleet's own shopping list contains.
       console.log(`[LLP Catalogue upload] Parsed ${parsed.length} rows from "${file.name}":`, parsed.map(p => p.partNumber));
       console.log(`[LLP Catalogue upload] Fleet shopping list has ${rows.length} part numbers for ${family}:`, rows.map(r => r.partNumber));
       const byPn = Object.fromEntries(parsed.map(p => [p.partNumber, p.unitPrice]));
-      let matched = 0;
-      const unmatchedFleetPns = [];
-      setRows(r => r.map(row => {
-        if (byPn[row.partNumber] == null) { unmatchedFleetPns.push(row.partNumber); return row; }
-        matched++;
-        return { ...row, unitPrice: byPn[row.partNumber] };
-      }));
-      if (!matched) {
+      // Compute matches directly against `rows` (already in scope from
+      // this render) rather than mutating local counters INSIDE the
+      // setRows(prev => ...) updater and reading them back immediately
+      // after — that was the actual bug: React doesn't guarantee an
+      // updater function has run by the time the code right after the
+      // setState call executes, so `matched`/`unmatchedFleetPns` were
+      // being read before the updater's side effects had landed,
+      // regardless of how many real matches occurred inside it (which is
+      // exactly why the "zero matches" log showed an EMPTY unmatched
+      // list — the push side effects hadn't happened yet either).
+      const matchedRows = rows.filter(row => byPn[row.partNumber] != null);
+      const unmatchedFleetPns = rows.filter(row => byPn[row.partNumber] == null).map(row => row.partNumber);
+      setRows(rows.map(row => byPn[row.partNumber] != null ? { ...row, unitPrice: byPn[row.partNumber] } : row));
+      if (!matchedRows.length) {
         console.log(`[LLP Catalogue upload] Zero matches. Fleet part numbers that found no counterpart in the upload:`, unmatchedFleetPns);
         notify(`Parsed ${parsed.length} rows from the upload, but none of the ${rows.length} fleet part numbers for ${family === 'CFM' ? 'CFM56' : 'V2500'} matched — open the browser console for a side-by-side comparison (Parsed vs Fleet), or check you picked the right family tab.`, "error");
       } else {
-        notify(`Matched ${matched} of ${rows.length} fleet part numbers from the upload — review prices below before saving.`);
+        notify(`Matched ${matchedRows.length} of ${rows.length} fleet part numbers from the upload — review prices below before saving.`);
       }
     } catch(e) {
       setParseError(e.message || "Couldn't parse this file.");
