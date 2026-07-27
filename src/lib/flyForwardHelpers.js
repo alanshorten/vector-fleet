@@ -138,6 +138,28 @@ async function buildFleetExposureData(assets) {
   });
 };
 
+// Route Suitability Matcher (Brain 8, routeMatcher.js) — Body-layer wiring.
+// Deliberately identical shape to buildFleetExposureData above: same
+// bundle-loading, same anchored-pot entry assembly, same KB duration
+// defaults closed over in the buildMaintenanceCalendar wrapper. The only
+// difference is which pure module gets called and what it's handed —
+// route.{fhPerMonth,fcPerMonth,startDate,endDate} alongside the entries,
+// per layer3-scenarios-build-handoff.md §4.
+async function buildRouteMatchData(assets, route) {
+  const bundles = await Promise.all(assets.map(loadFleetExposureBundle));
+  const entries = bundles.map(buildFleetExposureEntry);
+  const durationDefaults = getCheckDurationDefaults();
+  return window.matchRouteToFleet({
+    assets: entries,
+    route,
+    brains: {
+      projectReservePot: window.projectReservePot,
+      projectEnLpPot: window.projectEnLpPot,
+      buildMaintenanceCalendar: (input) => window.buildMaintenanceCalendar({ ...input, durationDefaults })
+    }
+  });
+};
+
 function buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, scheduledEvents = [], seasonalityProfile = null, costProjections = [] }) {
   const rate = utilRate || { fhPerMonth: 0, fcPerMonth: 0 };
   const usingRealRate = !!utilRate;
@@ -255,4 +277,4 @@ function buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, schedu
 };
 
 
-export { FF_COLORS, FLEET_EXPOSURE_HORIZON_MONTHS, addMonthsFF, anchorReservePots, buildFleetExposureData, buildFleetExposureEntry, buildFlyForwardProjection, loadFleetExposureBundle, reconstructPot, reconstructPotWithStatus };
+export { FF_COLORS, FLEET_EXPOSURE_HORIZON_MONTHS, addMonthsFF, anchorReservePots, buildFleetExposureData, buildFleetExposureEntry, buildFlyForwardProjection, buildRouteMatchData, loadFleetExposureBundle, reconstructPot, reconstructPotWithStatus };

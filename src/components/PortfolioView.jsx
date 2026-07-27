@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ShareModal } from './AssetView';
 import { assetStatus, daysFromNow, assetEngineStockPhotoKey, airframeStockPhotoKey } from '../lib/assetHelpers';
 import { db } from '../lib/db';
-import { FLEET_EXPOSURE_HORIZON_MONTHS, buildFleetExposureData } from '../lib/flyForwardHelpers';
+import { FLEET_EXPOSURE_HORIZON_MONTHS, buildFleetExposureData, buildRouteMatchData } from '../lib/flyForwardHelpers';
 import { getDefaultDisclaimer, getTechSpecLogo, openTechSpec } from '../lib/techSpec';
 
 function PortfolioView({assets, notify, onSelect}){
@@ -301,5 +301,210 @@ function FleetExposureView({ assets, onSelectAsset }) {
   );
 };
 
+// ---------------------------------------------------------------------
+// Route Suitability Matcher (Brain 8) — fleet-level Scenarios.
+//
+// "We have this route to fill — which asset is best placed?" Input a
+// route's FH/month, FC/month, and window; every eligible asset gets run
+// through Brains 3-6 twice (current profile vs. route profile swapped in)
+// via buildRouteMatchData, then ranked by operational fit with financial
+// impact shown alongside — never collapsed into one score (handoff §4).
+//
+// V1 note: the route profile is swapped in for the asset's whole
+// projection horizon, not reverted at the route's end date — see
+// routeMatcher.js's file header for the full reasoning. Start/end dates
+// here are for eligibility framing and the label shown per result, not a
+// literal reversion point in the math yet.
+// ---------------------------------------------------------------------
 
-export { FleetExposureView, PortfolioView };
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function defaultRouteEnd() {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 6);
+  return d.toISOString().slice(0, 10);
+}
+
+function fmtMonthYear(date) {
+  return date ? date.toISOString().slice(0, 7) : "—";
+}
+
+function formatShiftLabel(months) {
+  if (months == null) return "—";
+  if (months === 0) return "No change";
+  return months < 0 ? `${Math.abs(months)} mo earlier` : `${months} mo later`;
+}
+
+function RouteMatcherView({ assets, onSelectAsset }) {
+  const [fhPerMonth, setFhPerMonth] = useState(70);
+  const [fcPerMonth, setFcPerMonth] = useState(45);
+  const [startDate, setStartDate] = useState(todayISO());
+  const [endDate, setEndDate] = useState(defaultRouteEnd());
+
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
+  const [showExcluded, setShowExcluded] = useState(false);
+
+  const runMatch = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const route = { fhPerMonth: Number(fhPerMonth) || 0, fcPerMonth: Number(fcPerMonth) || 0, startDate, endDate };
+      const result = await buildRouteMatchData(assets, route);
+      setData(result);
+    } catch (e) {
+      setLoadError(e.message || String(e));
+    }
+    setLoading(false);
+  }, [assets, fhPerMonth, fcPerMonth, startDate, endDate]);
+
+  const financialColor = (v) => (v == null ? "#475569" : v > 0 ? "#f87171" : v < 0 ? "#34d399" : "#94a3b8");
+  const disruptionColor = (v) => (v > 0 ? "#f87171" : "#34d399");
+
+  return (
+    <div style={{ animation: "fadeIn 0.2s ease" }}>
+      <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Route Suitability Matcher</div>
+        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+          Describe the route — a wet lease, a seasonal schedule, a reassignment — and every eligible asset is compared against it. Exploratory only; nothing here is saved.
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>The route</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 12 }}>
+          <label style={{ fontSize: 11, color: "#94a3b8" }}>
+            FH / month
+            <input type="number" min="0" step="1" value={fhPerMonth} onChange={e => setFhPerMonth(e.target.value)}
+              style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+          </label>
+          <label style={{ fontSize: 11, color: "#94a3b8" }}>
+            FC / month
+            <input type="number" min="0" step="1" value={fcPerMonth} onChange={e => setFcPerMonth(e.target.value)}
+              style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+          </label>
+          <label style={{ fontSize: 11, color: "#94a3b8" }}>
+            Start date
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+              style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+          </label>
+          <label style={{ fontSize: 11, color: "#94a3b8" }}>
+            End date
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+              style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+          </label>
+        </div>
+        {fhPerMonth > 0 && fcPerMonth > 0 && (
+          <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>
+            ≈ {(Number(fhPerMonth) / Number(fcPerMonth)).toFixed(1)} FH:FC average sector
+          </div>
+        )}
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 18px" }}
+            disabled={loading || !fhPerMonth || !fcPerMonth || !startDate || !endDate}
+            onClick={runMatch}>
+            {loading ? "Matching…" : "Find best match"}
+          </button>
+        </div>
+        {loadError && <div style={{ marginTop: 10, fontSize: 12, color: "#f87171" }}>Couldn't run the match: {loadError}</div>}
+      </div>
+
+      {data && (
+        <>
+          {data.excludedAssets.length > 0 && (
+            <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+              <div className="flj">
+                <span style={{ fontSize: 12, color: "#94a3b8" }}>{data.excludedAssets.length} asset{data.excludedAssets.length === 1 ? "" : "s"} not compared</span>
+                <button onClick={() => setShowExcluded(s => !s)} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", textDecoration: "underline", font: "inherit", padding: 0, fontSize: 12 }}>
+                  {showExcluded ? "Hide" : "Show"}
+                </button>
+              </div>
+              {showExcluded && (
+                <div style={{ marginTop: 10, borderTop: "1px solid #1e3048", paddingTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                  {data.excludedAssets.map((e, i) => (
+                    <div key={i} className="flj" style={{ fontSize: 12, color: "#94a3b8", cursor: onSelectAsset ? "pointer" : "default" }} onClick={() => onSelectAsset && onSelectAsset(e.assetId)}>
+                      <span>MSN {e.msn}</span>
+                      <span style={{ color: e.reason === "COMPUTE_ERROR" ? "#f87171" : "#fbbf24" }}>{e.reason.replace(/_/g, " ")} — {e.message}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="card" style={{ padding: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Ranked — best operational fit first</div>
+            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>
+              Financial impact is shown alongside, not folded into the ranking — the best fit and the cheapest option aren't always the same asset.
+            </div>
+            {data.ranked.length === 0 && <div style={{ fontSize: 12, color: "#64748b" }}>No eligible assets to compare.</div>}
+            {data.ranked.map((r, i) => {
+              const expanded = expandedId === r.assetId;
+              return (
+                <div key={r.assetId} style={{ borderTop: i > 0 ? "1px solid #1e3048" : "none", padding: "10px 0" }}>
+                  <div className="flj" style={{ cursor: "pointer" }} onClick={() => setExpandedId(expanded ? null : r.assetId)}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 11, color: "#475569", width: 18 }}>#{i + 1}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>MSN {r.msn}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
+                      <span style={{ fontSize: 11, color: "#64748b" }}>
+                        Disruption <span style={{ color: disruptionColor(r.disruptionMonths), fontWeight: 700 }}>{r.disruptionMonths} mo</span>
+                      </span>
+                      <span style={{ fontSize: 11, color: "#64748b" }}>
+                        Cost delta <span style={{ color: financialColor(r.financialDeltaHigh), fontWeight: 700 }}>
+                          {r.financialDeltaHigh > 0 ? "+" : ""}${Math.round(r.financialDeltaHigh).toLocaleString()}
+                        </span>
+                      </span>
+                      <span style={{ fontSize: 11, color: "#475569" }}>{expanded ? "▲" : "▼"}</span>
+                    </div>
+                  </div>
+                  {expanded && (
+                    <table style={{ fontSize: 12, width: "100%", marginTop: 10 }}>
+                      <thead><tr>
+                        <th style={{ color: "#64748b", textAlign: "left" }}>Pot</th>
+                        <th style={{ color: "#64748b", textAlign: "right" }}>Current profile</th>
+                        <th style={{ color: "#64748b", textAlign: "right" }}>On this route</th>
+                        <th style={{ color: "#64748b", textAlign: "right" }}>Shift</th>
+                      </tr></thead>
+                      <tbody>
+                        {r.potDeltas.map(p => (
+                          <tr key={p.code}>
+                            <td style={{ padding: "5px 0", color: "#e2e8f0" }}>{p.code} — {p.label}</td>
+                            <td style={{ textAlign: "right", color: "#94a3b8" }}>
+                              {p.baseDate ? fmtMonthYear(p.baseDate) : "—"}
+                              {p.baseShortfallHigh != null && <div style={{ fontSize: 10, color: financialColor(p.baseShortfallHigh > 0 ? 1 : 0) }}>${Math.round(p.baseShortfallHigh).toLocaleString()}</div>}
+                            </td>
+                            <td style={{ textAlign: "right", color: "#94a3b8" }}>
+                              {p.routeDate ? fmtMonthYear(p.routeDate) : "—"}
+                              {p.routeShortfallHigh != null && <div style={{ fontSize: 10, color: financialColor(p.routeShortfallHigh > 0 ? 1 : 0) }}>${Math.round(p.routeShortfallHigh).toLocaleString()}</div>}
+                            </td>
+                            <td style={{ textAlign: "right", fontSize: 11, color: p.shiftMonths == null ? "#475569" : (p.shiftMonths < 0 ? "#f87171" : p.shiftMonths > 0 ? "#34d399" : "#64748b") }}>
+                              {formatShiftLabel(p.shiftMonths)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  {onSelectAsset && (
+                    <div style={{ marginTop: 6 }}>
+                      <button onClick={() => onSelectAsset(r.assetId)} style={{ background: "none", border: "none", color: "#60a5fa", cursor: "pointer", fontSize: 11, padding: 0 }}>Open MSN {r.msn} →</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+
+export { FleetExposureView, PortfolioView, RouteMatcherView };
