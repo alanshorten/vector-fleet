@@ -139,15 +139,54 @@ async function buildFleetExposureData(assets) {
 };
 
 // Route Suitability Matcher (Brain 8, routeMatcher.js) — Body-layer wiring.
-// Deliberately identical shape to buildFleetExposureData above: same
-// bundle-loading, same anchored-pot entry assembly, same KB duration
-// defaults closed over in the buildMaintenanceCalendar wrapper. The only
-// difference is which pure module gets called and what it's handed —
-// route.{fhPerMonth,fcPerMonth,startDate,endDate} alongside the entries,
-// per layer3-scenarios-build-handoff.md §4.
+//
+// NOT the same shape as buildFleetExposureEntry above, for one important
+// reason: engine_fh-triggered pots (EN-PR) get their due-date DERIVED from
+// the utilisation rate inside anchorReservePots, and APU's apuHrPerMonth is
+// likewise derived from fhPerMonth. Fleet Exposure only ever has one rate,
+// so anchoring once upstream is correct there. Route Matcher compares TWO
+// rates (the asset's real one vs. the route's), so anchoring must run
+// TWICE — once per profile — or EN-PR/AP-OH silently never move under a
+// route swap regardless of how different the route's rate is (bug found
+// in first real test pass, see TECH_DEBT.md when this gets synced).
+//
+// buildRouteMatchEntry therefore returns basePots/routePots (each anchored
+// against its own rate) and baseUtilisation/routeUtilisation (each with
+// its own correctly-derived apuHrPerMonth), rather than a single pots/
+// utilisation pair. routeMatcher.js runs its base pass against
+// basePots+baseUtilisation and its route pass against
+// routePots+routeUtilisation — never mixing the two.
+function buildRouteMatchEntry(bundle, route) {
+  const { asset, lease, reserveDocs, utilRate, apuHrPerMonth, scheduledEvents, seasonalityProfile, costProjections } = bundle;
+  const confirmedPots = (reserveDocs || []).map(reconstructPotWithStatus).filter(p => !!p.triggerBasis);
+  const leaseStart = new Date();
+
+  const baseRate = utilRate || { fhPerMonth: 0, fcPerMonth: 0 };
+  const basePots = lease ? anchorReservePots({ asset, confirmedPots, rate: baseRate, leaseStart }) : confirmedPots;
+
+  const routeRate = { fhPerMonth: route.fhPerMonth, fcPerMonth: route.fcPerMonth };
+  const routePots = lease ? anchorReservePots({ asset, confirmedPots, rate: routeRate, leaseStart }) : confirmedPots;
+  const routeApuHrPerMonth = window.estimateApuHrPerMonth(routeRate.fhPerMonth, asset.apu?.currentFH, asset.airframe?.currentFH) || 0;
+
+  return {
+    assetId: asset.id,
+    msn: asset.msn,
+    lease,
+    basePots,
+    routePots,
+    engines: asset.engines || [],
+    checks: asset.checks || [],
+    baseUtilisation: utilRate ? { fhPerMonth: utilRate.fhPerMonth, fcPerMonth: utilRate.fcPerMonth, apuHrPerMonth } : null,
+    routeUtilisation: { fhPerMonth: routeRate.fhPerMonth, fcPerMonth: routeRate.fcPerMonth, apuHrPerMonth: routeApuHrPerMonth },
+    scheduledEvents: scheduledEvents || [],
+    seasonalityProfile: seasonalityProfile || null,
+    costProjections: costProjections || []
+  };
+};
+
 async function buildRouteMatchData(assets, route) {
   const bundles = await Promise.all(assets.map(loadFleetExposureBundle));
-  const entries = bundles.map(buildFleetExposureEntry);
+  const entries = bundles.map(b => buildRouteMatchEntry(b, route));
   const durationDefaults = getCheckDurationDefaults();
   return window.matchRouteToFleet({
     assets: entries,
@@ -277,4 +316,4 @@ function buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, schedu
 };
 
 
-export { FF_COLORS, FLEET_EXPOSURE_HORIZON_MONTHS, addMonthsFF, anchorReservePots, buildFleetExposureData, buildFleetExposureEntry, buildFlyForwardProjection, buildRouteMatchData, loadFleetExposureBundle, reconstructPot, reconstructPotWithStatus };
+export { FF_COLORS, FLEET_EXPOSURE_HORIZON_MONTHS, addMonthsFF, anchorReservePots, buildFleetExposureData, buildFleetExposureEntry, buildFlyForwardProjection, buildRouteMatchData, buildRouteMatchEntry, loadFleetExposureBundle, reconstructPot, reconstructPotWithStatus };

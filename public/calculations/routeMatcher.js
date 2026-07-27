@@ -42,12 +42,20 @@ function monthDelta(fromDate, toDate) {
 // buildAssetAtoms pass1/Brain6/pass2 sequence exactly, minus the
 // post-lease-end extension (not needed here — Route Matcher only compares
 // events inside the current lease term, the same horizon both runs share).
+//
+// `pots` and `utilisation` here are already anchored/derived for the
+// SPECIFIC profile being run (base or route) by the Body layer
+// (flyForwardHelpers.js's buildRouteMatchEntry) — this function does not
+// re-anchor or re-derive anything itself. That split matters: engine_fh
+// pot due-dates and apuHrPerMonth are both rate-derived, so reusing a
+// single anchoring across two different rates was the bug that made
+// EN-PR/AP-OH silently ignore the route profile (found in first real test
+// pass — fixed by anchoring twice upstream instead of once here).
 // ---------------------------------------------------------------------
 
-function runProjection(entry, utilisation, brains) {
+function runProjection(entry, pots, utilisation, brains) {
   const {
     lease,
-    pots = [],
     engines = [],
     checks = [],
     scheduledEvents = [],
@@ -141,27 +149,22 @@ function runProjection(entry, utilisation, brains) {
 // ---------------------------------------------------------------------
 
 function compareAsset(entry, route, brains) {
-  const { assetId, msn, lease, pots = [], utilisation } = entry;
+  const { assetId, msn, lease, basePots = [], routePots = [], baseUtilisation, routeUtilisation } = entry;
 
   if (!lease || !lease.leaseEnd) {
     return { assetId, msn, excluded: { code: "NO_LEASE", message: "No active lease on this asset." } };
   }
-  const confirmedPots = (pots || []).filter(p => p && p.triggerBasis && p.status !== "outstanding");
+  const confirmedPots = (basePots || []).filter(p => p && p.triggerBasis && p.status !== "outstanding");
   if (!confirmedPots.length) {
     return { assetId, msn, excluded: { code: "POTS_OUTSTANDING", message: "No confirmed reserve pots — pots are still outstanding from setup." } };
   }
-  if (!utilisation || (!utilisation.fhPerMonth && !utilisation.fcPerMonth && !utilisation.apuHrPerMonth)) {
+  if (!baseUtilisation || (!baseUtilisation.fhPerMonth && !baseUtilisation.fcPerMonth && !baseUtilisation.apuHrPerMonth)) {
     return { assetId, msn, excluded: { code: "STALE_UTILISATION", message: "Insufficient or stale utilisation history for a reliable projection." } };
   }
 
   try {
-    const baseRun = runProjection(entry, utilisation, brains);
-    const routeUtilisation = {
-      fhPerMonth: route.fhPerMonth,
-      fcPerMonth: route.fcPerMonth,
-      apuHrPerMonth: utilisation.apuHrPerMonth || 0
-    };
-    const routeRun = runProjection(entry, routeUtilisation, brains);
+    const baseRun = runProjection(entry, basePots, baseUtilisation, brains);
+    const routeRun = runProjection(entry, routePots, routeUtilisation, brains);
 
     const potDeltas = baseRun.potSummaries.map(baseP => {
       const routeP = routeRun.potSummaries.find(p => p.code === baseP.code) || { earliestDate: null, worstShortfallHigh: null };
@@ -204,10 +207,11 @@ function compareAsset(entry, route, brains) {
 // ---------------------------------------------------------------------
 //
 // input: {
-//   assets: [ same entry shape fleetExposure.js consumes — asset already
-//             carrying anchored pots, utilisation, checks, engines, etc.,
-//             as assembled by flyForwardHelpers.js's
-//             buildFleetExposureEntry/loadFleetExposureBundle ],
+//   assets: [ entry shape from flyForwardHelpers.js's buildRouteMatchEntry —
+//             basePots/routePots (each pre-anchored against its OWN rate)
+//             and baseUtilisation/routeUtilisation (each with its own
+//             correctly-derived apuHrPerMonth), plus lease, engines, checks,
+//             scheduledEvents, seasonalityProfile, costProjections ],
 //   route: { fhPerMonth, fcPerMonth, startDate, endDate },
 //   brains: { projectReservePot, projectEnLpPot, buildMaintenanceCalendar }
 // }
