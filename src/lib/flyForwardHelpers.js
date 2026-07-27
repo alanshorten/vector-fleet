@@ -180,22 +180,28 @@ async function buildFleetExposureData(assets, pandemicGroundingMonths = 0) {
 // separate function from buildFleetExposureEntry, not a shared one with a
 // flag — the separation itself is the safeguard.
 //
-// What's real vs. estimated once this runs:
+// What's real vs. estimated vs. omitted once this runs:
 //   - AF-6Y/AF-12Y: always real (asset.checks) — unaffected either way.
 //   - LG-OH: real — anchored from asset.landingGear's actual next-due date.
 //   - EN-LP: real — anchored from the engine's actual LLP stack/currentFC.
-//   - EN-PR: an ESTIMATE when synthesized — no real "last PR date" is
-//     tracked on the asset, so with a synthetic pot's opening balance at
-//     0, anchoring assumes a full interval from today (same "starting
-//     fresh" assumption the KB-family-interval fallback always makes).
+//   - EN-PR: OMITTED when synthesized, not estimated (Alan, July 2026 —
+//     corrected from an earlier version of this fix that DID estimate it).
+//     No real "last PR date" is tracked on the asset, so a synthetic pot's
+//     opening balance can only ever be 0 — anchoring from that would just
+//     assume "a full interval from today," a fabricated guess. Per Alan,
+//     that goes against the app's deterministic-outputs principle: if
+//     there's no real data, ignore it, don't show an estimate dressed up
+//     as a date. See the EN-PR filter below.
 //   - AP-OH: already an app-wide approximation regardless of synthetic vs.
 //     real pots — `nowOffsetMonths` (how far into the APU-hour trigger
 //     band the asset already sits) is never actually populated by any
 //     caller anywhere in the app today, so AP-OH always assumes "starting
-//     fresh." Not a new gap introduced here.
-// `usedSyntheticPots` is returned so the caller can flag EN-PR/AP-OH as
-// estimated where it matters, without withholding the genuinely real
-// LG-OH/EN-LP dates.
+//     fresh." Pre-existing, not introduced here — left unchanged pending
+//     its own decision on whether the same "omit, don't estimate" rule
+//     should apply (flagged separately, not assumed).
+// `usedSyntheticPots` is returned so the caller can flag AP-OH as an
+// estimate where it matters, without withholding the genuinely real
+// LG-OH/EN-LP dates or fabricating an EN-PR one.
 function buildCalendarEntry({ asset, lease, reserveDocs, utilRate, apuHrPerMonth, scheduledEvents, seasonalityProfile, costProjections }) {
   const confirmedPots = (reserveDocs || []).map(reconstructPotWithStatus).filter(p => !!p.triggerBasis && p.status !== "outstanding");
   const rate = utilRate || { fhPerMonth: 0, fcPerMonth: 0 };
@@ -206,7 +212,21 @@ function buildCalendarEntry({ asset, lease, reserveDocs, utilRate, apuHrPerMonth
   if (confirmedPots.length > 0) {
     pots = anchorReservePots({ asset, confirmedPots, rate, leaseStart });
   } else {
-    const defs = buildPotDefsForActivation(asset);
+    // EN-PR excluded from the synthetic fallback (Alan, July 2026): unlike
+    // LG-OH (anchored from asset.landingGear's real next-due date) and
+    // EN-LP (anchored from the engine's real LLP stack), there is no real
+    // per-asset "last PR date" tracked anywhere — a synthetic EN-PR pot's
+    // opening balance is always 0, so anchoring can only ever assume "a
+    // full interval from today," which is a fabricated guess dressed up as
+    // a date. That's exactly the kind of estimate the app's deterministic-
+    // outputs principle exists to prevent. If there's no real data to
+    // anchor EN-PR against, it's simply not shown here — not shown as an
+    // estimate. (AP-OH has the same underlying problem — `nowOffsetMonths`
+    // is never populated by any caller anywhere in the app — but that's a
+    // pre-existing, app-wide gap predating this session, not something
+    // newly introduced by the synthetic-pot fallback; left as-is pending
+    // its own decision rather than silently changed here.)
+    const defs = buildPotDefsForActivation(asset).filter(def => !def.code.startsWith("EN-PR"));
     const synthesizedPots = defs.map(def => buildPotFromDef(def, 0, leaseStart.toISOString().slice(0, 10)));
     pots = anchorReservePots({ asset, confirmedPots: synthesizedPots, rate, leaseStart });
     usedSyntheticPots = true;

@@ -398,7 +398,27 @@ function buildFleetExposure(input) {
 // since the two mean different things (that one extends PAST a real
 // lease end for disclosure; this one is the whole horizon when there's no
 // lease end to measure from at all).
-const DEFAULT_CALENDAR_HORIZON_MONTHS = 24;
+// Fallback lookahead window when an asset has no active lease to bound the
+// horizon against — the check still happens whether or not there's a
+// lease on file, so this can't be "no lease = no horizon = nothing shown."
+//
+// CORRECTED (Alan, July 2026 — flagged from a real Fleet Overview vs.
+// Calendar mismatch: MSN 1473/3056 both have a real landing gear overhaul
+// due Apr 2029 — ~33 months out — and were silently missing from the
+// Calendar entirely, no warning, nothing). Root cause: the non-grounding
+// event generators (calendarOrCyclesEvents/calendarMonthEvents/
+// apuHourEvents in flyForward.js) do a hard cutoff at horizonMonths with
+// no "include the first occurrence past the horizon, then stop" grace —
+// unlike Brain 6's C-Check generator, which does have that grace. A real,
+// known, anchored due date beyond the horizon doesn't get flagged
+// beyond-horizon, it just silently never appears. 24 months was far
+// shorter than LG-OH's own 120-month interval or AF-12Y's 144-month
+// interval, so this was structurally guaranteed to drop real dates for
+// any leaseless asset whose LG-OH (or similar) happened to fall more than
+// two years out. 180 months (15 years) comfortably covers a full cycle of
+// every fixed-pot interval with margin, so a real anchored date is never
+// silently dropped this way again.
+const DEFAULT_CALENDAR_HORIZON_MONTHS = 180;
 
 function buildAssetMaintenanceEvents(entry, brains) {
   const {

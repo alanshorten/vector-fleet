@@ -603,7 +603,7 @@ function FleetCalendarView({ assets, onSelectAsset }) {
         </div>
         {estimated.length > 0 && (
           <div style={{ marginTop: 8, fontSize: 12, color: "#94a3b8" }}>
-            ℹ {estimated.length} asset{estimated.length === 1 ? "" : "s"} with no lease/reserve setup on file — landing gear and engine LLP dates shown are real (from tracked component data); Engine PR and APU dates are engineering-default estimates, not confirmed ({estimated.map(a => `MSN ${a.msn}`).join(", ")})
+            ℹ {estimated.length} asset{estimated.length === 1 ? "" : "s"} with no lease/reserve setup on file — landing gear and engine LLP dates shown are real (from tracked component data); Engine PR dates are not shown for these assets (no real data to anchor them, so they're omitted rather than estimated); APU dates shown are an engineering-default estimate ({estimated.map(a => `MSN ${a.msn}`).join(", ")})
           </div>
         )}
         {partial.length > 0 && (
