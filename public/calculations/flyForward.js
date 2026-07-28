@@ -326,6 +326,17 @@ function projectReservePot(pot, ctx) {
 // from validateStubBuffer (llpCalculator.js, Brain 2) at each shop visit.
 function projectEnLpPot(pot, ctx) {
   const { leaseStart, horizonMonths, utilisation, llpEngineStart, groundingAvailability, accrualAvailability } = ctx;
+  // Cost multiplier for THIS pot's harvest events — separate from the
+  // projectedCostLow/High-multiplication convention used by
+  // projectReservePot's callers, because harvestCostEstimate below never
+  // reads pot.projectedCostLow/High at all (it prices from the LLP
+  // catalogue lookup, a supplied catalogPrice, or fullStackReplacementCost
+  // — none of which flow through those two fields). Without this, the
+  // asset-level Cost Overrun control and the fleet-level Engine-Type Cost
+  // Shock scenario silently have zero effect on EN-LP pots (bug found
+  // July 2026 — see flyForwardHelpers.js/fleetExposure.js callers for
+  // where this gets set). Default 1 = no-op, identical to base case.
+  const costMultiplier = ctx.costMultiplier == null ? 1 : ctx.costMultiplier;
   const fcPerMonth = utilisation.fcPerMonth || 0;
   // llpEngineStart.currentFC is a REAL snapshot taken today, not at
   // lease inception. If leaseStart is set to a real historical date (so
@@ -430,6 +441,9 @@ function projectEnLpPot(pot, ctx) {
           projectedCostHigh: harvestCostEstimate(allHarvested, llps, pot.fullStackReplacementCost, pot.engineFamily, "high") },
         date
       );
+      cost.low *= costMultiplier;
+      cost.likely *= costMultiplier;
+      cost.high *= costMultiplier;
       const shortfallLow = cost.low - balance;
       const shortfallHigh = cost.high - balance;
 
