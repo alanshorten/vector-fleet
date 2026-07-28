@@ -3,8 +3,7 @@ import { AdminView } from './components/AdminView';
 import { AssetView, NavPill, TRAILING_PILL_WIDTH } from './components/AssetView';
 import { SetPasswordScreen, SignInScreen } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
-import { GuideView } from './components/GuideView';
-import { FleetCalendarView, FleetExposureView, PandemicScenarioView, PortfolioView, RouteMatcherView } from './components/PortfolioView';
+import { FleetCalendarView, FleetExposureView, FleetScenarioControls, PandemicScenarioView, PortfolioView, RouteMatcherView } from './components/PortfolioView';
 import { ProspectEditor, ProspectListView } from './components/Prospects';
 import { UploadView } from './components/UploadView';
 import { db, logAudit } from './lib/db';
@@ -239,6 +238,7 @@ function App(){
           <>
             <RouteMatcherView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetInitialLayer("financials");setView("asset");}}/>
             <PandemicScenarioView assets={liveAssets}/>
+            <FleetScenarioControls assets={liveAssets}/>
           </>
         )}
         {view==="prospects"&&<ProspectListView assets={prospectAssets} saveAsset={saveAsset} notify={notify} userRole={userRole} onSelect={id=>{setSelectedId(id);setView("prospect-editor");}} loadAssets={loadAssets}/>}
