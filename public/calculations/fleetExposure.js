@@ -202,9 +202,8 @@ function buildAssetAtoms(entry, horizonPastLeaseEndMonths, brains, pandemicGroun
     });
 
     // Build atoms: one per fired event, across every pot. Events whose
-    // monthIndex falls beyond the ORIGINAL lease horizon are post-lease —
-    // date + cost band only, status null (handoff §3: never red/green
-    // against a flatlined-in-spirit balance).
+    // monthIndex falls beyond the ORIGINAL lease horizon are post-lease.
+    //
     // REDESIGN (fleet-exposure-redesign-handoff.md, July 2026): post-lease
     // atoms are no longer cost-disclosure-only. Each pot's shortfall to its
     // OWN next event is a real, statable figure regardless of which side of
@@ -212,10 +211,25 @@ function buildAssetAtoms(entry, horizonPastLeaseEndMonths, brains, pandemicGroun
     // this file was just discarding it. `postLeaseEnd` survives as a label
     // for the UI (solid vs. translucent fill, "(includes post-lease)" tag)
     // but no longer gates whether shortfall/status/coverage are populated.
+    //
+    // TRUNCATION (July 2026, following the 24->180 month horizon
+    // extension): the horizon now reaches far enough that a short-interval
+    // pot (e.g. AF-6Y) could fire several times post-lease within 180
+    // months. "Shortfall to next event" means exactly that — ONE event per
+    // pot, not every recurrence for the next 15 years — so only the
+    // EARLIEST post-lease occurrence per pot is kept as an atom. In-lease
+    // atoms are unaffected: every in-lease firing still counts, same as
+    // before this change (an unrelated, already-accepted behaviour for
+    // pots that fire more than once within the lease term itself).
     const atoms = [];
     for (const proj of pass2) {
+      let postLeaseAtomKept = false;
       (proj.events || []).forEach((evt, idx) => {
         const postLeaseEnd = evt.monthIndex > leaseHorizonMonths;
+        if (postLeaseEnd) {
+          if (postLeaseAtomKept) return; // skip every recurrence after the first post-lease one
+          postLeaseAtomKept = true;
+        }
         atoms.push({
           assetId,
           msn,

@@ -74,7 +74,24 @@ function anchorReservePots({ asset, confirmedPots, rate, leaseStart }) {
   });
 };
 
-const FLEET_EXPOSURE_HORIZON_MONTHS = 24;
+// REVISED (July 2026 — Alan, following the fleet-exposure-redesign-
+// handoff.md rollout): was 24. A fixed 24-month post-lease window was
+// structurally the same bug already found and fixed for the Calendar tab
+// (see fleetExposure.js's DEFAULT_CALENDAR_HORIZON_MONTHS = 180 and its
+// comment) — a pot whose next occurrence happens to fall further out
+// than the window (e.g. a 12-Year Check, or an Engine LLP with a long
+// remaining life) would silently never be computed at all, not merely
+// filtered out. That's a genuine gap in the atom set, not just in the
+// headline sum. "Shortfall to next event, however far out" (the
+// redesign's own stated principle) requires the horizon itself to reach
+// far enough to find that event — 180 months matches the Calendar tab's
+// own fix and comfortably covers a full cycle of every fixed-pot
+// interval with margin. Atom generation is truncated to each pot's FIRST
+// post-lease occurrence only (see fleetExposure.js's buildAssetAtoms) —
+// extending the horizon does NOT mean summing every recurrence of a
+// short-interval pot for the next 15 years, only guaranteeing the next
+// one is never missed.
+const FLEET_EXPOSURE_HORIZON_MONTHS = 180;
 
 // Scenarios structured controls (scenarios-structured-controls-handoff.md,
 // July 2026 — supersedes the chat-box design in layer3-scenarios-build-

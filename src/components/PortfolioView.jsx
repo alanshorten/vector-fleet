@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ShareModal } from './AssetView';
 import { assetStatus, daysFromNow, assetEngineStockPhotoKey, airframeStockPhotoKey } from '../lib/assetHelpers';
 import { db } from '../lib/db';
-import { FLEET_EXPOSURE_HORIZON_MONTHS, buildFleetCalendarData, buildFleetExposureData, buildRouteMatchData } from '../lib/flyForwardHelpers';
+import { buildFleetCalendarData, buildFleetExposureData, buildRouteMatchData } from '../lib/flyForwardHelpers';
 import { getDefaultDisclaimer, getTechSpecLogo, openTechSpec } from '../lib/techSpec';
 import { MaintenanceCalendarGrid } from './FlyForward';
 import { ScenarioSlider } from './Scenarios';
@@ -345,7 +345,7 @@ function FleetExposureView({ assets, onSelectAsset }) {
           Click a bar to drill into that month's events below. */}
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 10 }}>
-          Time Axis — to lease end, plus {FLEET_EXPOSURE_HORIZON_MONTHS} months' post-lease disclosure
+          Time Axis — to lease end, plus each pot's next event beyond it (however far out)
         </div>
         {timeAxis.length === 0 ? (
           <div style={{ color: "#64748b", fontSize: 12 }}>No projected events across the fleet.</div>
