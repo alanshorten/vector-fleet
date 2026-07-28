@@ -108,12 +108,28 @@ function Scenarios({ asset }) {
   const [costProjections, setCostProjections] = useState([]);
   const [loadError, setLoadError] = useState(null);
 
-  // The three levers. Escalation rate is deliberately never a slider here —
-  // it's a periodic factual update reviewed against the real catalogue, not
-  // a hypothetical (VECTORIQ_ROADMAP.md Deliberate Design Decisions).
+  // The three original levers. Escalation rate is deliberately never a
+  // slider here — it's a periodic factual update reviewed against the
+  // real catalogue, not a hypothetical (VECTORIQ_ROADMAP.md Deliberate
+  // Design Decisions).
   const [utilPct, setUtilPct] = useState(0);
   const [leaseExtMonths, setLeaseExtMonths] = useState(0);
   const [sectorPct, setSectorPct] = useState(0);
+
+  // Structured controls (scenarios-structured-controls-handoff.md §1) —
+  // replace the never-built chat box. AOG and lessee default share the
+  // same start/duration shape but modify different axes (see
+  // flyForward.js's monthlyAccrual and flyForwardHelpers.js's
+  // buildWindowAvailabilityVector for why they're kept separate).
+  const [aogStartMonth, setAogStartMonth] = useState(0);
+  const [aogDurationMonths, setAogDurationMonths] = useState(0);
+  const [defaultStartMonth, setDefaultStartMonth] = useState(0);
+  const [defaultDurationMonths, setDefaultDurationMonths] = useState(0);
+  // Per-pot cost overrun %, keyed by pot code. Default state: no entry
+  // for a code = 0% (no overrun) — only rows with a projected event
+  // appear in the table, so this never invents an event that doesn't
+  // exist in the base projection.
+  const [costOverrunByCode, setCostOverrunByCode] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -147,6 +163,11 @@ function Scenarios({ asset }) {
     setUtilPct(0);
     setLeaseExtMonths(0);
     setSectorPct(0);
+    setAogStartMonth(0);
+    setAogDurationMonths(0);
+    setDefaultStartMonth(0);
+    setDefaultDurationMonths(0);
+    setCostOverrunByCode({});
   };
 
   if (loading) {
@@ -169,15 +190,22 @@ function Scenarios({ asset }) {
     );
   }
 
-  const scenarioActive = utilPct !== 0 || leaseExtMonths !== 0 || sectorPct !== 0;
+  const hasCostOverrun = Object.values(costOverrunByCode).some(v => v);
+  const scenarioActive = utilPct !== 0 || leaseExtMonths !== 0 || sectorPct !== 0 || aogDurationMonths > 0 || defaultDurationMonths > 0 || hasCostOverrun;
   const scenarioUtilRate = buildScenarioUtilRate(utilRate, utilPct, sectorPct);
   const scenarioLease = buildScenarioLease(lease, leaseExtMonths);
+  const scenarioModifiers = {
+    aogWindow: aogDurationMonths > 0 ? { startMonth: aogStartMonth, durationMonths: aogDurationMonths } : null,
+    lesseeDefaultWindow: defaultDurationMonths > 0 ? { startMonth: defaultStartMonth, durationMonths: defaultDurationMonths } : null,
+    costOverrides: hasCostOverrun ? costOverrunByCode : null
+  };
 
   // Fully non-destructive — this never writes to Firestore, base case and
-  // scenario are both computed fresh in memory every render.
+  // scenario are both computed fresh in memory every render. Base case
+  // never receives scenarioModifiers — only the scenario side does.
   const basePF = buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections });
   const scenarioPF = scenarioActive
-    ? buildFlyForwardProjection({ asset, lease: scenarioLease, reserveDocs, utilRate: scenarioUtilRate, scheduledEvents, seasonalityProfile, costProjections })
+    ? buildFlyForwardProjection({ asset, lease: scenarioLease, reserveDocs, utilRate: scenarioUtilRate, scheduledEvents, seasonalityProfile, costProjections, scenarioModifiers })
     : basePF;
 
   if (basePF.projectionError || (scenarioActive && scenarioPF.projectionError)) {
@@ -251,9 +279,95 @@ function Scenarios({ asset }) {
         <ScenarioSlider label="Utilisation change" value={utilPct} onChange={setUtilPct} min={-50} max={50} step={1} format={fmtPct}/>
         <ScenarioSlider label="Lease extension" value={leaseExtMonths} onChange={setLeaseExtMonths} min={0} max={36} step={1} format={fmtMonths}/>
         <ScenarioSlider label="Average sector length change" value={sectorPct} onChange={setSectorPct} min={-50} max={50} step={1} format={fmtPct}/>
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+
+        <div style={{ borderTop: "1px solid #1e3048", marginTop: 4, paddingTop: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>AOG window</div>
+          <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10 }}>Grounds the aircraft for a period — usage-basis pots freeze, calendar-basis pots keep accruing (same as a C-Check grounding).</div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+              Starts (months from now)
+              <input type="number" min="0" step="1" value={aogStartMonth} onChange={e => setAogStartMonth(Math.max(0, Number(e.target.value) || 0))}
+                style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+            </label>
+            <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+              Duration (months)
+              <input type="number" min="0" step="1" value={aogDurationMonths} onChange={e => setAogDurationMonths(Math.max(0, Number(e.target.value) || 0))}
+                style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+            </label>
+          </div>
+        </div>
+
+        <div style={{ borderTop: "1px solid #1e3048", marginTop: 14, paddingTop: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Lessee default</div>
+          <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10 }}>Suspends reserve accrual across every pot for a period — usage continues (the aircraft keeps flying), the lessee just isn't paying into any account.</div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+              Starts (months from now)
+              <input type="number" min="0" step="1" value={defaultStartMonth} onChange={e => setDefaultStartMonth(Math.max(0, Number(e.target.value) || 0))}
+                style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+            </label>
+            <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+              Duration (months)
+              <input type="number" min="0" step="1" value={defaultDurationMonths} onChange={e => setDefaultDurationMonths(Math.max(0, Number(e.target.value) || 0))}
+                style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+            </label>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
           <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} disabled={!scenarioActive} onClick={resetScenario}>Reset to base case</button>
         </div>
+      </div>
+
+      <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Per-Pot Worst-Case Shortfall — Base vs. Scenario</div>
+        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>Timing shift shows how many months the same projected event moves under this scenario — a pot showing "Beyond horizon" in base case had no event within the lease term until the scenario pulled it forward. Cost Overrun nudges that specific event's estimated cost up or down — default 0% on every row, only rows with a projected event get one.</div>
+        <table style={{ fontSize: 12, width: "100%" }}>
+          <thead><tr>
+            <th style={{ color: "#64748b", textAlign: "left" }}>Pot</th>
+            <th style={{ color: "#64748b", textAlign: "right" }}>Base Case</th>
+            <th style={{ color: "#64748b", textAlign: "right" }}>Scenario</th>
+            <th style={{ color: "#64748b", textAlign: "right" }}>Timing Shift</th>
+            <th style={{ color: "#64748b", textAlign: "right" }}>Cost Overrun</th>
+          </tr></thead>
+          <tbody>
+            {potRows.map(row => (
+              <tr key={row.code}>
+                <td style={{ padding: "6px 0" }}>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: colorForCode(row.code), display: "inline-block", marginRight: 6 }}/>
+                  {row.code} — {row.label}
+                </td>
+                <td style={{ textAlign: "right", color: shortfallColor(row.baseHigh) }}>
+                  {row.baseHigh == null ? (row.baseTracked ? "Beyond horizon" : "—") : `$${Math.round(row.baseHigh).toLocaleString()}`}
+                  {row.baseDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.baseDate.toISOString().slice(0, 7)}</div>}
+                </td>
+                <td style={{ textAlign: "right", color: scenarioActive ? deltaColor(row.baseHigh, row.scenarioHigh) : shortfallColor(row.scenarioHigh) }}>
+                  {row.scenarioHigh == null ? (row.scenarioTracked ? "Beyond horizon" : "—") : `$${Math.round(row.scenarioHigh).toLocaleString()}`}
+                  {row.scenarioDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.scenarioDate.toISOString().slice(0, 7)}</div>}
+                </td>
+                <td style={{ textAlign: "right", fontSize: 11, color: row.shiftMonths == null ? "#475569" : (row.shiftMonths < 0 ? "#f87171" : row.shiftMonths > 0 ? "#34d399" : "#64748b") }}>
+                  {row.shiftMonths != null
+                    ? formatShift(row.shiftMonths)
+                    : (row.scenarioDate && !row.baseDate ? "Now within horizon" : (row.baseDate && !row.scenarioDate ? "No longer within horizon" : "—"))}
+                </td>
+                <td style={{ textAlign: "right" }}>
+                  {row.baseTracked ? (
+                    <input type="number" step="1" placeholder="0%" value={costOverrunByCode[row.code] || ""}
+                      onChange={e => {
+                        const v = e.target.value === "" ? undefined : Number(e.target.value);
+                        setCostOverrunByCode(prev => {
+                          const next = { ...prev };
+                          if (!v) delete next[row.code]; else next[row.code] = v;
+                          return next;
+                        });
+                      }}
+                      style={{ width: 60, fontSize: 12, padding: "4px 6px", textAlign: "right" }}/>
+                  ) : <span style={{ color: "#475569" }}>—</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
@@ -282,7 +396,7 @@ function Scenarios({ asset }) {
         </div>
       </div>
 
-      <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+      <div className="card" style={{ padding: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Risk Peaks (earliest first)</div>
         {baseRiskPeaks.length === 0 && scenarioRiskPeaks.length === 0 && (
           <div style={{ fontSize: 12, color: "#64748b" }}>No risk peaks projected in either case.</div>
@@ -296,42 +410,6 @@ function Scenarios({ asset }) {
           </div>
         ))}
         {scenarioActive && <div style={{ fontSize: 10, color: "#475569", marginTop: 8 }}>Showing scenario risk peaks. Base case had {baseRiskPeaks.length} risk peak{baseRiskPeaks.length===1?"":"s"}.</div>}
-      </div>
-
-      <div className="card" style={{ padding: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Per-Pot Worst-Case Shortfall — Base vs. Scenario</div>
-        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>Timing shift shows how many months the same projected event moves under this scenario — a pot showing "Beyond horizon" in base case had no event within the lease term until the scenario pulled it forward.</div>
-        <table style={{ fontSize: 12, width: "100%" }}>
-          <thead><tr>
-            <th style={{ color: "#64748b", textAlign: "left" }}>Pot</th>
-            <th style={{ color: "#64748b", textAlign: "right" }}>Base Case</th>
-            <th style={{ color: "#64748b", textAlign: "right" }}>Scenario</th>
-            <th style={{ color: "#64748b", textAlign: "right" }}>Timing Shift</th>
-          </tr></thead>
-          <tbody>
-            {potRows.map(row => (
-              <tr key={row.code}>
-                <td style={{ padding: "6px 0" }}>
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: colorForCode(row.code), display: "inline-block", marginRight: 6 }}/>
-                  {row.code} — {row.label}
-                </td>
-                <td style={{ textAlign: "right", color: shortfallColor(row.baseHigh) }}>
-                  {row.baseHigh == null ? (row.baseTracked ? "Beyond horizon" : "—") : `$${Math.round(row.baseHigh).toLocaleString()}`}
-                  {row.baseDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.baseDate.toISOString().slice(0, 7)}</div>}
-                </td>
-                <td style={{ textAlign: "right", color: scenarioActive ? deltaColor(row.baseHigh, row.scenarioHigh) : shortfallColor(row.scenarioHigh) }}>
-                  {row.scenarioHigh == null ? (row.scenarioTracked ? "Beyond horizon" : "—") : `$${Math.round(row.scenarioHigh).toLocaleString()}`}
-                  {row.scenarioDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.scenarioDate.toISOString().slice(0, 7)}</div>}
-                </td>
-                <td style={{ textAlign: "right", fontSize: 11, color: row.shiftMonths == null ? "#475569" : (row.shiftMonths < 0 ? "#f87171" : row.shiftMonths > 0 ? "#34d399" : "#64748b") }}>
-                  {row.shiftMonths != null
-                    ? formatShift(row.shiftMonths)
-                    : (row.scenarioDate && !row.baseDate ? "Now within horizon" : (row.baseDate && !row.scenarioDate ? "No longer within horizon" : "—"))}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </div>
   );

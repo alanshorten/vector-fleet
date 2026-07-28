@@ -93,6 +93,21 @@ function applyPandemicGrounding(groundingAvailability, pandemicGroundingMonths) 
   ));
 }
 
+// Fleet-level lessee default (scenarios-structured-controls-handoff.md
+// §2) — suspends accrual, from today, for N months, on whichever assets
+// the caller has flagged via entry.lesseeDefaultMonths (the Body layer
+// sets this only on assets under the selected lessee — see
+// flyForwardHelpers.js's buildFleetExposureEntry). Same "from today"
+// shape as applyPandemicGrounding, but on the accrual axis, not the
+// grounding axis — see flyForward.js's monthlyAccrual for why the two
+// must stay separate. 0/undefined = no-op, identical to base case.
+function buildAccrualAvailabilityVector(horizonMonths, lesseeDefaultMonths) {
+  if (!lesseeDefaultMonths || lesseeDefaultMonths <= 0) return undefined;
+  const vector = [];
+  for (let m = 0; m <= horizonMonths; m++) vector.push({ monthIndex: m, availability: m < lesseeDefaultMonths ? 0 : 1 });
+  return vector;
+}
+
 function buildAssetAtoms(entry, horizonPastLeaseEndMonths, brains, pandemicGroundingMonths = 0) {
   const {
     assetId, msn,
@@ -103,7 +118,8 @@ function buildAssetAtoms(entry, horizonPastLeaseEndMonths, brains, pandemicGroun
     utilisation,
     scheduledEvents = [],
     seasonalityProfile = null,
-    costProjections = []
+    costProjections = [],
+    lesseeDefaultMonths = 0
   } = entry;
 
   if (!lease || !lease.leaseEnd) {
@@ -175,7 +191,8 @@ function buildAssetAtoms(entry, horizonPastLeaseEndMonths, brains, pandemicGroun
     // combined with the pandemic-scenario availability vector if one was
     // requested (see applyPandemicGrounding above — no-op when 0/undefined).
     const combinedAvailability = applyPandemicGrounding(maintenanceCal.groundingAvailability, pandemicGroundingMonths);
-    const groundedCtx = { ...baseCtx, groundingAvailability: combinedAvailability };
+    const accrualAvailability = buildAccrualAvailabilityVector(extendedHorizonMonths, lesseeDefaultMonths);
+    const groundedCtx = { ...baseCtx, groundingAvailability: combinedAvailability, accrualAvailability };
     const pass2 = eligiblePots.map(pot => {
       if (pot.triggerBasis === "llp_cycles") {
         const eng = engines.find(e => e.position === pot.enginePosition);

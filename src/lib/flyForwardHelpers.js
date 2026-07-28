@@ -76,6 +76,38 @@ function anchorReservePots({ asset, confirmedPots, rate, leaseStart }) {
 
 const FLEET_EXPOSURE_HORIZON_MONTHS = 24;
 
+// Scenarios structured controls (scenarios-structured-controls-handoff.md,
+// July 2026 — supersedes the chat-box design in layer3-scenarios-build-
+// handoff.md §2/§5). Two independent axes, matching flyForward.js's own
+// monthlyAccrual split:
+//   - AOG window -> groundingAvailability (usage freezes, calendar pots
+//     keep ticking — "aircraft not flying")
+//   - Lessee default window -> accrualAvailability (ALL pots suspend
+//     accrual, usage keeps ticking — "lessee not paying")
+// Both are [{monthIndex, availability}] vectors, 0..horizonMonths inclusive,
+// same shape Brain 6 already produces for groundingAvailability.
+function buildWindowAvailabilityVector(horizonMonths, windowSpec) {
+  const vector = [];
+  for (let m = 0; m <= horizonMonths; m++) vector.push({ monthIndex: m, availability: 1 });
+  if (!windowSpec || !windowSpec.durationMonths) return vector;
+  const start = Math.max(0, windowSpec.startMonth || 0);
+  const end = start + windowSpec.durationMonths;
+  for (let m = start; m < end && m <= horizonMonths; m++) vector[m].availability = 0;
+  return vector;
+}
+
+// Combines two availability vectors via Math.min per month — same
+// "longest/most-grounded wins, no stacking" rule Brain 6 already applies
+// to overlapping C-Checks (maintenanceCal.js's mergeGroundingWindows) and
+// fleetExposure.js's applyPandemicGrounding already applies at fleet
+// scale. A month grounded by either cause is grounded; the two never
+// compound into extra downtime.
+function combineAvailability(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  return a.map((entry, i) => ({ monthIndex: entry.monthIndex, availability: Math.min(entry.availability, b[i] ? b[i].availability : 1) }));
+}
+
 function reconstructPotWithStatus(doc) {
   return { ...reconstructPot(doc), status: doc.status };
 };
@@ -128,9 +160,68 @@ function buildFleetExposureEntry({ asset, lease, reserveDocs, utilRate, apuHrPer
   };
 };
 
-async function buildFleetExposureData(assets, pandemicGroundingMonths = 0) {
+// Fleet-level structured controls (scenarios-structured-controls-
+// handoff.md §2) — four new controls alongside the existing pandemic
+// slider and Route Matcher. All optional, all default to no-op, fully
+// backward compatible with the existing pandemicGroundingMonths-only
+// callers (PandemicScenarioView, FleetExposureView's plain reload).
+//
+// fleetScenarioModifiers: {
+//   lesseeId?: string, lesseeDefaultMonths?: number
+//     — suspends accrual (not usage) on every asset currently leased to
+//       lesseeId, for lesseeDefaultMonths from today. Matches on
+//       entry.lease.lessee, the same field Scenarios.jsx already reads.
+//   fleetUtilPct?: number
+//     — applies the same utilisation % change to every asset (positive
+//       or negative), same shape as the asset-level utilisation slider.
+//   engineCostShock?: { engineFamily: string, pct: number }
+//     — multiplies projectedCostLow/High on every EN-PR/EN-LP pot whose
+//       engineFamily matches, across the whole fleet (AD impact, parts
+//       scarcity, MRO capacity squeeze).
+//   extendedMaintenanceDuration?: { checkType: string, extraMonths: number }
+//     — adds extraMonths (converted to weeks) to durationDefaults for the
+//       selected check type, for this call only (MRO backlog / parts
+//       delays scenario). checkType keys match durationDefaults' own
+//       ("2Y"/"6Y"/"12Y") — see maintenanceCal.js's buildMaintenanceCalendar.
+// }
+async function buildFleetExposureData(assets, pandemicGroundingMonths = 0, fleetScenarioModifiers = {}) {
+  const { lesseeId, lesseeDefaultMonths, fleetUtilPct, engineCostShock, extendedMaintenanceDuration } = fleetScenarioModifiers || {};
+
   const bundles = await Promise.all(assets.map(loadFleetExposureBundle));
-  const entries = bundles.map(buildFleetExposureEntry);
+  let entries = bundles.map(buildFleetExposureEntry);
+
+  // Lessee default — tag only the matching entries; buildAssetAtoms reads
+  // entry.lesseeDefaultMonths per-asset (see fleetExposure.js).
+  if (lesseeId && lesseeDefaultMonths > 0) {
+    entries = entries.map(e => (e.lease && e.lease.lessee === lesseeId) ? { ...e, lesseeDefaultMonths } : e);
+  }
+
+  // Fleet-wide utilisation change — every asset, same % change.
+  if (fleetUtilPct) {
+    const mult = 1 + fleetUtilPct / 100;
+    entries = entries.map(e => e.utilisation ? {
+      ...e,
+      utilisation: {
+        fhPerMonth: Math.max(0, (e.utilisation.fhPerMonth || 0) * mult),
+        fcPerMonth: Math.max(0, (e.utilisation.fcPerMonth || 0) * mult),
+        apuHrPerMonth: Math.max(0, (e.utilisation.apuHrPerMonth || 0) * mult)
+      }
+    } : e);
+  }
+
+  // Engine-type cost shock — multiplies matching EN-PR/EN-LP pots' cost
+  // fields across the fleet, wherever that engine family appears.
+  if (engineCostShock && engineCostShock.engineFamily && engineCostShock.pct) {
+    const mult = 1 + engineCostShock.pct / 100;
+    entries = entries.map(e => ({
+      ...e,
+      pots: (e.pots || []).map(p => {
+        if (!/^EN-(PR|LP)/.test(p.code) || p.engineFamily !== engineCostShock.engineFamily) return p;
+        return { ...p, projectedCostLow: (p.projectedCostLow || 0) * mult, projectedCostHigh: (p.projectedCostHigh || 0) * mult };
+      })
+    }));
+  }
+
   // Knowledge Base check-duration defaults ({"2Y","6Y","12Y"} weeks) —
   // resolved once per call and closed over in the buildMaintenanceCalendar
   // wrapper below, since fleetExposure.js's buildAssetAtoms calls
@@ -139,7 +230,13 @@ async function buildFleetExposureData(assets, pandemicGroundingMonths = 0) {
   // lookups — see its file header). This wrapper is the Body-layer spot
   // where the KB tier actually gets injected, without touching
   // fleetExposure.js itself.
-  const durationDefaults = getCheckDurationDefaults();
+  let durationDefaults = getCheckDurationDefaults();
+  if (extendedMaintenanceDuration && extendedMaintenanceDuration.checkType && extendedMaintenanceDuration.extraMonths) {
+    const { checkType, extraMonths } = extendedMaintenanceDuration;
+    const extraWeeks = extraMonths * (52 / 12);
+    durationDefaults = { ...durationDefaults, [checkType]: (durationDefaults[checkType] || 0) + extraWeeks };
+  }
+
   return window.buildFleetExposure({
     assets: entries,
     horizonPastLeaseEndMonths: FLEET_EXPOSURE_HORIZON_MONTHS,
@@ -344,7 +441,16 @@ async function buildRouteMatchData(assets, route) {
   });
 };
 
-function buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, scheduledEvents = [], seasonalityProfile = null, costProjections = [] }) {
+// scenarioModifiers (all optional, all default to no-op — fully backward
+// compatible with every existing caller that doesn't pass this field):
+//   aogWindow: { startMonth, durationMonths } | null
+//   lesseeDefaultWindow: { startMonth, durationMonths } | null
+//   costOverrides: { [code]: overrunPct } | undefined — e.g. { "EN-PR-1": 30 }
+//     multiplies that pot's projectedCostLow/projectedCostHigh by
+//     (1 + overrunPct/100) before the projection runs. Input modification
+//     only — no Brain internals touched (scenarios-structured-controls-
+//     handoff.md §1).
+function buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, scheduledEvents = [], seasonalityProfile = null, costProjections = [], scenarioModifiers = {} }) {
   const rate = utilRate || { fhPerMonth: 0, fcPerMonth: 0 };
   const usingRealRate = !!utilRate;
   const apuHrPerMonth = window.estimateApuHrPerMonth(rate.fhPerMonth, asset.apu?.currentFH, asset.airframe?.currentFH) || 0;
@@ -359,10 +465,23 @@ function buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, schedu
     utilisation: { fhPerMonth: rate.fhPerMonth, fcPerMonth: rate.fcPerMonth, apuHrPerMonth }
   };
 
+  // Cost overrun (§1) — applied to reserveDocs BEFORE reconstructPot, so
+  // it flows through exactly like any other pot field. Only the codes
+  // present in costOverrides are touched; every other pot is unaffected.
+  const { aogWindow = null, lesseeDefaultWindow = null, costOverrides = null } = scenarioModifiers || {};
+  const effectiveReserveDocs = costOverrides
+    ? reserveDocs.map(doc => {
+        const overrunPct = costOverrides[doc.code];
+        if (!overrunPct) return doc;
+        const mult = 1 + overrunPct / 100;
+        return { ...doc, projectedCostLow: (doc.projectedCostLow || 0) * mult, projectedCostHigh: (doc.projectedCostHigh || 0) * mult };
+      })
+    : reserveDocs;
+
   // Confirmed pots only (Section 5: "Brain 3 runs on whatever pots are
   // confirmed... surfaces a dataCompleteness gap rather than blocking
   // the whole projection or silently treating missing pots as zero").
-  const confirmedPots = reserveDocs.map(reconstructPot).filter(p => !!p.triggerBasis);
+  const confirmedPots = effectiveReserveDocs.map(reconstructPot).filter(p => !!p.triggerBasis);
 
   const expectedCodes = [
     "AF-6Y", "AF-12Y", "AP-OH", "LG-OH",
@@ -432,8 +551,15 @@ function buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, schedu
     });
 
     // PASS 2 — grounded. Same pots, same ctx, plus the availability
-    // vector Brain 6 just derived. This is the projection actually shown.
-    const groundedCtx = { ...ctx, groundingAvailability: maintenanceCal.groundingAvailability };
+    // vector Brain 6 just derived, combined with any AOG scenario window
+    // (§1 — "same concept as Brain 6's C-Check grounding windows... inject
+    // a user-defined grounding window into the projection context").
+    // accrualAvailability is a SEPARATE axis (lessee default, §1) — see
+    // flyForward.js's monthlyAccrual for why the two must not be conflated.
+    const aogVector = aogWindow ? buildWindowAvailabilityVector(horizonMonths, aogWindow) : null;
+    const combinedGrounding = aogVector ? combineAvailability(maintenanceCal.groundingAvailability, aogVector) : maintenanceCal.groundingAvailability;
+    const accrualAvailability = lesseeDefaultWindow ? buildWindowAvailabilityVector(horizonMonths, lesseeDefaultWindow) : undefined;
+    const groundedCtx = { ...ctx, groundingAvailability: combinedGrounding, accrualAvailability };
     projections = eligiblePots.map(pot => {
       if (pot.triggerBasis === "llp_cycles") {
         const eng = (asset.engines || []).find(e => e.position === pot.enginePosition);
