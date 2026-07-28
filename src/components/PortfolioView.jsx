@@ -826,4 +826,323 @@ function PandemicScenarioView({ assets }) {
   );
 }
 
-export { FleetCalendarView, FleetExposureView, PandemicScenarioView, PortfolioView, RouteMatcherView };
+// ---------------------------------------------------------------------
+// Fleet-level structured controls (scenarios-structured-controls-
+// handoff.md §2) — four new controls alongside Route Matcher and the
+// existing pandemic slider: Lessee Default, Fleet-Wide Utilisation
+// Change, Engine-Type Cost Shock, Extended Maintenance Duration. Each is
+// its own independent base-vs-scenario run, same pattern as
+// PandemicScenarioView above (not combined into one scenario — mirrors
+// the one control already built here). Non-destructive throughout:
+// nothing writes to Firestore.
+// ---------------------------------------------------------------------
+
+// Small shared comparison-card pair, since all four controls render the
+// same base-vs-scenario headline shape.
+function FleetScenarioComparison({ base, scenario, scenarioLabel }) {
+  const deltaColor = (b, s) => (s > b ? "#f87171" : s < b ? "#34d399" : "#94a3b8");
+  return (
+    <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+      <div className="card" style={{ padding: 16, flex: 1, minWidth: 220 }}>
+        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>Base Case — High-case gap</div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0" }}>${Math.round(base.headline.totalHighCaseGap).toLocaleString()}</div>
+      </div>
+      <div className="card" style={{ padding: 16, flex: 1, minWidth: 220 }}>
+        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>{scenarioLabel} — High-case gap</div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: deltaColor(base.headline.totalHighCaseGap, scenario.headline.totalHighCaseGap) }}>
+          ${Math.round(scenario.headline.totalHighCaseGap).toLocaleString()}
+        </div>
+        <div style={{ fontSize: 11, marginTop: 4, color: deltaColor(base.headline.totalHighCaseGap, scenario.headline.totalHighCaseGap) }}>
+          {scenario.headline.totalHighCaseGap > base.headline.totalHighCaseGap ? "▲" : scenario.headline.totalHighCaseGap < base.headline.totalHighCaseGap ? "▼" : "—"}{" "}
+          ${Math.round(Math.abs(scenario.headline.totalHighCaseGap - base.headline.totalHighCaseGap)).toLocaleString()} vs. base case
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Lessee Default — dropdown populated from the fleet's actual current
+// lessees (fetched once on mount, since `assets` here only carries
+// currentLeaseId, not the expanded lease doc). Answers "what if our
+// biggest lessee stops paying."
+function LesseeDefaultScenarioView({ assets }) {
+  const [lessees, setLessees] = useState([]);
+  const [loadingLessees, setLoadingLessees] = useState(true);
+  const [lesseeId, setLesseeId] = useState("");
+  const [months, setMonths] = useState(6);
+  const [loading, setLoading] = useState(false);
+  const [base, setBase] = useState(null);
+  const [scenario, setScenario] = useState(null);
+  const [error, setError] = useState(null);
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const withLease = assets.filter(a => a.currentLeaseId);
+      const leaseDocs = await Promise.all(withLease.map(a => db.getLease(a.currentLeaseId).catch(() => null)));
+      if (cancelled) return;
+      const distinct = Array.from(new Set(leaseDocs.filter(Boolean).map(l => l.lessee).filter(Boolean)));
+      setLessees(distinct);
+      if (distinct.length) setLesseeId(distinct[0]);
+      setLoadingLessees(false);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assets]);
+
+  const run = useCallback(async () => {
+    if (!lesseeId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const [baseResult, scenarioResult] = await Promise.all([
+        buildFleetExposureData(assets, 0),
+        buildFleetExposureData(assets, 0, { lesseeId, lesseeDefaultMonths: months })
+      ]);
+      setBase(baseResult);
+      setScenario(scenarioResult);
+      setActive(true);
+    } catch (e) {
+      setError(e.message || String(e));
+    }
+    setLoading(false);
+  }, [assets, lesseeId, months]);
+
+  const reset = () => { setActive(false); setBase(null); setScenario(null); };
+
+  if (loadingLessees) {
+    return <div className="card" style={{ padding: 16, marginTop: 16, color: "#64748b", fontSize: 12 }}>Loading lessees…</div>;
+  }
+
+  if (!lessees.length) {
+    return (
+      <div className="card" style={{ padding: 16, marginTop: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Lessee Default</div>
+        <div style={{ fontSize: 12, color: "#64748b" }}>No leases on file across the fleet yet — nothing to model a default against.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card" style={{ padding: 16, marginTop: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Lessee Default</div>
+      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+        Suspends reserve accrual on every asset leased to the selected lessee, from today for the selected period — usage continues, only the payments stop. Exploratory only; nothing here is saved.
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+        <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 180 }}>
+          Lessee
+          <select value={lesseeId} onChange={e => setLesseeId(e.target.value)} style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}>
+            {lessees.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
+        </label>
+        <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+          Duration (months)
+          <input type="number" min="1" step="1" value={months} onChange={e => setMonths(Math.max(1, Number(e.target.value) || 1))}
+            style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+        </label>
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: active ? 16 : 0 }}>
+        {active && <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} onClick={reset}>Reset</button>}
+        <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 18px" }} disabled={loading} onClick={run}>
+          {loading ? "Running…" : "Run lessee default scenario"}
+        </button>
+      </div>
+      {error && <div style={{ fontSize: 12, color: "#f87171" }}>Couldn't run the scenario: {error}</div>}
+      {active && base && scenario && <FleetScenarioComparison base={base} scenario={scenario} scenarioLabel={`${lesseeId} defaults ${months} mo`}/>}
+    </div>
+  );
+}
+
+// Fleet-Wide Utilisation Change — same % shape as the asset-level
+// utilisation slider, applied to every asset simultaneously. Answers
+// "what if the market softens/firms 20%."
+function FleetUtilisationScenarioView({ assets }) {
+  const [pct, setPct] = useState(-20);
+  const [loading, setLoading] = useState(false);
+  const [base, setBase] = useState(null);
+  const [scenario, setScenario] = useState(null);
+  const [error, setError] = useState(null);
+  const [active, setActive] = useState(false);
+
+  const run = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [baseResult, scenarioResult] = await Promise.all([
+        buildFleetExposureData(assets, 0),
+        buildFleetExposureData(assets, 0, { fleetUtilPct: pct })
+      ]);
+      setBase(baseResult);
+      setScenario(scenarioResult);
+      setActive(true);
+    } catch (e) {
+      setError(e.message || String(e));
+    }
+    setLoading(false);
+  }, [assets, pct]);
+
+  const reset = () => { setActive(false); setBase(null); setScenario(null); };
+
+  return (
+    <div className="card" style={{ padding: 16, marginTop: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Fleet-Wide Utilisation Change</div>
+      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+        Applies the same utilisation % change to every asset in the fleet simultaneously. Exploratory only; nothing here is saved.
+      </div>
+      <ScenarioSlider label="Utilisation change" value={pct} onChange={setPct} min={-50} max={50} step={1} format={v => (v > 0 ? "+" : "") + v + "%"}/>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: active ? 16 : 0 }}>
+        {active && <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} onClick={reset}>Reset</button>}
+        <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 18px" }} disabled={loading} onClick={run}>
+          {loading ? "Running…" : "Run utilisation scenario"}
+        </button>
+      </div>
+      {error && <div style={{ fontSize: 12, color: "#f87171" }}>Couldn't run the scenario: {error}</div>}
+      {active && base && scenario && <FleetScenarioComparison base={base} scenario={scenario} scenarioLabel={`${pct > 0 ? "+" : ""}${pct}% utilisation`}/>}
+    </div>
+  );
+}
+
+// Engine-Type Cost Shock — CFM/V2500 only, matching the two-family system
+// already used elsewhere in the app (FlyForward.jsx's isCFM/AssumptionsPanel).
+// Models AD impact, parts scarcity, MRO capacity squeeze on that family.
+function EngineCostShockScenarioView({ assets }) {
+  const [engineFamily, setEngineFamily] = useState("CFM");
+  const [pct, setPct] = useState(20);
+  const [loading, setLoading] = useState(false);
+  const [base, setBase] = useState(null);
+  const [scenario, setScenario] = useState(null);
+  const [error, setError] = useState(null);
+  const [active, setActive] = useState(false);
+
+  const run = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [baseResult, scenarioResult] = await Promise.all([
+        buildFleetExposureData(assets, 0),
+        buildFleetExposureData(assets, 0, { engineCostShock: { engineFamily, pct } })
+      ]);
+      setBase(baseResult);
+      setScenario(scenarioResult);
+      setActive(true);
+    } catch (e) {
+      setError(e.message || String(e));
+    }
+    setLoading(false);
+  }, [assets, engineFamily, pct]);
+
+  const reset = () => { setActive(false); setBase(null); setScenario(null); };
+
+  return (
+    <div className="card" style={{ padding: 16, marginTop: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Engine-Type Cost Shock</div>
+      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+        Applies a cost multiplier to every projected shop visit for the selected engine family across the fleet. Exploratory only; nothing here is saved.
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+        <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+          Engine family
+          <select value={engineFamily} onChange={e => setEngineFamily(e.target.value)} style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}>
+            <option value="CFM">CFM56</option>
+            <option value="V2500">V2500</option>
+          </select>
+        </label>
+        <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+          Cost change (%)
+          <input type="number" step="1" value={pct} onChange={e => setPct(Number(e.target.value) || 0)}
+            style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+        </label>
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: active ? 16 : 0 }}>
+        {active && <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} onClick={reset}>Reset</button>}
+        <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 18px" }} disabled={loading} onClick={run}>
+          {loading ? "Running…" : "Run cost shock scenario"}
+        </button>
+      </div>
+      {error && <div style={{ fontSize: 12, color: "#f87171" }}>Couldn't run the scenario: {error}</div>}
+      {active && base && scenario && <FleetScenarioComparison base={base} scenario={scenario} scenarioLabel={`${engineFamily} ${pct > 0 ? "+" : ""}${pct}%`}/>}
+    </div>
+  );
+}
+
+// Extended Maintenance Duration — models MRO backlog / parts delays by
+// adding months to the selected check type's duration default, fleet-wide.
+function ExtendedMaintenanceScenarioView({ assets }) {
+  const [checkType, setCheckType] = useState("6Y");
+  const [extraMonths, setExtraMonths] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [base, setBase] = useState(null);
+  const [scenario, setScenario] = useState(null);
+  const [error, setError] = useState(null);
+  const [active, setActive] = useState(false);
+
+  const run = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [baseResult, scenarioResult] = await Promise.all([
+        buildFleetExposureData(assets, 0),
+        buildFleetExposureData(assets, 0, { extendedMaintenanceDuration: { checkType, extraMonths } })
+      ]);
+      setBase(baseResult);
+      setScenario(scenarioResult);
+      setActive(true);
+    } catch (e) {
+      setError(e.message || String(e));
+    }
+    setLoading(false);
+  }, [assets, checkType, extraMonths]);
+
+  const reset = () => { setActive(false); setBase(null); setScenario(null); };
+
+  return (
+    <div className="card" style={{ padding: 16, marginTop: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Extended Maintenance Duration</div>
+      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+        Adds extra downtime to every projected check of the selected type across the fleet, pushing availability and downstream events. Models MRO backlog or parts delays. Exploratory only; nothing here is saved.
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+        <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+          Check type
+          <select value={checkType} onChange={e => setCheckType(e.target.value)} style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}>
+            <option value="2Y">2-Year Check</option>
+            <option value="6Y">6-Year Check</option>
+            <option value="12Y">12-Year Check</option>
+          </select>
+        </label>
+        <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+          Extra duration (months)
+          <input type="number" min="0" step="1" value={extraMonths} onChange={e => setExtraMonths(Math.max(0, Number(e.target.value) || 0))}
+            style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+        </label>
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: active ? 16 : 0 }}>
+        {active && <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} onClick={reset}>Reset</button>}
+        <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 18px" }} disabled={loading} onClick={run}>
+          {loading ? "Running…" : "Run duration scenario"}
+        </button>
+      </div>
+      {error && <div style={{ fontSize: 12, color: "#f87171" }}>Couldn't run the scenario: {error}</div>}
+      {active && base && scenario && <FleetScenarioComparison base={base} scenario={scenario} scenarioLabel={`${checkType} +${extraMonths} mo`}/>}
+    </div>
+  );
+}
+
+// Wrapper — groups all four new controls under one heading, sits
+// alongside PandemicScenarioView on the fleet Scenarios page.
+function FleetScenarioControls({ assets }) {
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Fleet Scenario Controls</div>
+      <div style={{ fontSize: 12, color: "#64748b" }}>Four independent structured controls — each runs its own base-vs-scenario comparison. Not combined with each other or with the pandemic slider above.</div>
+      <LesseeDefaultScenarioView assets={assets}/>
+      <FleetUtilisationScenarioView assets={assets}/>
+      <EngineCostShockScenarioView assets={assets}/>
+      <ExtendedMaintenanceScenarioView assets={assets}/>
+    </div>
+  );
+}
+
+export { FleetCalendarView, FleetExposureView, FleetScenarioControls, PandemicScenarioView, PortfolioView, RouteMatcherView };
