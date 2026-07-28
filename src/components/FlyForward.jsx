@@ -4,6 +4,7 @@ import { LeaseWizard } from './LeaseWizard';
 import { isCFM } from '../lib/assetHelpers';
 import { db } from '../lib/db';
 import { FF_COLORS, buildFlyForwardProjection } from '../lib/flyForwardHelpers';
+import { getEndOfLeaseTermsDefaults } from '../lib/knowledgeBase';
 
 const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -218,6 +219,211 @@ function AssumptionsPanel({ engineFamily }) {
   );
 }
 
+// ============================================================
+// End of Lease Position — end-of-lease-position-handoff.md +
+// eol-position-addendum.md. Assembly only, same as Fleet Exposure: the
+// real calc logic lives in public/calculations/endOfLeasePosition.js
+// (window.computeEngineEOLAdjustment / window.buildPhysicalPositionChecks),
+// this is just the Body-layer glue that resolves real asset/lease/
+// projection data into the shape those functions expect.
+// ============================================================
+
+// D (deliveryBaselineFC) is always null here — nothing populates it until
+// the TAC upload pipeline (4b, not yet built) exists. Every part
+// therefore correctly comes back uncomputable with "no TAC on file" —
+// eol-position-session-handoff.md §4a: "that's expected, not a bug."
+function buildEOLMoneyInputs(eng, { rate, expiryDate, engineFamily, projections, bDenominatorPct, escalationPctPerYr, direction }) {
+  const monthsToExpiry = Math.max(0, window.monthsBetween(new Date(), expiryDate));
+  const cyclesToExpiry = (rate?.fcPerMonth || 0) * monthsToExpiry;
+
+  const engineParts = (eng.llps || [])
+    .filter(l => l.approvedLife !== null && l.approvedLife !== undefined)
+    .map(l => ({
+      pn: l.pn,
+      sn: l.sn,
+      desc: l.desc,
+      approvedLife: l.approvedLife,
+      catalogPriceToday: window.lookupLLPCataloguePrice ? window.lookupLLPCataloguePrice(l.pn, engineFamily) : null,
+      // See file-header comment — always null until 4b exists.
+      deliveryBaselineFC: null
+    }));
+
+  const currentFCAtExpiry = (eng.currentFC || 0) + cyclesToExpiry;
+
+  const enLpProjection = (projections || []).find(p => p.code === `EN-LP-${eng.position}`);
+  const potBalanceAtExpiry = enLpProjection?.monthlySeries?.length
+    ? enLpProjection.monthlySeries[enLpProjection.monthlySeries.length - 1].balance
+    : 0;
+
+  return {
+    engineParts,
+    moneyCtx: {
+      currentFCAtExpiry,
+      escalationPctPerYr,
+      // endOfLeasePosition.js's escalateAnnualFn is called positionally
+      // as (price, todayDate, expiryDate, pct) — but window.escalateAnnual's
+      // real signature (see flyForwardHelpers.js's anchorReservePots, which
+      // calls it as (base, baseYear, targetDate, pct)) takes a base YEAR
+      // NUMBER in that slot, not a Date object. Matching that convention
+      // here rather than the ctx field's own name.
+      todayDate: new Date().getFullYear(),
+      expiryDate,
+      bDenominatorPct,
+      escalateAnnualFn: window.escalateAnnual,
+      potBalanceAtExpiry,
+      direction
+    }
+  };
+}
+
+// Physical position projections — asset-level (worst case across every
+// engine; redelivery conditions apply to the whole aircraft, not per
+// position). Engine on-wing FH (6.3) has no real "expected removal" field
+// anywhere in the schema today — using the relevant EN-PR pot's next
+// projected event as a proxy (Alan sign-off, July 2026). This stacks a
+// projection on top of a clause that's already a Lessor judgment call
+// (6.4) — flagged extra-prominently in the UI, never presented as
+// anything close to a measurement.
+function buildEOLPhysicalInputs(asset, engines, projections, { rate, expiryDate }) {
+  const monthsToExpiry = Math.max(0, window.monthsBetween(new Date(), expiryDate));
+  const cyclesToExpiry = (rate?.fcPerMonth || 0) * monthsToExpiry;
+
+  let engineLLPRemainingFCAtExpiry = null;
+  engines.forEach(eng => {
+    const todayLimiter = window.lowestLimiter(eng);
+    if (todayLimiter === null || todayLimiter === undefined) return;
+    const atExpiry = todayLimiter - cyclesToExpiry;
+    if (engineLLPRemainingFCAtExpiry === null || atExpiry < engineLLPRemainingFCAtExpiry) {
+      engineLLPRemainingFCAtExpiry = atExpiry;
+    }
+  });
+
+  const lgLegs = ["nose", "left", "right"].map(k => asset.landingGear?.[k]?.nextDue).filter(Boolean);
+  const lgDates = lgLegs.map(window.parseDMYDate).filter(Boolean);
+  const lgEarliestDue = lgDates.length ? new Date(Math.min(...lgDates)) : null;
+  const landingGearMonthsAtExpiry = lgEarliestDue ? window.monthsBetween(expiryDate, lgEarliestDue) : null;
+
+  const onWingValues = engines.map(eng => {
+    const enPrProjection = (projections || []).find(p => p.code === `EN-PR-${eng.position}`);
+    const nextEvent = enPrProjection?.events?.find(e => !e.beyondHorizon) || enPrProjection?.events?.[0];
+    if (!nextEvent) return null;
+    const eventDate = nextEvent.dateWindow ? nextEvent.dateWindow.start : nextEvent.date;
+    const monthsGap = window.monthsBetween(expiryDate, eventDate);
+    return monthsGap * (rate?.fhPerMonth || 0);
+  }).filter(v => v !== null && v !== undefined);
+  const engineOnWingFHAtExpiry = onWingValues.length ? Math.min(...onWingValues) : null;
+
+  return { engineLLPRemainingFCAtExpiry, landingGearMonthsAtExpiry, engineOnWingFHAtExpiry };
+}
+
+function EOLMoneyCard({ engineResults }) {
+  return (
+    <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>End of Lease Maintenance Payment Adjustment — Engine LLPs</div>
+      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>
+        The accumulated receivable owed at Expiry — this lease's own reserve-tail projection, reframed as "what's owed at handback." Always a projection to the Expiry Date, never a settled figure until redelivery.
+      </div>
+      {engineResults.length === 0 && (
+        <div style={{ fontSize: 12, color: "#64748b" }}>No engine LLP data on file for this asset yet.</div>
+      )}
+      {engineResults.map(r => (
+        <div key={r.position} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid #1e3048" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", marginBottom: 6 }}>Engine {r.position} — EN-LP</div>
+          {r.uncomputable ? (
+            <div style={{ fontSize: 12, color: "#fbbf24" }}>
+              ⚠ {r.message}
+              {r.rows && r.rows.some(row => row.uncomputable) && (
+                <ul style={{ marginTop: 6, paddingLeft: 18 }}>
+                  {r.rows.filter(row => row.uncomputable).map((row, i) => (
+                    <li key={i} style={{ marginTop: 4, color: "#94a3b8" }}>{row.desc || row.pn}: {row.reason}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: r.netPayableByLessee > 0 ? "#f87171" : "#34d399" }}>
+                ${Math.round(r.netPayableByLessee).toLocaleString()}
+              </div>
+              <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                Gross adjustment ${Math.round(r.grossAdjustment).toLocaleString()} − pot balance at Expiry ${Math.round(r.potBalanceAtExpiry).toLocaleString()} ({r.direction === "one-way" ? "one-way — lessee pays lessor only, never reversed" : "two-way — can go negative, owed the other way"}).
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EOLPhysicalCard({ physical }) {
+  return (
+    <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Physical Position — Redelivery Life Margins</div>
+      {physical.checks.length === 0 && (
+        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>No physical margin data available yet for this asset.</div>
+      )}
+      {physical.checks.map((c, i) => (
+        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "8px 0", borderTop: i > 0 ? "1px solid #1e3048" : "none", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>{c.clause} — {c.component}</div>
+            <div style={{ fontSize: 11, color: "#64748b" }}>{c.requirement}</div>
+            {!c.solid && <div style={{ fontSize: 11, color: "#fbbf24", marginTop: 4, maxWidth: 420 }}>⚠ {c.caveat} This figure is additionally derived from a Performance Restoration projection used as a stand-in for "expected removal" — treat it as a rough indicator only, never as the answer to clause 6.3/6.4.</div>}
+          </div>
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ fontSize: 12, color: "#e2e8f0" }}>{c.projectedValue}</div>
+            <div style={{ fontSize: 11, color: c.status === "ok" ? "#34d399" : "#f87171" }}>{c.gap || "Meets requirement"}</div>
+          </div>
+        </div>
+      ))}
+      <div style={{ marginTop: 12, fontSize: 11, color: "#94a3b8" }}>{physical.outOfScopeNote}</div>
+      <div style={{ marginTop: 6 }}>
+        {physical.outOfScopeItems.map((o, i) => (
+          <div key={i} style={{ fontSize: 11, color: "#475569" }}>{o.clause} — {o.component}: {o.reason}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EndOfLeasePositionView({ asset, lease, projections, rate, engineFamily, onClose }) {
+  const terms = lease.endOfLeaseTerms || getEndOfLeaseTermsDefaults();
+  const expiryDate = new Date(lease.leaseEnd);
+  const escalationPctPerYr = window.LLP_CATALOGUE_PRICES?.[engineFamily]?.escalationPctPerYr ?? null;
+  const engines = (asset.engines || []).filter(e => e.sn && e.llps && e.llps.length);
+  const moneyApplies = !!terms.applies && (terms.componentsCovered || []).includes("ENGINE_LLP");
+
+  const engineResults = engines.map(eng => {
+    const { engineParts, moneyCtx } = buildEOLMoneyInputs(eng, {
+      rate, expiryDate, engineFamily, projections,
+      bDenominatorPct: terms.bDenominatorPct,
+      escalationPctPerYr,
+      direction: terms.direction
+    });
+    const result = moneyApplies
+      ? window.computeEngineEOLAdjustment(engineParts, moneyCtx)
+      : { uncomputable: true, message: "This lease's endOfLeaseTerms marks no EOL adjustment as applicable for Engine LLPs — confirm against the lease schedule before assuming this is correct." };
+    return { position: eng.position, ...result };
+  });
+
+  const physicalInputs = buildEOLPhysicalInputs(asset, engines, projections, { rate, expiryDate });
+  const physical = window.buildPhysicalPositionChecks(terms.margins, physicalInputs);
+
+  return (
+    <div className="card" style={{ padding: 16, marginBottom: 16, border: "1px solid #C9A84C" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "#e2e8f0" }}>End of Lease Position — MSN {asset.msn}</div>
+        <button className="btn btn-ghost" onClick={onClose}>Close ✕</button>
+      </div>
+      <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>
+        Everything below is projected to the Expiry Date ({expiryDate.toISOString().slice(0, 10)}) — not a measurement, and not a settled figure until redelivery.
+      </div>
+      <EOLMoneyCard engineResults={engineResults}/>
+      <EOLPhysicalCard physical={physical}/>
+    </div>
+  );
+}
+
 function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
   const [loading, setLoading] = useState(true);
   const [lease, setLease] = useState(null);
@@ -229,6 +435,7 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
   const [loadError, setLoadError] = useState(null);
   const [leaseWizardOpen, setLeaseWizardOpen] = useState(false);
   const [showAssumptions, setShowAssumptions] = useState(false);
+  const [showEOLPosition, setShowEOLPosition] = useState(false);
   const engineFamily = isCFM(asset) ? "CFM" : "V2500";
 
   useEffect(() => {
@@ -343,15 +550,20 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
   const shortfallSummary = window.summarisePortfolioShortfall(projections);
   const riskPeaks = window.findPortfolioRiskPeaks(projections);
   const colorList = [FF_COLORS.AF6Y, FF_COLORS.AF12Y, FF_COLORS.LGOH, FF_COLORS.APOH, FF_COLORS.ENPR1, FF_COLORS.ENLP1, FF_COLORS.ENPR2, FF_COLORS.ENLP2];
+  const eolTerms = lease.endOfLeaseTerms || getEndOfLeaseTermsDefaults();
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
       <div className="flab g12" style={{ marginBottom: 16, justifyContent: "flex-end" }}>
+        {eolTerms.applies && <button className="btn btn-ghost" onClick={() => setShowEOLPosition(s => !s)}>{showEOLPosition ? "Hide " : "📄 "}End of Lease Position</button>}
         <button className="btn btn-ghost" onClick={() => setShowAssumptions(s => !s)}>{showAssumptions ? "Hide " : "📋 "}Assumptions</button>
         {canEnterLeaseData && <button className="btn btn-ghost" onClick={() => setLeaseWizardOpen(true)}>📄 Edit Lease</button>}
       </div>
       {leaseWizardOpen && <LeaseWizard asset={asset} saveAsset={saveAsset} notify={notify} onClose={() => setLeaseWizardOpen(false)}/>}
       {showAssumptions && <AssumptionsPanel engineFamily={engineFamily}/>}
+      {showEOLPosition && (
+        <EndOfLeasePositionView asset={asset} lease={lease} projections={projections} rate={rate} engineFamily={engineFamily} onClose={() => setShowEOLPosition(false)}/>
+      )}
       <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Fly-Forward — MSN {asset.msn}</div>
         <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
@@ -682,4 +894,4 @@ function SeasonalityProfileEditor({ asset, profile, onSaved }) {
 };
 
 
-export { FFPotCard, FlyForward, MaintenanceCalendarGrid, MaintenanceCalendarView, MiniLineChart, SeasonalityProfileEditor };
+export { FFPotCard, FlyForward, MaintenanceCalendarGrid, MaintenanceCalendarView, MiniLineChart, SeasonalityProfileEditor, EndOfLeasePositionView };
