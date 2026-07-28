@@ -69,8 +69,19 @@ function applyDerateModifier(rate, derateModifier) {
 // month — 0..1, 1 = fully flying. Calendar pots (per_month) are
 // deliberately NOT multiplied by it (decision 2: calendar pots keep
 // ticking through a grounding); only the utilisation-basis pots are.
-function monthlyAccrual(pot, monthDate, utilisation, availability) {
+//
+// `accrualAvailability` (default 1) is a SEPARATE axis — the fleet-level
+// Lessee Default scenario (scenarios-structured-controls-handoff.md §2)
+// and the asset-level lessee-default control (Scenarios.jsx). It models
+// the lessee simply not paying: reserve accrual stops entirely, on EVERY
+// pot including per_month ones, while usage (and grounding) are
+// unaffected. That is the opposite shape from grounding, which is why
+// it's a distinct multiplier applied to the whole return value rather
+// than folded into `avail` above — see fleetExposure.js's
+// buildAccrualAvailabilityVector for where this vector comes from.
+function monthlyAccrual(pot, monthDate, utilisation, availability, accrualAvailability) {
   const avail = availability == null ? 1 : availability;
+  const accrualAvail = accrualAvailability == null ? 1 : accrualAvailability;
   const escalatedRate = escalateAnnual(
     pot.accrualRate,
     pot.accrualRateBaseYear,
@@ -80,18 +91,24 @@ function monthlyAccrual(pot, monthDate, utilisation, availability) {
   const rate =
     pot.derateModifier ? applyDerateModifier(escalatedRate, pot.derateModifier) : escalatedRate;
 
+  let base;
   switch (pot.accrualBasis) {
     case "per_month":
-      return rate;
+      base = rate;
+      break;
     case "per_FH":
-      return rate * (utilisation.fhPerMonth || 0) * avail;
+      base = rate * (utilisation.fhPerMonth || 0) * avail;
+      break;
     case "per_FC":
-      return rate * (utilisation.fcPerMonth || 0) * avail;
+      base = rate * (utilisation.fcPerMonth || 0) * avail;
+      break;
     case "per_APU_hr":
-      return rate * (utilisation.apuHrPerMonth || 0) * avail;
+      base = rate * (utilisation.apuHrPerMonth || 0) * avail;
+      break;
     default:
-      return 0;
+      base = 0;
   }
+  return base * accrualAvail;
 }
 
 // Escalates the outflow cost range to a specific event date, using the
@@ -200,7 +217,7 @@ function apuHourEvents(pot, horizonMonths, apuHrPerMonth, startOffsetMonths) {
 //   warnings: []
 // }
 function projectReservePot(pot, ctx) {
-  const { leaseStart, horizonMonths, utilisation, groundingAvailability } = ctx;
+  const { leaseStart, horizonMonths, utilisation, groundingAvailability, accrualAvailability } = ctx;
 
   let eventMonths;
   if (pot.triggerBasis === "calendar_months") {
@@ -241,7 +258,7 @@ function projectReservePot(pot, ctx) {
 
   for (let m = 0; m <= horizonMonths; m++) {
     const date = addMonths(leaseStart, m);
-    if (m > 0) balance += monthlyAccrual(pot, date, utilisation, availabilityAt(groundingAvailability, m));
+    if (m > 0) balance += monthlyAccrual(pot, date, utilisation, availabilityAt(groundingAvailability, m), availabilityAt(accrualAvailability, m));
     monthlySeries.push({ monthIndex: m, date, balance });
 
     // Fire any event whose window midpoint falls on this month
@@ -308,7 +325,7 @@ function projectReservePot(pot, ctx) {
 // Returns the same shape as projectReservePot, plus warnings populated
 // from validateStubBuffer (llpCalculator.js, Brain 2) at each shop visit.
 function projectEnLpPot(pot, ctx) {
-  const { leaseStart, horizonMonths, utilisation, llpEngineStart, groundingAvailability } = ctx;
+  const { leaseStart, horizonMonths, utilisation, llpEngineStart, groundingAvailability, accrualAvailability } = ctx;
   const fcPerMonth = utilisation.fcPerMonth || 0;
   // llpEngineStart.currentFC is a REAL snapshot taken today, not at
   // lease inception. If leaseStart is set to a real historical date (so
@@ -343,7 +360,7 @@ function projectEnLpPot(pot, ctx) {
 
   for (let m = 0; m <= horizonMonths; m++) {
     const date = addMonths(leaseStart, m);
-    if (m > 0) balance += monthlyAccrual(pot, date, utilisation, availabilityAt(groundingAvailability, m));
+    if (m > 0) balance += monthlyAccrual(pot, date, utilisation, availabilityAt(groundingAvailability, m), availabilityAt(accrualAvailability, m));
     monthlySeries.push({ monthIndex: m, date, balance });
 
     // Before "now", there's no real engine-cycle data to check shop
