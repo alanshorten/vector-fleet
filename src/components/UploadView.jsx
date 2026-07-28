@@ -379,7 +379,22 @@ const extract=async()=>{
 
       if(!engines.length){setError(`Could not match any engine in this TAC to MSN ${msn}'s recorded engine serial numbers.`);return;}
 
-      await db.saveTACSnapshot(asset.currentLeaseId,{fileName:extracted.fileName,engines});
+      // Merge into whatever's already saved for this lease, matched by
+      // engine position — real TACs commonly arrive as ONE DOCUMENT PER
+      // ENGINE, so a second upload (e.g. the RH engine, after the LH
+      // engine was already confirmed) must update only that engine's
+      // entry, never wipe out an already-saved sibling engine. matchedLease
+      // was freshly fetched at extract time, so it reflects whatever was
+      // on the lease at the moment this review screen was shown.
+      const existingEngines=matchedLease?.tacSnapshot?.engines||[];
+      const mergedEngines=[...existingEngines];
+      engines.forEach(ne=>{
+        const idx=mergedEngines.findIndex(e=>e.position===ne.position);
+        if(idx===-1)mergedEngines.push(ne);
+        else mergedEngines[idx]=ne;
+      });
+
+      await db.saveTACSnapshot(asset.currentLeaseId,{fileName:extracted.fileName,engines:mergedEngines});
       setDone(true);
       notify(`TAC delivery baseline saved for MSN ${msn}`);
     }catch(err){
@@ -452,7 +467,14 @@ const extract=async()=>{
               {uploadType==="tac"&&(
                 <div style={{background:matchedLease?"#0d2818":"#2a0e0e",border:`1px solid ${matchedLease?"#166534":"#7f1d1d"}`,borderRadius:6,padding:"8px 12px",marginBottom:12,fontSize:12,color:matchedLease?"#34d399":"#f87171"}}>
                   {matchedLease
-                    ?`✓ Will attach to this asset's active lease: ${matchedLease.lessee} (${matchedLease.leaseStart} – ${matchedLease.leaseEnd}). Does not touch current LLP status — this is a separate, immutable delivery-date record.`
+                    ?<>
+                      ✓ Will attach to this asset's active lease: {matchedLease.lessee} ({matchedLease.leaseStart} – {matchedLease.leaseEnd}). Does not touch current LLP status — this is a separate, immutable delivery-date record.
+                      {matchedLease.tacSnapshot?.engines?.length>0 && (
+                        <div style={{marginTop:4}}>
+                          ℹ Engine {matchedLease.tacSnapshot.engines.map(e=>e.position).join(", ")} already has a TAC on file for this lease — saving will update only the engine(s) in this upload, leaving the rest untouched.
+                        </div>
+                      )}
+                    </>
                     :matchedAsset
                     ?`⚠ MSN ${matchedAsset.msn} has no active lease on file — set up the lease first, then re-upload this TAC.`
                     :"⚠ Aircraft not yet matched — cannot attach to a lease."}
