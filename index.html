@@ -36,6 +36,12 @@
 <script src="/calculations/riskPeak.js"></script>
 <script src="/calculations/shortfall.js"></script>
 <script src="/calculations/fleetExposure.js"></script>
+<!-- End of Lease Position — the money (Engine LLP redelivery adjustment) + the
+     physical position (redelivery life margins). Pure logic, no UI, no Firebase —
+     depends on window.escalateAnnual (flyForward.js), window.lowestLimiter
+     (llpCalculator.js) and window.lookupLLPCataloguePrice (set at runtime by
+     bootstrapKnowledgeBaseGlobals), all already loaded above this line. -->
+<script src="/calculations/endOfLeasePosition.js"></script>
 <!-- BRAIN 8 — Route Suitability Matcher (pure logic, no UI, no Firebase) -->
 <script src="/calculations/routeMatcher.js"></script>
 <!-- Real-asset utilisation rate derivation (pure logic, no UI, no Firebase) -->
