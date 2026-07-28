@@ -196,7 +196,7 @@ function buildAssetAtoms(entry, horizonPastLeaseEndMonths, brains, pandemicGroun
     const pass2 = eligiblePots.map(pot => {
       if (pot.triggerBasis === "llp_cycles") {
         const eng = engines.find(e => e.position === pot.enginePosition);
-        return brains.projectEnLpPot(pot, { ...groundedCtx, llpEngineStart: { llps: eng.llps, currentFC: eng.currentFC } });
+        return brains.projectEnLpPot(pot, { ...groundedCtx, llpEngineStart: { llps: eng.llps, currentFC: eng.currentFC }, costMultiplier: pot.costMultiplier ?? 1 });
       }
       return brains.projectReservePot(pot, groundedCtx);
     });

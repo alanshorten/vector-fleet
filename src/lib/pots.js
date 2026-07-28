@@ -54,7 +54,14 @@ function buildRealEnginePotDefs(asset) {
       escalationRegime: "catalogue", outflowEscalationPct: catalogueEsc,
       defaultCostLow: prDefaults.costLow, defaultCostHigh: prDefaults.costHigh,
       catalogueRef: { engineFamily, currentUnitRate: null, lastCatalogueDate: familyCatalogue?.baseYear ?? null },
-      anchorMode: "infer" // "infer" (from openingBalance/accrualRate) or "manual" (lastPRDate) — see PotRow
+      anchorMode: "infer", // "infer" (from openingBalance/accrualRate) or "manual" (lastPRDate) — see PotRow
+      // Top-level engineFamily (not just nested in catalogueRef) — EN-LP
+      // already had this; EN-PR was missing it, which meant every EN-PR
+      // pot saved with engineFamily:null via buildPotFromDef's
+      // `def.engineFamily || null`, silently breaking any engineFamily-
+      // matching logic downstream (e.g. the fleet-level Engine-Type Cost
+      // Shock scenario) for EN-PR pots specifically. Bug found July 2026.
+      engineFamily
     });
     if (e.llps && e.llps.length) {
       defs.push({

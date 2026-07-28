@@ -405,16 +405,30 @@ function Scenarios({ asset }) {
                 </td>
                 <td style={{ textAlign: "right" }}>
                   {row.baseTracked ? (
-                    <input type="number" step="1" placeholder="0%" value={costOverrunByCode[row.code] || ""}
-                      onChange={e => {
-                        const v = e.target.value === "" ? undefined : Number(e.target.value);
-                        setCostOverrunByCode(prev => {
-                          const next = { ...prev };
-                          if (!v) delete next[row.code]; else next[row.code] = v;
-                          return next;
-                        });
-                      }}
-                      style={{ width: 60, fontSize: 12, padding: "4px 6px", textAlign: "right" }}/>
+                    (row.baseHigh == null && row.scenarioHigh == null) ? (
+                      <input type="number" step="1" placeholder="0%" value={costOverrunByCode[row.code] || ""}
+                        title="No projected event in the current horizon yet — this won't have a visible effect until something (e.g. Utilisation change) pulls an event within the lease term."
+                        onChange={e => {
+                          const v = e.target.value === "" ? undefined : Number(e.target.value);
+                          setCostOverrunByCode(prev => {
+                            const next = { ...prev };
+                            if (!v) delete next[row.code]; else next[row.code] = v;
+                            return next;
+                          });
+                        }}
+                        style={{ width: 60, fontSize: 12, padding: "4px 6px", textAlign: "right", opacity: 0.45 }}/>
+                    ) : (
+                      <input type="number" step="1" placeholder="0%" value={costOverrunByCode[row.code] || ""}
+                        onChange={e => {
+                          const v = e.target.value === "" ? undefined : Number(e.target.value);
+                          setCostOverrunByCode(prev => {
+                            const next = { ...prev };
+                            if (!v) delete next[row.code]; else next[row.code] = v;
+                            return next;
+                          });
+                        }}
+                        style={{ width: 60, fontSize: 12, padding: "4px 6px", textAlign: "right" }}/>
+                    )
                   ) : <span style={{ color: "#475569" }}>—</span>}
                 </td>
               </tr>

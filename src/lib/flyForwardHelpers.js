@@ -228,13 +228,32 @@ async function buildFleetExposureData(assets, pandemicGroundingMonths = 0, fleet
 
   // Engine-type cost shock — multiplies matching EN-PR/EN-LP pots' cost
   // fields across the fleet, wherever that engine family appears.
+  //
+  // Bugs found July 2026:
+  // (1) EN-PR pots' top-level engineFamily was never set by pots.js
+  //     (only nested in catalogueRef) — buildPotFromDef wrote
+  //     engineFamily:null onto every EN-PR pot, so this filter could
+  //     never match one. Fixed in pots.js going forward; the fallback to
+  //     catalogueRef.engineFamily below covers every pot already saved
+  //     before that fix, with no data migration needed.
+  // (2) EN-LP pots' cost calc (flyForward.js's projectEnLpPot /
+  //     harvestCostEstimate) never reads projectedCostLow/High at all —
+  //     multiplying those fields here was a silent no-op. costMultiplier
+  //     is stashed directly on the pot object so fleetExposure.js's
+  //     buildAssetAtoms can thread it into projectEnLpPot's ctx instead.
   if (engineCostShock && engineCostShock.engineFamily && engineCostShock.pct) {
     const mult = 1 + engineCostShock.pct / 100;
     entries = entries.map(e => ({
       ...e,
       pots: (e.pots || []).map(p => {
-        if (!/^EN-(PR|LP)/.test(p.code) || p.engineFamily !== engineCostShock.engineFamily) return p;
-        return { ...p, projectedCostLow: (p.projectedCostLow || 0) * mult, projectedCostHigh: (p.projectedCostHigh || 0) * mult };
+        const family = p.engineFamily || p.catalogueRef?.engineFamily;
+        if (!/^EN-(PR|LP)/.test(p.code) || family !== engineCostShock.engineFamily) return p;
+        return {
+          ...p,
+          projectedCostLow: (p.projectedCostLow || 0) * mult,
+          projectedCostHigh: (p.projectedCostHigh || 0) * mult,
+          costMultiplier: p.triggerBasis === "llp_cycles" ? mult : undefined
+        };
       })
     }));
   }
@@ -580,7 +599,15 @@ function buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, schedu
     projections = eligiblePots.map(pot => {
       if (pot.triggerBasis === "llp_cycles") {
         const eng = (asset.engines || []).find(e => e.position === pot.enginePosition);
-        return window.projectEnLpPot(pot, { ...groundedCtx, llpEngineStart: { llps: eng.llps, currentFC: eng.currentFC } });
+        // EN-LP cost override — see flyForward.js's projectEnLpPot for
+        // why this can't go through the projectedCostLow/High
+        // multiplication above (bug found July 2026: harvestCostEstimate
+        // never reads those fields, so that path is a no-op for EN-LP).
+        // costOverrides is still keyed by pot.code exactly as before —
+        // same UI, same per-pot percentage, just delivered via an
+        // explicit ctx multiplier instead of a pre-multiplied field.
+        const costMultiplier = (costOverrides && costOverrides[pot.code]) ? 1 + costOverrides[pot.code] / 100 : 1;
+        return window.projectEnLpPot(pot, { ...groundedCtx, llpEngineStart: { llps: eng.llps, currentFC: eng.currentFC }, costMultiplier });
       }
       return window.projectReservePot(pot, groundedCtx);
     });
