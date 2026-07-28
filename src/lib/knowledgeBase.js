@@ -35,7 +35,44 @@ const CODE_FALLBACK_DEFAULTS = {
   // Matches maintenanceCal.js's CHECK_TYPES[].defaultDurationWeeks
   // (2/6/12 Year Check) exactly — these are the values Brain 6 used
   // before durationDefaults was ever populated by anything.
-  checkDurationWeeks: { "2Y": 2, "6Y": 4, "12Y": 8 }
+  checkDurationWeeks: { "2Y": 2, "6Y": 4, "12Y": 8 },
+  // End of Lease Terms — shipped default template, per
+  // end-of-lease-position-handoff.md §3: "A endOfLeaseTerms block on the
+  // leases/ doc, pre-populated from a standards template (MSN 2717's
+  // Schedule 6/9 as the shipped default), fully editable." Nothing here
+  // is hardcoded into the formula itself (computeEngineEOLAdjustment
+  // takes these as inputs) — this is only the starting point a new
+  // lease's wizard step pre-fills, same tier-3 role every other entry
+  // in this object plays.
+  endOfLeaseTerms: {
+    applies: true,
+    // Only Engine LLPs are currently computable end-to-end (Brain 2 +
+    // catalogue tables) — handoff §4. Kept as an array so a future
+    // component (e.g. Landing Gear, if ever priced) can be added
+    // without a schema change.
+    componentsCovered: ["ENGINE_LLP"],
+    // 95% of approved life (this lease) — a 5% stub allowance, same
+    // construct as TailiQ's existing EN-LP stub buffer but NOT the same
+    // number (handoff §3 — the two must not be conflated).
+    bDenominatorPct: 95,
+    // one-way: lessee pays lessor, lessor never pays (MSN 2717's
+    // structure). two-way: lessor pays lessee if returned better than
+    // delivery. zero-time/full-life: out of scope for this formula —
+    // handoff §8's market caveat, do NOT assume one-way holds fleet-wide.
+    direction: "one-way",
+    // Handoff §7.4 / TECH_DEBT — these two carve-outs exist on MSN
+    // 2717's lease but are not yet modelled in Fly-Forward's shortfall
+    // calc; carried here as flags for the EOL Position screen to
+    // display, not yet wired into computeEngineEOLAdjustment itself.
+    carveOuts: { firstLGOverhaulExcluded: true, firstEngineLLPEventExcluded: true },
+    // Redelivery life margins (handoff §4) — only the three clauses
+    // TailiQ actually tracks.
+    margins: {
+      engineLLPMinFC: 1000,       // clause 6.8 — solid, Brain 2 arithmetic
+      landingGearMinMonths: 12,   // clause 9.2 — solid, LG dates + dual-limiter
+      engineOnWingMinFH: 3000     // clause 6.3/6.4 — caveated, Lessor judgment call
+    }
+  }
 };
 
 let cachedKB = null;
@@ -115,12 +152,42 @@ function getKnowledgeBaseSnapshot() {
   return cachedKB;
 }
 
+// End of Lease Terms — three-tier default for a NEW lease's wizard step
+// (end-of-lease-position-handoff.md §3 / eol-position-addendum.md
+// Amendment 2: "the KB holds 'standard redelivery margins' as
+// company-level defaults... per-lease endOfLeaseTerms inherits from the
+// KB automatically... where a specific lease differs, the per-lease
+// override takes precedence"). This function only ever supplies tiers
+// 2/3 — tier 1 (an existing lease's own saved endOfLeaseTerms) is
+// applied by the caller (LeaseWizard.jsx), same division of labour as
+// every other getter in this file.
+//
+// Per-field (and per-nested-object) merge, not a single ?? on the whole
+// block, so a KB doc that only overrides e.g. bDenominatorPct still gets
+// sane values for direction/margins/etc. — same pattern as
+// getCheckDurationDefaults above. Deep-cloned (JSON round-trip) so the
+// wizard can freely mutate its returned object without ever touching
+// CODE_FALLBACK_DEFAULTS or the cached KB doc themselves.
+function getEndOfLeaseTermsDefaults() {
+  const fallback = CODE_FALLBACK_DEFAULTS.endOfLeaseTerms;
+  const kb = cachedKB?.endOfLeaseTerms || {};
+  return JSON.parse(JSON.stringify({
+    applies: kb.applies ?? fallback.applies,
+    componentsCovered: kb.componentsCovered ?? fallback.componentsCovered,
+    bDenominatorPct: kb.bDenominatorPct ?? fallback.bDenominatorPct,
+    direction: kb.direction ?? fallback.direction,
+    carveOuts: { ...fallback.carveOuts, ...(kb.carveOuts || {}) },
+    margins: { ...fallback.margins, ...(kb.margins || {}) }
+  }));
+}
+
 export {
   bootstrapKnowledgeBaseGlobals,
   getCheckCostBand,
   getEnPrBand,
   getOutflowEscalationPct,
   getCheckDurationDefaults,
+  getEndOfLeaseTermsDefaults,
   getKnowledgeBaseSnapshot,
   CODE_FALLBACK_DEFAULTS
 };

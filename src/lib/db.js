@@ -109,6 +109,12 @@ const db = {
       migrationDate: leaseData.migrationDate,
       derateModifier: null,
       redeliveryConditions: null,
+      // End of Lease Terms (end-of-lease-position-handoff.md §3) — manual
+      // entry, KB-defaulted with per-lease override, same append-only
+      // lease-record pattern as lessee/leaseStart/leaseEnd above: editing
+      // this alone (via LeaseWizard's "eol" step) creates a new lease
+      // record, same as editing any other lease detail.
+      endOfLeaseTerms: leaseData.endOfLeaseTerms || null,
       aiPotPrefill: leaseData.aiPotPrefill || null,
       inputMethod: "manual",
       confirmedBy: window._authUser?.email || window._authUser?.uid || null,

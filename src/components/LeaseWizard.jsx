@@ -4,14 +4,21 @@ import { isCFM } from '../lib/assetHelpers';
 import { db } from '../lib/db';
 import { extractDocxSectionChunks, extractPdfPageTexts, isDocxFile, isSupportedLeaseFile, quickParseLeaseFile, runLeaseExtraction, scoreLeaseChunks } from '../lib/extraction';
 import { FIXED_RESERVE_POT_DEFS, buildRealEnginePotDefs, validatePotWithAI } from '../lib/pots';
-import { getCheckCostBand, getOutflowEscalationPct } from '../lib/knowledgeBase';
+import { getCheckCostBand, getEndOfLeaseTermsDefaults, getOutflowEscalationPct } from '../lib/knowledgeBase';
 
 function LeaseWizard({asset,saveAsset,notify,onClose}){
   const[step,setStep]=useState(asset.currentLeaseId?"loading":"tier");
   const today=new Date().toISOString().slice(0,10);
-  const[form,setForm]=useState({lessee:"",leaseStart:"",leaseEnd:"",migrationDate:today});
+  const[form,setForm]=useState({lessee:"",leaseStart:"",leaseEnd:"",migrationDate:today,endOfLeaseTerms:getEndOfLeaseTermsDefaults()});
   const[originalLease,setOriginalLease]=useState(null); // the lease doc as loaded, for diffing on Activate
   const set=(k,v)=>setForm({...form,[k]:v});
+  // Nested setters for the End of Lease Terms step (end-of-lease-position-handoff.md
+  // §3) — manual entry, KB-defaulted with per-lease override, same
+  // "read-once-per-lease, low-volume, high-consequence" profile as the
+  // rest of this wizard's fields.
+  const setEol=(k,v)=>setForm(f=>({...f,endOfLeaseTerms:{...f.endOfLeaseTerms,[k]:v}}));
+  const setEolMargin=(k,v)=>setForm(f=>({...f,endOfLeaseTerms:{...f.endOfLeaseTerms,margins:{...f.endOfLeaseTerms.margins,[k]:v}}}));
+  const setEolCarveOut=(k,v)=>setForm(f=>({...f,endOfLeaseTerms:{...f.endOfLeaseTerms,carveOuts:{...f.endOfLeaseTerms.carveOuts,[k]:v}}}));
   // Only lessee is a hard requirement to proceed to Reserve Pots — lease
   // start/end are very often still being finalised (or genuinely unknown
   // at migration time) and shouldn't block getting reserve rates entered.
@@ -47,7 +54,7 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
     (async()=>{
       const lease=await db.getLease(asset.currentLeaseId).catch(()=>null);
       if(lease){
-        setForm({lessee:lease.lessee||"",leaseStart:lease.leaseStart||"",leaseEnd:lease.leaseEnd||"",migrationDate:lease.migrationDate||today});
+        setForm({lessee:lease.lessee||"",leaseStart:lease.leaseStart||"",leaseEnd:lease.leaseEnd||"",migrationDate:lease.migrationDate||today,endOfLeaseTerms:lease.endOfLeaseTerms||getEndOfLeaseTermsDefaults()});
         setOriginalLease(lease);
         setStep("overview");
       }else{
@@ -238,7 +245,8 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
     && originalLease.lessee===form.lessee
     && originalLease.leaseStart===form.leaseStart
     && originalLease.leaseEnd===form.leaseEnd
-    && originalLease.migrationDate===form.migrationDate;
+    && originalLease.migrationDate===form.migrationDate
+    && JSON.stringify(originalLease.endOfLeaseTerms||null)===JSON.stringify(form.endOfLeaseTerms||null);
 
   const activate=async()=>{
     setActivating(true);
@@ -360,7 +368,8 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
     overview:{label:"Current Lease",num:null},
     details:{label:"Lease Details",num:1},
     pots:{label:"Reserve Pot Entry",num:2},
-    confirm:{label:"Confirm & Activate",num:3}
+    eol:{label:"End of Lease Terms",num:3},
+    confirm:{label:"Confirm & Activate",num:4}
   };
 
   return(
@@ -531,6 +540,7 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
               <button className="btn btn-gold" onClick={()=>setStep("pots")}>Reserve Pots →</button>
               <button className="btn btn-ghost" onClick={()=>setStep("details")}>✏ Edit Lease Details</button>
+              <button className="btn btn-ghost" onClick={()=>setStep("eol")}>✏ Edit End of Lease Terms</button>
               <button className="btn btn-danger" disabled={deleting} onClick={deleteLease}>
                 {deleting?"Deleting…":"🗑 Delete This Lease"}
               </button>
@@ -605,6 +615,81 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
             )}
             <div style={{display:"flex",gap:10,marginTop:8}}>
               <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setStep(originalLease?"overview":"details")}>← Back</button>
+              <button className="btn btn-gold" style={{flex:1}} onClick={()=>setStep("eol")}>Continue →</button>
+            </div>
+          </>
+        )}
+
+        {step==="eol"&&(
+          <>
+            <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.6,marginBottom:14}}>
+              These are read-once-per-lease terms from the lease schedule — pre-filled from your company's standard template, fully editable. Manual entry, not extraction: these figures carry real money and belong to prose clauses that shouldn't be auto-parsed.
+            </div>
+            <label style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,fontSize:12,color:"#e2e8f0",cursor:"pointer"}}>
+              <input type="checkbox" checked={!!form.endOfLeaseTerms?.applies} onChange={e=>setEol("applies",e.target.checked)}/>
+              This lease has an End of Lease Maintenance Payment Adjustment
+            </label>
+            {form.endOfLeaseTerms?.applies&&(
+              <>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+                  <div>
+                    <label className="form-label">Components Covered</label>
+                    <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#94a3b8",marginTop:4}}>
+                      <input type="checkbox" checked={(form.endOfLeaseTerms?.componentsCovered||[]).includes("ENGINE_LLP")}
+                        onChange={e=>setEol("componentsCovered",e.target.checked?["ENGINE_LLP"]:[])}/>
+                      Engine LLPs
+                    </label>
+                    <div style={{fontSize:10,color:"#475569",marginTop:2}}>Only component currently computable end-to-end (Brain 2 + catalogue tables).</div>
+                  </div>
+                  <div>
+                    <label className="form-label">Direction</label>
+                    <select value={form.endOfLeaseTerms?.direction||"one-way"} onChange={e=>setEol("direction",e.target.value)}>
+                      <option value="one-way">One-way mirror (lessee pays lessor only)</option>
+                      <option value="two-way">Two-way mirror (lessor may owe lessee)</option>
+                      <option value="zero-time">Zero-Time / Full-Life (different basis — review separately)</option>
+                    </select>
+                    <div style={{fontSize:10,color:"#475569",marginTop:2}}>Don't assume one-way holds fleet-wide — read this lease's own clause.</div>
+                  </div>
+                </div>
+                <div style={{marginBottom:14}}>
+                  <label className="form-label">B Denominator (% of Approved Life)</label>
+                  <input type="number" step="0.1" min="0" max="100" value={form.endOfLeaseTerms?.bDenominatorPct??""} onChange={e=>setEol("bDenominatorPct",Number(e.target.value)||0)} style={{width:120}}/>
+                  <div style={{fontSize:10,color:"#475569",marginTop:2}}>Industry boilerplate is often ~90% — this lease's clause governs. Not the same figure as the EN-LP stub buffer.</div>
+                </div>
+                <div style={{marginBottom:14}}>
+                  <div className="form-label" style={{marginBottom:6}}>Carve-Outs</div>
+                  <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"#94a3b8",marginBottom:6,cursor:"pointer"}}>
+                    <input type="checkbox" checked={!!form.endOfLeaseTerms?.carveOuts?.firstLGOverhaulExcluded} onChange={e=>setEolCarveOut("firstLGOverhaulExcluded",e.target.checked)}/>
+                    First Landing Gear Overhaul excluded from adjustment
+                  </label>
+                  <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"#94a3b8",cursor:"pointer"}}>
+                    <input type="checkbox" checked={!!form.endOfLeaseTerms?.carveOuts?.firstEngineLLPEventExcluded} onChange={e=>setEolCarveOut("firstEngineLLPEventExcluded",e.target.checked)}/>
+                    First Engine LLP Event excluded from adjustment
+                  </label>
+                  <div style={{fontSize:10,color:"#475569",marginTop:4}}>Displayed on the EOL Position screen — not yet netted out of the money figure automatically (tracked in TECH_DEBT.md).</div>
+                </div>
+                <div style={{marginBottom:6}}>
+                  <div className="form-label" style={{marginBottom:6}}>Redelivery Life Margins</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                    <div>
+                      <label style={{fontSize:11,color:"#94a3b8"}}>Engine LLPs — min FC remaining <span style={{color:"#475569"}}>(clause 6.8)</span></label>
+                      <input type="number" min="0" step="1" value={form.endOfLeaseTerms?.margins?.engineLLPMinFC??""} onChange={e=>setEolMargin("engineLLPMinFC",Number(e.target.value)||0)}/>
+                    </div>
+                    <div>
+                      <label style={{fontSize:11,color:"#94a3b8"}}>Landing Gear — min months <span style={{color:"#475569"}}>(clause 9.2)</span></label>
+                      <input type="number" min="0" step="1" value={form.endOfLeaseTerms?.margins?.landingGearMinMonths??""} onChange={e=>setEolMargin("landingGearMinMonths",Number(e.target.value)||0)}/>
+                    </div>
+                    <div style={{gridColumn:"1/-1"}}>
+                      <label style={{fontSize:11,color:"#94a3b8"}}>Engines on-wing — min FH to next expected removal <span style={{color:"#475569"}}>(clause 6.3/6.4)</span></label>
+                      <input type="number" min="0" step="1" value={form.endOfLeaseTerms?.margins?.engineOnWingMinFH??""} onChange={e=>setEolMargin("engineOnWingMinFH",Number(e.target.value)||0)}/>
+                      <div style={{fontSize:10,color:"#475569",marginTop:2}}>Caveated — expected removal is a Lessor judgment call (borescope, power assurance, trend monitoring), never presented as a settled answer.</div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+            <div style={{display:"flex",gap:10,marginTop:14}}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setStep("pots")}>← Back</button>
               <button className="btn btn-gold" style={{flex:1}} onClick={()=>setStep("confirm")}>Continue →</button>
             </div>
           </>
@@ -629,7 +714,7 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
               </div>
             )}
             <div style={{display:"flex",gap:10}}>
-              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setStep("pots")}>← Back</button>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setStep("eol")}>← Back</button>
               <button className="btn btn-gold" style={{flex:1}} disabled={activating} onClick={activate}>
                 {activating?"Saving…":(leaseUnchanged?"Save Pot Updates":"Activate Lease")}
               </button>
