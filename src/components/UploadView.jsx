@@ -176,6 +176,25 @@ const extract=async()=>{
         throw new Error("The AI returned an unexpected format. Check the file is a valid report and try again.");
       }
 
+      // TAC uploads get one extra editable field per part: delivery_baseline
+      // (D), seeded from the formula below as a starting suggestion, then
+      // fully independent of cycle_limit/fc_remaining from this point on —
+      // editing D directly does NOT recompute it from the other two fields,
+      // and editing cycle_limit/fc_remaining afterward does NOT overwrite an
+      // already-seeded D. This is deliberate: some parts' true delivery
+      // baseline won't match cycle_limit − fc_remaining exactly (e.g. after
+      // a prior repair credited life back), so D needs to be a genuinely
+      // free-standing number the person can type in from other records.
+      if(uploadType==="tac"){
+        parsed.engines=(parsed.engines||[]).map(eng=>({
+          ...eng,
+          llps:(eng.llps||[]).map(l=>({
+            ...l,
+            delivery_baseline:(l.cycle_limit!=null&&l.fc_remaining!=null)?l.cycle_limit-l.fc_remaining:null
+          }))
+        }));
+      }
+
       setExtracted({parsed,fileName:file.name});
       // For LLP/TAC uploads, run asset matching immediately so the review
       // panel shows the correct aircraft before the user clicks Confirm & Save.
@@ -347,7 +366,11 @@ const extract=async()=>{
                 sn:l.sn,
                 fcRemainingAtTAC:l.fc_remaining,
                 approvedLifeAtTAC:cycleLimit,
-                deliveryBaselineFC:(cycleLimit!=null&&l.fc_remaining!=null)?cycleLimit-l.fc_remaining:null
+                // Saved as-shown in the review table — seeded from
+                // cycle_limit − fc_remaining but freely editable there
+                // (see extract()'s comment), so this is whatever value the
+                // person confirmed, not a fresh recompute.
+                deliveryBaselineFC:(l.delivery_baseline===undefined?null:l.delivery_baseline)
               };
             })
           };
@@ -439,7 +462,7 @@ const extract=async()=>{
                <div key={i} style={{background:"#0d1925",borderRadius:8,padding:12,marginBottom:10}}>
 <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>{eng.position} Engine — ESN {eng.esn} · {eng.llps?.length||0} LLPs</div>
 <div className="flab g8" style={{marginBottom:8,alignItems:"center"}}><label className="form-label" style={{margin:0,whiteSpace:"nowrap"}}>Ref CSN (edit if OCR wrong):</label><input type="number" defaultValue={eng.csn} style={{width:120,padding:"4px 8px",fontSize:12}} onChange={e=>{const val=+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].csn=val;return d;});}}/></div>
-<table style={{fontSize:11}}><thead><tr><th>Description</th><th>P/N (edit if OCR wrong)</th><th>S/N (edit if OCR wrong)</th><th>FC Remaining (edit if OCR wrong)</th><th>Cycle Limit (edit if OCR wrong)</th>{uploadType==="tac"&&<th>Delivery Baseline (D)</th>}</tr></thead><tbody>{(eng.llps||[]).map((l,j)=>{const col=l.fc_remaining<1000?"#f87171":l.fc_remaining<3000?"#fbbf24":"#34d399";const D=(l.cycle_limit!=null&&l.fc_remaining!=null)?l.cycle_limit-l.fc_remaining:null;return <tr key={j}><td>{l.desc}</td><td><input type="text" defaultValue={l.pn} style={{width:110,padding:"3px 6px",fontSize:10,fontFamily:"monospace"}} onChange={e=>{const val=e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].llps[j].pn=val;return d;});}}/></td><td><input type="text" defaultValue={l.sn} style={{width:110,padding:"3px 6px",fontSize:10,fontFamily:"monospace"}} onChange={e=>{const val=e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].llps[j].sn=val;return d;});}}/></td><td><input type="number" defaultValue={l.fc_remaining??""} style={{width:80,padding:"3px 6px",fontSize:11,fontWeight:700,color:col}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].llps[j].fc_remaining=val;return d;});}}/></td><td><input type="number" defaultValue={l.cycle_limit??""} placeholder="N/L" style={{width:80,padding:"3px 6px",fontSize:11}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].llps[j].cycle_limit=val;return d;});}}/></td>{uploadType==="tac"&&<td style={{fontWeight:700,color:D===null?"#64748b":"#e2e8f0"}}>{D===null?"— (no cycle limit)":D.toLocaleString()}</td>}</tr>;})}</tbody></table>
+<table style={{fontSize:11}}><thead><tr><th>Description</th><th>P/N</th><th>S/N</th><th>FC Remaining (edit if OCR wrong)</th><th>Cycle Limit (edit if OCR wrong)</th>{uploadType==="tac"&&<th>Delivery Baseline (D) — edit if needed</th>}</tr></thead><tbody>{(eng.llps||[]).map((l,j)=>{const col=l.fc_remaining<1000?"#f87171":l.fc_remaining<3000?"#fbbf24":"#34d399";return <tr key={j}><td>{l.desc}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.pn}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.sn}</td><td><input type="number" defaultValue={l.fc_remaining??""} style={{width:80,padding:"3px 6px",fontSize:11,fontWeight:700,color:col}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].llps[j].fc_remaining=val;return d;});}}/></td><td><input type="number" defaultValue={l.cycle_limit??""} placeholder="N/L" style={{width:80,padding:"3px 6px",fontSize:11}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].llps[j].cycle_limit=val;return d;});}}/></td>{uploadType==="tac"&&<td><input type="number" defaultValue={l.delivery_baseline??""} placeholder="—" style={{width:90,padding:"3px 6px",fontSize:11,fontWeight:700}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].llps[j].delivery_baseline=val;return d;});}}/></td>}</tr>;})}</tbody></table>
 </div>
                   
               ))}
@@ -450,7 +473,7 @@ const extract=async()=>{
   <label className="form-label" style={{margin:0,whiteSpace:"nowrap"}}>Ref CSN (edit if OCR wrong):</label><input type="number" defaultValue={extracted.parsed.apu.csn} style={{width:120,padding:"4px 8px",fontSize:12}} onChange={e=>{const val=+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.csn=val;return d;});}}/>
   <label className="form-label" style={{margin:0,whiteSpace:"nowrap"}}>APU P/N (enter if not extracted):</label><input type="text" defaultValue={extracted.parsed.apu.pn||""} placeholder="e.g. 3800000-3" style={{width:150,padding:"4px 8px",fontSize:12}} onChange={e=>{const val=e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.pn=val;return d;});}}/>
 </div>
-<table style={{fontSize:11}}><thead><tr><th>Description</th><th>P/N (edit if OCR wrong)</th><th>S/N (edit if OCR wrong)</th><th>FC Remaining (edit if OCR wrong)</th><th>Cycle Limit (edit if OCR wrong)</th></tr></thead><tbody>{extracted.parsed.apu.llps.map((l,j)=>{const col=l.fc_remaining<1000?"#f87171":l.fc_remaining<3000?"#fbbf24":"#34d399";return <tr key={j}><td>{l.desc}</td><td><input type="text" defaultValue={l.pn} style={{width:110,padding:"3px 6px",fontSize:10,fontFamily:"monospace"}} onChange={e=>{const val=e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.llps[j].pn=val;return d;});}}/></td><td><input type="text" defaultValue={l.sn} style={{width:110,padding:"3px 6px",fontSize:10,fontFamily:"monospace"}} onChange={e=>{const val=e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.llps[j].sn=val;return d;});}}/></td><td><input type="number" defaultValue={l.fc_remaining??""} style={{width:80,padding:"3px 6px",fontSize:11,fontWeight:700,color:col}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.llps[j].fc_remaining=val;return d;});}}/></td><td><input type="number" defaultValue={l.cycle_limit??""} placeholder="N/L" style={{width:80,padding:"3px 6px",fontSize:11}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.llps[j].cycle_limit=val;return d;});}}/></td></tr>;})} </tbody></table>
+<table style={{fontSize:11}}><thead><tr><th>Description</th><th>P/N</th><th>S/N</th><th>FC Remaining (edit if OCR wrong)</th><th>Cycle Limit (edit if OCR wrong)</th></tr></thead><tbody>{extracted.parsed.apu.llps.map((l,j)=>{const col=l.fc_remaining<1000?"#f87171":l.fc_remaining<3000?"#fbbf24":"#34d399";return <tr key={j}><td>{l.desc}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.pn}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.sn}</td><td><input type="number" defaultValue={l.fc_remaining??""} style={{width:80,padding:"3px 6px",fontSize:11,fontWeight:700,color:col}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.llps[j].fc_remaining=val;return d;});}}/></td><td><input type="number" defaultValue={l.cycle_limit??""} placeholder="N/L" style={{width:80,padding:"3px 6px",fontSize:11}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.llps[j].cycle_limit=val;return d;});}}/></td></tr>;})} </tbody></table>
 </div>
               )}
             </div>
