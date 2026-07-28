@@ -84,6 +84,42 @@ function aggregateBalanceSeries(projections) {
   return series;
 }
 
+// Deterministic explanation — restored per-row "Explain" toggle
+// (originally built in the Layer 3 chat-box session, lost when the chat
+// box was replaced with structured controls; Alan flagged it missing —
+// it was never part of the chat box's AI translation, it's a separate,
+// always-available, zero-AI, zero-cost readout of numbers Brain 3
+// already computed). Builds a plain-English sentence from a pot's
+// earliest event: cost band, projected balance at that date, the
+// resulting gap — and the scenario's own delta, if one's active.
+function buildPotExplanation(row, scenarioActive) {
+  const { code, label, bEvt, sEvt, shiftMonths } = row;
+  if (!bEvt && !sEvt) {
+    return `No projected event for ${code} within the current horizon — nothing to explain yet.`;
+  }
+
+  const describe = (evt, prefix) => {
+    if (!evt) return `${prefix}: no event within horizon.`;
+    const date = (evt.dateWindow ? evt.dateWindow.start : evt.date).toISOString().slice(0, 7);
+    const cost = Math.round(evt.costHigh).toLocaleString();
+    const balance = Math.round(evt.balanceAtEvent).toLocaleString();
+    const gap = evt.shortfallHigh;
+    const gapText = gap > 0
+      ? `a shortfall of $${Math.round(gap).toLocaleString()} (the pot doesn't cover the high-case cost)`
+      : `a surplus of $${Math.round(Math.abs(gap)).toLocaleString()} (the pot covers the high-case cost with room to spare)`;
+    return `${prefix}: due ${date}, projected high-case cost $${cost} against a projected pot balance of $${balance} — ${gapText}.`;
+  };
+
+  const lines = [describe(bEvt, "Base case")];
+  if (scenarioActive) {
+    lines.push(describe(sEvt, "Scenario"));
+    if (shiftMonths != null && shiftMonths !== 0) {
+      lines.push(`This scenario moves the event ${formatShift(shiftMonths)} compared to base case.`);
+    }
+  }
+  return lines.join(" ");
+}
+
 function ScenarioSlider({ label, value, onChange, min, max, step, format }) {
   return (
     <div style={{ marginBottom: 16 }}>
@@ -130,6 +166,11 @@ function Scenarios({ asset }) {
   // appear in the table, so this never invents an event that doesn't
   // exist in the base projection.
   const [costOverrunByCode, setCostOverrunByCode] = useState({});
+
+  // Per-pot toggle for the restored Explain feature — which row (if any)
+  // has its deterministic explanation expanded. Independent of any
+  // scenario state; works identically whether a scenario is active or not.
+  const [explainedCode, setExplainedCode] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -240,7 +281,12 @@ function Scenarios({ asset }) {
       scenarioTracked: !!s,
       baseDate: bDate,
       scenarioDate: sDate,
-      shiftMonths: (bDate && sDate) ? monthDelta(bDate, sDate) : null
+      shiftMonths: (bDate && sDate) ? monthDelta(bDate, sDate) : null,
+      // Raw earliest-event objects (costLow/costLikely/costHigh,
+      // balanceAtEvent, shortfallLow/shortfallHigh) — carried through so
+      // the Explain toggle can build its sentence from numbers Brain 3
+      // already computed, not a second lookup or a re-derivation.
+      bEvt, sEvt
     };
   });
 
@@ -332,10 +378,17 @@ function Scenarios({ asset }) {
           </tr></thead>
           <tbody>
             {potRows.map(row => (
-              <tr key={row.code}>
+              <React.Fragment key={row.code}>
+              <tr>
                 <td style={{ padding: "6px 0" }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: colorForCode(row.code), display: "inline-block", marginRight: 6 }}/>
                   {row.code} — {row.label}
+                  {(row.bEvt || row.sEvt) && (
+                    <button className="btn btn-ghost" style={{ fontSize: 10, padding: "1px 6px", marginLeft: 8 }}
+                      onClick={() => setExplainedCode(explainedCode === row.code ? null : row.code)}>
+                      {explainedCode === row.code ? "Explain ▴" : "Explain ▾"}
+                    </button>
+                  )}
                 </td>
                 <td style={{ textAlign: "right", color: shortfallColor(row.baseHigh) }}>
                   {row.baseHigh == null ? (row.baseTracked ? "Beyond horizon" : "—") : `$${Math.round(row.baseHigh).toLocaleString()}`}
@@ -365,6 +418,16 @@ function Scenarios({ asset }) {
                   ) : <span style={{ color: "#475569" }}>—</span>}
                 </td>
               </tr>
+              {explainedCode === row.code && (
+                <tr>
+                  <td colSpan={5} style={{ padding: "0 0 10px 0" }}>
+                    <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 8, padding: "10px 12px", fontSize: 11, color: "#94a3b8", lineHeight: 1.6 }}>
+                      {buildPotExplanation(row, scenarioActive)}
+                    </div>
+                  </td>
+                </tr>
+              )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
