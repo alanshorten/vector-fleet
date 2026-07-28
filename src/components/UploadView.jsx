@@ -79,6 +79,11 @@ function UploadView({assets,saveAsset,notify}){
   const[done,setDone]=useState(false);
   const[saving,setSaving]=useState(false);
   const[matchedAsset,setMatchedAsset]=useState(null);
+  // Only meaningful for uploadType==="tac" — the asset's currently active
+  // lease, resolved at extract time so the review panel can show which
+  // lease the TAC will attach to (and warn if there isn't one) before the
+  // person clicks Confirm & Save. See end-of-lease-position-handoff.md §4b.
+  const[matchedLease,setMatchedLease]=useState(null);
   const[instructions,setInstructions]=useState("");
   const[showInstructions,setShowInstructions]=useState(false);
   const[sheetNames,setSheetNames]=useState([]);
@@ -114,15 +119,21 @@ const extract=async()=>{
     if(file.size>10*1024*1024){setError("File is too large (maximum 10 MB). Please check you have selected the correct file.");return;}
     setExtracting(true);setError(null);
     try{
-      const basePrompt=uploadType==="llp"
+      // TAC uploads reuse the Engine LLP prompt as-is — a Technical Acceptance
+      // Certificate's LLP table has the identical shape to a status-sheet
+      // disk report, just captured at delivery instead of today (handoff
+      // §4b: "reuses the *existing* LLP disk-sheet parser, pointed at a new
+      // uploadType"). No new prompt needed.
+      const basePrompt=(uploadType==="llp"||uploadType==="tac")
         ?ENGINE_LLP_PROMPT
         :uploadType==="apu_llp"
         ?APU_LLP_PROMPT
        :"Extract ALL data from this aircraft utilisation report. This report has separate columns for ENGINE Position 1, ENGINE Position 2, and APU — they are three distinct components, each with their own S/N, TSN, CSN, and FH/FC figures. Do not confuse the APU column with an engine position. If this report includes a dedicated Landing Gear section with a TOTAL HOURS or TOTAL HOURS & CYCLES figure per leg (separate from the routine CSN column), populate total_fh/total_fc for that leg from those ground-truth totals — most reports do not have this section, in which case leave total_fh/total_fc null. Some aircraft only have data for ONE engine position in this report — the single engine may be reported under EITHER Position 1 OR Position 2, so check both columns rather than assuming Position 1 is always populated. Whichever position column is blank or absent, set that entire engine value to null (either \"engine1\" or \"engine2\", whichever is blank) — do not copy APU figures or any other column into a blank engine position, and do not invent placeholder values. All TSN and FH values must be formatted as HH:MM strings. Return ONLY valid JSON, no markdown:\n{\"month_year\":\"e.g. May 2026\",\"operator\":\"string\",\"msn\":\"string\",\"registration\":\"string\",\"airframe\":{\"fh_period\":\"HH:MM\",\"fc_period\":number,\"tsn\":\"HH:MM\",\"csn\":number},\"engine1\":{\"model\":\"string\",\"sn\":\"string\",\"tsn\":\"HH:MM\",\"csn\":number,\"fh_period\":\"HH:MM\",\"fc_period\":number} or null if Position 1 is blank in the report,\"engine2\":{\"model\":\"string\",\"sn\":\"string\",\"tsn\":\"HH:MM\",\"csn\":number,\"fh_period\":\"HH:MM\",\"fc_period\":number} or null if Position 2 is blank in the report,\"apu\":{\"sn\":\"string\",\"tsn\":\"HH:MM\",\"csn\":number},\"landing_gear\":{\"nose\":{\"pn\":\"string\",\"sn\":\"string\",\"csn\":number,\"total_fh\":\"HH:MM or null\",\"total_fc\":\"number or null\"},\"left\":{\"pn\":\"string\",\"sn\":\"string\",\"csn\":number,\"total_fh\":\"HH:MM or null\",\"total_fc\":\"number or null\"},\"right\":{\"pn\":\"string\",\"sn\":\"string\",\"csn\":number,\"total_fh\":\"HH:MM or null\",\"total_fc\":\"number or null\"}},\"removals\":[{\"component\":\"engine or landing_gear or apu\",\"sn\":\"string\",\"position\":\"string\",\"date\":\"string\",\"reason\":\"string\",\"tsn_at_removal\":\"HH:MM\",\"csn_at_removal\":number,\"mro\":\"string\"}]}"
       const prompt=instructions?basePrompt+" Additional instructions: "+instructions:basePrompt;
-      // LLP sheets are dense, repetitive tables — use Sonnet for stronger table-tracking accuracy.
-      // Everything else (utilisation reports, APU LLP, specs import) stays on Haiku.
-      const extractModel=uploadType==="llp"?"claude-sonnet-4-6":"claude-haiku-4-5-20251001";
+      // LLP sheets (and TACs, which use the same parser) are dense, repetitive
+      // tables — use Sonnet for stronger table-tracking accuracy. Everything
+      // else (utilisation reports, APU LLP, specs import) stays on Haiku.
+      const extractModel=(uploadType==="llp"||uploadType==="tac")?"claude-sonnet-4-6":"claude-haiku-4-5-20251001";
       let resp;
       if(isPDF){
         const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Could not read the file. Please try again."));r.readAsDataURL(file);});
@@ -166,16 +177,26 @@ const extract=async()=>{
       }
 
       setExtracted({parsed,fileName:file.name});
-      // For LLP uploads, run asset matching immediately so the review panel
-      // shows the correct aircraft before the user clicks Confirm & Save.
+      // For LLP/TAC uploads, run asset matching immediately so the review
+      // panel shows the correct aircraft before the user clicks Confirm & Save.
       // APU S/N matching normalises zero-padding on both sides ("3014" === "03014").
-      if(uploadType==="llp"||uploadType==="apu_llp"){
+      if(uploadType==="llp"||uploadType==="apu_llp"||uploadType==="tac"){
         const normSN=s=>s?.toString().replace(/^0+/,"")||"";
         const msnStr=normSN(parsed.msn);
         let matched=msnStr?assets.find(a=>normSN(a.msn)===msnStr):null;
         if(!matched){const esnList=(parsed.engines||[]).map(e=>e.esn).filter(Boolean);if(esnList.length){matched=assets.find(a=>(a.engines||[]).some(e=>esnList.includes(e.sn)));}}
         if(!matched&&parsed.apu?.sn){matched=assets.find(a=>a.apu?.sn&&normSN(a.apu.sn)===normSN(parsed.apu.sn));}
         setMatchedAsset(matched||null);
+        // A TAC attaches to the asset's currently active lease (D is a
+        // per-lease fact, tied to whichever lease was in force at delivery)
+        // — resolve it now so the review panel can show it, or warn if
+        // there isn't one, before Confirm & Save.
+        if(uploadType==="tac"){
+          const lease=matched?.currentLeaseId?await db.getLease(matched.currentLeaseId).catch(()=>null):null;
+          setMatchedLease(lease);
+        } else {
+          setMatchedLease(null);
+        }
       }
     }catch(err){
       const msg=err.message||"";
@@ -294,13 +315,64 @@ const extract=async()=>{
     }
   };
 
+  // TAC (Technical Acceptance Certificate) — writes the per-part delivery FC
+  // baseline (D) onto the asset's ACTIVE LEASE doc, never touching current
+  // asset LLP state (end-of-lease-position-handoff.md §4b). D itself:
+  //   deliveryBaselineFC = cycle_limit (at TAC) − fc_remaining (at TAC)
+  // — the same "engine CSN progression stands in for LLP cycles since new"
+  // convention Brain 2's calcLLPRem already relies on. Stays null (never 0)
+  // if the TAC's own cycle_limit for that part is missing.
+  const confirmTAC=async()=>{
+    setSaving(true);
+    try{
+      const d=extracted.parsed;
+      const asset=matchedAsset;
+      if(!asset){setError("Could not match this TAC to any aircraft. Check the file contains a recognisable MSN or engine serial number.");return;}
+      const msn=asset.msn?.toString().replace(/^0+/,"");
+      if(!asset.currentLeaseId){setError(`MSN ${msn} has no active lease on file — set up the lease before saving this TAC.`);return;}
+
+      const engines=(d.engines||[])
+        .map(eng=>{
+          if(!eng.esn)return null;
+          const matchIdx=(asset.engines||[]).findIndex(e=>e.sn===eng.esn);
+          if(matchIdx===-1)return null;
+          return {
+            position:asset.engines[matchIdx].position,
+            esn:eng.esn,
+            llps:(eng.llps||[]).map(l=>{
+              const cycleLimit=(l.cycle_limit===undefined?null:l.cycle_limit);
+              return {
+                desc:l.desc,
+                pn:l.pn,
+                sn:l.sn,
+                fcRemainingAtTAC:l.fc_remaining,
+                approvedLifeAtTAC:cycleLimit,
+                deliveryBaselineFC:(cycleLimit!=null&&l.fc_remaining!=null)?cycleLimit-l.fc_remaining:null
+              };
+            })
+          };
+        })
+        .filter(Boolean);
+
+      if(!engines.length){setError(`Could not match any engine in this TAC to MSN ${msn}'s recorded engine serial numbers.`);return;}
+
+      await db.saveTACSnapshot(asset.currentLeaseId,{fileName:extracted.fileName,engines});
+      setDone(true);
+      notify(`TAC delivery baseline saved for MSN ${msn}`);
+    }catch(err){
+      setError("Save failed: "+(err.message||"please try again.")+" Your data has not been lost — Discard and re-upload if needed.");
+    }finally{
+      setSaving(false);
+    }
+  };
+
   return(
     <div style={{maxWidth:860,margin:"0 auto"}}>
       <h1 style={{fontSize:20,color:"#C9A84C",fontWeight:700,marginBottom:6}}>Upload</h1>
       <p style={{color:"#64748b",marginBottom:16,fontSize:13}}>Select report type, upload PDF or Excel, and TailiQ extracts the data for your review.</p>
       <div className="flab g8" style={{marginBottom:16}}>
-        {[["util","📄 Utilisation Report",null],["llp","Engine LLP Sheet","engine"],["apu_llp","APU LLP Sheet","apu"],["lease","📑 Bulk Lease Import",null]].map(([v,l,icon])=>(
-          <button key={v} onClick={()=>{setUploadType(v);setFile(null);setExtracted(null);setError(null);setDone(false);setInstructions("");setShowInstructions(false);setSheetNames([]);setSelectedSheet(null);setXlsxWorkbook(null);}}
+        {[["util","📄 Utilisation Report",null],["llp","Engine LLP Sheet","engine"],["apu_llp","APU LLP Sheet","apu"],["tac","📄 TAC — Delivery Baseline","engine"],["lease","📑 Bulk Lease Import",null]].map(([v,l,icon])=>(
+          <button key={v} onClick={()=>{setUploadType(v);setFile(null);setExtracted(null);setError(null);setDone(false);setInstructions("");setShowInstructions(false);setSheetNames([]);setSelectedSheet(null);setXlsxWorkbook(null);setMatchedLease(null);}}
             style={{padding:"8px 16px",background:uploadType===v?"#1e3a5f":"#0d1e2e",color:uploadType===v?"#C9A84C":"#64748b",border:`1px solid ${uploadType===v?"#1B3A6B":"#1e3348"}`,borderRadius:6,fontSize:13,fontWeight:600,cursor:"pointer"}}>
             {icon&&<TabIcon type={icon} color={uploadType===v?"#C9A84C":"#64748b"}/>}{l}
           </button>
@@ -314,7 +386,7 @@ const extract=async()=>{
         <input type="file" accept=".pdf,.xlsx" id="upfile" onChange={handleFile} style={{display:"none"}}/>
         <label htmlFor="upfile" style={{cursor:"pointer"}}>
           <div style={{fontWeight:600,color:file?"#C9A84C":"#64748b",marginBottom:4}}>{file?file.name:"Click to select file"}</div>
-          <div style={{fontSize:12,color:"#475569"}}>{uploadType==="util"?"PDF or Excel (.xlsx)":uploadType==="llp"?"Engine LLP Status Sheet (PDF)":"APU LLP Status Sheet (PDF)"}</div>
+          <div style={{fontSize:12,color:"#475569"}}>{uploadType==="util"?"PDF or Excel (.xlsx)":uploadType==="llp"?"Engine LLP Status Sheet (PDF)":uploadType==="tac"?"Technical Acceptance Certificate — Engine LLP Status Sheet at Delivery (PDF)":"APU LLP Status Sheet (PDF)"}</div>
         </label>
         {file&&!done&&(
           <div style={{marginTop:14,display:"flex",flexDirection:"column",gap:8,alignItems:"center",width:"100%"}}>
@@ -330,7 +402,7 @@ const extract=async()=>{
               ?<button className="btn btn-ghost" style={{fontSize:11}} onClick={()=>setShowInstructions(true)}>+ Add specific extraction instructions</button>
               :<div style={{width:"100%",maxWidth:500}}>
                 <textarea value={instructions} onChange={e=>setInstructions(e.target.value)}
-                  placeholder={uploadType==="llp"?"e.g. Use the 5B4/P column, or use the green highlighted column":uploadType==="apu_llp"?"e.g. APU model is GTCP131-9A, use the corresponding limit column":"e.g. Use position 1 engine data only"}
+                  placeholder={(uploadType==="llp"||uploadType==="tac")?"e.g. Use the 5B4/P column, or use the green highlighted column":uploadType==="apu_llp"?"e.g. APU model is GTCP131-9A, use the corresponding limit column":"e.g. Use position 1 engine data only"}
                   style={{width:"100%",minHeight:70,fontSize:12,resize:"vertical",marginBottom:6}}/>
                 <button className="btn btn-ghost" style={{fontSize:11}} onClick={()=>{setShowInstructions(false);setInstructions("");}}>✕ Clear instructions</button>
               </div>
@@ -344,7 +416,7 @@ const extract=async()=>{
       {extracted&&!done&&(
         <div className="card" style={{padding:20}}>
           <div className="section-title">Extracted Data — Review Before Saving</div>
-          {(uploadType==="llp"||uploadType==="apu_llp")?(
+          {(uploadType==="llp"||uploadType==="apu_llp"||uploadType==="tac")?(
             <div style={{marginTop:14}}>
               <div className="grid2" style={{gap:8,marginBottom:12}}>
                 {[["MSN",extracted.parsed.msn||matchedAsset?.msn||"Matched by ESN/APU S/N"],["Registration",extracted.parsed.registration||matchedAsset?.registration||"—"]].map(([l,v])=>(
@@ -354,15 +426,24 @@ const extract=async()=>{
                   </div>
                 ))}
               </div>
+              {uploadType==="tac"&&(
+                <div style={{background:matchedLease?"#0d2818":"#2a0e0e",border:`1px solid ${matchedLease?"#166534":"#7f1d1d"}`,borderRadius:6,padding:"8px 12px",marginBottom:12,fontSize:12,color:matchedLease?"#34d399":"#f87171"}}>
+                  {matchedLease
+                    ?`✓ Will attach to this asset's active lease: ${matchedLease.lessee} (${matchedLease.leaseStart} – ${matchedLease.leaseEnd}). Does not touch current LLP status — this is a separate, immutable delivery-date record.`
+                    :matchedAsset
+                    ?`⚠ MSN ${matchedAsset.msn} has no active lease on file — set up the lease first, then re-upload this TAC.`
+                    :"⚠ Aircraft not yet matched — cannot attach to a lease."}
+                </div>
+              )}
               {(extracted.parsed.engines||[]).map((eng,i)=>(
                <div key={i} style={{background:"#0d1925",borderRadius:8,padding:12,marginBottom:10}}>
 <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>{eng.position} Engine — ESN {eng.esn} · {eng.llps?.length||0} LLPs</div>
 <div className="flab g8" style={{marginBottom:8,alignItems:"center"}}><label className="form-label" style={{margin:0,whiteSpace:"nowrap"}}>Ref CSN (edit if OCR wrong):</label><input type="number" defaultValue={eng.csn} style={{width:120,padding:"4px 8px",fontSize:12}} onChange={e=>{const val=+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].csn=val;return d;});}}/></div>
-<table style={{fontSize:11}}><thead><tr><th>Description</th><th>P/N</th><th>S/N</th><th>FC Remaining</th><th>Cycle Limit (edit if OCR wrong)</th></tr></thead><tbody>{(eng.llps||[]).map((l,j)=>{const col=l.fc_remaining<1000?"#f87171":l.fc_remaining<3000?"#fbbf24":"#34d399";return <tr key={j}><td>{l.desc}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.pn}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.sn}</td><td style={{fontWeight:700,color:col}}>{l.fc_remaining?.toLocaleString()}</td><td><input type="number" defaultValue={l.cycle_limit??""} placeholder="N/L" style={{width:80,padding:"3px 6px",fontSize:11}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].llps[j].cycle_limit=val;return d;});}}/></td></tr>;})}</tbody></table>
+<table style={{fontSize:11}}><thead><tr><th>Description</th><th>P/N</th><th>S/N</th><th>FC Remaining</th><th>Cycle Limit (edit if OCR wrong)</th>{uploadType==="tac"&&<th>Delivery Baseline (D)</th>}</tr></thead><tbody>{(eng.llps||[]).map((l,j)=>{const col=l.fc_remaining<1000?"#f87171":l.fc_remaining<3000?"#fbbf24":"#34d399";const D=(l.cycle_limit!=null&&l.fc_remaining!=null)?l.cycle_limit-l.fc_remaining:null;return <tr key={j}><td>{l.desc}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.pn}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.sn}</td><td style={{fontWeight:700,color:col}}>{l.fc_remaining?.toLocaleString()}</td><td><input type="number" defaultValue={l.cycle_limit??""} placeholder="N/L" style={{width:80,padding:"3px 6px",fontSize:11}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].llps[j].cycle_limit=val;return d;});}}/></td>{uploadType==="tac"&&<td style={{fontWeight:700,color:D===null?"#64748b":"#e2e8f0"}}>{D===null?"— (no cycle limit)":D.toLocaleString()}</td>}</tr>;})}</tbody></table>
 </div>
                   
               ))}
-              {extracted.parsed.apu?.llps?.length>0&&(
+              {extracted.parsed.apu?.llps?.length>0&&uploadType!=="tac"&&(
                 <div style={{background:"#0d1925",borderRadius:8,padding:12,marginBottom:10}}>
 <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>APU — S/N {extracted.parsed.apu.sn||"—"} · {extracted.parsed.apu.llps.length} LLPs</div>
 <div className="flab g8" style={{marginBottom:8,alignItems:"center",flexWrap:"wrap"}}>
@@ -465,7 +546,7 @@ const extract=async()=>{
           )}
           <div className="flj" style={{marginTop:16,paddingTop:14,borderTop:"1px solid #1e3048"}}>
             <button className="btn btn-ghost" disabled={saving} onClick={()=>{setExtracted(null);setFile(null);}}>Discard</button>
-            <button className="btn btn-gold" disabled={saving} onClick={uploadType==="util"?confirmSave:confirmLLP}>{saving?"Saving…":"✓ Confirm & Save"}</button>
+            <button className="btn btn-gold" disabled={saving} onClick={uploadType==="util"?confirmSave:uploadType==="tac"?confirmTAC:confirmLLP}>{saving?"Saving…":"✓ Confirm & Save"}</button>
           </div>
         </div>
       )}

@@ -228,25 +228,34 @@ function AssumptionsPanel({ engineFamily }) {
 // projection data into the shape those functions expect.
 // ============================================================
 
-// D (deliveryBaselineFC) is always null here — nothing populates it until
-// the TAC upload pipeline (4b, not yet built) exists. Every part
-// therefore correctly comes back uncomputable with "no TAC on file" —
-// eol-position-session-handoff.md §4a: "that's expected, not a bug."
-function buildEOLMoneyInputs(eng, { rate, expiryDate, engineFamily, projections, bDenominatorPct, escalationPctPerYr, direction }) {
+// D (deliveryBaselineFC) is read from the lease's TAC snapshot (4b —
+// db.saveTACSnapshot / UploadView.jsx's "tac" upload type), matched per
+// part by serial number (the part's actual identity — pn alone isn't
+// unique). If no TAC has been uploaded for this lease yet, or this
+// specific part isn't on it, D stays null and the part correctly comes
+// back uncomputable with "no TAC on file" — eol-position-session-
+// handoff.md §4a: "that's expected, not a bug" for any lease predating 4b.
+function buildEOLMoneyInputs(eng, { rate, expiryDate, engineFamily, projections, bDenominatorPct, escalationPctPerYr, direction, tacSnapshot }) {
   const monthsToExpiry = Math.max(0, window.monthsBetween(new Date(), expiryDate));
   const cyclesToExpiry = (rate?.fcPerMonth || 0) * monthsToExpiry;
 
+  const tacEngine = tacSnapshot?.engines?.find(e => e.position === eng.position);
+
   const engineParts = (eng.llps || [])
     .filter(l => l.approvedLife !== null && l.approvedLife !== undefined)
-    .map(l => ({
-      pn: l.pn,
-      sn: l.sn,
-      desc: l.desc,
-      approvedLife: l.approvedLife,
-      catalogPriceToday: window.lookupLLPCataloguePrice ? window.lookupLLPCataloguePrice(l.pn, engineFamily) : null,
-      // See file-header comment — always null until 4b exists.
-      deliveryBaselineFC: null
-    }));
+    .map(l => {
+      const tacPart = tacEngine?.llps?.find(p => p.sn === l.sn);
+      return {
+        pn: l.pn,
+        sn: l.sn,
+        desc: l.desc,
+        approvedLife: l.approvedLife,
+        catalogPriceToday: window.lookupLLPCataloguePrice ? window.lookupLLPCataloguePrice(l.pn, engineFamily) : null,
+        // See file-header comment — null until this part is found on a
+        // saved TAC snapshot for this lease.
+        deliveryBaselineFC: (tacPart && tacPart.deliveryBaselineFC !== undefined) ? tacPart.deliveryBaselineFC : null
+      };
+    });
 
   const currentFCAtExpiry = (eng.currentFC || 0) + cyclesToExpiry;
 
@@ -398,7 +407,8 @@ function EndOfLeasePositionView({ asset, lease, projections, rate, engineFamily,
       rate, expiryDate, engineFamily, projections,
       bDenominatorPct: terms.bDenominatorPct,
       escalationPctPerYr,
-      direction: terms.direction
+      direction: terms.direction,
+      tacSnapshot: lease.tacSnapshot
     });
     const result = moneyApplies
       ? window.computeEngineEOLAdjustment(engineParts, moneyCtx)

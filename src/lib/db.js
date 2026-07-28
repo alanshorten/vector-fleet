@@ -140,6 +140,27 @@ const db = {
     const { db: fs, doc, deleteDoc } = getFS();
     await deleteDoc(doc(fs, "leases", leaseId));
   },
+  // TAC (Technical Acceptance Certificate) snapshot — end-of-lease-position-
+  // handoff.md §4b / eol-position-session-handoff.md §4b. Deliberately a
+  // MERGE WRITE onto the existing lease doc, NOT a new append-only lease
+  // record (unlike createLease above) — a TAC captures a fixed historical
+  // fact about delivery that never gets renegotiated the way lessee/dates/
+  // endOfLeaseTerms do, so versioning it the same way would just be noise.
+  // Re-uploading (e.g. to fix a bad OCR read) simply overwrites this field
+  // cleanly; the lease's own append-only fields are untouched either way.
+  async saveTACSnapshot(leaseId, tacData) {
+    const { db: fs, doc, setDoc } = getFS();
+    const now = new Date().toISOString();
+    const payload = {
+      tacSnapshot: {
+        ...tacData,
+        confirmedBy: window._authUser?.email || window._authUser?.uid || null,
+        confirmedAt: now
+      }
+    };
+    await setDoc(doc(fs, "leases", leaseId), payload, { merge: true });
+    return payload.tacSnapshot;
+  },
   async saveReservePot(assetId, companyId, pot) {
     const { db: fs, doc, setDoc, getDoc } = getFS();
     const id = `${assetId}_${pot.code}`.replace(/\s+/g, "_");
