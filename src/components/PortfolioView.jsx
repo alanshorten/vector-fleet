@@ -179,11 +179,77 @@ function PortfolioView({assets, notify, onSelect}){
   );
 };
 
+// Time Axis bar chart (fleet-exposure-redesign-handoff.md §3) — Chart.js
+// via window.Chart, same pattern as MiniLineChart elsewhere in the app
+// (FlyForward.jsx) rather than pulling in Recharts, since window.Chart is
+// what's actually loaded. Stacked bar per month: red segment = shortfall,
+// green segment = covered. Within-lease is solid; post-lease is a lighter/
+// translucent shade of the same colour, per the redesign's "texture
+// without hiding anything" requirement. Click a bar to drill into that
+// month's events below the chart.
+function TimeAxisBarChart({ timeAxis, onBarClick, selectedMonthKey }) {
+  const canvasRef = useRef(null);
+  const chartRef = useRef(null);
+
+  const labels = timeAxis.map(b => b.monthKey);
+  // Split each bucket into in-lease (solid) vs. post-lease (translucent)
+  // covered/shortfall so the chart shows four stacked series per bar.
+  const covered = timeAxis.map(b => Math.max(0, b.coverage));
+  const inLeaseShortfall = timeAxis.map(b => b.inLeaseShortfallHigh || 0);
+  const postLeaseShortfall = timeAxis.map(b => b.postLeaseShortfallHigh || 0);
+
+  const datasets = [
+    { label: "Covered", data: covered, backgroundColor: "#34d399", stack: "s" },
+    { label: "Shortfall (within lease)", data: inLeaseShortfall, backgroundColor: "#f87171", stack: "s" },
+    { label: "Shortfall (post-lease)", data: postLeaseShortfall, backgroundColor: "#f8717166", stack: "s" }
+  ];
+
+  useEffect(() => {
+    if (!window.Chart || !canvasRef.current) return;
+    if (chartRef.current) chartRef.current.destroy();
+    chartRef.current = new window.Chart(canvasRef.current, {
+      type: "bar",
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        onClick: (evt, elements) => {
+          if (!elements.length) return;
+          const idx = elements[0].index;
+          onBarClick(timeAxis[idx].monthKey);
+        },
+        plugins: {
+          legend: { labels: { color: "#94a3b8", font: { size: 11 }, boxWidth: 12 } },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const v = ctx.parsed.y;
+                if (!v) return null;
+                return `${ctx.dataset.label}: $${Math.round(v).toLocaleString()}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { stacked: true, ticks: { color: "#64748b", font: { size: 10 }, maxTicksLimit: 12 }, grid: { color: "#1e3048" } },
+          y: { stacked: true, ticks: { color: "#64748b", font: { size: 10 }, callback: v => "$" + (v / 1000).toFixed(0) + "k" }, grid: { color: "#1e3048" } }
+        }
+      }
+    });
+    return () => { if (chartRef.current) chartRef.current.destroy(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(labels), JSON.stringify(datasets)]);
+
+  return <div style={{ height: 260, cursor: "pointer" }}><canvas ref={canvasRef}/></div>;
+}
+
 function FleetExposureView({ assets, onSelectAsset }) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [showExcluded, setShowExcluded] = useState(false);
+  const [sortMode, setSortMode] = useState("exposure"); // "exposure" | "date"
+  const [selectedMonthKey, setSelectedMonthKey] = useState(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -219,17 +285,35 @@ function FleetExposureView({ assets, onSelectAsset }) {
   const { headline, timeAxis, assetAxis, excludedAssets } = data;
   const statusColor = { green: "#34d399", amber: "#fbbf24", red: "#f87171" };
 
+  // Sort mode is applied here, client-side, against the same assetAxis
+  // data — no re-fetch needed to switch views (fleet-exposure-redesign-
+  // handoff.md §2). "By date" pushes assets with no dated event (shouldn't
+  // happen for included assets, but defensive) to the end.
+  const sortedAssetAxis = [...assetAxis].sort((a, b) => {
+    if (sortMode === "date") {
+      if (!a.nearestEventDate && !b.nearestEventDate) return 0;
+      if (!a.nearestEventDate) return 1;
+      if (!b.nearestEventDate) return -1;
+      return a.nearestEventDate - b.nearestEventDate;
+    }
+    return b.totalShortfallHigh - a.totalShortfallHigh;
+  });
+
+  const selectedBucket = selectedMonthKey ? timeAxis.find(b => b.monthKey === selectedMonthKey) : null;
+
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
-      {/* HEADLINE — handoff §5: never zero-fill, never refuse to total;
-          the completeness gap travels WITH the number, inline. */}
+      {/* HEADLINE — never zero-fill, never refuse to total; the
+          completeness gap travels WITH the number, inline. REDESIGN: this
+          figure now includes post-lease shortfalls — asset exposure, not
+          lease exposure (fleet-exposure-redesign-handoff.md §1). */}
       <div className="card" style={{ padding: 20, marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 6 }}>Fleet Exposure</div>
         <div style={{ fontSize: 30, fontWeight: 700, color: headline.totalHighCaseGap > 0 ? "#f87171" : "#34d399" }}>
           ${Math.round(headline.totalHighCaseGap).toLocaleString()}
         </div>
         <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 6 }}>
-          High-case gap across {headline.assetsComputed} of {headline.totalAssets} asset{headline.totalAssets === 1 ? "" : "s"}
+          High-case gap across {headline.assetsComputed} of {headline.totalAssets} asset{headline.totalAssets === 1 ? "" : "s"} — includes shortfalls landing after redelivery
           {headline.excludedCount > 0 && (
             <>
               {" — "}
@@ -256,43 +340,73 @@ function FleetExposureView({ assets, onSelectAsset }) {
         )}
       </div>
 
-      {/* TIME AXIS — primary panel (handoff §4: "why time leads"). Months
-          across, atoms stacked per month, cost + coverage totals underneath. */}
+      {/* TIME AXIS — bar chart replacing the flat text list (redesign §3).
+          One bar per month with events; empty months compressed out.
+          Click a bar to drill into that month's events below. */}
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 10 }}>
           Time Axis — to lease end, plus {FLEET_EXPOSURE_HORIZON_MONTHS} months' post-lease disclosure
         </div>
-        {timeAxis.length === 0 && (
+        {timeAxis.length === 0 ? (
           <div style={{ color: "#64748b", fontSize: 12 }}>No projected events across the fleet.</div>
-        )}
-        {timeAxis.map(bucket => (
-          <div key={bucket.monthKey} style={{ borderTop: "1px solid #1e3048", padding: "10px 0" }}>
-            <div className="flj" style={{ marginBottom: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>{bucket.monthKey}</span>
-              <span style={{ fontSize: 11, color: "#94a3b8" }}>
-                Cost ${Math.round(bucket.costHigh).toLocaleString()} · Coverage ${Math.round(bucket.coverage).toLocaleString()}
-                {bucket.shortfallHigh > 0 && <span style={{ color: "#f87171" }}> · Gap ${Math.round(bucket.shortfallHigh).toLocaleString()}</span>}
-              </span>
-            </div>
-            {bucket.atoms.map((a, i) => (
-              <div key={i} className="flj" style={{ fontSize: 11, padding: "4px 0", color: a.postLeaseEnd ? "#64748b" : statusColor[a.status] || "#e2e8f0" }}>
-                <span style={{ cursor: onSelectAsset ? "pointer" : "default" }} onClick={() => onSelectAsset && onSelectAsset(a.assetId)}>
-                  MSN {a.msn} — {a.code}{a.postLeaseEnd ? " (post-lease, disclosure only)" : ""}
-                </span>
-                <span>${Math.round(a.costHigh).toLocaleString()}</span>
+        ) : (
+          <>
+            <TimeAxisBarChart timeAxis={timeAxis} selectedMonthKey={selectedMonthKey} onBarClick={mk => setSelectedMonthKey(mk === selectedMonthKey ? null : mk)}/>
+            {selectedBucket ? (
+              <div style={{ marginTop: 16, borderTop: "1px solid #1e3048", paddingTop: 12 }}>
+                <div className="flj" style={{ marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>{selectedBucket.monthKey}</span>
+                  <button onClick={() => setSelectedMonthKey(null)} style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 11 }}>Close ✕</button>
+                </div>
+                {selectedBucket.atoms.map((a, i) => (
+                  <div key={i} className="flj" style={{ fontSize: 11, padding: "4px 0", color: a.postLeaseEnd ? (statusColor[a.status] || "#e2e8f0") + "aa" : statusColor[a.status] || "#e2e8f0" }}>
+                    <span style={{ cursor: onSelectAsset ? "pointer" : "default" }} onClick={() => onSelectAsset && onSelectAsset(a.assetId)}>
+                      MSN {a.msn} — {a.code}{a.postLeaseEnd ? " (post-lease)" : ""}
+                    </span>
+                    <span>${Math.round(a.costHigh).toLocaleString()}{a.shortfallHigh > 0 ? ` · gap $${Math.round(a.shortfallHigh).toLocaleString()}` : ""}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ))}
+            ) : (
+              <div style={{ marginTop: 10, fontSize: 11, color: "#64748b" }}>Click a bar to see that month's events.</div>
+            )}
+          </>
+        )}
       </div>
 
-      {/* ASSET AXIS — secondary panel, ranked worst-first (handoff §4). */}
+      {/* ASSET AXIS — sortable (redesign §2): by total exposure (default)
+          or by nearest event date. Nearest-event-date always shown
+          alongside the total regardless of sort mode. */}
       <div className="card" style={{ padding: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 10 }}>Assets — ranked by exposure</div>
-        {assetAxis.length === 0 && <div style={{ color: "#64748b", fontSize: 12 }}>No assets computed.</div>}
-        {assetAxis.map(a => (
+        <div className="flj" style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Assets</div>
+          <div className="flab g8">
+            <button
+              onClick={() => setSortMode("exposure")}
+              className="btn"
+              style={{ fontSize: 11, padding: "4px 10px", background: sortMode === "exposure" ? "#C9A84C" : "transparent", color: sortMode === "exposure" ? "#0a1520" : "#94a3b8", border: "1px solid " + (sortMode === "exposure" ? "#C9A84C" : "#334155") }}>
+              By exposure
+            </button>
+            <button
+              onClick={() => setSortMode("date")}
+              className="btn"
+              style={{ fontSize: 11, padding: "4px 10px", background: sortMode === "date" ? "#C9A84C" : "transparent", color: sortMode === "date" ? "#0a1520" : "#94a3b8", border: "1px solid " + (sortMode === "date" ? "#C9A84C" : "#334155") }}>
+              By nearest date
+            </button>
+          </div>
+        </div>
+        {sortedAssetAxis.length === 0 && <div style={{ color: "#64748b", fontSize: 12 }}>No assets computed.</div>}
+        {sortedAssetAxis.map(a => (
           <div key={a.assetId} className="flj" style={{ padding: "8px 0", borderTop: "1px solid #1e3048", cursor: onSelectAsset ? "pointer" : "default" }} onClick={() => onSelectAsset && onSelectAsset(a.assetId)}>
-            <span style={{ fontSize: 12, color: "#e2e8f0" }}>MSN {a.msn}</span>
+            <div>
+              <span style={{ fontSize: 12, color: "#e2e8f0" }}>MSN {a.msn}</span>
+              {a.hasPostLeaseEvent && <span className="pill" style={{ marginLeft: 8, fontSize: 9, background: "#1e293b", color: "#94a3b8" }}>includes post-lease</span>}
+              {a.nearestEventDate && (
+                <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>
+                  Nearest event: {a.nearestEventDate.toISOString().slice(0, 7)}{a.nearestEventPostLease ? " (post-lease)" : ""}
+                </div>
+              )}
+            </div>
             <span style={{ fontSize: 12, fontWeight: 700, color: statusColor[a.worstStatus] || "#e2e8f0" }}>
               ${Math.round(a.totalShortfallHigh).toLocaleString()}
             </span>

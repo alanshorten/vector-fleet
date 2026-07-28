@@ -55,9 +55,10 @@ function monthKey(date) {
 }
 
 // ---------------------------------------------------------------------
-// Status rule — "hope for the best, assume the worst" (handoff §2).
-// Tested against HIGH, not likely. Never computed for post-lease-end
-// events (handoff §3) — those are cost-disclosure only.
+// Status rule — "hope for the best, assume the worst" (original handoff
+// §2). Tested against HIGH, not likely. REDESIGN (fleet-exposure-redesign-
+// handoff.md, July 2026): now computed for post-lease-end events too —
+// they're first-class exposure, not cost-disclosure-only anymore.
 // ---------------------------------------------------------------------
 
 function classify(shortfallLow, shortfallHigh) {
@@ -187,6 +188,13 @@ function buildAssetAtoms(entry, horizonPastLeaseEndMonths, brains, pandemicGroun
     // monthIndex falls beyond the ORIGINAL lease horizon are post-lease —
     // date + cost band only, status null (handoff §3: never red/green
     // against a flatlined-in-spirit balance).
+    // REDESIGN (fleet-exposure-redesign-handoff.md, July 2026): post-lease
+    // atoms are no longer cost-disclosure-only. Each pot's shortfall to its
+    // OWN next event is a real, statable figure regardless of which side of
+    // the lease boundary that event falls on — Brain 3 already computed it,
+    // this file was just discarding it. `postLeaseEnd` survives as a label
+    // for the UI (solid vs. translucent fill, "(includes post-lease)" tag)
+    // but no longer gates whether shortfall/status/coverage are populated.
     const atoms = [];
     for (const proj of pass2) {
       (proj.events || []).forEach((evt, idx) => {
@@ -201,10 +209,10 @@ function buildAssetAtoms(entry, horizonPastLeaseEndMonths, brains, pandemicGroun
           costLow: evt.costLow,
           costLikely: evt.costLikely,
           costHigh: evt.costHigh,
-          projectedBalanceAtDate: postLeaseEnd ? null : evt.balanceAtEvent,
-          shortfallLow: postLeaseEnd ? null : evt.shortfallLow,
-          shortfallHigh: postLeaseEnd ? null : evt.shortfallHigh,
-          status: postLeaseEnd ? null : classify(evt.shortfallLow, evt.shortfallHigh),
+          projectedBalanceAtDate: evt.balanceAtEvent,
+          shortfallLow: evt.shortfallLow,
+          shortfallHigh: evt.shortfallHigh,
+          status: classify(evt.shortfallLow, evt.shortfallHigh),
           postLeaseEnd
         });
       });
@@ -228,14 +236,17 @@ function buildHeadline(perAssetResults, atoms) {
   const excluded = perAssetResults.filter(a => a.excluded);
   const included = perAssetResults.filter(a => !a.excluded);
 
+  // REDESIGN: no time-window cutoff. Sum every pot's shortfall to its own
+  // next event, regardless of lease boundary — "asset exposure, not lease
+  // exposure" (fleet-exposure-redesign-handoff.md §1). The lease boundary
+  // moves to being a per-event label (postLeaseEnd), not a headline filter.
   const totalHighCaseGap = atoms
-    .filter(a => !a.postLeaseEnd)
     .reduce((sum, a) => sum + Math.max(0, a.shortfallHigh), 0);
 
   const statusCounts = { green: 0, amber: 0, red: 0 };
   const worstStatusByAsset = {};
   for (const a of atoms) {
-    if (a.postLeaseEnd || !a.status) continue;
+    if (!a.status) continue;
     const rank = { green: 0, amber: 1, red: 2 };
     const current = worstStatusByAsset[a.assetId];
     if (!current || rank[a.status] > rank[current]) worstStatusByAsset[a.assetId] = a.status;
@@ -245,7 +256,7 @@ function buildHeadline(perAssetResults, atoms) {
   // default (every event covers HIGH) — count them explicitly rather than
   // letting them fall through uncounted.
   for (const a of included) {
-    if (!worstStatusByAsset[a.assetId] && a.atoms.some(x => !x.postLeaseEnd)) {
+    if (!worstStatusByAsset[a.assetId] && a.atoms.length) {
       statusCounts.green++;
     }
   }
@@ -272,15 +283,21 @@ function buildTimeAxis(atoms) {
   for (const a of atoms) {
     const key = monthKey(a.date);
     if (!buckets.has(key)) {
-      buckets.set(key, { monthKey: key, costHigh: 0, costLow: 0, coverage: 0, shortfallHigh: 0, atoms: [] });
+      buckets.set(key, { monthKey: key, costHigh: 0, costLow: 0, coverage: 0, shortfallHigh: 0, inLeaseShortfallHigh: 0, postLeaseShortfallHigh: 0, atoms: [] });
     }
     const b = buckets.get(key);
     b.atoms.push(a);
     b.costHigh += a.costHigh || 0;
     b.costLow += a.costLow || 0;
-    if (!a.postLeaseEnd) {
-      b.coverage += a.projectedBalanceAtDate || 0;
-      b.shortfallHigh += Math.max(0, a.shortfallHigh || 0);
+    b.coverage += a.projectedBalanceAtDate || 0;
+    b.shortfallHigh += Math.max(0, a.shortfallHigh || 0);
+    // Split totals so the bar chart can render within-lease (solid) and
+    // post-lease (translucent) segments separately, per the redesign's
+    // "texture without hiding anything" requirement (§3).
+    if (a.postLeaseEnd) {
+      b.postLeaseShortfallHigh += Math.max(0, a.shortfallHigh || 0);
+    } else {
+      b.inLeaseShortfallHigh += Math.max(0, a.shortfallHigh || 0);
     }
   }
   return Array.from(buckets.values()).sort((x, y) => (x.monthKey < y.monthKey ? -1 : 1));
@@ -293,13 +310,31 @@ function buildTimeAxis(atoms) {
 
 function buildAssetAxis(perAssetResults) {
   const rank = { red: 2, amber: 1, green: 0 };
+  // Default sort (by total exposure, biggest first) is applied here so a
+  // caller that doesn't care about sort mode still gets a sensible order.
+  // The UI's "by nearest event date" toggle re-sorts this same array
+  // client-side using nearestEventDate — no re-fetch, same data either way.
   return perAssetResults
     .filter(a => !a.excluded)
     .map(a => {
-      const inLease = a.atoms.filter(x => !x.postLeaseEnd);
-      const totalShortfallHigh = inLease.reduce((s, x) => s + Math.max(0, x.shortfallHigh || 0), 0);
-      const worstStatus = inLease.reduce((worst, x) => (rank[x.status] > rank[worst] ? x.status : worst), "green");
-      return { assetId: a.assetId, msn: a.msn, totalShortfallHigh, worstStatus, atomCount: a.atoms.length };
+      // REDESIGN: total now includes every atom (in-lease + post-lease) —
+      // this is asset exposure, not lease exposure (§1). worstStatus
+      // likewise considers the full shortfall picture, not just in-lease.
+      const totalShortfallHigh = a.atoms.reduce((s, x) => s + Math.max(0, x.shortfallHigh || 0), 0);
+      const worstStatus = a.atoms.reduce((worst, x) => (rank[x.status] > rank[worst] ? x.status : worst), "green");
+      const sortedByDate = [...a.atoms].sort((x, y) => x.date - y.date);
+      const nearestEvent = sortedByDate[0] || null;
+      const hasPostLeaseEvent = a.atoms.some(x => x.postLeaseEnd);
+      return {
+        assetId: a.assetId,
+        msn: a.msn,
+        totalShortfallHigh,
+        worstStatus,
+        atomCount: a.atoms.length,
+        nearestEventDate: nearestEvent ? nearestEvent.date : null,
+        nearestEventPostLease: nearestEvent ? nearestEvent.postLeaseEnd : false,
+        hasPostLeaseEvent
+      };
     })
     .sort((x, y) => y.totalShortfallHigh - x.totalShortfallHigh);
 }
@@ -328,6 +363,14 @@ function buildAssetAxis(perAssetResults) {
 // }
 //
 // output: { headline, timeAxis, assetAxis, atoms, excludedAssets, perAsset }
+//
+// REDESIGN (fleet-exposure-redesign-handoff.md, July 2026): headline,
+// timeAxis, and assetAxis all now include post-lease atoms in their
+// totals — "asset exposure, not lease exposure" (§1). `postLeaseEnd` on
+// each atom survives purely as a UI label (solid vs. translucent fill,
+// "(includes post-lease)" row tag) — it no longer filters anything out
+// of a sum. assetAxis also carries `nearestEventDate` per asset so the
+// UI's "by nearest event date" sort mode has something to sort on.
 
 function buildFleetExposure(input) {
   const { assets = [], horizonPastLeaseEndMonths = 24, brains, pandemicGroundingMonths = 0 } = input;
