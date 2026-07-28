@@ -622,11 +622,14 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
 
         {step==="eol"&&(
           <>
-            <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.6,marginBottom:14}}>
+            <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.6,marginBottom:10}}>
               These are read-once-per-lease terms from the lease schedule — pre-filled from your company's standard template, fully editable. Manual entry, not extraction: these figures carry real money and belong to prose clauses that shouldn't be auto-parsed.
             </div>
+            <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 0",marginBottom:14,textDecoration:"underline",background:"none",border:"none"}} onClick={()=>setStep("confirm")}>
+              Skip — use defaults for now →
+            </button>
             <label style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,fontSize:12,color:"#e2e8f0",cursor:"pointer"}}>
-              <input type="checkbox" checked={!!form.endOfLeaseTerms?.applies} onChange={e=>setEol("applies",e.target.checked)}/>
+              <input type="checkbox" style={{width:"auto",flexShrink:0}} checked={!!form.endOfLeaseTerms?.applies} onChange={e=>setEol("applies",e.target.checked)}/>
               This lease has an End of Lease Maintenance Payment Adjustment
             </label>
             {form.endOfLeaseTerms?.applies&&(
@@ -634,8 +637,8 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
                   <div>
                     <label className="form-label">Components Covered</label>
-                    <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#94a3b8",marginTop:4}}>
-                      <input type="checkbox" checked={(form.endOfLeaseTerms?.componentsCovered||[]).includes("ENGINE_LLP")}
+                    <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#94a3b8",marginTop:4,cursor:"pointer"}}>
+                      <input type="checkbox" style={{width:"auto",flexShrink:0}} checked={(form.endOfLeaseTerms?.componentsCovered||[]).includes("ENGINE_LLP")}
                         onChange={e=>setEol("componentsCovered",e.target.checked?["ENGINE_LLP"]:[])}/>
                       Engine LLPs
                     </label>
@@ -659,11 +662,11 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
                 <div style={{marginBottom:14}}>
                   <div className="form-label" style={{marginBottom:6}}>Carve-Outs</div>
                   <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"#94a3b8",marginBottom:6,cursor:"pointer"}}>
-                    <input type="checkbox" checked={!!form.endOfLeaseTerms?.carveOuts?.firstLGOverhaulExcluded} onChange={e=>setEolCarveOut("firstLGOverhaulExcluded",e.target.checked)}/>
+                    <input type="checkbox" style={{width:"auto",flexShrink:0}} checked={!!form.endOfLeaseTerms?.carveOuts?.firstLGOverhaulExcluded} onChange={e=>setEolCarveOut("firstLGOverhaulExcluded",e.target.checked)}/>
                     First Landing Gear Overhaul excluded from adjustment
                   </label>
                   <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"#94a3b8",cursor:"pointer"}}>
-                    <input type="checkbox" checked={!!form.endOfLeaseTerms?.carveOuts?.firstEngineLLPEventExcluded} onChange={e=>setEolCarveOut("firstEngineLLPEventExcluded",e.target.checked)}/>
+                    <input type="checkbox" style={{width:"auto",flexShrink:0}} checked={!!form.endOfLeaseTerms?.carveOuts?.firstEngineLLPEventExcluded} onChange={e=>setEolCarveOut("firstEngineLLPEventExcluded",e.target.checked)}/>
                     First Engine LLP Event excluded from adjustment
                   </label>
                   <div style={{fontSize:10,color:"#475569",marginTop:4}}>Displayed on the EOL Position screen — not yet netted out of the money figure automatically (tracked in TECH_DEBT.md).</div>
