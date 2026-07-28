@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TailiQ</title>
+
+<link rel="icon" href="/favicon.ico" sizes="any"/>
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"/>
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png"/>
+<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png"/>
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
+<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png"/>
+<link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png"/>
+
+<!-- Third-party libs used as bare globals (window.XLSX, window.pdfjsLib, window.mammoth,
+     window.Chart) by components — left as classic CDN scripts, unchanged from the
+     single-file app. Not converted to npm packages in this migration pass. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.7.0/mammoth.browser.min.js"></script>
+<!-- Chart.js — used only by the Fly-Forward Demo view (sample-data validation, not live) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
+<script>
+  if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';}
+</script>
+
+<!-- BRAIN 2 — LLP Calculator (pure logic, no UI, no Firebase — see /calculations) -->
+<!-- These files are served as static assets from /public/calculations (Vite copies
+     /public verbatim to the build root) — untouched by the Vite migration. -->
+<script src="/calculations/llpCalculator.js"></script>
+<script src="/calculations/utilisation.js"></script>
+<!-- BRAIN 3/4/5 — Fly-Forward, Risk Peak, Shortfall (pure logic, no UI, no Firebase) -->
+<script src="/calculations/flyForward.js"></script>
+<script src="/calculations/maintenanceCal.js"></script>
+<script src="/calculations/riskPeak.js"></script>
+<script src="/calculations/shortfall.js"></script>
+<script src="/calculations/fleetExposure.js"></script>
+<!-- BRAIN 8 — Route Suitability Matcher (pure logic, no UI, no Firebase) -->
+<script src="/calculations/routeMatcher.js"></script>
+<!-- Real-asset utilisation rate derivation (pure logic, no UI, no Firebase) -->
+<script src="/calculations/realAssetContext.js"></script>
+<!-- Real per-part LLP catalogue prices, sourced from Engine_LLP_Escalation_Model.xlsx -->
+<script src="/calculations/llpCatalogue.js"></script>
+<!-- Fly-Forward Demo lease terms — FABRICATED, not live data -->
+<script src="/calculations/demoLeaseData.js"></script>
+<!-- Tech spec HTML builder — shared with the public share.html page; also the home
+     of fmtDate/fmtHHMM/TECH_SPEC_LOGO referenced across the app -->
+<script src="/calculations/techSpecBuilder.js"></script>
+
+<!-- Firebase init — unchanged from the single-file app. Runs as its own inline
+     module script; sets window._firestore / window._auth / window._cloudinaryConfig
+     and dispatches firebase-ready / auth-state-changed / firebase-config-error
+     events that App.jsx listens for. -->
+<script type="module" id="firebase-init">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+  import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, confirmPasswordReset, verifyPasswordResetCode } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+
+  // Firebase web config + Cloudinary cloud name/upload preset are not
+  // secrets (Firebase web config and an unsigned Cloudinary preset are
+  // designed to be public client-side) — this fetch exists only to keep
+  // them out of GitHub history, via /api/config reading Vercel env vars.
+  let cfg;
+  try {
+    const res = await fetch('/api/config');
+    cfg = await res.json();
+  } catch (e) {
+    console.error('Failed to load /api/config', e);
+    window._configError = true;
+    window.dispatchEvent(new Event('firebase-config-error'));
+  }
+
+  if (cfg) {
+    window._cloudinaryConfig = cfg.cloudinary;
+
+    const app = initializeApp(cfg.firebase);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    window._firestore = { db, collection, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, query, where, orderBy };
+
+    // --- Minimal auth layer ---
+    // Exposes a small bridge on window so the React app (App.jsx, SetPasswordScreen)
+    // can sign in/out and react to auth state. Firestore rules are the real gate;
+    // this is what lets the UI know whether to show the app or a sign-in screen.
+    window._auth = {
+      signIn: (email, password) => signInWithEmailAndPassword(auth, email, password),
+      signOut: () => signOut(auth),
+      // Used to authenticate calls to admin-only serverless functions (e.g.
+      // /api/invite-user) — the function verifies this token server-side
+      // rather than trusting any client-supplied flag.
+      getIdToken: () => auth.currentUser ? auth.currentUser.getIdToken() : Promise.resolve(null),
+      // Used to read Firebase custom claims (e.g. role) for the signed-in user.
+      // Pass forceRefresh=true after a claim has just been set server-side.
+      getIdTokenResult: (forceRefresh=false) => auth.currentUser ? auth.currentUser.getIdTokenResult(forceRefresh) : Promise.resolve(null),
+      // Used by the set-password view reached via the invite email link.
+      verifyResetCode: (oobCode) => verifyPasswordResetCode(auth, oobCode),
+      confirmReset: (oobCode, newPassword) => confirmPasswordReset(auth, oobCode, newPassword)
+    };
+
+    // Only now is everything window.* code outside this module might touch
+    // (firestore helpers AND auth bridge) actually assigned. Previously this
+    // fired right after _firestore was set, before window._auth existed —
+    // any listener reacting immediately (e.g. SetPasswordScreen) would find
+    // window._auth undefined and crash.
+    window._firebaseReady = true;
+    window.dispatchEvent(new Event('firebase-ready'));
+
+    onAuthStateChanged(auth, (user) => {
+      window._authUser = user ? { uid: user.uid, email: user.email } : null;
+      window.dispatchEvent(new Event('auth-state-changed'));
+    });
+  }
+</script>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>
