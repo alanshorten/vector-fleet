@@ -1,4 +1,11 @@
-export const maxDuration = 60;
+// Was 60s. Dense multi-engine LLP documents (e.g. combined LH+RH sheets) can push the
+// model's own reasoning + response time to 50-57s on their own, right against a 60s
+// ceiling — Vercel was killing the function outright on the slower attempts before it
+// could even return our own "could not extract" error, surfacing instead as a raw
+// FUNCTION_INVOCATION_TIMEOUT platform error. Raised to 300s for real headroom. If this
+// gets silently clamped back down, it means the Vercel plan's own function-duration cap
+// is lower than this — check the plan tier, not this file, in that case.
+export const maxDuration = 300;
 
 // Allow both the legacy Vercel URL and the new tailiq.app domain while we're
 // mid-transition. Drop the .vercel.app entry in a future cleanup session

@@ -1,21 +1,7 @@
 import { APU_LLP_PROMPT, ENGINE_LLP_PROMPT, OPERATOR_HISTORY_PROMPT } from './assetHelpers';
 
-async function extractLLPSheet(file,kind){
-  if(file.type!=="application/pdf")throw new Error("Please upload a PDF file.");
-  if(file.size>10*1024*1024)throw new Error("File is too large (maximum 10 MB).");
-  const prompt=kind==="llp"?ENGINE_LLP_PROMPT:APU_LLP_PROMPT;
-  const extractModel=kind==="llp"?"claude-sonnet-4-6":"claude-haiku-4-5-20251001";
-  // Engine LLP sheets can arrive as a single PDF covering BOTH engines (e.g. combined
-  // LH+RH status sheets), roughly doubling the row count and column density versus a
-  // single-engine sheet. The prompt also allows the model to reason through the table
-  // before answering, which eats into the same token budget. 4000 was sized for the
-  // single-engine case and silently truncates mid-JSON on two-engine documents,
-  // surfacing as a false "could not extract structured data" failure. Raised to 8000
-  // for the llp kind only — APU LLP is always a single component and has never shown
-  // this failure, so it stays at 4000.
-  const maxTokens=kind==="llp"?8000:4000;
-  const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Could not read the file. Please try again."));r.readAsDataURL(file);});
-  const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:extractModel,max_tokens:maxTokens,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:prompt}]}]})});
+async function callExtractAPI(base64,prompt,model,maxTokens,invalidFormatLabel){
+  const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model,max_tokens:maxTokens,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:prompt}]}]})});
   if(!resp.ok){
     const status=resp.status;
     if(status===401||status===403)throw new Error("Authentication error with the TailiQ service. Please contact your administrator.");
@@ -29,19 +15,104 @@ async function extractLLPSheet(file,kind){
     const msg=result.error;
     if(msg.includes("credit")||msg.includes("billing"))throw new Error("TailiQ service billing issue — please contact your administrator.");
     if(msg.includes("overloaded")||msg.includes("capacity"))throw new Error("TailiQ is busy right now. Please wait a moment and try again.");
-    throw new Error("Extraction failed. Please check the file is a valid report and try again.");
+    throw new Error("Extraction failed. Please check the file is a valid "+invalidFormatLabel+" and try again.");
   }
   let parsed;
   try{
     const rawParsed=result.ok?result.data:JSON.parse((result.raw||"").replace(/```json|```/g,"").trim());
     parsed=Array.isArray(rawParsed)?rawParsed[rawParsed.length-1]:rawParsed;
   }catch(parseErr){
-    throw new Error("TailiQ could not extract structured data from this file. Check it is the correct report type.");
+    throw new Error("TailiQ could not extract structured data from this file. Check it is a valid "+invalidFormatLabel+".");
   }
   if(!parsed||typeof parsed!=="object"||Array.isArray(parsed)){
-    throw new Error("TailiQ returned an unexpected format. Check the file is a valid report and try again.");
+    throw new Error("TailiQ returned an unexpected format. Check the file is a valid "+invalidFormatLabel+" and try again.");
   }
   return parsed;
+};
+
+function llpRowKey(llp){
+  const pn=(llp?.pn||"").trim().toUpperCase();
+  const sn=(llp?.sn||"").trim().toUpperCase();
+  if(pn||sn)return pn+"|"+sn;
+  return (llp?.desc||"").trim().toUpperCase();
+};
+
+function mergeLLPPageResults(pageResults){
+  const merged={msn:null,registration:null,engines:[]};
+  const engineIndex=new Map(); // key -> index into merged.engines
+  for(const pr of pageResults){
+    if(!merged.msn&&pr.msn)merged.msn=pr.msn;
+    if(!merged.registration&&pr.registration)merged.registration=pr.registration;
+    for(const eng of (Array.isArray(pr.engines)?pr.engines:[])){
+      const key=(eng.esn&&String(eng.esn).trim())||eng.position||("engine"+merged.engines.length);
+      if(!engineIndex.has(key)){
+        engineIndex.set(key,merged.engines.length);
+        merged.engines.push({...eng,llps:Array.isArray(eng.llps)?[...eng.llps]:[]});
+      }else{
+        const idx=engineIndex.get(key);
+        const existing=merged.engines[idx];
+        // Fill any missing scalar fields from this page's copy of the same engine.
+        for(const field of ["esn","engine_type","variant","csn","tsn","position"]){
+          if((existing[field]===undefined||existing[field]===null||existing[field]==="")&&eng[field]!==undefined&&eng[field]!==null&&eng[field]!=="")existing[field]=eng[field];
+        }
+        // Merge LLP rows, de-duplicating by part/serial number (or description if those are blank)
+        // so a single engine's table split across two pages doesn't get double-counted.
+        const seen=new Set(existing.llps.map(llpRowKey));
+        for(const llp of (Array.isArray(eng.llps)?eng.llps:[])){
+          const k=llpRowKey(llp);
+          if(!seen.has(k)){existing.llps.push(llp);seen.add(k);}
+        }
+      }
+    }
+  }
+  return merged;
+};
+
+async function getPdfPageCount(file){
+  if(!window.pdfjsLib)return 1; // if the PDF library isn't loaded, fall back to treating it as a single page
+  try{
+    const buf=await file.arrayBuffer();
+    const doc=await pdfjsLib.getDocument({data:buf}).promise;
+    return doc.numPages||1;
+  }catch(e){
+    return 1;
+  }
+};
+
+async function extractLLPSheet(file,kind){
+  if(file.type!=="application/pdf")throw new Error("Please upload a PDF file.");
+  if(file.size>10*1024*1024)throw new Error("File is too large (maximum 10 MB).");
+  const isEngineLLP=kind==="llp";
+  const basePrompt=isEngineLLP?ENGINE_LLP_PROMPT:APU_LLP_PROMPT;
+  const extractModel=isEngineLLP?"claude-sonnet-4-6":"claude-haiku-4-5-20251001";
+  const formatLabel="report type";
+  const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Could not read the file. Please try again."));r.readAsDataURL(file);});
+  // Engine LLP sheets can arrive as a single PDF covering BOTH engines (e.g. combined
+  // LH+RH status sheets) — roughly double the row count and column density of a
+  // single-engine sheet, on top of the reasoning-before-JSON the prompt already allows.
+  // Simply raising max_tokens is a losing race against however dense a given document
+  // turns out to be. Instead, when the PDF has more than one page, run one extraction
+  // pass PER PAGE (each page is comfortably within the original single-engine budget
+  // on its own) and merge the results — this is exactly the "ignore page 2" / "ignore
+  // page 1" workaround confirmed to work manually, done automatically per page instead
+  // of requiring the user to know it. APU LLP sheets are always a single component and
+  // have never shown this failure, so they keep the original single-call path untouched.
+  if(isEngineLLP){
+    const numPages=await getPdfPageCount(file);
+    if(numPages>1){
+      const pageResults=[];
+      for(let p=1;p<=numPages;p++){
+        const pagePrompt=basePrompt+"\n\nIMPORTANT: This PDF has "+numPages+" pages. For this extraction pass, only read and extract data from page "+p+" of "+numPages+" — completely ignore all other pages, including any other engine or table that appears elsewhere in the document.";
+        pageResults.push(await callExtractAPI(base64,pagePrompt,extractModel,4000,formatLabel));
+      }
+      const merged=mergeLLPPageResults(pageResults);
+      if(!merged.engines.length){
+        throw new Error("TailiQ could not extract structured data from this file. Check it is the correct report type.");
+      }
+      return merged;
+    }
+  }
+  return callExtractAPI(base64,basePrompt,extractModel,isEngineLLP?8000:4000,formatLabel);
 };
 
 async function extractOperatorHistory(file){
