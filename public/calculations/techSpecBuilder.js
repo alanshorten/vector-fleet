@@ -299,7 +299,7 @@ ${cO("Life Limited Parts",svgList)}
 </tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>
 ${cC}`;
   });
-  return pages.join('<div class="pb"></div>')+PAGE_FOOTER+'<div class="pb"></div>';
+  return pages.join('<div class="pb"></div>')+'<div class="pb"></div>';
 })()}
 ${pgH("Landing Gear")}
 ${cO("Landing Gear Assembly",svgGearLeg)}
