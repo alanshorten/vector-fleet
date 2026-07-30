@@ -639,10 +639,10 @@ function AvionicsLRUUploader({onSaved,notify}){
   );
 };
 
-function AvionicsTab({asset,isAdmin,saveAsset,notify}){
+function AvionicsTab({asset,isAdmin,saveAsset,notify,defaultUploaderOpen=false}){
   const[editing,setEditing]=useState(false);
   const[form,setForm]=useState(null);
-  const[uploaderOpen,setUploaderOpen]=useState(false);
+  const[uploaderOpen,setUploaderOpen]=useState(defaultUploaderOpen);
   const lru=asset.avionicsLRU||{rows:[],hiddenChapters:[]};
   const d=editing?form:lru;
   const startEdit=()=>{setForm(JSON.parse(JSON.stringify(lru)));setEditing(true);};

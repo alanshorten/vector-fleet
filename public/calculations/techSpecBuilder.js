@@ -51,7 +51,7 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 .sc-val{font-size:20px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.02em;margin-bottom:5px}
 .sc-val-sm{font-size:13px;font-weight:700;color:#0f172a;line-height:1.3;letter-spacing:-0.01em;margin-bottom:5px}
 .sc-lbl{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8}
-@media screen and (max-width:600px){.sc-cards,.sc-cards tbody,.sc-cards tr{display:block;width:100%}.sc-cell{display:block;width:100%!important;padding:0 0 10px!important}.sc-cell:last-child{padding-bottom:0!important}.sc-inner{display:flex;align-items:center;gap:12px;padding:12px 14px}.sc-icon{margin-bottom:0}.sc-val,.sc-val-sm{margin-bottom:0}.sc-lbl{margin-top:2px}}
+@media screen and (max-width:600px){.sc-cards,.sc-cards tbody,.sc-cards tr{display:block;width:100%}.sc-cell{display:block;width:100%!important;padding:0 0 10px!important}.sc-cell:last-child{padding-bottom:0!important}.sc-inner{display:flex;align-items:center;gap:12px;padding:12px 14px;height:auto!important}.sc-icon{margin-bottom:0}.sc-val,.sc-val-sm{margin-bottom:0}.sc-lbl{margin-top:2px}}
 .cov-disc{font-size:9px;color:#6b7280;margin:26px 10px 0;line-height:1.6}
 .cov-date{margin-top:8px;font-size:11px;color:#374151;margin-left:10px}
 h3{background:#1e293b;color:#FFFFFF;font-size:11.5px;padding:5px 10px;border-radius:4px;margin:18px 0 7px;letter-spacing:0.04em}
@@ -173,11 +173,11 @@ ${eng.operatorHistory?.length?`${cO("Operator History",svgList)}<table style="wi
     const iconFC=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51,9a9,9,0,0,1,14.85-3.36L23,10M1,14l4.64,4.36A9,9,0,0,0,20.49,15"/></svg>`;
     const iconType=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8c3-2 13-2 15 0l4 4-4 4c-2 2-12 2-15 0l1-4-1-4zM7 8v8M18 9v6M14 8a12 12 0 010 8"/></svg>`;
     const iconThrust=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13,2L3,14h9l-1,8,10-12h-9l1-8z"/></svg>`;
-    return`<table width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col width="25%"/><col width="25%"/><col width="25%"/><col width="25%"/></colgroup><tr>
-      <td width="25%" style="width:25%;padding:0 4px 0 0;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFH}</div><div class="sc-val">${fmtHHMM(eng?.currentFH)}</div><div class="sc-lbl">Flight Hours</div></div></td>
-      <td width="25%" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFC}</div><div class="sc-val">${(eng?.currentFC||0).toLocaleString()}</div><div class="sc-lbl">Flight Cycles</div></div></td>
-      <td width="25%" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconType}</div><div class="sc-val-sm">${eng?.type||"—"}</div><div class="sc-lbl">Engine Type</div></div></td>
-      <td width="25%" style="width:25%;padding:0 0 0 4px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconThrust}</div><div class="sc-val-sm">${eng?.thrust||"—"}</div><div class="sc-lbl">Thrust Rating</div></div></td>
+    return`<table width="100%" cellpadding="0" cellspacing="0" class="sc-cards" style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col width="25%"/><col width="25%"/><col width="25%"/><col width="25%"/></colgroup><tr>
+      <td width="25%" class="sc-cell" style="width:25%;padding:0 4px 0 0;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFH}</div><div class="sc-val">${fmtHHMM(eng?.currentFH)}</div><div class="sc-lbl">Flight Hours</div></div></td>
+      <td width="25%" class="sc-cell" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFC}</div><div class="sc-val">${(eng?.currentFC||0).toLocaleString()}</div><div class="sc-lbl">Flight Cycles</div></div></td>
+      <td width="25%" class="sc-cell" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconType}</div><div class="sc-val-sm">${eng?.type||"—"}</div><div class="sc-lbl">Engine Type</div></div></td>
+      <td width="25%" class="sc-cell" style="width:25%;padding:0 0 0 4px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconThrust}</div><div class="sc-val-sm">${eng?.thrust||"—"}</div><div class="sc-lbl">Thrust Rating</div></div></td>
     </tr></table>`;})()}
     <div class="cov-date">Date: ${today}</div>
   </div>
@@ -206,11 +206,11 @@ ${PAGE_FOOTER}
     const iconOp=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20,21v-2a4,4,0,0,0-4-4H8a4,4,0,0,0-4,4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
     const opLabel=(asset.operatorLabel||"Current Operator").toUpperCase();
     const opVal=asset.operator||"—";
-    return`<table width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col width="25%"/><col width="25%"/><col width="25%"/><col width="25%"/></colgroup><tr>
-      <td width="25%" style="width:25%;padding:0 4px 0 0;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFH}</div><div class="sc-val">${fmtHHMM(af.currentFH)}</div><div class="sc-lbl">Flight Hours</div></div></td>
-      <td width="25%" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFC}</div><div class="sc-val">${(af.currentFC||0).toLocaleString()}</div><div class="sc-lbl">Flight Cycles</div></div></td>
-      <td width="25%" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconDOM}</div><div class="sc-val" style="font-size:14px">${domDisp}</div><div class="sc-lbl">Date of Manufacture</div></div></td>
-      <td width="25%" style="width:25%;padding:0 0 0 4px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconOp}</div><div class="sc-val-sm">${opVal}</div><div class="sc-lbl">${opLabel}</div></div></td>
+    return`<table width="100%" cellpadding="0" cellspacing="0" class="sc-cards" style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col width="25%"/><col width="25%"/><col width="25%"/><col width="25%"/></colgroup><tr>
+      <td width="25%" class="sc-cell" style="width:25%;padding:0 4px 0 0;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFH}</div><div class="sc-val">${fmtHHMM(af.currentFH)}</div><div class="sc-lbl">Flight Hours</div></div></td>
+      <td width="25%" class="sc-cell" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFC}</div><div class="sc-val">${(af.currentFC||0).toLocaleString()}</div><div class="sc-lbl">Flight Cycles</div></div></td>
+      <td width="25%" class="sc-cell" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconDOM}</div><div class="sc-val" style="font-size:14px">${domDisp}</div><div class="sc-lbl">Date of Manufacture</div></div></td>
+      <td width="25%" class="sc-cell" style="width:25%;padding:0 0 0 4px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconOp}</div><div class="sc-val-sm">${opVal}</div><div class="sc-lbl">${opLabel}</div></div></td>
     </tr></table>`;})()}
     <div class="cov-disc">${asset.disclaimer||disclaimerOverride||"This outline specification has been prepared based on the information available to Maverick Horizon at the relevant time. The recipient must verify the information provided independently."}</div>
     <div class="cov-date">Date: ${today}</div>
@@ -312,7 +312,7 @@ ${(()=>{
     else if(hasRefPair){curFC=g.refLegFC+((af.currentFC||0)-g.refAirframeFC);}
     const intervalCycles=g?.overhaulIntervalCycles||20000;
     const cycRem=(g?.lastOverhaulFC!=null&&curFC!=null)?(g.lastOverhaulFC+intervalCycles)-curFC:null;
-    const lkv=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #f8fafc;padding:4px 0;font-size:9.5px;color:#64748b;font-weight:600;width:80px;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #f8fafc;padding:4px 0;font-size:10px;color:#0f172a;font-weight:600;vertical-align:top;word-break:break-word">${v}</td></tr>`;
+    const lkv=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #f8fafc;padding:4px 0;font-size:9.5px;color:#64748b;font-weight:600;width:42%;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #f8fafc;padding:4px 0;font-size:10px;color:#0f172a;font-weight:600;vertical-align:top;word-break:normal;overflow-wrap:anywhere">${v}</td></tr>`;
     const rows=g?`<table width="100%" cellpadding="0" cellspacing="0">
       ${lkv("Part No.",g.pn||"—")}
       ${lkv("Serial No.",g.sn||"—")}

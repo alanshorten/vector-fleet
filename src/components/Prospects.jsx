@@ -524,7 +524,7 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
 
           <div className="card" style={{padding:18}}>
             <div className="section-title">Avionics</div>
-            <AvionicsTab asset={d} isAdmin={true} saveAsset={avionicsSaveAsset} notify={notify}/>
+            <AvionicsTab asset={d} isAdmin={true} saveAsset={avionicsSaveAsset} notify={notify} defaultUploaderOpen={true}/>
           </div>
           </>)}
 
