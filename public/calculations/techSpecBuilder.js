@@ -51,6 +51,7 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 .sc-val{font-size:20px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.02em;margin-bottom:5px}
 .sc-val-sm{font-size:13px;font-weight:700;color:#0f172a;line-height:1.3;letter-spacing:-0.01em;margin-bottom:5px}
 .sc-lbl{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8}
+@media screen and (max-width:600px){.sc-cards,.sc-cards tbody,.sc-cards tr{display:block;width:100%}.sc-cell{display:block;width:100%!important;padding:0 0 10px!important}.sc-cell:last-child{padding-bottom:0!important}.sc-inner{display:flex;align-items:center;gap:12px;padding:12px 14px}.sc-icon{margin-bottom:0}.sc-val,.sc-val-sm{margin-bottom:0}.sc-lbl{margin-top:2px}}
 .cov-disc{font-size:9px;color:#6b7280;margin:26px 10px 0;line-height:1.6}
 .cov-date{margin-top:8px;font-size:11px;color:#374151;margin-left:10px}
 h3{background:#1e293b;color:#FFFFFF;font-size:11.5px;padding:5px 10px;border-radius:4px;margin:18px 0 7px;letter-spacing:0.04em}
@@ -233,7 +234,7 @@ ${col2(
     <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr>
       <th style="${TH}">Check</th><th style="${TH}">Last Date</th><th style="${TH}">FH</th><th style="${TH}">FC</th><th style="${TH}">Next Due</th>
     </tr></thead><tbody>
-    ${(asset.checks||[]).map(c=>`<tr><td style="${TD}">${c.name}</td><td style="${TD}">${fmtDate(c.lastDate)}</td><td style="${TD}">${c.lastFH?.toLocaleString()||"—"}</td><td style="${TD}">${c.lastFC?.toLocaleString()||"—"}</td><td style="${TD};font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("")}
+    ${(()=>{const enteredChecks=(asset.checks||[]).filter(c=>c.lastDate||c.nextDate);if(!enteredChecks.length)return'<tr><td colspan="5" style="color:#aaa;font-style:italic">No check history entered</td></tr>';return enteredChecks.map(c=>`<tr><td style="${TD}">${c.name}</td><td style="${TD}">${fmtDate(c.lastDate)}</td><td style="${TD}">${c.lastFH?.toLocaleString()||"—"}</td><td style="${TD}">${c.lastFC?.toLocaleString()||"—"}</td><td style="${TD};font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("");})()}
     </tbody></table>
   </td>`
 )}

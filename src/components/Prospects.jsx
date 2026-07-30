@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LLPExtractor, ShareModal } from './AssetView';
-import { CheckDateInput, PhotoManager } from './PhotosAndSpecs';
+import { AvionicsTab, CheckDateInput, PhotoManager } from './PhotosAndSpecs';
 import { assetEngineStockPhotoKey, airframeStockPhotoKey, makeBlankAsset, makeBlankEngineProspect, parseHHMM } from '../lib/assetHelpers';
 import { db, logAudit } from '../lib/db';
 import { generateTechSpec, getDefaultDisclaimer, getTechSpecLogo } from '../lib/techSpec';
@@ -188,6 +188,17 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
     setSaving(true);
     try{
       await saveAsset(updatedAsset,action||`Updated prospect ${assetLabel(updatedAsset)} photos`);
+      await regeneratePreview(updatedAsset);
+    }catch(e){notify("Save failed: "+e.message,"error");}
+    setSaving(false);
+  };
+  // AvionicsTab also calls saveAsset(asset,...) directly rather than through
+  // commit() — same reason as photoSaveAsset above, same fix.
+  const avionicsSaveAsset=async(updatedAsset,action)=>{
+    setForm(updatedAsset);
+    setSaving(true);
+    try{
+      await saveAsset(updatedAsset,action||`Updated prospect ${assetLabel(updatedAsset)} avionics`);
       await regeneratePreview(updatedAsset);
     }catch(e){notify("Save failed: "+e.message,"error");}
     setSaving(false);
@@ -470,6 +481,7 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
 
           <div className="card" style={{padding:18}}>
             <div className="section-title">Checks</div>
+            <p style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>A check with no dates entered is left off the tech spec entirely — it won't show up as a blank row.</p>
             {(d.checks||[]).map((c,ci)=>{
               const yrs=(()=>{const m=/(\d+)\s*Year/i.exec(c.name);return m?+m[1]:null;})();
               return(
@@ -494,7 +506,28 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
               );
             })}
           </div>
+
+          <div className="card" style={{padding:18}}>
+            <div className="section-title">Wheels &amp; Brakes</div>
+            <p style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>Leave a row blank to leave it off the tech spec — only rows with a P/N or manufacturer entered are shown.</p>
+            {[["mainWheels","Main Wheels"],["noseWheels","Nose Wheels"],["brakes","Brake Units"]].map(([key,wlabel])=>(
+              <div key={key} style={{marginBottom:12,paddingBottom:12,borderBottom:key!=="brakes"?"1px solid #1e3048":"none"}}>
+                <div style={{fontSize:12,fontWeight:600,color:"#94a3b8",marginBottom:6}}>{wlabel}</div>
+                <div className="grid3" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"0 16px"}}>
+                  <PField label="Qty" type="number" val={d.wheelsBrakes?.[key]?.qty} onCommit={v=>commit(`wheelsBrakes.${key}.qty`,v)}/>
+                  <PField label="Part Number" val={d.wheelsBrakes?.[key]?.pn} onCommit={v=>commit(`wheelsBrakes.${key}.pn`,v)}/>
+                  <PField label="Manufacturer" val={d.wheelsBrakes?.[key]?.mfr} onCommit={v=>commit(`wheelsBrakes.${key}.mfr`,v)}/>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="card" style={{padding:18}}>
+            <div className="section-title">Avionics</div>
+            <AvionicsTab asset={d} isAdmin={true} saveAsset={avionicsSaveAsset} notify={notify}/>
+          </div>
           </>)}
+
 
           <div className="card" style={{padding:18}}>
             <div className="section-title">Photos</div>

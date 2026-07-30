@@ -36,6 +36,7 @@ function LLPExtractor({kind,label,onApply,notify}){
   const[extracting,setExtracting]=useState(false);
   const[parsed,setParsed]=useState(null);
   const[error,setError]=useState(null);
+  const[inputId]=useState(()=>`llp-file-${kind}-${Math.random().toString(36).slice(2,8)}`);
   const doExtract=async()=>{
     if(!file)return;
     setExtracting(true);setError(null);setParsed(null);
@@ -55,9 +56,14 @@ function LLPExtractor({kind,label,onApply,notify}){
     <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid #1e3048"}}>
       <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6}}>{label}</div>
       {!parsed?(
-        <div className="flab g8">
-          <input type="file" accept="application/pdf" onChange={e=>setFile(e.target.files?.[0]||null)} style={{fontSize:11,flex:1}}/>
-          <button type="button" className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} disabled={!file||extracting} onClick={doExtract}>{extracting?"Extracting…":"Extract"}</button>
+        <div className="card" style={{padding:16,textAlign:"center",border:"2px dashed #1e3048"}}>
+          <div style={{fontSize:22,marginBottom:6}}>📁</div>
+          <input type="file" accept="application/pdf" id={inputId} onChange={e=>setFile(e.target.files?.[0]||null)} style={{display:"none"}}/>
+          <label htmlFor={inputId} style={{cursor:"pointer"}}>
+            <div style={{fontWeight:600,fontSize:12,color:file?"#C9A84C":"#64748b"}}>{file?file.name:"Click to select file"}</div>
+            <div style={{fontSize:10,color:"#475569",marginTop:2}}>PDF only</div>
+          </label>
+          {file&&<button type="button" className="btn btn-gold" style={{fontSize:11,padding:"4px 10px",marginTop:10}} disabled={extracting} onClick={doExtract}>{extracting?"Extracting…":"Extract"}</button>}
         </div>
       ):(
         <div>
