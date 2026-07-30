@@ -5,11 +5,20 @@ async function extractLLPSheet(file,kind){
   if(file.size>10*1024*1024)throw new Error("File is too large (maximum 10 MB).");
   const prompt=kind==="llp"?ENGINE_LLP_PROMPT:APU_LLP_PROMPT;
   const extractModel=kind==="llp"?"claude-sonnet-4-6":"claude-haiku-4-5-20251001";
+  // Engine LLP sheets can arrive as a single PDF covering BOTH engines (e.g. combined
+  // LH+RH status sheets), roughly doubling the row count and column density versus a
+  // single-engine sheet. The prompt also allows the model to reason through the table
+  // before answering, which eats into the same token budget. 4000 was sized for the
+  // single-engine case and silently truncates mid-JSON on two-engine documents,
+  // surfacing as a false "could not extract structured data" failure. Raised to 8000
+  // for the llp kind only — APU LLP is always a single component and has never shown
+  // this failure, so it stays at 4000.
+  const maxTokens=kind==="llp"?8000:4000;
   const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Could not read the file. Please try again."));r.readAsDataURL(file);});
-  const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:extractModel,max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:prompt}]}]})});
+  const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:extractModel,max_tokens:maxTokens,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:prompt}]}]})});
   if(!resp.ok){
     const status=resp.status;
-    if(status===401||status===403)throw new Error("Authentication error with the AI service. Please contact your administrator.");
+    if(status===401||status===403)throw new Error("Authentication error with the TailiQ service. Please contact your administrator.");
     if(status===429)throw new Error("Too many requests — please wait a moment and try again.");
     if(status>=500)throw new Error("The extraction service is temporarily unavailable. Please try again in a few minutes.");
     throw new Error("Extraction request failed (error "+status+"). Please try again.");
@@ -18,8 +27,8 @@ async function extractLLPSheet(file,kind){
   try{result=await resp.json();}catch(jsonErr){throw new Error("Received an unexpected response from the server. Please try again.");}
   if(result.error){
     const msg=result.error;
-    if(msg.includes("credit")||msg.includes("billing"))throw new Error("AI service billing issue — please contact your administrator.");
-    if(msg.includes("overloaded")||msg.includes("capacity"))throw new Error("The AI service is busy right now. Please wait a moment and try again.");
+    if(msg.includes("credit")||msg.includes("billing"))throw new Error("TailiQ service billing issue — please contact your administrator.");
+    if(msg.includes("overloaded")||msg.includes("capacity"))throw new Error("TailiQ is busy right now. Please wait a moment and try again.");
     throw new Error("Extraction failed. Please check the file is a valid report and try again.");
   }
   let parsed;
@@ -27,10 +36,10 @@ async function extractLLPSheet(file,kind){
     const rawParsed=result.ok?result.data:JSON.parse((result.raw||"").replace(/```json|```/g,"").trim());
     parsed=Array.isArray(rawParsed)?rawParsed[rawParsed.length-1]:rawParsed;
   }catch(parseErr){
-    throw new Error("The AI could not extract structured data from this file. Check it is the correct report type.");
+    throw new Error("TailiQ could not extract structured data from this file. Check it is the correct report type.");
   }
   if(!parsed||typeof parsed!=="object"||Array.isArray(parsed)){
-    throw new Error("The AI returned an unexpected format. Check the file is a valid report and try again.");
+    throw new Error("TailiQ returned an unexpected format. Check the file is a valid report and try again.");
   }
   return parsed;
 };
@@ -45,7 +54,7 @@ async function extractOperatorHistory(file){
   const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:OPERATOR_HISTORY_PROMPT}]}]})});
   if(!resp.ok){
     const status=resp.status;
-    if(status===401||status===403)throw new Error("Authentication error with the AI service. Please contact your administrator.");
+    if(status===401||status===403)throw new Error("Authentication error with the TailiQ service. Please contact your administrator.");
     if(status===429)throw new Error("Too many requests — please wait a moment and try again.");
     if(status>=500)throw new Error("The extraction service is temporarily unavailable. Please try again in a few minutes.");
     throw new Error("Extraction request failed (error "+status+"). Please try again.");
@@ -54,8 +63,8 @@ async function extractOperatorHistory(file){
   try{result=await resp.json();}catch(jsonErr){throw new Error("Received an unexpected response from the server. Please try again.");}
   if(result.error){
     const msg=result.error;
-    if(msg.includes("credit")||msg.includes("billing"))throw new Error("AI service billing issue — please contact your administrator.");
-    if(msg.includes("overloaded")||msg.includes("capacity"))throw new Error("The AI service is busy right now. Please wait a moment and try again.");
+    if(msg.includes("credit")||msg.includes("billing"))throw new Error("TailiQ service billing issue — please contact your administrator.");
+    if(msg.includes("overloaded")||msg.includes("capacity"))throw new Error("TailiQ is busy right now. Please wait a moment and try again.");
     throw new Error("Extraction failed. Please check the file is a valid operator history document and try again.");
   }
   let parsed;
@@ -63,10 +72,10 @@ async function extractOperatorHistory(file){
     const rawParsed=result.ok?result.data:JSON.parse((result.raw||"").replace(/```json|```/g,"").trim());
     parsed=Array.isArray(rawParsed)?rawParsed[rawParsed.length-1]:rawParsed;
   }catch(parseErr){
-    throw new Error("The AI could not extract structured data from this file. Check it is a valid operator history document.");
+    throw new Error("TailiQ could not extract structured data from this file. Check it is a valid operator history document.");
   }
   if(!parsed||typeof parsed!=="object"||!Array.isArray(parsed.rows)){
-    throw new Error("The AI returned an unexpected format. Check the file is a valid operator history document.");
+    throw new Error("TailiQ returned an unexpected format. Check the file is a valid operator history document.");
   }
   const asOfDate=parsed.asOfDate||null;
   return parsed.rows
@@ -319,7 +328,7 @@ async function extractAvionicsLRU(file){
   const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:8000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:AVIONICS_LRU_PROMPT}]}]})});
   if(!resp.ok){
     const status=resp.status;
-    if(status===401||status===403)throw new Error("Authentication error with the AI service. Please contact your administrator.");
+    if(status===401||status===403)throw new Error("Authentication error with the TailiQ service. Please contact your administrator.");
     if(status===429)throw new Error("Too many requests — please wait a moment and try again.");
     if(status>=500)throw new Error("The extraction service is temporarily unavailable. Please try again in a few minutes.");
     throw new Error("Extraction request failed (error "+status+"). Please try again.");
@@ -328,8 +337,8 @@ async function extractAvionicsLRU(file){
   try{result=await resp.json();}catch(jsonErr){throw new Error("Received an unexpected response from the server. Please try again.");}
   if(result.error){
     const msg=result.error;
-    if(msg.includes("credit")||msg.includes("billing"))throw new Error("AI service billing issue — please contact your administrator.");
-    if(msg.includes("overloaded")||msg.includes("capacity"))throw new Error("The AI service is busy right now. Please wait a moment and try again.");
+    if(msg.includes("credit")||msg.includes("billing"))throw new Error("TailiQ service billing issue — please contact your administrator.");
+    if(msg.includes("overloaded")||msg.includes("capacity"))throw new Error("TailiQ is busy right now. Please wait a moment and try again.");
     throw new Error("Extraction failed. Please check the file is a valid avionics document and try again.");
   }
   let parsed;
@@ -337,10 +346,10 @@ async function extractAvionicsLRU(file){
     const rawParsed=result.ok?result.data:JSON.parse((result.raw||"").replace(/```json|```/g,"").trim());
     parsed=Array.isArray(rawParsed)?rawParsed[rawParsed.length-1]:rawParsed;
   }catch(parseErr){
-    throw new Error("The AI could not extract structured data from this file. Check it is a valid avionics equipment list.");
+    throw new Error("TailiQ could not extract structured data from this file. Check it is a valid avionics equipment list.");
   }
   if(!parsed||typeof parsed!=="object"||!Array.isArray(parsed.rows)){
-    throw new Error("The AI returned an unexpected format. Check the file is a valid avionics equipment list.");
+    throw new Error("TailiQ returned an unexpected format. Check the file is a valid avionics equipment list.");
   }
   // Normalise: derive the display chapter label here (not in the prompt)
   // so ATA_CHAPTER_MAP stays a single source of truth the model doesn't
@@ -382,7 +391,7 @@ async function translateScenarioChat(text){
   const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:400,messages:[{role:"user",content:[{type:"text",text:SCENARIO_CHAT_PROMPT+'\n\nUser request: "'+text+'"'}]}]})});
   if(!resp.ok){
     const status=resp.status;
-    if(status===401||status===403)throw new Error("Authentication error with the AI service. Please contact your administrator.");
+    if(status===401||status===403)throw new Error("Authentication error with the TailiQ service. Please contact your administrator.");
     if(status===429)throw new Error("Too many requests — please wait a moment and try again.");
     if(status>=500)throw new Error("The scenario service is temporarily unavailable. Please try again in a few minutes.");
     throw new Error("Scenario request failed (error "+status+"). Please try again.");
@@ -391,8 +400,8 @@ async function translateScenarioChat(text){
   try{result=await resp.json();}catch(jsonErr){throw new Error("Received an unexpected response from the server. Please try again.");}
   if(result.error){
     const msg=result.error;
-    if(msg.includes("credit")||msg.includes("billing"))throw new Error("AI service billing issue — please contact your administrator.");
-    if(msg.includes("overloaded")||msg.includes("capacity"))throw new Error("The AI service is busy right now. Please wait a moment and try again.");
+    if(msg.includes("credit")||msg.includes("billing"))throw new Error("TailiQ service billing issue — please contact your administrator.");
+    if(msg.includes("overloaded")||msg.includes("capacity"))throw new Error("TailiQ is busy right now. Please wait a moment and try again.");
     throw new Error("Couldn't interpret that scenario. Please try rephrasing.");
   }
   let parsed;
