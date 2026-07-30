@@ -103,7 +103,7 @@ async function extractLLPSheet(file,kind){
       const pageResults=[];
       for(let p=1;p<=numPages;p++){
         const pagePrompt=basePrompt+"\n\nIMPORTANT: This PDF has "+numPages+" pages. For this extraction pass, only read and extract data from page "+p+" of "+numPages+" — completely ignore all other pages, including any other engine or table that appears elsewhere in the document.";
-        pageResults.push(await callExtractAPI(base64,pagePrompt,extractModel,4000,formatLabel));
+        pageResults.push(await callExtractAPI(base64,pagePrompt,extractModel,6000,formatLabel));
       }
       const merged=mergeLLPPageResults(pageResults);
       if(!merged.engines.length){
