@@ -51,7 +51,7 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 .sc-val{font-size:20px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.02em;margin-bottom:5px}
 .sc-val-sm{font-size:13px;font-weight:700;color:#0f172a;line-height:1.3;letter-spacing:-0.01em;margin-bottom:5px}
 .sc-lbl{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8}
-@media screen and (max-width:600px){.sc-cards,.sc-cards tbody,.sc-cards tr{display:block;width:100%}.sc-cell{display:block;width:100%!important;padding:0 0 10px!important}.sc-cell:last-child{padding-bottom:0!important}.sc-inner{display:flex;align-items:center;gap:12px;padding:12px 14px;height:auto!important}.sc-icon{margin-bottom:0}.sc-val,.sc-val-sm{margin-bottom:0}.sc-lbl{margin-top:2px}}
+@media screen and (max-width:600px){.sc-cards,.sc-cards tbody,.sc-cards tr{display:block;width:100%}.sc-cell{display:block;width:100%!important;padding:0 0 10px!important}.sc-cell:last-child{padding-bottom:0!important}.sc-inner{display:flex;align-items:center;gap:12px;padding:12px 14px;height:auto!important}.sc-icon{margin-bottom:0}.sc-val,.sc-val-sm{margin-bottom:0}.sc-lbl{margin-top:2px}.lg3col,.lg3col tbody,.lg3col tr{display:block;width:100%}.lg3col td{display:block;width:100%!important}.lg3col td:empty{display:none}.lg3col td:not(:empty){margin-bottom:12px}.lg3col td:not(:empty):last-child{margin-bottom:0}}
 .cov-disc{font-size:9px;color:#6b7280;margin:26px 10px 0;line-height:1.6}
 .cov-date{margin-top:8px;font-size:11px;color:#374151;margin-left:10px}
 h3{background:#1e293b;color:#FFFFFF;font-size:11.5px;padding:5px 10px;border-radius:4px;margin:18px 0 7px;letter-spacing:0.04em}
@@ -138,7 +138,7 @@ ${eng.operatorHistory?.length?`${cO("Operator History",svgList)}<table style="wi
   const cNB=(lbl,svg)=>`<div style="margin-bottom:13px">${IH(lbl,svg)}`;
   const CS='border:1px solid #e2e8f0;border-radius:10px;padding:14px 17px;vertical-align:top';
   const col2=(l,r)=>`<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin-bottom:13px"><colgroup><col width="49%"/><col width="2%"/><col width="49%"/></colgroup><tr>${l}<td style="border:none;padding:0"></td>${r}</tr></table>`;
-  const col3=(a,b,c)=>`<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin-bottom:13px"><colgroup><col width="32%"/><col width="2%"/><col width="32%"/><col width="2%"/><col width="32%"/></colgroup><tr>${a}<td style="border:none;padding:0"></td>${b}<td style="border:none;padding:0"></td>${c}</tr></table>`;
+  const col3=(a,b,c)=>`<table width="100%" cellpadding="0" cellspacing="0" class="lg3col" style="border-collapse:separate;margin-bottom:13px"><colgroup><col width="32%"/><col width="2%"/><col width="32%"/><col width="2%"/><col width="32%"/></colgroup><tr>${a}<td style="border:none;padding:0"></td>${b}<td style="border:none;padding:0"></td>${c}</tr></table>`;
   const cC=`</div>`;
   const kvR=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10px;color:#64748b;font-weight:600;width:150px;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10.5px;color:#0f172a;font-weight:600;vertical-align:top">${v}</td></tr>`;
   const mT=(lbl,val,sub)=>`<div class="mini-t"><div class="mini-l">${lbl}</div><div class="mini-v">${val}</div>${sub?`<div class="mini-s">${sub}</div>`:""}</div>`;
