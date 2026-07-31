@@ -143,7 +143,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
           {tab==="documents"&&<DocumentsTab asset={asset}/>}
         </>
       )}
-      {layer==="calendar"&&canSeeAdvanced&&<MaintenanceCalendarView asset={asset}/>}
+      {layer==="calendar"&&canSeeAdvanced&&<MaintenanceCalendarView asset={asset} notify={notify} canEnterCosts={canEnterLeaseData}/>}
       {layer==="financials"&&canSeeAdvanced&&<FlyForward asset={asset} saveAsset={saveAsset} notify={notify} canEnterLeaseData={canEnterLeaseData}/>}
       {layer==="scenarios"&&canSeeAdvanced&&<Scenarios asset={asset}/>}
       {shareOpen&&<ShareModal asset={asset} notify={notify} onClose={()=>setShareOpen(false)}/>}
