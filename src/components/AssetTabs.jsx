@@ -14,10 +14,17 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
   const af=asset.airframe||{};
   const set=(path,val)=>{const f=JSON.parse(JSON.stringify(form));const parts=path.split(".");let obj=f;for(let i=0;i<parts.length-1;i++){if(!obj[parts[i]])obj[parts[i]]={};obj=obj[parts[i]];}obj[parts[parts.length-1]]=val;setForm(f);};
   const fmtMMYYYY=(s)=>{if(!s)return"—";if(/^\d{2}\/\d{4}$/.test(s))return s;try{const d=new Date(s);if(isNaN(d))return s;return String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear();}catch{return s;}};
+  // TECH_DEBT.md 4.79 — auto-insert "/" while typing MM/YYYY, same pattern
+  // as a card-expiry-date input. Applied via onInput directly against the
+  // uncontrolled DOM input (no React state involved), so it works the same
+  // whether the user types digits or pastes a full string, and onBlur's
+  // existing e.target.value read picks up the reformatted value unchanged.
+  const maskMMYYYY=(raw)=>{const digits=(raw||"").replace(/\D/g,"").slice(0,6);return digits.length<=2?digits:digits.slice(0,2)+"/"+digits.slice(2);};
+  const handleMMYYYYInput=(e)=>{e.target.value=maskMMYYYY(e.target.value);};
   const Field=({label,path,type="text"})=>{
     const parts=path.split(".");const val=parts.reduce((o,k)=>o?.[k],d);
     return<div className="form-group"><label className="form-label">{label}</label>
-      {editing&&isAdmin?<input type="text" placeholder={type==="mmyyyy"?"MM/YYYY":""} defaultValue={type==="mmyyyy"?fmtMMYYYY(val):val||""} onBlur={e=>set(path,e.target.value)} className={isEmpty(val)?"amber":""}/>
+      {editing&&isAdmin?<input type="text" placeholder={type==="mmyyyy"?"MM/YYYY":""} defaultValue={type==="mmyyyy"?fmtMMYYYY(val):val||""} onInput={type==="mmyyyy"?handleMMYYYYInput:undefined} onBlur={e=>set(path,e.target.value)} className={isEmpty(val)?"amber":""}/>
       :<div style={{fontSize:13,fontWeight:500,color:isEmpty(val)?"#475569":"#e2e8f0",fontStyle:isEmpty(val)?"italic":"normal"}}>{type==="mmyyyy"?fmtMMYYYY(val):val||"Not entered"}</div>}
     </div>;
   };
@@ -38,6 +45,13 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
   }:null;
   const componentBlocks=apuBlock?[...engineBlocks,apuBlock]:engineBlocks;
   const lgItems=[["NLG",asset.landingGear?.nose],["LH",asset.landingGear?.left],["RH",asset.landingGear?.right]];
+  // TECH_DEBT.md 4.80 — Check History must display in interval order
+  // (2Y, 6Y, 12Y...), not raw insertion/array order. Parses the leading
+  // number out of the check name (e.g. "2 Year Check" -> 2); anything
+  // that doesn't parse (a non-"N Year Check" name) sorts to the end
+  // rather than breaking the sort or crashing on NaN comparisons.
+  const parseCheckInterval=(name)=>{const m=/(\d+)/.exec(name||"");return m?parseInt(m[1],10):Infinity;};
+  const sortedChecks=[...(asset.checks||[])].sort((a,b)=>parseCheckInterval(a.name)-parseCheckInterval(b.name));
   return(
     <div className="grid2">
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
@@ -72,7 +86,7 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
         </div>
         <div className="card" style={{padding:18}}>
           <div className="section-title">Check History</div>
-          {(asset.checks||[]).map((c,i)=>(
+          {sortedChecks.map((c,i)=>(
             <div key={i} style={{marginTop:i>0?14:0,paddingTop:i>0?14:0,borderTop:i>0?"1px solid #1e3048":"none"}}>
               <div style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>{c.name}</div>
               <div className="flj" style={{padding:"3px 0"}}>

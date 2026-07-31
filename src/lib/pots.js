@@ -121,7 +121,27 @@ async function validatePotWithAI(pot, asset) {
   try {
     let context;
     if (pot.potCategory === "engine") {
-      context = `Engine family: ${engineFamily}. Known catalogue blended LLP rate (2026): $${catalogue?.blendedRatePerFC2026 ?? "unknown"}/FC. Known catalogue escalation: ${catalogue?.escalationPctPerYr ?? "unknown"}%/yr.`;
+      // TECH_DEBT.md 4.75 — EN-PR (per-FH restoration) and EN-LP (per-FC
+      // LLP replacement) are different pots, with different real-world
+      // cost drivers and no defined relationship to each other. The old
+      // code below unconditionally handed the AI the EN-LP $/FC catalogue
+      // rate as "the known reference" for ANY engine pot — including
+      // EN-PR — which is exactly what caused Claude to (correctly, given
+      // the wrong premise it was handed) flag a real, correctly-entered
+      // EN-PR per_FH rate as a "unit mismatch" against a per_FC figure it
+      // was never meant to be compared to. The deterministic check above
+      // was already scoped correctly (EN-LP only); this AI-context branch
+      // was the actual bug.
+      const isEnLp = pot.code && pot.code.startsWith("EN-LP");
+      const isEnPr = pot.code && pot.code.startsWith("EN-PR");
+      if (isEnLp) {
+        context = `Engine family: ${engineFamily}. This is an EN-LP (Life-Limited Parts replacement) pot, accrued per flight cycle (FC). Known catalogue blended LLP rate (2026): $${catalogue?.blendedRatePerFC2026 ?? "unknown"}/FC. Known catalogue escalation: ${catalogue?.escalationPctPerYr ?? "unknown"}%/yr. Compare the entered rate against this $/FC figure only.`;
+      } else if (isEnPr) {
+        const prDefaults = EN_PR_FAMILY_DEFAULTS[engineFamily];
+        context = `Engine family: ${engineFamily}. This is an EN-PR (Performance Restoration) pot, accrued per flight hour (FH) — a completely different pot from EN-LP, with no defined relationship to the EN-LP $/FC catalogue rate. Do NOT compare the entered per_FH rate against any $/FC figure; they are not the same unit and are not meant to line up. Real market reference for a full restoration event on this engine family is a lump-sum event cost of roughly $${prDefaults?.costLow?.toLocaleString() ?? "unknown"}–$${prDefaults?.costHigh?.toLocaleString() ?? "unknown"} every ${prDefaults?.intervalFH?.toLocaleString() ?? "unknown"} flight hours — use this only as a rough order-of-magnitude sanity check on the accrual rate, not a direct rate comparison.`;
+      } else {
+        context = `Engine family: ${engineFamily}.`;
+      }
     } else {
       const expectedBasis = EXPECTED_BASIS_BY_CODE[pot.code];
       context = expectedBasis
