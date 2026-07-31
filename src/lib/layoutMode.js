@@ -94,9 +94,9 @@ export function useLayoutMode() {
 export function LayoutModeToggle({ rawMode, setMode, isWide }) {
   if (!isWide) return null;
   const next = rawMode === 'landscape' ? 'portrait' : 'landscape';
-  return (
-    <button className="btn btn-ghost" onClick={() => setMode(next)}>
-      {rawMode === 'landscape' ? '▤ Portrait View' : '▥ Landscape View'}
-    </button>
+  return React.createElement(
+    'button',
+    { className: 'btn btn-ghost', onClick: () => setMode(next) },
+    rawMode === 'landscape' ? '▤ Portrait View' : '▥ Landscape View'
   );
 }
