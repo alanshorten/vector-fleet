@@ -347,6 +347,63 @@ const db = {
       setDoc(doc(fs, "knowledgeBase", id, "llpCatalogue", e.partNumber), payloadFor(e))
     ));
   },
+  // --- SV Cost Tracker (monthly-report-cost-tracker-handoff.md §2, TECH_DEBT.md 4.101) ---
+  // Append-only, same pattern as saveShopVisitProjection/saveUtilisation —
+  // one addDoc per completed event, never overwritten. "Cleared" from the
+  // pending-completion nudge is determined by a matching code+dueCycle
+  // record existing here, not by deleting anything from scheduledEvents.
+  async getCompletedEvents(assetId) {
+    const { db: fs, collection, query, where, getDocs } = getFS();
+    const q = query(collection(fs, "completedEvents"), where("assetId", "==", String(assetId)));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => new Date(b.confirmedAt) - new Date(a.confirmedAt));
+  },
+  async saveCompletedEvent(assetId, companyId, data) {
+    const { db: fs, collection, addDoc } = getFS();
+    const now = new Date().toISOString();
+    const payload = {
+      assetId: String(assetId),
+      companyId: companyId || null,
+      // Identity — links this record back to the scheduledEvents/
+      // shopVisitProjections entry it completes, same code+dueCycle key
+      // used everywhere else in this file (saveScheduledEventOverride etc).
+      code: data.code,
+      label: data.label || null,
+      dueCycle: data.dueCycle ?? null,
+      eventDateProjected: data.eventDateProjected || null,
+      // Required trio (per locked schema) — genuinely null on a Dismiss,
+      // which is deliberate: "completed, no cost data" is an honest gap,
+      // not a hidden one, so this must NOT be validated as required here.
+      mroRegion: data.mroRegion || null,
+      totalCost: data.totalCost ?? null,
+      // Optional
+      mroName: data.mroName || null,
+      turnaroundWeeks: data.turnaroundWeeks ?? null,
+      dateIn: data.dateIn || null,
+      dateOut: data.dateOut || null,
+      svNumber: data.svNumber ?? null, // engine/APU only — 1st/2nd/3rd SV on this engine
+      routineCost: data.routineCost ?? null,
+      nonRoutineCost: data.nonRoutineCost ?? null,
+      workscopeLines: data.workscopeLines || [], // [{type, cost, plannedOrFinding, notes}]
+      scopeNotes: data.scopeNotes || "",
+      // Derived (computed by the caller from asset/event data, not user-entered)
+      projectedCostLow: data.projectedCostLow ?? null,
+      projectedCostHigh: data.projectedCostHigh ?? null,
+      projectedCostLikely: data.projectedCostLikely ?? null,
+      costDelta: data.costDelta ?? null,
+      assetAgeAtEventYears: data.assetAgeAtEventYears ?? null,
+      assetType: data.assetType || null,
+      engineFamily: data.engineFamily || null,
+      noCostData: !!data.noCostData,
+      status: data.noCostData ? "completed_no_cost_data" : "completed",
+      inputMethod: "manual",
+      confirmedBy: window._authUser?.email || window._authUser?.uid || null,
+      confirmedAt: now,
+      createdAt: now
+    };
+    const ref = await addDoc(collection(fs, "completedEvents"), payload);
+    return { id: ref.id, ...payload };
+  },
   // --- Email review queue (Section 12a) ---
   async getPendingReports() {
     const { db: fs, collection, getDocs } = getFS();

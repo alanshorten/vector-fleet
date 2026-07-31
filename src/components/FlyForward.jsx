@@ -12,6 +12,35 @@ function colorForCode(code) {
   return FF_COLORS[(code || "").replace(/-/g, "")] || "#64748b";
 }
 
+// --- SV Cost Tracker (monthly-report-cost-tracker-handoff.md §2, TECH_DEBT.md 4.101) ---
+const MRO_REGIONS = ["Eastern Europe", "Western Europe", "Asia-Pacific", "Americas", "Middle East/Africa"];
+
+// SV number only means anything for engine/APU pots (EN-PR/EN-LP/AP-OH) —
+// airframe/LG checks aren't "shop visits" in the same sense and have no
+// meaningful 1st/2nd/3rd sequence for benchmarking.
+function isEngineOrAPUCode(code) {
+  return /^(EN-PR|EN-LP|AP-OH)/.test(code || "");
+}
+
+// Asset age at event, derived from the same MM/YYYY dom field the
+// Overview tab already reads (asset.dom) — no new field needed. Returns
+// null (not 0) when dom is missing/unparseable, so a genuinely unknown
+// age never gets silently recorded as a real number.
+function assetAgeYearsAt(asset, eventDate) {
+  const dom = asset?.dom;
+  if (!dom) return null;
+  let domDate;
+  if (/^\d{2}\/\d{4}$/.test(dom)) {
+    const [mm, yyyy] = dom.split("/");
+    domDate = new Date(Number(yyyy), Number(mm) - 1, 1);
+  } else {
+    domDate = new Date(dom);
+  }
+  if (isNaN(domDate.getTime())) return null;
+  const years = (eventDate.getTime() - domDate.getTime()) / (365.25 * 86400000);
+  return Math.round(years * 10) / 10;
+}
+
 function MaintenanceCalendarGrid({ events }) {
   const [hover, setHover] = useState(null); // {year, month, evts, x, y}
   if (!events.length) return null;
@@ -630,7 +659,213 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
   );
 };
 
-function MaintenanceCalendarView({ asset }) {
+// Entry form for recording a completed maintenance event's actual costs.
+// Pre-populated from the projection (evt) that triggered the pending-
+// completion nudge. Required fields per the locked schema: MRO region,
+// total cost (asset + event type are already fixed by context). Everything
+// else sits behind "More details" so a bare-minimum record — which is
+// still a real, useful data point for the future intelligence layer — takes
+// seconds to enter.
+function CostTrackerEntryForm({ asset, evt, onClose, onSaved, notify }) {
+  const [mroRegion, setMroRegion] = useState("");
+  const [totalCost, setTotalCost] = useState("");
+  const [showMore, setShowMore] = useState(false);
+  const [mroName, setMroName] = useState("");
+  const [turnaroundWeeks, setTurnaroundWeeks] = useState("");
+  const [dateIn, setDateIn] = useState("");
+  const [dateOut, setDateOut] = useState("");
+  const [svNumber, setSvNumber] = useState("");
+  const [routineCost, setRoutineCost] = useState("");
+  const [nonRoutineCost, setNonRoutineCost] = useState("");
+  const [scopeNotes, setScopeNotes] = useState("");
+  const [workscopeLines, setWorkscopeLines] = useState([]);
+  const [newLine, setNewLine] = useState({ type: "", cost: "", plannedOrFinding: "planned" });
+  const [saving, setSaving] = useState(false);
+
+  const showsSvNumber = isEngineOrAPUCode(evt.code);
+  const projectedLikely = evt.cost ? (evt.cost.projectedCostLow + evt.cost.projectedCostHigh) / 2 : null;
+
+  const addLine = () => {
+    if (!newLine.type || newLine.cost === "") return;
+    setWorkscopeLines([...workscopeLines, { ...newLine, cost: +newLine.cost }]);
+    setNewLine({ type: "", cost: "", plannedOrFinding: "planned" });
+  };
+  const removeLine = (i) => setWorkscopeLines(workscopeLines.filter((_, li) => li !== i));
+
+  const save = async () => {
+    if (!mroRegion || totalCost === "") { notify("MRO region and total cost are required", "error"); return; }
+    setSaving(true);
+    const cost = +totalCost;
+    const age = assetAgeYearsAt(asset, evt.date);
+    const engineFamily = showsSvNumber && !/^AP-OH/.test(evt.code) ? (isCFM(asset) ? "CFM" : "V2500") : null;
+    try {
+      await db.saveCompletedEvent(asset.id, asset.companyId, {
+        code: evt.code, label: evt.label, dueCycle: evt.dueCycle,
+        eventDateProjected: evt.date.toISOString().slice(0, 10),
+        mroRegion, totalCost: cost,
+        mroName: mroName || null,
+        turnaroundWeeks: turnaroundWeeks === "" ? null : +turnaroundWeeks,
+        dateIn: dateIn || null, dateOut: dateOut || null,
+        svNumber: svNumber === "" ? null : +svNumber,
+        routineCost: routineCost === "" ? null : +routineCost,
+        nonRoutineCost: nonRoutineCost === "" ? null : +nonRoutineCost,
+        workscopeLines, scopeNotes,
+        projectedCostLow: evt.cost?.projectedCostLow ?? null,
+        projectedCostHigh: evt.cost?.projectedCostHigh ?? null,
+        projectedCostLikely: projectedLikely,
+        costDelta: projectedLikely != null ? cost - projectedLikely : null,
+        assetAgeAtEventYears: age,
+        assetType: asset.model || null,
+        engineFamily,
+        noCostData: false
+      });
+      notify("Completed event recorded");
+      onSaved();
+    } catch (e) {
+      notify("Couldn't save — " + e.message, "error");
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
+      <div className="card" style={{ padding: 20, maxWidth: 520, width: "100%", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+        <div className="flj" style={{ marginBottom: 4 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#e2e8f0" }}>Record Completed Event</div>
+          <button className="btn btn-ghost" onClick={onClose}>✕</button>
+        </div>
+        <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>
+          {evt.code} — {evt.label} · Projected {evt.date.toISOString().slice(0, 10)}
+          {evt.cost && ` · $${Math.round(evt.cost.projectedCostLow).toLocaleString()}–$${Math.round(evt.cost.projectedCostHigh).toLocaleString()}`}
+        </div>
+
+        <div className="grid2" style={{ gap: 10, marginBottom: 10 }}>
+          <div className="form-group">
+            <label className="form-label">MRO Region *</label>
+            <select value={mroRegion} onChange={e => setMroRegion(e.target.value)}>
+              <option value="">Select…</option>
+              {MRO_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Total Cost ($) *</label>
+            <input type="number" value={totalCost} onChange={e => setTotalCost(e.target.value)} placeholder="e.g. 1450000"/>
+          </div>
+        </div>
+
+        <button className="btn btn-ghost" style={{ fontSize: 12, marginBottom: 10 }} onClick={() => setShowMore(s => !s)}>{showMore ? "Hide" : "+ Add"} more details (optional)</button>
+
+        {showMore && (
+          <div style={{ background: "#0d1925", borderRadius: 8, padding: 12, marginBottom: 12, border: "1px solid #1e3048" }}>
+            <div className="grid2" style={{ gap: 10, marginBottom: 10 }}>
+              <div className="form-group"><label className="form-label">MRO Name</label><input value={mroName} onChange={e => setMroName(e.target.value)}/></div>
+              <div className="form-group"><label className="form-label">Turnaround (weeks)</label><input type="number" value={turnaroundWeeks} onChange={e => setTurnaroundWeeks(e.target.value)}/></div>
+              <div className="form-group"><label className="form-label">Date In</label><input type="date" value={dateIn} onChange={e => setDateIn(e.target.value)}/></div>
+              <div className="form-group"><label className="form-label">Date Out</label><input type="date" value={dateOut} onChange={e => setDateOut(e.target.value)}/></div>
+              {showsSvNumber && (
+                <div className="form-group"><label className="form-label">SV Number on this engine</label><input type="number" min="1" value={svNumber} onChange={e => setSvNumber(e.target.value)} placeholder="1st, 2nd, 3rd…"/></div>
+              )}
+              <div className="form-group"><label className="form-label">Routine/Base Scope Cost ($)</label><input type="number" value={routineCost} onChange={e => setRoutineCost(e.target.value)}/></div>
+              <div className="form-group"><label className="form-label">Non-Routine/Findings Cost ($)</label><input type="number" value={nonRoutineCost} onChange={e => setNonRoutineCost(e.target.value)}/></div>
+            </div>
+
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Workscope Lines</div>
+            {workscopeLines.length > 0 && (
+              <table style={{ marginBottom: 8 }}><thead><tr><th>Type</th><th>Cost</th><th>Planned/Finding</th><th></th></tr></thead>
+                <tbody>{workscopeLines.map((l, i) => (
+                  <tr key={i}><td>{l.type}</td><td>${l.cost.toLocaleString()}</td><td>{l.plannedOrFinding}</td>
+                    <td><button className="btn-danger btn" style={{ fontSize: 10, padding: "2px 6px" }} onClick={() => removeLine(i)}>✕</button></td></tr>
+                ))}</tbody></table>
+            )}
+            <div style={{ display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
+              <div><label className="form-label">Type</label><input value={newLine.type} onChange={e => setNewLine({ ...newLine, type: e.target.value })} style={{ width: 120 }} placeholder="e.g. PR, LLP"/></div>
+              <div><label className="form-label">Cost</label><input type="number" value={newLine.cost} onChange={e => setNewLine({ ...newLine, cost: e.target.value })} style={{ width: 100 }}/></div>
+              <div><label className="form-label">Basis</label>
+                <select value={newLine.plannedOrFinding} onChange={e => setNewLine({ ...newLine, plannedOrFinding: e.target.value })}>
+                  <option value="planned">Planned</option><option value="finding">Finding</option>
+                </select>
+              </div>
+              <button className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} onClick={addLine}>+ Add Line</button>
+            </div>
+
+            <div className="form-group" style={{ marginTop: 10 }}>
+              <label className="form-label">Scope Notes</label>
+              <textarea value={scopeNotes} onChange={e => setScopeNotes(e.target.value)} rows={2} style={{ width: "100%" }}/>
+            </div>
+          </div>
+        )}
+
+        <div className="flab g8" style={{ justifyContent: "flex-end" }}>
+          <button className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="btn btn-gold" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Completed Event"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// The self-populating "pending completion" list — no manual trigger, the
+// calendar already knows projected dates. An item appears once a projected
+// event's date is 30+ days in the past and clears the moment either path
+// (Enter Costs or Dismiss) writes a matching completedEvents record.
+function PendingCompletionsPanel({ asset, pending, onCompleted, notify, canEnterCosts }) {
+  const [openEvt, setOpenEvt] = useState(null);
+  const [dismissing, setDismissing] = useState(null);
+
+  const dismiss = async (evt) => {
+    setDismissing(`${evt.code}_${evt.dueCycle}`);
+    try {
+      await db.saveCompletedEvent(asset.id, asset.companyId, {
+        code: evt.code, label: evt.label, dueCycle: evt.dueCycle,
+        eventDateProjected: evt.date.toISOString().slice(0, 10),
+        projectedCostLow: evt.cost?.projectedCostLow ?? null,
+        projectedCostHigh: evt.cost?.projectedCostHigh ?? null,
+        assetAgeAtEventYears: assetAgeYearsAt(asset, evt.date),
+        assetType: asset.model || null,
+        noCostData: true
+      });
+      notify("Marked as completed, no cost data");
+      onCompleted();
+    } catch (e) {
+      notify("Couldn't save — " + e.message, "error");
+    }
+    setDismissing(null);
+  };
+
+  if (!pending.length) return null;
+
+  return (
+    <div style={{ background: "#2a1f0e", border: "1px solid #C9A84C", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#C9A84C", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+        Pending Completion — {pending.length} event{pending.length > 1 ? "s" : ""} past projected date
+      </div>
+      {pending.map(evt => {
+        const key = `${evt.code}_${evt.dueCycle}`;
+        const daysPast = Math.floor((Date.now() - evt.date.getTime()) / 86400000);
+        return (
+          <div key={key} className="flj" style={{ padding: "6px 0", borderTop: "1px solid #3a2f1a", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ fontSize: 12, color: "#e2e8f0" }}>
+              <span style={{ fontWeight: 700 }}>{evt.code}</span> — {evt.label} · projected {evt.date.toISOString().slice(0, 10)} ({daysPast}d ago)
+            </div>
+            {canEnterCosts && (
+              <div className="flab g8">
+                <button className="btn btn-gold" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => setOpenEvt(evt)}>Enter Costs</button>
+                <button className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} disabled={dismissing === key} onClick={() => dismiss(evt)}>{dismissing === key ? "…" : "Dismiss"}</button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {openEvt && (
+        <CostTrackerEntryForm asset={asset} evt={openEvt} notify={notify}
+          onClose={() => setOpenEvt(null)}
+          onSaved={() => { setOpenEvt(null); onCompleted(); }}/>
+      )}
+    </div>
+  );
+}
+
+function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = false }) {
   const [loading, setLoading] = useState(true);
   const [lease, setLease] = useState(null);
   const [reserveDocs, setReserveDocs] = useState([]);
@@ -638,19 +873,21 @@ function MaintenanceCalendarView({ asset }) {
   const [scheduledEvents, setScheduledEvents] = useState([]);
   const [seasonalityProfile, setSeasonalityProfile] = useState(null);
   const [costProjections, setCostProjections] = useState([]);
+  const [completedEvents, setCompletedEvents] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [busy, setBusy] = useState(null);
   const [showSeasonality, setShowSeasonality] = useState(false);
   const [expanded, setExpanded] = useState(null); // key of the one event row currently expanded for editing
 
   const reload = useCallback(async () => {
-    const [util, leaseData, reserves, schedEvts, seasonProfile, shopVisits] = await Promise.all([
+    const [util, leaseData, reserves, schedEvts, seasonProfile, shopVisits, completed] = await Promise.all([
       db.getUtilisation(asset.id).catch(() => []),
       asset.currentLeaseId ? db.getLease(asset.currentLeaseId).catch(() => null) : Promise.resolve(null),
       db.getReservePots(asset.id).catch(() => []),
       db.getScheduledEvents(asset.id).catch(() => []),
       db.getSeasonalityProfile(asset.id).catch(() => null),
-      db.getShopVisitProjections(asset.id).catch(() => [])
+      db.getShopVisitProjections(asset.id).catch(() => []),
+      db.getCompletedEvents(asset.id).catch(() => [])
     ]);
     setUtilRate(window.computeRealUtilisationRate(util));
     setLease(leaseData);
@@ -658,6 +895,7 @@ function MaintenanceCalendarView({ asset }) {
     setScheduledEvents(schedEvts);
     setSeasonalityProfile(seasonProfile);
     setCostProjections(shopVisits);
+    setCompletedEvents(completed);
   }, [asset.id, asset.currentLeaseId]);
 
   useEffect(() => {
@@ -743,11 +981,26 @@ function MaintenanceCalendarView({ asset }) {
     "airline-stated": { background: "#0d2818", color: "#34d399", label: "Airline-stated" }
   };
 
+  // Self-populating pending-completion list (TECH_DEBT.md 4.101) — an
+  // event qualifies once it's 30+ days past its own projected date and no
+  // completedEvents record exists yet for that exact code+dueCycle. Events
+  // still beyond the projection horizon can't be "overdue" by definition,
+  // so they're excluded regardless of date math.
+  const completedKeys = new Set(completedEvents.map(c => `${c.code}_${c.dueCycle}`));
+  const pendingCompletions = maintenanceCal.events.filter(evt => {
+    if (evt.beyondHorizon) return false;
+    if (completedKeys.has(`${evt.code}_${evt.dueCycle}`)) return false;
+    const daysPast = Math.floor((Date.now() - evt.date.getTime()) / 86400000);
+    return daysPast >= 30;
+  });
+
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
       <div className="flab g12" style={{ marginBottom: 16, justifyContent: "flex-end" }}>
         <button className="btn btn-ghost" onClick={() => setShowSeasonality(s => !s)}>{showSeasonality ? "Hide" : "🌤 Edit"} Seasonality Profile</button>
       </div>
+
+      <PendingCompletionsPanel asset={asset} pending={pendingCompletions} onCompleted={reload} notify={notify} canEnterCosts={canEnterCosts}/>
 
       {showSeasonality && (
         <SeasonalityProfileEditor asset={asset} profile={seasonalityProfile} onSaved={reload}/>
@@ -904,4 +1157,4 @@ function SeasonalityProfileEditor({ asset, profile, onSaved }) {
 };
 
 
-export { FFPotCard, FlyForward, MaintenanceCalendarGrid, MaintenanceCalendarView, MiniLineChart, SeasonalityProfileEditor, EndOfLeasePositionView };
+export { CostTrackerEntryForm, FFPotCard, FlyForward, MaintenanceCalendarGrid, MaintenanceCalendarView, MiniLineChart, PendingCompletionsPanel, SeasonalityProfileEditor, EndOfLeasePositionView };
