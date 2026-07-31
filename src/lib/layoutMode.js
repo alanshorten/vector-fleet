@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { db } from './db';
 
 // Portrait/Landscape dual layout (landscape-portrait-layout-scoping-
@@ -27,7 +27,14 @@ function settingsKeyFor(uid) {
 // - isWide: whether the current viewport clears the floor at all — used
 //   to hide the toggle entirely rather than offer a choice that can't
 //   currently do anything.
-export function useLayoutMode() {
+// Internal — called exactly ONCE, by LayoutModeProvider below. Every other
+// component in the app reads the shared value via useLayoutMode() (the
+// context consumer further down), not this. Calling this hook directly
+// from more than one place would mean multiple independent Firestore
+// reads and resize listeners for the same value, and a flash of the old
+// mode on every tab navigation while each one re-fetches — exactly what
+// prompted pulling this out of FlyForward.jsx in the first place.
+function useLayoutModeSource() {
   const [rawMode, setRawMode] = useState('portrait');
   const [width, setWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [loaded, setLoaded] = useState(false);
@@ -61,6 +68,26 @@ export function useLayoutMode() {
   return { mode, rawMode, setMode, isWide, width, loaded };
 }
 
+const LayoutModeContext = createContext({ mode: 'portrait', rawMode: 'portrait', setMode: () => {}, isWide: false, width: 1200, loaded: false });
+
+// Wrap the whole app once (App.jsx, outside the tab/view switch) — this
+// is what makes the preference and the toggle button genuinely
+// app-wide rather than something each page has to remember to add.
+export function LayoutModeProvider({ children }) {
+  const value = useLayoutModeSource();
+  return React.createElement(LayoutModeContext.Provider, { value }, children);
+}
+
+// What every component (FlyForward, Scenarios, PortfolioView, etc.)
+// actually calls. Same shape as the old standalone hook, just backed by
+// the single shared Provider value instead of its own fetch.
+export function useLayoutMode() {
+  return useContext(LayoutModeContext);
+}
+
+// Standalone alternative to the inline icon App.jsx builds directly into
+// its trailing NavPill — not currently used anywhere, kept in case a
+// future page wants a full toggle button outside a NavPill context.
 // Hidden entirely below the width floor — there's nothing useful to
 // toggle into on a narrow screen, so showing a control that can't
 // currently do anything would just be confusing.

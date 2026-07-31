@@ -4,7 +4,7 @@ import { LeaseWizard } from './LeaseWizard';
 import { isCFM } from '../lib/assetHelpers';
 import { db } from '../lib/db';
 import { FF_COLORS, buildAssetMaintenanceCalendar, buildFlyForwardProjection } from '../lib/flyForwardHelpers';
-import { useLayoutMode, LayoutModeToggle } from '../lib/layoutMode';
+import { useLayoutMode } from '../lib/layoutMode';
 import { getEndOfLeaseTermsDefaults } from '../lib/knowledgeBase';
 
 const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -476,7 +476,7 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
   const [leaseWizardOpen, setLeaseWizardOpen] = useState(false);
   const [showAssumptions, setShowAssumptions] = useState(false);
   const [showEOLPosition, setShowEOLPosition] = useState(false);
-  const { mode: layoutMode, rawMode: layoutRawMode, setMode: setLayoutMode, isWide: layoutIsWide, width: layoutWidth } = useLayoutMode();
+  const { mode: layoutMode, width: layoutWidth } = useLayoutMode();
   const engineFamily = isCFM(asset) ? "CFM" : "V2500";
 
   useEffect(() => {
@@ -596,7 +596,6 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
       <div className="flab g12" style={{ marginBottom: 16, justifyContent: "flex-end" }}>
-        <LayoutModeToggle rawMode={layoutRawMode} setMode={setLayoutMode} isWide={layoutIsWide}/>
         {eolTerms.applies && <button className="btn btn-ghost" onClick={() => setShowEOLPosition(s => !s)}>{showEOLPosition ? "Hide " : "📄 "}End of Lease Position</button>}
         <button className="btn btn-ghost" onClick={() => setShowAssumptions(s => !s)}>{showAssumptions ? "Hide " : "📋 "}Assumptions</button>
         {canEnterLeaseData && <button className="btn btn-ghost" onClick={() => setLeaseWizardOpen(true)}>📄 Edit Lease</button>}

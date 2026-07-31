@@ -9,8 +9,9 @@ import { UploadView } from './components/UploadView';
 import { db, logAudit } from './lib/db';
 import { bootstrapKnowledgeBaseGlobals } from './lib/knowledgeBase';
 import { HEADER_LOGO_NAVY, HEADER_LOGO_WHITE } from './lib/techSpec';
+import { LayoutModeProvider, useLayoutMode } from './lib/layoutMode';
 
-function App(){
+function AppInner(){
   // Invite-link landing — must be checked before any sign-in gate, since
   // the person clicking this link has no TailiQ account/session yet.
   if(new URLSearchParams(window.location.search).get("view")==="set-password"){
@@ -26,6 +27,13 @@ function App(){
   const[assetInitialLayer,setAssetInitialLayer]=useState("details");
   const[userRole,setUserRole]=useState(null);
   const[notification,setNotification]=useState(null);
+  // Portrait/Landscape (landscape-portrait-layout-scoping-handoff.md) —
+  // one toggle for the whole app, not per-page. Lives here (rather than
+  // each component fetching its own) so every page shares a single
+  // Firestore read and stays in sync on navigation. Visible to every
+  // role, unlike the rest of this header's role-gated buttons — this is
+  // a personal display preference, not a permission.
+  const{rawMode:layoutRawMode,setMode:setLayoutMode,isWide:layoutIsWide}=useLayoutMode();
 
   const loadAssets=useCallback(async()=>{
     try{
@@ -206,9 +214,9 @@ function App(){
                 onSelect={v=>{setView(v);setSelectedId(null);}}
                 theme={view==="portfolio"?"light":"dark"}/>
               <NavPill
-                items={[["prospects","Prospects"],...(canUpload?[["upload","Upload"]]:[]),...(userRole==='admin'?[["admin","Admin"]]:[]),["signout","⎋ Sign Out"]]}
+                items={[["prospects","Prospects"],...(canUpload?[["upload","Upload"]]:[]),...(userRole==='admin'?[["admin","Admin"]]:[]),...(layoutIsWide?[["layout-toggle",<span style={{display:"inline-block",transform:layoutRawMode==='portrait'?"rotate(90deg)":"none",fontSize:15}}>🖥</span>]]:[]),["signout","⎋ Sign Out"]]}
                 activeValue={view}
-                onSelect={v=>v==='signout'?window._auth.signOut():(setView(v),setSelectedId(null))}
+                onSelect={v=>v==='signout'?window._auth.signOut():v==='layout-toggle'?setLayoutMode(layoutRawMode==='landscape'?'portrait':'landscape'):(setView(v),setSelectedId(null))}
                 theme={view==="portfolio"?"light":"dark"}
                 width={TRAILING_PILL_WIDTH}/>
             </div>
@@ -250,5 +258,9 @@ function App(){
   );
 };
 
+
+function App(){
+  return <LayoutModeProvider><AppInner/></LayoutModeProvider>;
+};
 
 export { App };
