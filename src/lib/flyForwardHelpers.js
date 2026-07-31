@@ -486,6 +486,95 @@ async function buildRouteMatchData(assets, route) {
 //     (1 + overrunPct/100) before the projection runs. Input modification
 //     only — no Brain internals touched (scenarios-structured-controls-
 //     handoff.md §1).
+// Asset-level Maintenance Calendar, leaseless-safe (TECH_DEBT.md 4.86
+// follow-up — that fix only ever reached the FLEET-level Calendar tab via
+// buildCalendarEntry/buildFleetCalendarData above; the per-asset Calendar
+// tab still shared buildFlyForwardProjection with Financials and inherited
+// its hard lease requirement). Same architectural split as buildCalendarEntry
+// vs. buildFleetExposureEntry: this path may synthesize pot STRUCTURE
+// (never a $ figure — accrualRate is always 0) and tolerate a missing
+// lease; buildFlyForwardProjection (Financials) is completely untouched
+// and still requires a real lease, exactly as before. Stops after Brain 6
+// (maintenanceCal only, no pass-2/dollar projections) — same scope as
+// buildFleetCalendarData. Deliberately a parallel function rather than a
+// shared refactor of buildFlyForwardProjection's pass-1/Brain-6 block:
+// same "known duplication, don't consolidate without a fresh look at both
+// call sites" tradeoff already accepted for buildCalendarEntry itself.
+function buildAssetMaintenanceCalendar({ asset, lease, reserveDocs, utilRate, scheduledEvents = [], seasonalityProfile = null, costProjections = [] }) {
+  const rate = utilRate || { fhPerMonth: 0, fcPerMonth: 0 };
+  const apuHrPerMonth = window.estimateApuHrPerMonth(rate.fhPerMonth, asset.apu?.currentFH, asset.airframe?.currentFH) || 0;
+  const leaseStart = new Date();
+  // No lease (or a lease with no leaseEnd on file yet) — same 180-month
+  // default already established for the leaseless Fleet Calendar path
+  // (FLEET_EXPOSURE_HORIZON_MONTHS), for the same reason: wide enough
+  // that no real anchored date (LG-OH's 120-month interval included)
+  // can land beyond it and silently vanish.
+  const horizonMonths = lease?.leaseEnd
+    ? Math.max(1, window.monthsBetween(leaseStart, new Date(lease.leaseEnd)))
+    : FLEET_EXPOSURE_HORIZON_MONTHS;
+
+  const confirmedPots = (reserveDocs || []).map(reconstructPot).filter(p => !!p.triggerBasis);
+
+  let pots;
+  let usedSyntheticPots = false;
+  if (confirmedPots.length > 0) {
+    pots = anchorReservePots({ asset, confirmedPots, rate, leaseStart });
+  } else {
+    // Identical fallback to buildCalendarEntry above — EN-PR/AP-OH
+    // omitted (no real anchor data for either anywhere in the app, so a
+    // synthetic date for them would be a fabricated guess); LG-OH/EN-LP
+    // synthesized from the asset's own real component data (landing gear
+    // next-due, engine LLP stack) via the exact same generator the Lease
+    // Wizard itself uses. Reused rather than re-derived so the fleet and
+    // asset Calendar paths can never quietly disagree on what "no lease"
+    // should show.
+    const defs = buildPotDefsForActivation(asset).filter(def => !def.code.startsWith("EN-PR") && def.code !== "AP-OH");
+    const synthesizedPots = defs.map(def => buildPotFromDef(def, 0, leaseStart.toISOString().slice(0, 10)));
+    pots = anchorReservePots({ asset, confirmedPots: synthesizedPots, rate, leaseStart });
+    usedSyntheticPots = true;
+  }
+
+  let maintenanceCal = null;
+  let projectionError = null;
+  try {
+    const ctx = { leaseStart, horizonMonths, utilisation: { fhPerMonth: rate.fhPerMonth, fcPerMonth: rate.fcPerMonth, apuHrPerMonth } };
+    const eligiblePots = pots.filter(pot => {
+      if (pot.triggerBasis !== "llp_cycles") return true;
+      const eng = (asset.engines || []).find(e => e.position === pot.enginePosition);
+      return eng && eng.llps && eng.llps.length;
+    });
+    const pass1Projections = eligiblePots.map(pot => {
+      if (pot.triggerBasis === "llp_cycles") {
+        const eng = (asset.engines || []).find(e => e.position === pot.enginePosition);
+        return window.projectEnLpPot(pot, { ...ctx, llpEngineStart: { llps: eng.llps, currentFC: eng.currentFC } });
+      }
+      return window.projectReservePot(pot, ctx);
+    });
+    const nonGroundingEvents = pass1Projections
+      .filter(p => p.code !== "AF-6Y" && p.code !== "AF-12Y")
+      .flatMap(p => {
+        const sourcePot = eligiblePots.find(pp => pp.code === p.code);
+        return (p.events || []).map((evt, idx) => ({
+          code: p.code, label: p.label, dueCycle: idx + 1, date: evt.date,
+          enginePosition: sourcePot ? sourcePot.enginePosition : null
+        }));
+      });
+    maintenanceCal = window.buildMaintenanceCalendar({
+      leaseStart, horizonMonths,
+      checks: asset.checks || [],
+      nonGroundingEvents,
+      overrides: scheduledEvents,
+      seasonalityProfile,
+      costProjections,
+      durationDefaults: getCheckDurationDefaults()
+    });
+  } catch (e) {
+    projectionError = e.message || String(e);
+  }
+
+  return { maintenanceCal, projectionError, usedSyntheticPots, horizonMonths };
+};
+
 function buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, scheduledEvents = [], seasonalityProfile = null, costProjections = [], scenarioModifiers = {} }) {
   const rate = utilRate || { fhPerMonth: 0, fcPerMonth: 0 };
   const usingRealRate = !!utilRate;
@@ -631,4 +720,4 @@ function buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, schedu
 };
 
 
-export { FF_COLORS, FLEET_EXPOSURE_HORIZON_MONTHS, addMonthsFF, anchorReservePots, buildFleetCalendarData, buildFleetExposureData, buildFleetExposureEntry, buildFlyForwardProjection, buildRouteMatchData, buildRouteMatchEntry, loadFleetExposureBundle, reconstructPot, reconstructPotWithStatus };
+export { FF_COLORS, FLEET_EXPOSURE_HORIZON_MONTHS, addMonthsFF, anchorReservePots, buildAssetMaintenanceCalendar, buildFleetCalendarData, buildFleetExposureData, buildFleetExposureEntry, buildFlyForwardProjection, buildRouteMatchData, buildRouteMatchEntry, loadFleetExposureBundle, reconstructPot, reconstructPotWithStatus };

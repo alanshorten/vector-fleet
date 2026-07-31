@@ -3,7 +3,7 @@ import { PotNumInput } from './AssetView';
 import { LeaseWizard } from './LeaseWizard';
 import { isCFM } from '../lib/assetHelpers';
 import { db } from '../lib/db';
-import { FF_COLORS, buildFlyForwardProjection } from '../lib/flyForwardHelpers';
+import { FF_COLORS, buildAssetMaintenanceCalendar, buildFlyForwardProjection } from '../lib/flyForwardHelpers';
 import { getEndOfLeaseTermsDefaults } from '../lib/knowledgeBase';
 
 const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -984,17 +984,23 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
     return <div style={{ padding: 40, textAlign: "center", color: "#64748b" }}>Loading maintenance calendar for MSN {asset.msn}…</div>;
   }
 
-  if (!asset.currentLeaseId || loadError || !lease) {
+  if (loadError) {
     return (
       <div style={{ animation: "fadeIn 0.2s ease" }}>
-        <div className="card" style={{ padding: 24, textAlign: "center", color: !asset.currentLeaseId ? "#94a3b8" : "#f87171" }}>
-          {!asset.currentLeaseId ? "No active lease on this asset." : "Could not load maintenance calendar data."}
-        </div>
+        <div className="card" style={{ padding: 24, textAlign: "center", color: "#f87171" }}>Could not load maintenance calendar data.</div>
       </div>
     );
   }
 
-  const { maintenanceCal, projectionError } = buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections });
+  // TECH_DEBT.md 4.86 follow-up — that fix reached the FLEET-level
+  // Calendar tab only. This is the same leaseless-safe path applied at
+  // asset level: buildAssetMaintenanceCalendar tolerates a missing lease
+  // and synthesizes pot structure (never a $ figure) from the asset's own
+  // real component data when no confirmed reserve pot exists yet. The
+  // Financials tab (FlyForward component, above) is completely untouched
+  // and still correctly requires a real lease — this function is
+  // deliberately never used there.
+  const { maintenanceCal, projectionError, usedSyntheticPots } = buildAssetMaintenanceCalendar({ asset, lease, reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections });
 
   if (projectionError || !maintenanceCal) {
     return (
@@ -1090,6 +1096,12 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
         </div>
       </div>
 
+      {usedSyntheticPots && (
+        <div style={{ background: "#0d1e2e", border: "1px solid #1e3a52", borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: "#7dd3fc" }}>
+          ℹ No lease/reserve setup on file for this asset — dates below are sourced directly from real component data (landing gear next-due, engine LLP remaining life). Engine Performance Restoration and APU Overhaul aren't shown, since there's no real anchor date to derive either from; nothing here is an estimate.
+        </div>
+      )}
+
       {maintenanceCal.dataCompleteness.length > 0 && (
         <div style={{ background: "#2a220e", border: "1px solid #C9A84C", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 12, color: "#fbbf24" }}>
           {maintenanceCal.dataCompleteness.map((gap, i) => (
@@ -1165,7 +1177,7 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
       })}
 
       {maintenanceCal.events.length === 0 && (
-        <div className="card" style={{ padding: 24, textAlign: "center", color: "#64748b" }}>No maintenance events projected within the current lease horizon.</div>
+        <div className="card" style={{ padding: 24, textAlign: "center", color: "#64748b" }}>No maintenance events projected within the current calendar horizon.</div>
       )}
     </div>
   );
