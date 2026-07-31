@@ -779,8 +779,19 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
         <div className="flj" style={{marginBottom:2}}>
           <div className="section-title" style={{margin:0}}>Check History</div>
         </div>
-        {(editing?form:asset).checks?.length?(editing?form:asset).checks.map((c,i)=>(
-          <div key={i} style={{marginTop:i>0?14:0,paddingTop:i>0?14:0,borderTop:i>0?"1px solid #1e3048":"none"}}>
+        {(editing?form:asset).checks?.length?(() => {
+          // TECH_DEBT.md 4.80 — same fix as the Overview tab's read-only
+          // Check History: sort by parsed interval, not insertion order.
+          // Unlike Overview, THIS view edits/deletes by array index, so we
+          // keep each entry's original index alongside it for every
+          // callback below — sorting must never shift which record a
+          // delete/edit button actually targets.
+          const parseCheckInterval = (name) => { const m = /(\d+)/.exec(name || ""); return m ? parseInt(m[1], 10) : Infinity; };
+          const sorted = (editing?form:asset).checks
+            .map((c, origIndex) => ({ c, origIndex }))
+            .sort((a, b) => parseCheckInterval(a.c.name) - parseCheckInterval(b.c.name));
+          return sorted.map(({ c, origIndex: i }, pos) => (
+          <div key={i} style={{marginTop:pos>0?14:0,paddingTop:pos>0?14:0,borderTop:pos>0?"1px solid #1e3048":"none"}}>
             <div className="flj" style={{marginBottom:6}}>
               <span style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.04em"}}>{c.name}</span>
               {editing&&isAdmin&&<button className="btn-danger btn" style={{fontSize:9,padding:"3px 7px"}} onClick={()=>{const f=JSON.parse(JSON.stringify(form));f.checks.splice(i,1);setForm(f);}}>✕</button>}
@@ -802,7 +813,8 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
               {editing&&isAdmin?<CheckDateInput val={c.nextDate} onCommit={(iso)=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].nextDate=iso;setForm(f);}} yrs={null}/>:<span style={{fontSize:12,fontWeight:700,color:daysFromNow(c.nextDate)<365?"#fbbf24":"#34d399"}}>{fmtDate(c.nextDate)||"—"}</span>}
             </div>
           </div>
-        )):<div style={{color:"#475569",fontStyle:"italic",fontSize:12}}>No check history recorded</div>}
+          ));
+        })():<div style={{color:"#475569",fontStyle:"italic",fontSize:12}}>No check history recorded</div>}
         {editing&&isAdmin&&<div style={{marginTop:12}}><AddCheckRow existing={(form.checks||[]).map(c=>c.name)} onAdd={name=>{const f=JSON.parse(JSON.stringify(form));if(!f.checks)f.checks=[];f.checks.push({name,lastDate:"",lastFH:0,lastFC:0,nextDate:""});setForm(f);}}/></div>}
       </div>
       <div className="card" style={{padding:18}}>

@@ -865,6 +865,81 @@ function PendingCompletionsPanel({ asset, pending, onCompleted, notify, canEnter
   );
 }
 
+// Always-visible record of every completed event logged for this asset —
+// separate from PendingCompletionsPanel above, which only ever shows
+// currently-overdue items and disappears once they're all actioned. This
+// is what makes those entries visible/reviewable afterward, and lets a
+// completed event be logged manually even when it's not (or no longer)
+// sitting in the pending list — e.g. entering historical data, or an
+// event that was already Dismissed and needs its real costs added later.
+function CompletedEventsHistory({ asset, completedEvents, reserveDocs, canEnterCosts, notify, onSaved }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickCode, setPickCode] = useState("");
+  const [pickDate, setPickDate] = useState("");
+  const [manualEvt, setManualEvt] = useState(null);
+
+  const startManual = () => {
+    if (!pickCode || !pickDate) { notify("Select an event type and date", "error"); return; }
+    const pot = reserveDocs.find(p => p.code === pickCode);
+    setManualEvt({
+      code: pickCode, label: pot?.label || pickCode,
+      date: new Date(pickDate), dueCycle: `manual-${Date.now()}`,
+      cost: null, beyondHorizon: false
+    });
+    setPickerOpen(false); setPickCode(""); setPickDate("");
+  };
+
+  const sorted = [...completedEvents].sort((a, b) => new Date(b.eventDateProjected || b.confirmedAt) - new Date(a.eventDateProjected || a.confirmedAt));
+
+  return (
+    <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+      <div className="flj" style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Completed Events — Cost History</div>
+        {canEnterCosts && <button className="btn btn-ghost" style={{ fontSize: 11, padding: "3px 8px" }} onClick={() => setPickerOpen(o => !o)}>{pickerOpen ? "Cancel" : "+ Log Completed Event"}</button>}
+      </div>
+
+      {pickerOpen && (
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 14, flexWrap: "wrap", background: "#0d1925", border: "1px solid #1e3048", borderRadius: 8, padding: 10 }}>
+          <div>
+            <label className="form-label">Event Type</label>
+            <select value={pickCode} onChange={e => setPickCode(e.target.value)}>
+              <option value="">Select…</option>
+              {reserveDocs.map(p => <option key={p.code} value={p.code}>{p.code} — {p.label}</option>)}
+            </select>
+          </div>
+          <div><label className="form-label">Event Date</label><input type="date" value={pickDate} onChange={e => setPickDate(e.target.value)}/></div>
+          <button className="btn btn-gold" style={{ fontSize: 11, padding: "4px 10px" }} onClick={startManual}>Continue</button>
+        </div>
+      )}
+
+      {sorted.length === 0 && <div style={{ color: "#64748b", fontSize: 12, fontStyle: "italic" }}>No completed events recorded yet.</div>}
+      {sorted.map(ev => (
+        <div key={ev.id} className="flj" style={{ padding: "7px 0", borderTop: "1px solid #1e3048", flexWrap: "wrap", gap: 6 }}>
+          <div style={{ fontSize: 12, color: "#e2e8f0" }}>
+            <span style={{ fontWeight: 700 }}>{ev.code}</span> — {ev.label || ev.code} · {ev.eventDateProjected || "—"}
+            {ev.noCostData && <span className="pill" style={{ marginLeft: 6, background: "#2a1f0e", color: "#fbbf24", fontSize: 10 }}>No cost data</span>}
+            {ev.mroRegion && <span style={{ marginLeft: 6, color: "#64748b" }}>· {ev.mroRegion}</span>}
+          </div>
+          <div style={{ fontSize: 12, color: "#94a3b8" }}>
+            {ev.totalCost != null ? `$${Math.round(ev.totalCost).toLocaleString()}` : "—"}
+            {ev.costDelta != null && (
+              <span style={{ marginLeft: 8, color: ev.costDelta > 0 ? "#f87171" : "#34d399" }}>
+                {ev.costDelta > 0 ? "+" : ""}${Math.round(ev.costDelta).toLocaleString()} vs projected
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+
+      {manualEvt && (
+        <CostTrackerEntryForm asset={asset} evt={manualEvt} notify={notify}
+          onClose={() => setManualEvt(null)}
+          onSaved={() => { setManualEvt(null); onSaved(); }}/>
+      )}
+    </div>
+  );
+}
+
 function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = false }) {
   const [loading, setLoading] = useState(true);
   const [lease, setLease] = useState(null);
@@ -1001,6 +1076,8 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
       </div>
 
       <PendingCompletionsPanel asset={asset} pending={pendingCompletions} onCompleted={reload} notify={notify} canEnterCosts={canEnterCosts}/>
+
+      <CompletedEventsHistory asset={asset} completedEvents={completedEvents} reserveDocs={reserveDocs} canEnterCosts={canEnterCosts} notify={notify} onSaved={reload}/>
 
       {showSeasonality && (
         <SeasonalityProfileEditor asset={asset} profile={seasonalityProfile} onSaved={reload}/>
@@ -1157,4 +1234,4 @@ function SeasonalityProfileEditor({ asset, profile, onSaved }) {
 };
 
 
-export { CostTrackerEntryForm, FFPotCard, FlyForward, MaintenanceCalendarGrid, MaintenanceCalendarView, MiniLineChart, PendingCompletionsPanel, SeasonalityProfileEditor, EndOfLeasePositionView };
+export { CompletedEventsHistory, CostTrackerEntryForm, FFPotCard, FlyForward, MaintenanceCalendarGrid, MaintenanceCalendarView, MiniLineChart, PendingCompletionsPanel, SeasonalityProfileEditor, EndOfLeasePositionView };
