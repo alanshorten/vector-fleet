@@ -4,6 +4,7 @@ import { LeaseWizard } from './LeaseWizard';
 import { isCFM } from '../lib/assetHelpers';
 import { db } from '../lib/db';
 import { FF_COLORS, buildAssetMaintenanceCalendar, buildFlyForwardProjection } from '../lib/flyForwardHelpers';
+import { useLayoutMode, LayoutModeToggle } from '../lib/layoutMode';
 import { getEndOfLeaseTermsDefaults } from '../lib/knowledgeBase';
 
 const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -475,6 +476,7 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
   const [leaseWizardOpen, setLeaseWizardOpen] = useState(false);
   const [showAssumptions, setShowAssumptions] = useState(false);
   const [showEOLPosition, setShowEOLPosition] = useState(false);
+  const { mode: layoutMode, rawMode: layoutRawMode, setMode: setLayoutMode, isWide: layoutIsWide, width: layoutWidth } = useLayoutMode();
   const engineFamily = isCFM(asset) ? "CFM" : "V2500";
 
   useEffect(() => {
@@ -594,6 +596,7 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
       <div className="flab g12" style={{ marginBottom: 16, justifyContent: "flex-end" }}>
+        <LayoutModeToggle rawMode={layoutRawMode} setMode={setLayoutMode} isWide={layoutIsWide}/>
         {eolTerms.applies && <button className="btn btn-ghost" onClick={() => setShowEOLPosition(s => !s)}>{showEOLPosition ? "Hide " : "📄 "}End of Lease Position</button>}
         <button className="btn btn-ghost" onClick={() => setShowAssumptions(s => !s)}>{showAssumptions ? "Hide " : "📋 "}Assumptions</button>
         {canEnterLeaseData && <button className="btn btn-ghost" onClick={() => setLeaseWizardOpen(true)}>📄 Edit Lease</button>}
@@ -627,34 +630,43 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
         </div>
       )}
 
-      <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Portfolio Shortfall Summary</div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: shortfallSummary.grandTotalHigh > 0 ? "#f87171" : "#34d399" }}>
-          ${Math.round(shortfallSummary.grandTotalLow).toLocaleString()} – ${Math.round(shortfallSummary.grandTotalHigh).toLocaleString()}
-        </div>
-        <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-          Total projected shortfall across {projections.length} reserve pot{projections.length===1?"":"s"} over the {horizonMonths}-month projection (positive events only — surplus in one pot doesn't offset a gap in another).
-        </div>
-      </div>
-
-      {riskPeaks.length > 0 && (
-        <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Risk Peaks (earliest first)</div>
-          {riskPeaks.map((r, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: i > 0 ? "1px solid #1e3048" : "none", fontSize: 12 }}>
-              <span style={{ color: "#e2e8f0" }}>{r.code} — {r.dateWindow ? `${r.dateWindow.start.toISOString().slice(0,7)} – ${r.dateWindow.end.toISOString().slice(0,7)}` : r.date.toISOString().slice(0, 7)}</span>
-              <span style={{ color: r.severity === "high" ? "#f87171" : "#fbbf24" }}>
-                {r.severity === "high" ? "High" : "Medium"} — ${Math.round(r.shortfallLow).toLocaleString()} to ${Math.round(r.shortfallHigh).toLocaleString()}
-              </span>
+      {(() => {
+        const pairInGrid = layoutMode === "landscape" && riskPeaks.length > 0;
+        return (
+          <div style={pairInGrid ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 16, marginBottom: 16, alignItems: "start" } : undefined}>
+            <div className="card" style={{ padding: 16, marginBottom: pairInGrid ? 0 : 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Portfolio Shortfall Summary</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: shortfallSummary.grandTotalHigh > 0 ? "#f87171" : "#34d399" }}>
+                ${Math.round(shortfallSummary.grandTotalLow).toLocaleString()} – ${Math.round(shortfallSummary.grandTotalHigh).toLocaleString()}
+              </div>
+              <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                Total projected shortfall across {projections.length} reserve pot{projections.length===1?"":"s"} over the {horizonMonths}-month projection (positive events only — surplus in one pot doesn't offset a gap in another).
+              </div>
             </div>
-          ))}
-        </div>
-      )}
 
-      {projections.map((p, i) => {
-        const anchoredPot = anchoredPots.find(ap => ap.code === p.code);
-        return <FFPotCard key={p.code} projection={p} color={colorList[i % colorList.length]} anchored={!!anchoredPot?.firstEventOverrideDate}/>;
-      })}
+            {riskPeaks.length > 0 && (
+              <div className="card" style={{ padding: 16, marginBottom: pairInGrid ? 0 : 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Risk Peaks (earliest first)</div>
+                {riskPeaks.map((r, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: i > 0 ? "1px solid #1e3048" : "none", fontSize: 12 }}>
+                    <span style={{ color: "#e2e8f0" }}>{r.code} — {r.dateWindow ? `${r.dateWindow.start.toISOString().slice(0,7)} – ${r.dateWindow.end.toISOString().slice(0,7)}` : r.date.toISOString().slice(0, 7)}</span>
+                    <span style={{ color: r.severity === "high" ? "#f87171" : "#fbbf24" }}>
+                      {r.severity === "high" ? "High" : "Medium"} — ${Math.round(r.shortfallLow).toLocaleString()} to ${Math.round(r.shortfallHigh).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      <div style={layoutMode === "landscape" ? { display: "grid", gridTemplateColumns: `repeat(${layoutWidth >= 1300 ? 3 : 2}, 1fr)`, columnGap: 16 } : undefined}>
+        {projections.map((p, i) => {
+          const anchoredPot = anchoredPots.find(ap => ap.code === p.code);
+          return <FFPotCard key={p.code} projection={p} color={colorList[i % colorList.length]} anchored={!!anchoredPot?.firstEventOverrideDate}/>;
+        })}
+      </div>
     </div>
   );
 };
