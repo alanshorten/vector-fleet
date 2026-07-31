@@ -6,6 +6,7 @@ import { db, logAudit } from '../lib/db';
 import { uploadToCloudinary } from '../lib/uploadHelpers';
 import { bootstrapKnowledgeBaseGlobals, CODE_FALLBACK_DEFAULTS } from '../lib/knowledgeBase';
 import { isCatalogueExcelFile, isCatalogueUploadFile, parseExcelCatalogueFile, parsePdfCatalogueFile } from '../lib/llpCatalogueImport';
+import { useLayoutMode } from '../lib/layoutMode';
 
 function LogoSettings({notify}) {
   const [logoUrl, setLogoUrl] = useState(null);
@@ -557,8 +558,45 @@ function KnowledgeBaseSettings({assets, notify}) {
   );
 };
 
-function AdminView({assets,saveAsset,notify,loadAssets}){
-  const[tab,setTab]=useState("assets");
+// Replaces the header icon (Alan: "not very clear") with an explicit
+// labeled control now that it has a proper home with room for text.
+// Hidden below the width floor with an explanatory note rather than a
+// disabled control, since there's genuinely nothing to switch into on a
+// narrow window — same reasoning as layoutMode.js's own width-floor gate.
+function LayoutModeSettingsControl() {
+  const { rawMode, setMode, isWide } = useLayoutMode();
+  if (!isWide) {
+    return <div style={{fontSize:12,color:"#64748b",fontStyle:"italic"}}>Landscape mode needs a wider window than this one currently has. Try this on a laptop or desktop-width browser window.</div>;
+  }
+  return (
+    <div className="flab g8">
+      <button className={`tab-btn${rawMode==='portrait'?" active":""}`} onClick={()=>setMode('portrait')}>Portrait</button>
+      <button className={`tab-btn${rawMode==='landscape'?" active":""}`} onClick={()=>setMode('landscape')}>Landscape</button>
+    </div>
+  );
+}
+
+function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
+  // Tab visibility (Alan, this session): the page itself is no longer
+  // admin-only — App.jsx now renders this for every signed-in role, and
+  // gating moved from the whole panel down to individual tabs here.
+  // Guide + Settings: every role. Knowledge Base: Editor and Admin (not
+  // Viewer/Data Entry — matches "Data Entry doesn't see financial
+  // outputs" already established for the main nav). Admin Panel
+  // (Assets + Users, merged from what were two separate top-level tabs):
+  // Admin only. Each tab body re-checks its own gate too (defense in
+  // depth — same pattern App.jsx already uses for the old Admin view),
+  // not just the nav row, in case tab state is ever set some other way.
+  const canSeeKB=userRole==='editor'||userRole==='admin';
+  const isAdmin=userRole==='admin';
+  const canEditBranding=userRole==='admin'||userRole==='editor';
+  const TABS=[
+    {key:"guide",label:"Guide",show:true},
+    {key:"settings",label:"Settings",show:true},
+    {key:"knowledgebase",label:"Knowledge Base",show:canSeeKB},
+    {key:"adminpanel",label:"Admin Panel",show:isAdmin}
+  ].filter(t=>t.show);
+  const[tab,setTab]=useState("settings");
   const[showNew,setShowNew]=useState(false);
   const[newA,setNewA]=useState({msn:"",registration:"",model:"A320-214",operator:"",manufacturer:"Airbus S.A.S.",dom:""});
   const createAsset=async()=>{
@@ -569,86 +607,106 @@ function AdminView({assets,saveAsset,notify,loadAssets}){
   const deleteAsset=async(id)=>{if(!confirm(`Delete asset MSN ${id}?`))return;const msn=assets.find(a=>String(a.id)===String(id))?.msn||id;await db.deleteAsset(id);await logAudit(id,msn,"Deleted asset");await loadAssets();notify("Asset deleted");};
   return(
     <div>
-      <h1 style={{fontSize:20,color:"#C9A84C",fontWeight:700,marginBottom:18}}>Admin Panel</h1>
+      <h1 style={{fontSize:20,color:"#C9A84C",fontWeight:700,marginBottom:18}}>Settings</h1>
       <div style={{display:"flex",borderBottom:"2px solid #1e3048",marginBottom:20,gap:2,flexWrap:"wrap"}}>
-        {["assets","users","knowledgebase","settings","guide"].map(t=><button key={t} className={`tab-btn${tab===t?" active":""}`} onClick={()=>setTab(t)}>{t==="knowledgebase"?"Knowledge Base":t}</button>)}
+        {TABS.map(t=><button key={t.key} className={`tab-btn${tab===t.key?" active":""}`} onClick={()=>setTab(t.key)}>{t.label}</button>)}
       </div>
-      {tab==="assets"&&(
-        <div>
-          <div className="flj" style={{marginBottom:14}}>
-            <span style={{color:"#475569",fontSize:13}}>{assets.length} aircraft in system</span>
-            <button className="btn btn-gold" onClick={()=>setShowNew(true)}>+ New Asset</button>
-          </div>
-          {showNew&&(
-            <div className="card" style={{padding:20,marginBottom:16}}>
-              <div className="section-title">New Aircraft</div>
-              <div className="grid3" style={{gap:10,marginBottom:12}}>
-                {[["MSN *","msn"],["Registration","registration"],["Model","model"],["Operator","operator"],["Manufacturer","manufacturer"]].map(([l,k])=>(
-                  <div key={k}><label className="form-label">{l}</label><input value={newA[k]||""} onChange={e=>setNewA({...newA,[k]:e.target.value})} className={!newA[k]&&k==="msn"?"amber":""}/></div>
-                ))}
-                <div><label className="form-label">Date of Manufacture</label><input type="date" value={newA.dom} onChange={e=>setNewA({...newA,dom:e.target.value})}/></div>
-              </div>
-              <div className="flab g8"><button className="btn btn-ghost" onClick={()=>setShowNew(false)}>Cancel</button><button className="btn btn-gold" onClick={createAsset}>Create Asset</button></div>
-            </div>
-          )}
-          <div className="card" style={{overflow:"hidden"}}>
-            <table><thead><tr><th>MSN</th><th>Registration</th><th>Model</th><th>Operator</th><th>Engine S/Ns</th><th></th></tr></thead>
-            <tbody>
-              {assets.length===0&&<tr><td colSpan={6} style={{textAlign:"center",padding:40,color:"#475569"}}>No assets yet.</td></tr>}
-              {assets.map(a=>(
-                <tr key={a.id}>
-                  <td style={{fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{a.msn}</td>
-                  <td style={{fontWeight:600}}>{a.registration||"—"}</td>
-                  <td style={{color:"#94a3b8"}}>{a.model||"—"}</td>
-                  <td style={{color:"#94a3b8"}}>{a.operator||"—"}</td>
-                  <td style={{fontFamily:"monospace",fontSize:11,color:"#64748b"}}>{a.engines?.map(e=>e.sn||"TBD").join(" / ")||"—"}</td>
-                  <td><button className="btn-danger btn" style={{fontSize:10,padding:"3px 8px"}} onClick={()=>deleteAsset(a.id)}>Delete</button></td>
-                </tr>
-              ))}
-            </tbody></table>
-          </div>
-        </div>
-      )}
-      {tab==="users"&&(
+
+      {tab==="settings"&&(
         <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:700}}>
           <div className="card" style={{padding:20}}>
-            <div className="section-title">Invite User</div>
-            <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Create a new TailiQ account. They'll receive an email to set their own password.</p>
-            <InviteUserCard notify={notify}/>
+            <div className="section-title">Display</div>
+            <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Choose how TailiQ arranges cards on a wide screen. This is a personal preference — changing it doesn't affect what anyone else sees.</p>
+            <LayoutModeSettingsControl/>
           </div>
-          <div className="card" style={{padding:20}}>
-            <div className="section-title">Manage Users</div>
-            <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>View all users and change their roles. Admin role can only be set via server configuration.</p>
-            <UsersCard notify={notify}/>
-          </div>
+          {canEditBranding?(
+            <>
+              <div className="card" style={{padding:20}}>
+                <div className="section-title">Tech Spec Logo & Disclaimer</div>
+                <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Resize or replace the logo shown on the tech spec cover pages.</p>
+                <LogoSettings notify={notify}/>
+                <div style={{height:1,background:"#1e3348",margin:"20px 0"}}/>
+                <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Set the default disclaimer text shown at the bottom of every generated tech spec.</p>
+                <DisclaimerSettings notify={notify}/>
+              </div>
+              <div className="card" style={{padding:20}}>
+                <div className="section-title">Engine Stock Photos</div>
+                <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Upload default photos for each engine type. These appear on engine tech specs.</p>
+                <EnginePhotoSettings notify={notify}/>
+              </div>
+              <div className="card" style={{padding:20}}>
+                <div className="section-title">Airframe Stock Photos</div>
+                <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Upload default photos for each airframe type. Used on the tech spec cover whenever an asset has no per-asset "Airframe" photo uploaded (coarse match on model, e.g. any "737 MAX..." model uses the B737 MAX photo).</p>
+                <AirframePhotoSettings notify={notify}/>
+              </div>
+            </>
+          ):(
+            <div className="card" style={{padding:20,fontSize:12,color:"#64748b"}}>Tech spec logo, disclaimer, and stock photos can only be changed by an Editor or Admin.</div>
+          )}
         </div>
       )}
-      {tab==="knowledgebase"&&(
+
+      {tab==="knowledgebase"&&canSeeKB&&(
         <div style={{maxWidth:900}}>
           <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>House-view forecasting assumptions and LLP catalogue pricing that pre-fill new reserve pots and feed Brain 3's cost estimates. Per-asset entries always take priority over these company defaults, and existing confirmed pots are never retroactively changed.</p>
           <KnowledgeBaseSettings assets={assets} notify={notify}/>
         </div>
       )}
+
       {tab==="guide"&&<div style={{maxWidth:920}}><GuideView/></div>}
-      {tab==="settings"&&(
-        <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:700}}>
-          <div className="card" style={{padding:20}}>
-            <div className="section-title">Tech Spec Logo & Disclaimer</div>
-            <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Resize or replace the logo shown on the tech spec cover pages.</p>
-            <LogoSettings notify={notify}/>
-            <div style={{height:1,background:"#1e3348",margin:"20px 0"}}/>
-            <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Set the default disclaimer text shown at the bottom of every generated tech spec.</p>
-            <DisclaimerSettings notify={notify}/>
+
+      {tab==="adminpanel"&&isAdmin&&(
+        <div style={{display:"flex",flexDirection:"column",gap:28}}>
+          <div>
+            <div className="section-title" style={{marginBottom:12}}>Assets</div>
+            <div className="flj" style={{marginBottom:14}}>
+              <span style={{color:"#475569",fontSize:13}}>{assets.length} aircraft in system</span>
+              <button className="btn btn-gold" onClick={()=>setShowNew(true)}>+ New Asset</button>
+            </div>
+            {showNew&&(
+              <div className="card" style={{padding:20,marginBottom:16}}>
+                <div className="section-title">New Aircraft</div>
+                <div className="grid3" style={{gap:10,marginBottom:12}}>
+                  {[["MSN *","msn"],["Registration","registration"],["Model","model"],["Operator","operator"],["Manufacturer","manufacturer"]].map(([l,k])=>(
+                    <div key={k}><label className="form-label">{l}</label><input value={newA[k]||""} onChange={e=>setNewA({...newA,[k]:e.target.value})} className={!newA[k]&&k==="msn"?"amber":""}/></div>
+                  ))}
+                  <div><label className="form-label">Date of Manufacture</label><input type="date" value={newA.dom} onChange={e=>setNewA({...newA,dom:e.target.value})}/></div>
+                </div>
+                <div className="flab g8"><button className="btn btn-ghost" onClick={()=>setShowNew(false)}>Cancel</button><button className="btn btn-gold" onClick={createAsset}>Create Asset</button></div>
+              </div>
+            )}
+            <div className="card" style={{overflow:"hidden"}}>
+              <table><thead><tr><th>MSN</th><th>Registration</th><th>Model</th><th>Operator</th><th>Engine S/Ns</th><th></th></tr></thead>
+              <tbody>
+                {assets.length===0&&<tr><td colSpan={6} style={{textAlign:"center",padding:40,color:"#475569"}}>No assets yet.</td></tr>}
+                {assets.map(a=>(
+                  <tr key={a.id}>
+                    <td style={{fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{a.msn}</td>
+                    <td style={{fontWeight:600}}>{a.registration||"—"}</td>
+                    <td style={{color:"#94a3b8"}}>{a.model||"—"}</td>
+                    <td style={{color:"#94a3b8"}}>{a.operator||"—"}</td>
+                    <td style={{fontFamily:"monospace",fontSize:11,color:"#64748b"}}>{a.engines?.map(e=>e.sn||"TBD").join(" / ")||"—"}</td>
+                    <td><button className="btn-danger btn" style={{fontSize:10,padding:"3px 8px"}} onClick={()=>deleteAsset(a.id)}>Delete</button></td>
+                  </tr>
+                ))}
+              </tbody></table>
+            </div>
           </div>
-          <div className="card" style={{padding:20}}>
-            <div className="section-title">Engine Stock Photos</div>
-            <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Upload default photos for each engine type. These appear on engine tech specs.</p>
-            <EnginePhotoSettings notify={notify}/>
-          </div>
-          <div className="card" style={{padding:20}}>
-            <div className="section-title">Airframe Stock Photos</div>
-            <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Upload default photos for each airframe type. Used on the tech spec cover whenever an asset has no per-asset "Airframe" photo uploaded (coarse match on model, e.g. any "737 MAX..." model uses the B737 MAX photo).</p>
-            <AirframePhotoSettings notify={notify}/>
+
+          <div style={{maxWidth:700}}>
+            <div className="section-title" style={{marginBottom:12}}>Users</div>
+            <div style={{display:"flex",flexDirection:"column",gap:16}}>
+              <div className="card" style={{padding:20}}>
+                <div className="section-title">Invite User</div>
+                <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Create a new TailiQ account. They'll receive an email to set their own password.</p>
+                <InviteUserCard notify={notify}/>
+              </div>
+              <div className="card" style={{padding:20}}>
+                <div className="section-title">Manage Users</div>
+                <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>View all users and change their roles. Admin role can only be set via server configuration.</p>
+                <UsersCard notify={notify}/>
+              </div>
+            </div>
           </div>
         </div>
       )}

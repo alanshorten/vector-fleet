@@ -9,7 +9,7 @@ import { UploadView } from './components/UploadView';
 import { db, logAudit } from './lib/db';
 import { bootstrapKnowledgeBaseGlobals } from './lib/knowledgeBase';
 import { HEADER_LOGO_NAVY, HEADER_LOGO_WHITE } from './lib/techSpec';
-import { LayoutModeProvider, useLayoutMode } from './lib/layoutMode';
+import { LayoutModeProvider } from './lib/layoutMode';
 
 function AppInner(){
   // Invite-link landing — must be checked before any sign-in gate, since
@@ -27,13 +27,6 @@ function AppInner(){
   const[assetInitialLayer,setAssetInitialLayer]=useState("details");
   const[userRole,setUserRole]=useState(null);
   const[notification,setNotification]=useState(null);
-  // Portrait/Landscape (landscape-portrait-layout-scoping-handoff.md) —
-  // one toggle for the whole app, not per-page. Lives here (rather than
-  // each component fetching its own) so every page shares a single
-  // Firestore read and stays in sync on navigation. Visible to every
-  // role, unlike the rest of this header's role-gated buttons — this is
-  // a personal display preference, not a permission.
-  const{rawMode:layoutRawMode,setMode:setLayoutMode,isWide:layoutIsWide}=useLayoutMode();
 
   const loadAssets=useCallback(async()=>{
     try{
@@ -202,7 +195,8 @@ function AppInner(){
             </button>}
             {/* Two pills: the four-layer group (Details always; Calendar/Financials/
                 Scenarios gated on canSeeAdvanced), and workflow tools (Prospects
-                always; Upload gated on canUpload; Admin for admins; Sign Out last).
+                always; Upload gated on canUpload; Settings always — it gates its
+                own tabs internally by role now, see AdminView; Sign Out last).
                 Matches VECTORIQ_ROADMAP.md §7a. Sign Out folded into this pill
                 rather than standalone — a separate button was getting squeezed
                 off-screen on mobile. Uses the same NavPill component as the
@@ -214,9 +208,9 @@ function AppInner(){
                 onSelect={v=>{setView(v);setSelectedId(null);}}
                 theme={view==="portfolio"?"light":"dark"}/>
               <NavPill
-                items={[["prospects","Prospects"],...(canUpload?[["upload","Upload"]]:[]),...(userRole==='admin'?[["admin","Admin"]]:[]),...(layoutIsWide?[["layout-toggle",<span style={{display:"inline-block",transform:layoutRawMode==='portrait'?"rotate(90deg)":"none",fontSize:15}}>🖥</span>]]:[]),["signout","⎋ Sign Out"]]}
+                items={[["prospects","Prospects"],...(canUpload?[["upload","Upload"]]:[]),["settings","Settings"],["signout","⎋ Sign Out"]]}
                 activeValue={view}
-                onSelect={v=>v==='signout'?window._auth.signOut():v==='layout-toggle'?setLayoutMode(layoutRawMode==='landscape'?'portrait':'landscape'):(setView(v),setSelectedId(null))}
+                onSelect={v=>v==='signout'?window._auth.signOut():(setView(v),setSelectedId(null))}
                 theme={view==="portfolio"?"light":"dark"}
                 width={TRAILING_PILL_WIDTH}/>
             </div>
@@ -251,8 +245,7 @@ function AppInner(){
         )}
         {view==="prospects"&&<ProspectListView assets={prospectAssets} saveAsset={saveAsset} notify={notify} userRole={userRole} onSelect={id=>{setSelectedId(id);setView("prospect-editor");}} loadAssets={loadAssets}/>}
         {view==="prospect-editor"&&selectedId&&assets.find(a=>a.id===selectedId)&&<ProspectEditor asset={assets.find(a=>a.id===selectedId)} saveAsset={saveAsset} notify={notify} onBack={()=>{setView("prospects");setSelectedId(null);}}/>}
-        {view==="admin"&&userRole==='admin'&&<AdminView assets={liveAssets} saveAsset={saveAsset} notify={notify} loadAssets={loadAssets}/>}
-        {view==="admin"&&userRole!=='admin'&&<div style={{padding:60,textAlign:"center",color:"#475569"}}>Admin access required.</div>}
+        {view==="settings"&&<AdminView assets={liveAssets} saveAsset={saveAsset} notify={notify} loadAssets={loadAssets} userRole={userRole}/>}
       </main>
     </div>
   );
