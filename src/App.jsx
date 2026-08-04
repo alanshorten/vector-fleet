@@ -332,50 +332,48 @@ function AppInner(){
         <div className="app-header-row" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"nowrap",maxWidth:1480,margin:"0 auto",padding:"8px 22px",boxSizing:"border-box"}}>
           <img src={isPortfolio?HEADER_LOGO_WHITE:HEADER_LOGO_NAVY} alt="TailiQ" style={{height:44,maxWidth:"55vw",objectFit:"contain",objectPosition:"left center",borderRadius:0}} className="header-logo"/>
 
-          {/* Right side: two rows stacked.
-              Alignment principle: every row's trailing element is exactly
-              TRAILING_PILL_WIDTH (400px) wide, so the NavPill left edge is
-              the same across fleet row 2 and the asset-level header row.
-              Row 1: [Fleet Portfolio + ☰] — pinned to TRAILING_PILL_WIDTH
-              Row 2: [fleet NavPill] [Upload — TRAILING_PILL_WIDTH] */}
-          <div className="app-header-right" style={{display:"flex",flexDirection:"column",gap:5,alignItems:"stretch",flexShrink:0}}>
-
-            {/* Row 1 — Fleet Portfolio button + hamburger, total width = TRAILING_PILL_WIDTH
-                so it lines up with the Upload pill on row 2 and the Share/TechSpec
-                trailing pill in the asset header. */}
-            <div style={{display:"flex",alignItems:"center",gap:6,justifyContent:"space-between",width:TRAILING_PILL_WIDTH,flexShrink:0}}>
-              {canSeeAdvanced&&<button onClick={()=>{setView("portfolio");setSelectedId(null);}}
-                className="app-fleet-btn"
-                style={{flex:1,padding:"7px 14px",background:isPortfolio?"#f1f5f9":"transparent",border:`1px solid ${isPortfolio?"#e2e8f0":"#2a4060"}`,borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:isPortfolio?"#0f172a":"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
-                ✈ Fleet Portfolio
-              </button>}
-              <HamburgerMenu
-                view={view}
-                onSelect={navigate}
-                isMobile={isMobile}
-                canSeeAdvanced={canSeeAdvanced}
-                canUpload={canUpload}
-                isPortfolio={isPortfolio}
-              />
-            </div>
-
-            {/* Row 2 — nav pills.
-                Fleet nav pill: always visible on desktop; hidden on portrait (moves
-                into hamburger so the asset-level pill doesn't duplicate it).
-                Upload trailing pill: desktop only, width = TRAILING_PILL_WIDTH. */}
-            <div className="flab g8 app-nav-tools-row" style={{flexWrap:"nowrap",whiteSpace:"nowrap",justifyContent:"flex-end",flexShrink:0}}>
-              {!isMobile&&<NavPill
-                items={[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]}
-                activeValue={view}
-                onSelect={v=>{setView(v);setSelectedId(null);}}
-                theme={isPortfolio?"light":"dark"}/>}
-              {!isMobile&&canUpload&&<NavPill
-                items={[["upload","Upload"]]}
-                activeValue={view}
-                onSelect={v=>{setView(v);setSelectedId(null);}}
-                theme={isPortfolio?"light":"dark"}
-                width={TRAILING_PILL_WIDTH}/>}
-            </div>
+          {/* Right side — single flex row matching the asset header structure exactly:
+              [fleet NavPill] [Fleet Portfolio + ☰ — fixed TRAILING_PILL_WIDTH]
+              Asset row is:  [asset NavPill] [Share + TechSpec — fixed TRAILING_PILL_WIDTH]
+              Same structure, same right-side width = guaranteed NavPill left-edge alignment.
+              On portrait: fleet NavPill hidden (moves into hamburger); only Portfolio+☰ show. */}
+          <div className="app-header-right" style={{display:"flex",flexDirection:"column",gap:5,alignItems:"flex-end",flexShrink:0}}>
+            {/* Pills row — desktop only; on portrait only the Portfolio+☰ row shows */}
+            {!isMobile&&(
+              <div className="flab g8 app-nav-tools-row" style={{flexWrap:"nowrap",whiteSpace:"nowrap",alignItems:"center"}}>
+                <NavPill
+                  items={[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]}
+                  activeValue={view}
+                  onSelect={v=>{setView(v);setSelectedId(null);}}
+                  theme={isPortfolio?"light":"dark"}/>
+                {/* Trailing block: Fleet Portfolio + Upload + ☰, width fixed to TRAILING_PILL_WIDTH.
+                    Mirrors the asset row's [Share + TechSpec] trailing block exactly —
+                    same fixed width, so NavPill left edges align across both rows. */}
+                <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"rgba(13,25,37,0.8)",border:"1px solid #1e3348",borderRadius:8,padding:"5px 6px",width:TRAILING_PILL_WIDTH,flexShrink:0,boxSizing:"border-box"}}>
+                  {canSeeAdvanced&&<button onClick={()=>{setView("portfolio");setSelectedId(null);}}
+                    className="app-fleet-btn"
+                    style={{flex:1,padding:"7px 10px",background:view==="portfolio"?"#1a3050":"transparent",border:"none",borderRadius:6,fontFamily:"inherit",fontSize:13,fontWeight:700,cursor:"pointer",color:view==="portfolio"?"#C9A84C":"#6a8aaa",letterSpacing:"0.02em",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
+                    ✈ Fleet Portfolio
+                  </button>}
+                  {canUpload&&<button onClick={()=>{setView("upload");setSelectedId(null);}}
+                    style={{flex:"none",padding:"7px 10px",background:view==="upload"?"#1a3050":"transparent",border:"none",borderRadius:6,fontFamily:"inherit",fontSize:13,fontWeight:700,cursor:"pointer",color:view==="upload"?"#C9A84C":"#6a8aaa",letterSpacing:"0.02em",transition:"all 0.15s",whiteSpace:"nowrap"}}>
+                    Upload
+                  </button>}
+                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isPortfolio={isPortfolio}/>
+                </div>
+              </div>
+            )}
+            {/* Portrait: just Portfolio + ☰, no pills (fleet nav is in hamburger) */}
+            {isMobile&&(
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                {canSeeAdvanced&&<button onClick={()=>{setView("portfolio");setSelectedId(null);}}
+                  className="app-fleet-btn"
+                  style={{flex:1,padding:"7px 14px",background:isPortfolio?"#f1f5f9":"transparent",border:`1px solid ${isPortfolio?"#e2e8f0":"#2a4060"}`,borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:isPortfolio?"#0f172a":"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
+                  ✈ Fleet Portfolio
+                </button>}
+                <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isPortfolio={isPortfolio}/>
+              </div>
+            )}
           </div>
         </div>
       </header>
