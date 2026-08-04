@@ -79,51 +79,47 @@ function LLPExtractor({kind,label,onApply,notify}){
   );
 };
 
-function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,initialLayer}){
-  const[layer,setLayer]=useState(initialLayer||"details");
+function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,initialLayer,
+  layer,setLayer,shareOpen,setShareOpen,genSpecRef}){
   const[tab,setTab]=useState("overview");
-  const[shareOpen,setShareOpen]=useState(false);
   // Data Entry sees Details only (raw inputs, no financial outputs) — matches
   // the four-role model's Nav visibility table (VECTORIQ_ROADMAP.md §7a).
   const canSeeAdvanced=!!userRole&&userRole!=='dataEntry';
   // Viewer edits nothing permanent — Lease Wizard writes real pot docs, so
   // it's Admin/Editor/Data Entry only (Data Entry handles this as a raw input).
   const canEnterLeaseData=!!userRole&&userRole!=='viewer';
-  const LAYERS=[["details","Details"],...(canSeeAdvanced?[["calendar","Calendar"],["financials","Financials"],["scenarios","Scenarios"]]:[])];
-  const genSpec=async()=>{
-    const photoKey=assetEngineStockPhotoKey(asset);
-    const airframePhotoKey=airframeStockPhotoKey(asset.model);
-    const[engPhoto,stockAirframePhoto,logo,defaultDisclaimer]=await Promise.all([
-      photoKey?db.getSetting(photoKey).catch(()=>null):Promise.resolve(null),
-      airframePhotoKey?db.getSetting(airframePhotoKey).catch(()=>null):Promise.resolve(null),
-      getTechSpecLogo(),
-      getDefaultDisclaimer()
-    ]);
-    const base=buildTechSpecHTML(asset,engPhoto,logo,defaultDisclaimer,stockAirframePhoto||"");
-    const withBar=base.replace('<body>',`<body><div style="position:fixed;top:0;left:0;right:0;background:#1B3A6B;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.3);print-color-adjust:exact;-webkit-print-color-adjust:exact"><span style="color:#C9A84C;font-weight:700;font-size:14px;flex:1">TailiQ — Tech Spec MSN ${asset.msn}</span><button onclick="window.print()" style="background:#C9A84C;color:#0a1520;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button><button onclick="window.close()" style="background:transparent;color:#94a3b8;border:1px solid #2d3f55;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">✕ Close</button></div><div style="height:52px"></div>`);
-    const withPrint=withBar.replace('</style>','@media print{body>div:first-child{display:none!important}div[style*="height:52px"]{display:none!important}}</style>');
-    const win=window.open();
-    win.document.write(withPrint);
-    win.document.close();
-  };
+
+  // genSpec exposed via ref so App.jsx header can trigger it without prop drilling
+  // the full async function — all asset data it needs lives here.
+  useEffect(()=>{
+    if(!genSpecRef)return;
+    genSpecRef.current=async()=>{
+      const photoKey=assetEngineStockPhotoKey(asset);
+      const airframePhotoKey=airframeStockPhotoKey(asset.model);
+      const[engPhoto,stockAirframePhoto,logo,defaultDisclaimer]=await Promise.all([
+        photoKey?db.getSetting(photoKey).catch(()=>null):Promise.resolve(null),
+        airframePhotoKey?db.getSetting(airframePhotoKey).catch(()=>null):Promise.resolve(null),
+        getTechSpecLogo(),
+        getDefaultDisclaimer()
+      ]);
+      const base=buildTechSpecHTML(asset,engPhoto,logo,defaultDisclaimer,stockAirframePhoto||"");
+      const withBar=base.replace('<body>',`<body><div style="position:fixed;top:0;left:0;right:0;background:#1B3A6B;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.3);print-color-adjust:exact;-webkit-print-color-adjust:exact"><span style="color:#C9A84C;font-weight:700;font-size:14px;flex:1">TailiQ — Tech Spec MSN ${asset.msn}</span><button onclick="window.print()" style="background:#C9A84C;color:#0a1520;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button><button onclick="window.close()" style="background:transparent;color:#94a3b8;border:1px solid #2d3f55;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">✕ Close</button></div><div style="height:52px"></div>`);
+      const withPrint=withBar.replace('</style>','@media print{body>div:first-child{display:none!important}div[style*="height:52px"]{display:none!important}}</style>');
+      const win=window.open();
+      win.document.write(withPrint);
+      win.document.close();
+    };
+  },[asset,genSpecRef]);
+
   return(
     <div style={{animation:"fadeIn 0.2s ease"}}>
-      <div className="flab g12 asset-header-row" style={{marginBottom:24,justifyContent:"space-between",flexWrap:"nowrap"}}>
+      {/* Asset title row — pills have moved to App.jsx header for alignment */}
+      <div className="flab g12 asset-header-row" style={{marginBottom:24,flexWrap:"nowrap"}}>
         <div className="flab g12 asset-header-top" style={{flexShrink:0,minWidth:0,overflow:"hidden"}}>
           <button className="btn btn-ghost" style={{flexShrink:0}} onClick={onBack}>← Fleet</button>
           <div style={{minWidth:0}}>
             <h1 style={{fontSize:18,color:"#C9A84C",fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>MSN {asset.msn} — {asset.registration||"—"}</h1>
             <p style={{color:"#475569",fontSize:12,whiteSpace:"nowrap"}}>{asset.model} · {asset.operator||"—"}</p>
-          </div>
-        </div>
-        {/* Actions aligned to the right edge — marginLeft:auto pushes this block
-            flush right so the NavPill's left edge lines up with the fleet-level
-            nav pill in App.jsx's header row above it. */}
-        <div className="flab g8 asset-header-actions" style={{flexShrink:0,marginLeft:"auto"}}>
-          <NavPill items={LAYERS} activeValue={layer} onSelect={setLayer}/>
-          <div className="app-nav-pill trailing-pill" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",gap:8,background:"rgba(13,25,37,0.8)",border:"1px solid #1e3348",borderRadius:8,padding:"5px 6px",width:TRAILING_PILL_WIDTH,flexShrink:0}}>
-            <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>setShareOpen(true)}>🔗 Share</button>
-            <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={genSpec}>📋 Generate Tech Spec</button>
           </div>
         </div>
       </div>

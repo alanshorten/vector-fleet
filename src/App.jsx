@@ -172,6 +172,9 @@ function AppInner(){
   const[view,setView]=useState("dashboard");
   const[selectedId,setSelectedId]=useState(null);
   const[assetInitialLayer,setAssetInitialLayer]=useState("details");
+  const[assetLayer,setAssetLayer]=useState("details");
+  const[assetShareOpen,setAssetShareOpen]=useState(false);
+  const genSpecRef=useRef(null);
   const[userRole,setUserRole]=useState(null);
   const[notification,setNotification]=useState(null);
   const { mode: layoutMode } = useLayoutMode();
@@ -333,16 +336,12 @@ function AppInner(){
           <img src={isPortfolio?HEADER_LOGO_WHITE:HEADER_LOGO_NAVY} alt="TailiQ" style={{height:44,maxWidth:"55vw",objectFit:"contain",objectPosition:"left center",borderRadius:0}} className="header-logo"/>
 
           {/* Right side — two-row column (desktop) / single row (portrait).
-              Desktop layout mirrors asset header exactly:
-                Row 1: [Fleet Portfolio ——————————————————— ☰]  full width of row 2
-                Row 2: [Details·Calendar·Financials·Scenarios]  [Upload — TRAILING_PILL_WIDTH]
-              Asset row:
-                       [Details·Calendar·Financials·Scenarios]  [Share·TechSpec — TRAILING_PILL_WIDTH]
-              Same NavPill + same trailing width = guaranteed left-edge alignment. */}
+              Both fleet and asset pills render here — same DOM context = guaranteed
+              pixel-perfect alignment. Asset pills replace fleet pills when in asset view. */}
           <div className="app-header-right" style={{display:"flex",flexDirection:"column",gap:5,alignItems:"stretch",flexShrink:0}}>
 
             {isMobile ? (
-              /* Portrait — Portfolio + ☰ only, no pills (fleet nav lives in hamburger) */
+              /* Portrait — Portfolio + ☰ only, fleet nav lives in hamburger */
               <div style={{display:"flex",alignItems:"center",gap:6}}>
                 {canSeeAdvanced&&<button onClick={()=>{setView("portfolio");setSelectedId(null);}}
                   style={{flex:1,padding:"7px 14px",background:isPortfolio?"#f1f5f9":"transparent",border:`1px solid ${isPortfolio?"#e2e8f0":"#2a4060"}`,borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:isPortfolio?"#0f172a":"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
@@ -350,12 +349,32 @@ function AppInner(){
                 </button>}
                 <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isPortfolio={isPortfolio}/>
               </div>
-            ) : (
-              /* Desktop — two-row column */
+            ) : view==="asset" && selectedAsset ? (
+              /* Asset view — row 1: back + title, row 2: asset layer pill + Share/TechSpec
+                 Row 1 stretches via alignItems:stretch to match row 2's width. */
               <>
-                {/* Row 1: Portfolio + ☰ bar spanning the full width of row 2.
-                    width is set after row 2 renders via alignItems:stretch on the
-                    parent — the column stretches row 1 to match row 2's natural width. */}
+                <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+                  <button className="btn btn-ghost" style={{flexShrink:0}} onClick={()=>{setView("dashboard");setSelectedId(null);}}>← Fleet</button>
+                  <div style={{minWidth:0}}>
+                    <div style={{fontSize:16,color:"#C9A84C",fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>MSN {selectedAsset.msn} — {selectedAsset.registration||"—"}</div>
+                    <div style={{color:"#475569",fontSize:11,whiteSpace:"nowrap"}}>{selectedAsset.model} · {selectedAsset.operator||"—"}</div>
+                  </div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"nowrap"}}>
+                  {(()=>{
+                    const canSeeAdv=!!userRole&&userRole!=='dataEntry';
+                    const LAYERS=[["details","Details"],...(canSeeAdv?[["calendar","Calendar"],["financials","Financials"],["scenarios","Scenarios"]]:[])];
+                    return <NavPill items={LAYERS} activeValue={assetLayer} onSelect={setAssetLayer} theme="dark"/>;
+                  })()}
+                  <div className="app-nav-pill trailing-pill" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",gap:8,background:"rgba(13,25,37,0.8)",border:"1px solid #1e3348",borderRadius:8,padding:"5px 6px",width:TRAILING_PILL_WIDTH,flexShrink:0}}>
+                    <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 12px"}} onClick={()=>setAssetShareOpen(true)}>🔗 Share</button>
+                    <button className="btn btn-gold" style={{fontSize:12,padding:"8px 12px"}} onClick={()=>genSpecRef.current&&genSpecRef.current()}>📋 Generate Tech Spec</button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Fleet view — row 1: Portfolio+☰, row 2: fleet NavPill + Upload */
+              <>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
                   {canSeeAdvanced&&<button onClick={()=>{setView("portfolio");setSelectedId(null);}}
                     style={{flex:1,padding:"7px 14px",background:isPortfolio?"#f1f5f9":"transparent",border:`1px solid ${isPortfolio?"#e2e8f0":"#2a4060"}`,borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:isPortfolio?"#0f172a":"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
@@ -363,9 +382,6 @@ function AppInner(){
                   </button>}
                   <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isPortfolio={isPortfolio}/>
                 </div>
-
-                {/* Row 2: fleet NavPill + Upload trailing pill (TRAILING_PILL_WIDTH).
-                    This row's total width drives row 1's width via the stretch column. */}
                 <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"nowrap"}}>
                   <NavPill
                     items={[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]}
@@ -396,17 +412,17 @@ function AppInner(){
       )}
 
       <main style={{padding:"20px 22px",maxWidth: layoutMode==="landscape" ? 1900 : 1480,margin:"0 auto"}}>
-        {view==="dashboard"&&!selectedId&&<Dashboard assets={liveAssets} onSelect={id=>{setSelectedId(id);setAssetInitialLayer("details");setView("asset");}} saveAsset={saveAsset} notify={notify}/>}
-        {view==="asset"&&selectedId&&selectedAsset&&<AssetView asset={selectedAsset} saveAsset={saveAsset} isAdmin={userRole==='admin'||userRole==='editor'} userRole={userRole} notify={notify} onBack={()=>{setView("dashboard");setSelectedId(null);}} loadAssets={loadAssets} initialLayer={assetInitialLayer}/>}
+        {view==="dashboard"&&!selectedId&&<Dashboard assets={liveAssets} onSelect={id=>{setSelectedId(id);setAssetLayer("details");setView("asset");}} saveAsset={saveAsset} notify={notify}/>}
+        {view==="asset"&&selectedId&&selectedAsset&&<AssetView asset={selectedAsset} saveAsset={saveAsset} isAdmin={userRole==='admin'||userRole==='editor'} userRole={userRole} notify={notify} onBack={()=>{setView("dashboard");setSelectedId(null);}} loadAssets={loadAssets} initialLayer={assetInitialLayer} layer={assetLayer} setLayer={setAssetLayer} shareOpen={assetShareOpen} setShareOpen={setAssetShareOpen} genSpecRef={genSpecRef}/>}
         {view==="upload"&&canUpload&&<UploadView assets={liveAssets} saveAsset={saveAsset} notify={notify}/>}
         {view==="guide"&&<GuideView/>}
-        {view==="portfolio"&&canSeeAdvanced&&<PortfolioView assets={liveAssets} notify={notify} onSelect={(id)=>{setSelectedId(id);setAssetInitialLayer("details");setView("asset");}} onFlyForward={(id)=>{setSelectedId(id);setAssetInitialLayer("financials");setView("asset");}}/>}
-        {view==="fleetexposure"&&canSeeAdvanced&&<FleetExposureView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetInitialLayer("financials");setView("asset");}}/>}
-        {view==="fleetcalendar"&&canSeeAdvanced&&<FleetCalendarView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetInitialLayer("financials");setView("asset");}}/>}
+        {view==="portfolio"&&canSeeAdvanced&&<PortfolioView assets={liveAssets} notify={notify} onSelect={(id)=>{setSelectedId(id);setAssetLayer("details");setView("asset");}} onFlyForward={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>}
+        {view==="fleetexposure"&&canSeeAdvanced&&<FleetExposureView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>}
+        {view==="fleetcalendar"&&canSeeAdvanced&&<FleetCalendarView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>}
         {view==="fleetscenarios"&&canSeeAdvanced&&(
           <>
             <div style={layoutMode==="landscape" ? {display:"grid",gridTemplateColumns:"1fr 1fr",columnGap:16,alignItems:"stretch"} : undefined}>
-              <RouteMatcherView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetInitialLayer("financials");setView("asset");}}/>
+              <RouteMatcherView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>
               <PandemicScenarioView assets={liveAssets}/>
             </div>
             <FleetScenarioControls assets={liveAssets}/>
