@@ -577,6 +577,7 @@ function LayoutModeSettingsControl() {
 }
 
 function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
+  const { mode: layoutMode } = useLayoutMode();
   // Tab visibility (Alan, this session): the page itself is no longer
   // admin-only — App.jsx now renders this for every signed-in role, and
   // gating moved from the whole panel down to individual tabs here.
@@ -613,7 +614,7 @@ function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
       </div>
 
       {tab==="settings"&&(
-        <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:700}}>
+        <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth: layoutMode==="landscape" ? 1400 : 700}}>
           <div className="card" style={{padding:20}}>
             <div className="section-title">Display</div>
             <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Choose how TailiQ arranges cards on a wide screen. This is a personal preference — changing it doesn't affect what anyone else sees.</p>
@@ -629,15 +630,22 @@ function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
                 <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Set the default disclaimer text shown at the bottom of every generated tech spec.</p>
                 <DisclaimerSettings notify={notify}/>
               </div>
-              <div className="card" style={{padding:20}}>
-                <div className="section-title">Engine Stock Photos</div>
-                <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Upload default photos for each engine type. These appear on engine tech specs.</p>
-                <EnginePhotoSettings notify={notify}/>
-              </div>
-              <div className="card" style={{padding:20}}>
-                <div className="section-title">Airframe Stock Photos</div>
-                <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Upload default photos for each airframe type. Used on the tech spec cover whenever an asset has no per-asset "Airframe" photo uploaded (coarse match on model, e.g. any "737 MAX..." model uses the B737 MAX photo).</p>
-                <AirframePhotoSettings notify={notify}/>
+              {/* Engine/Airframe Stock Photos are the same kind of card
+                  (an upload grid), so they pair naturally side by side in
+                  landscape rather than each stacking full-width (Alan,
+                  live review of the Settings tab). Portrait stays a plain
+                  stacked pair, same as every other card here. */}
+              <div style={layoutMode==="landscape" ? {display:"grid",gridTemplateColumns:"1fr 1fr",columnGap:16} : undefined}>
+                <div className="card" style={{padding:20}}>
+                  <div className="section-title">Engine Stock Photos</div>
+                  <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Upload default photos for each engine type. These appear on engine tech specs.</p>
+                  <EnginePhotoSettings notify={notify}/>
+                </div>
+                <div className="card" style={{padding:20}}>
+                  <div className="section-title">Airframe Stock Photos</div>
+                  <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Upload default photos for each airframe type. Used on the tech spec cover whenever an asset has no per-asset "Airframe" photo uploaded (coarse match on model, e.g. any "737 MAX..." model uses the B737 MAX photo).</p>
+                  <AirframePhotoSettings notify={notify}/>
+                </div>
               </div>
             </>
           ):(

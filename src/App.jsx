@@ -9,7 +9,7 @@ import { UploadView } from './components/UploadView';
 import { db, logAudit } from './lib/db';
 import { bootstrapKnowledgeBaseGlobals } from './lib/knowledgeBase';
 import { HEADER_LOGO_NAVY, HEADER_LOGO_WHITE } from './lib/techSpec';
-import { LayoutModeProvider } from './lib/layoutMode';
+import { LayoutModeProvider, useLayoutMode } from './lib/layoutMode';
 
 function AppInner(){
   // Invite-link landing — must be checked before any sign-in gate, since
@@ -27,6 +27,7 @@ function AppInner(){
   const[assetInitialLayer,setAssetInitialLayer]=useState("details");
   const[userRole,setUserRole]=useState(null);
   const[notification,setNotification]=useState(null);
+  const { mode: layoutMode } = useLayoutMode();
 
   const loadAssets=useCallback(async()=>{
     try{
@@ -228,7 +229,7 @@ function AppInner(){
         </div>
       )}
 
-      <main style={{padding:"20px 22px",maxWidth:1480,margin:"0 auto"}}>
+      <main style={{padding:"20px 22px",maxWidth: layoutMode==="landscape" ? 1900 : 1480,margin:"0 auto"}}>
         {view==="dashboard"&&!selectedId&&<Dashboard assets={liveAssets} onSelect={id=>{setSelectedId(id);setAssetInitialLayer("details");setView("asset");}} saveAsset={saveAsset} notify={notify}/>}
         {view==="asset"&&selectedId&&selectedAsset&&<AssetView asset={selectedAsset} saveAsset={saveAsset} isAdmin={userRole==='admin'||userRole==='editor'} userRole={userRole} notify={notify} onBack={()=>{setView("dashboard");setSelectedId(null);}} loadAssets={loadAssets} initialLayer={assetInitialLayer}/>}
         {view==="upload"&&canUpload&&<UploadView assets={liveAssets} saveAsset={saveAsset} notify={notify}/>}

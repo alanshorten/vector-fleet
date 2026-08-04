@@ -6,9 +6,11 @@ import { buildFleetCalendarData, buildFleetExposureData, buildRouteMatchData } f
 import { getDefaultDisclaimer, getTechSpecLogo, openTechSpec } from '../lib/techSpec';
 import { MaintenanceCalendarGrid } from './FlyForward';
 import { ScenarioSlider } from './Scenarios';
+import { useLayoutMode } from '../lib/layoutMode';
 
 function PortfolioView({assets, notify, onSelect}){
   const[shareOpenId,setShareOpenId]=useState(null);
+  const { mode: layoutMode } = useLayoutMode();
   const ageFromDOM=(dom)=>{
     if(!dom)return null;
     let d;
@@ -44,7 +46,7 @@ function PortfolioView({assets, notify, onSelect}){
 
   return(
     <div style={{background:"#f1f5f9",minHeight:"100vh",margin:"-20px -22px",padding:"32px 28px",animation:"fadeIn 0.2s ease"}}>
-      <div style={{maxWidth:1400,margin:"0 auto"}}>
+      <div style={{maxWidth: layoutMode === "landscape" ? 1800 : 1400, margin:"0 auto"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:32}}>
           <div>
             <h1 style={{fontSize:28,fontWeight:800,color:"#0f172a",letterSpacing:"-0.02em"}}>Fleet Portfolio</h1>
@@ -250,6 +252,7 @@ function FleetExposureView({ assets, onSelectAsset }) {
   const [showExcluded, setShowExcluded] = useState(false);
   const [sortMode, setSortMode] = useState("exposure"); // "exposure" | "date"
   const [selectedMonthKey, setSelectedMonthKey] = useState(null);
+  const { mode: layoutMode } = useLayoutMode();
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -300,14 +303,27 @@ function FleetExposureView({ assets, onSelectAsset }) {
   });
 
   const selectedBucket = selectedMonthKey ? timeAxis.find(b => b.monthKey === selectedMonthKey) : null;
+  // Landscape header grid (Alan, live review: both the headline card and
+  // the Assets ranking card read as narrow/mostly-empty on a wide screen —
+  // pair them side by side. Time Axis is a bar chart that already uses
+  // full width well, so it stays a full-width row, just moved below the
+  // paired row rather than between them). Same named-grid-template-areas
+  // technique as FlyForward.jsx's header pairing — DOM order stays
+  // headline/timeaxis/assets exactly as before, only visual placement
+  // changes, so portrait (no grid style applied) is untouched.
+  const pairInGrid = layoutMode === "landscape";
+  const gridStyle = pairInGrid
+    ? { animation: "fadeIn 0.2s ease", display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateAreas: '"headline assets" "timeaxis timeaxis"', columnGap: 16, rowGap: 16 }
+    : { animation: "fadeIn 0.2s ease" };
+  const mb = pairInGrid ? 0 : 16;
 
   return (
-    <div style={{ animation: "fadeIn 0.2s ease" }}>
+    <div style={gridStyle}>
       {/* HEADLINE — never zero-fill, never refuse to total; the
           completeness gap travels WITH the number, inline. REDESIGN: this
           figure now includes post-lease shortfalls — asset exposure, not
           lease exposure (fleet-exposure-redesign-handoff.md §1). */}
-      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+      <div className="card" style={{ padding: 20, marginBottom: mb, gridArea: pairInGrid ? "headline" : undefined }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 6 }}>Fleet Exposure</div>
         <div style={{ fontSize: 30, fontWeight: 700, color: headline.totalHighCaseGap > 0 ? "#f87171" : "#34d399" }}>
           ${Math.round(headline.totalHighCaseGap).toLocaleString()}
@@ -343,7 +359,7 @@ function FleetExposureView({ assets, onSelectAsset }) {
       {/* TIME AXIS — bar chart replacing the flat text list (redesign §3).
           One bar per month with events; empty months compressed out.
           Click a bar to drill into that month's events below. */}
-      <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+      <div className="card" style={{ padding: 16, marginBottom: mb, gridArea: pairInGrid ? "timeaxis" : undefined }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 10 }}>
           Time Axis — to lease end, plus each pot's next event beyond it (however far out)
         </div>
@@ -377,7 +393,7 @@ function FleetExposureView({ assets, onSelectAsset }) {
       {/* ASSET AXIS — sortable (redesign §2): by total exposure (default)
           or by nearest event date. Nearest-event-date always shown
           alongside the total regardless of sort mode. */}
-      <div className="card" style={{ padding: 16 }}>
+      <div className="card" style={{ padding: 16, gridArea: pairInGrid ? "assets" : undefined }}>
         <div className="flj" style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Assets</div>
           <div className="flab g8">

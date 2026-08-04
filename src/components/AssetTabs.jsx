@@ -3,6 +3,7 @@ import { daysFromNow, isEmpty, parseHHMM, engineStockPhotoKey } from '../lib/ass
 import { db } from '../lib/db';
 import { getDefaultDisclaimer, getTechSpecLogo } from '../lib/techSpec';
 import { extractOperatorHistory, mergeOperatorHistory } from '../lib/extraction';
+import { useLayoutMode } from '../lib/layoutMode';
 
 function OverviewTab({asset,isAdmin,saveAsset,notify}){
   const[editing,setEditing]=useState(false);
@@ -373,12 +374,19 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
   const[form,setForm]=useState(null);
   const[addLLPIdx,setAddLLPIdx]=useState(null);
   const[newLLP,setNewLLP]=useState({desc:"",pn:"",sn:"",startFCRem:0,refFC:0,approvedLife:""});
+  const { mode: layoutMode } = useLayoutMode();
   const patchEngines=async(engines)=>{await saveAsset({...asset,engines});};
   const saveEngineEdit=async()=>{const engines=[...asset.engines];engines[editIdx]=form;await patchEngines(engines);setEditIdx(null);setForm(null);notify("Engine saved");};
   const doAddLLP=async(ei)=>{const engines=JSON.parse(JSON.stringify(asset.engines));engines[ei].llps=[...(engines[ei].llps||[]),{...newLLP,startFCRem:+newLLP.startFCRem,refFC:+newLLP.refFC,approvedLife:newLLP.approvedLife===""?null:+newLLP.approvedLife}];await patchEngines(engines);setAddLLPIdx(null);setNewLLP({desc:"",pn:"",sn:"",startFCRem:0,refFC:0,approvedLife:""});notify("LLP added");};
   const delLLP=async(ei,li)=>{if(!confirm("Delete?"))return;const engines=JSON.parse(JSON.stringify(asset.engines));engines[ei].llps.splice(li,1);await patchEngines(engines);notify("LLP deleted");};
+  // Landscape: 2-up grid instead of a stacked flex column (Alan, live
+  // review of the Engines tab: two engine cards each read as fairly
+  // narrow content on a wide screen, and the dead space to the sides adds
+  // up across a 2-engine asset). Portrait stays the original flex column,
+  // untouched.
+  const wide = layoutMode === "landscape";
   return(
-    <div style={{display:"flex",flexDirection:"column",gap:20}}>
+    <div style={wide ? {display:"grid",gridTemplateColumns:"1fr 1fr",columnGap:20,rowGap:20} : {display:"flex",flexDirection:"column",gap:20}}>
       {(asset.engines||[]).map((eng,ei)=>{
         const ll=lowestLimiter(eng);const isEditing=editIdx===ei;const ed=isEditing?form:eng;
         return(

@@ -44,6 +44,7 @@ function assetAgeYearsAt(asset, eventDate) {
 
 function MaintenanceCalendarGrid({ events }) {
   const [hover, setHover] = useState(null); // {year, month, evts, x, y}
+  const { mode: layoutMode } = useLayoutMode();
   if (!events.length) return null;
 
   const byYear = {};
@@ -54,6 +55,14 @@ function MaintenanceCalendarGrid({ events }) {
     byYear[y][m].push(evt);
   });
   const years = Object.keys(byYear).map(Number).sort((a, b) => a - b);
+  // Landscape gets slightly larger cells/labels/dots — same 12-column grid,
+  // just using the extra horizontal room a wide screen already has rather
+  // than leaving it as dead space (Alan, live review of the fleet Calendar
+  // tab). Portrait sizing is untouched.
+  const wide = layoutMode === "landscape";
+  const cellPad = wide ? "12px 6px" : "8px 4px";
+  const labelSize = wide ? 10 : 9;
+  const dotSize = wide ? 9 : 7;
 
   return (
     <div className="card" style={{ padding: 16, marginBottom: 16, position: "relative" }}>
@@ -68,12 +77,12 @@ function MaintenanceCalendarGrid({ events }) {
                 <div key={m}
                   onMouseEnter={e => evts.length && setHover({ year, month: m, evts, x: e.currentTarget.offsetLeft, y: e.currentTarget.offsetTop })}
                   onMouseLeave={() => setHover(null)}
-                  style={{ border: "1px solid #1e3048", borderRadius: 6, padding: "8px 4px", textAlign: "center", cursor: evts.length ? "pointer" : "default", background: evts.length ? "#0d1622" : "transparent" }}>
-                  <div style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>{label}</div>
+                  style={{ border: "1px solid #1e3048", borderRadius: 6, padding: cellPad, textAlign: "center", cursor: evts.length ? "pointer" : "default", background: evts.length ? "#0d1622" : "transparent" }}>
+                  <div style={{ fontSize: labelSize, color: "#475569", marginBottom: 4 }}>{label}</div>
                   {evts.length > 0 && (
                     <div style={{ display: "flex", justifyContent: "center", gap: 2, flexWrap: "wrap" }}>
                       {evts.slice(0, 3).map((e, i) => (
-                        <span key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: colorForCode(e.code), display: "inline-block" }}/>
+                        <span key={i} style={{ width: dotSize, height: dotSize, borderRadius: "50%", background: colorForCode(e.code), display: "inline-block" }}/>
                       ))}
                       {evts.length > 3 && <span style={{ fontSize: 8, color: "#94a3b8" }}>+{evts.length - 3}</span>}
                     </div>
@@ -593,6 +602,31 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
   const colorList = [FF_COLORS.AF6Y, FF_COLORS.AF12Y, FF_COLORS.LGOH, FF_COLORS.APOH, FF_COLORS.ENPR1, FF_COLORS.ENLP1, FF_COLORS.ENPR2, FF_COLORS.ENLP2];
   const eolTerms = lease.endOfLeaseTerms || getEndOfLeaseTermsDefaults();
 
+  const showMissing = missingCodes.length > 0;
+  const showMaintCal = maintenanceCal && maintenanceCal.dataCompleteness && maintenanceCal.dataCompleteness.length > 0;
+  const showRiskPeaks = riskPeaks.length > 0;
+  // Landscape header grid (Alan, live review of MSN 6014's Financials tab:
+  // the Fly-Forward description box and Portfolio Shortfall Summary card
+  // both read as narrow, mostly-empty content — pair them side by side
+  // instead of full-width-stacked). Built with named grid-template-areas
+  // rather than reordering the JSX itself, so DOM/source order — and
+  // therefore portrait rendering, which stays plain block flow with no
+  // grid applied at all — is completely untouched. Risk Peaks, previously
+  // paired with the summary card, now gets its own full-width row when
+  // present (it's list-shaped content, not a narrow stat card, so it
+  // doesn't need a partner). Warning banners keep their own full-width
+  // rows too, only present in the template when actually rendered so an
+  // absent banner doesn't leave a stray empty grid track.
+  const headerPairInGrid = layoutMode === "landscape";
+  const headerAreaRows = ['"desc summary"'];
+  if (showMissing) headerAreaRows.push('"warn1 warn1"');
+  if (showMaintCal) headerAreaRows.push('"warn2 warn2"');
+  if (showRiskPeaks) headerAreaRows.push('"riskpeaks riskpeaks"');
+  const headerGridStyle = headerPairInGrid
+    ? { display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateAreas: headerAreaRows.join(" "), columnGap: 16, rowGap: 16, marginBottom: 16, alignItems: "start" }
+    : undefined;
+  const mb = headerPairInGrid ? 0 : 16;
+
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
       <div className="flab g12" style={{ marginBottom: 16, justifyContent: "flex-end" }}>
@@ -605,62 +639,57 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
       {showEOLPosition && (
         <EndOfLeasePositionView asset={asset} lease={lease} projections={projections} rate={rate} engineFamily={engineFamily} onClose={() => setShowEOLPosition(false)}/>
       )}
-      <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Fly-Forward — MSN {asset.msn}</div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-          Lessee: {lease.lessee} · Lease end: {lease.leaseEnd} ({horizonMonths}-month horizon).{" "}
-          {usingRealRate
-            ? `Utilisation rate: ${Math.round(rate.fhPerMonth).toLocaleString()} FH/mo, ${Math.round(rate.fcPerMonth).toLocaleString()} FC/mo (from ${rate.monthsSpanned} months of this asset's own report history).`
-            : "Insufficient utilisation history for a reliable rate — projection may be less accurate until more reports are on file."}
+      <div style={headerGridStyle}>
+        <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: mb, gridArea: headerPairInGrid ? "desc" : undefined }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Fly-Forward — MSN {asset.msn}</div>
+          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+            Lessee: {lease.lessee} · Lease end: {lease.leaseEnd} ({horizonMonths}-month horizon).{" "}
+            {usingRealRate
+              ? `Utilisation rate: ${Math.round(rate.fhPerMonth).toLocaleString()} FH/mo, ${Math.round(rate.fcPerMonth).toLocaleString()} FC/mo (from ${rate.monthsSpanned} months of this asset's own report history).`
+              : "Insufficient utilisation history for a reliable rate — projection may be less accurate until more reports are on file."}
+          </div>
         </div>
+
+        <div className="card" style={{ padding: 16, marginBottom: mb, gridArea: headerPairInGrid ? "summary" : undefined }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Portfolio Shortfall Summary</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: shortfallSummary.grandTotalHigh > 0 ? "#f87171" : "#34d399" }}>
+            ${Math.round(shortfallSummary.grandTotalLow).toLocaleString()} – ${Math.round(shortfallSummary.grandTotalHigh).toLocaleString()}
+          </div>
+          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+            Total projected shortfall across {projections.length} reserve pot{projections.length===1?"":"s"} over the {horizonMonths}-month projection (positive events only — surplus in one pot doesn't offset a gap in another).
+          </div>
+        </div>
+
+        {showMissing && (
+          <div style={{ background: "#2a220e", border: "1px solid #C9A84C", borderRadius: 10, padding: "12px 16px", marginBottom: mb, fontSize: 12, color: "#fbbf24", gridArea: headerPairInGrid ? "warn1" : undefined }}>
+            ⚠ Incomplete data — this projection excludes {missingCodes.join(", ")} (not yet confirmed in Lease / Reserve Setup). These pots are omitted from the totals below, not treated as zero.
+          </div>
+        )}
+
+        {showMaintCal && (
+          <div style={{ background: "#2a220e", border: "1px solid #C9A84C", borderRadius: 10, padding: "12px 16px", marginBottom: mb, fontSize: 12, color: "#fbbf24", gridArea: headerPairInGrid ? "warn2" : undefined }}>
+            {maintenanceCal.dataCompleteness.map((gap, i) => (
+              <div key={i} style={{ marginTop: i > 0 ? 6 : 0 }}>⚠ {gap.message}</div>
+            ))}
+          </div>
+        )}
+
+        {showRiskPeaks && (
+          <div className="card" style={{ padding: 16, marginBottom: mb, gridArea: headerPairInGrid ? "riskpeaks" : undefined }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Risk Peaks (earliest first)</div>
+            {riskPeaks.map((r, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: i > 0 ? "1px solid #1e3048" : "none", fontSize: 12 }}>
+                <span style={{ color: "#e2e8f0" }}>{r.code} — {r.dateWindow ? `${r.dateWindow.start.toISOString().slice(0,7)} – ${r.dateWindow.end.toISOString().slice(0,7)}` : r.date.toISOString().slice(0, 7)}</span>
+                <span style={{ color: r.severity === "high" ? "#f87171" : "#fbbf24" }}>
+                  {r.severity === "high" ? "High" : "Medium"} — ${Math.round(r.shortfallLow).toLocaleString()} to ${Math.round(r.shortfallHigh).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {missingCodes.length > 0 && (
-        <div style={{ background: "#2a220e", border: "1px solid #C9A84C", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 12, color: "#fbbf24" }}>
-          ⚠ Incomplete data — this projection excludes {missingCodes.join(", ")} (not yet confirmed in Lease / Reserve Setup). These pots are omitted from the totals below, not treated as zero.
-        </div>
-      )}
-
-      {maintenanceCal && maintenanceCal.dataCompleteness && maintenanceCal.dataCompleteness.length > 0 && (
-        <div style={{ background: "#2a220e", border: "1px solid #C9A84C", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 12, color: "#fbbf24" }}>
-          {maintenanceCal.dataCompleteness.map((gap, i) => (
-            <div key={i} style={{ marginTop: i > 0 ? 6 : 0 }}>⚠ {gap.message}</div>
-          ))}
-        </div>
-      )}
-
-      {(() => {
-        const pairInGrid = layoutMode === "landscape" && riskPeaks.length > 0;
-        return (
-          <div style={pairInGrid ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 16, marginBottom: 16, alignItems: "start" } : undefined}>
-            <div className="card" style={{ padding: 16, marginBottom: pairInGrid ? 0 : 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Portfolio Shortfall Summary</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: shortfallSummary.grandTotalHigh > 0 ? "#f87171" : "#34d399" }}>
-                ${Math.round(shortfallSummary.grandTotalLow).toLocaleString()} – ${Math.round(shortfallSummary.grandTotalHigh).toLocaleString()}
-              </div>
-              <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-                Total projected shortfall across {projections.length} reserve pot{projections.length===1?"":"s"} over the {horizonMonths}-month projection (positive events only — surplus in one pot doesn't offset a gap in another).
-              </div>
-            </div>
-
-            {riskPeaks.length > 0 && (
-              <div className="card" style={{ padding: 16, marginBottom: pairInGrid ? 0 : 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Risk Peaks (earliest first)</div>
-                {riskPeaks.map((r, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: i > 0 ? "1px solid #1e3048" : "none", fontSize: 12 }}>
-                    <span style={{ color: "#e2e8f0" }}>{r.code} — {r.dateWindow ? `${r.dateWindow.start.toISOString().slice(0,7)} – ${r.dateWindow.end.toISOString().slice(0,7)}` : r.date.toISOString().slice(0, 7)}</span>
-                    <span style={{ color: r.severity === "high" ? "#f87171" : "#fbbf24" }}>
-                      {r.severity === "high" ? "High" : "Medium"} — ${Math.round(r.shortfallLow).toLocaleString()} to ${Math.round(r.shortfallHigh).toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      <div style={layoutMode === "landscape" ? { display: "grid", gridTemplateColumns: `repeat(${layoutWidth >= 1300 ? 3 : 2}, 1fr)`, columnGap: 16 } : undefined}>
+      <div style={layoutMode === "landscape" ? { display: "grid", gridTemplateColumns: `repeat(${layoutWidth >= 1700 ? 4 : layoutWidth >= 1300 ? 3 : 2}, 1fr)`, columnGap: 16 } : undefined}>
         {projections.map((p, i) => {
           const anchoredPot = anchoredPots.find(ap => ap.code === p.code);
           return <FFPotCard key={p.code} projection={p} color={colorList[i % colorList.length]} anchored={!!anchoredPot?.firstEventOverrideDate}/>;
