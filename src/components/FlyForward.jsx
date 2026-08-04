@@ -473,7 +473,93 @@ function EndOfLeasePositionView({ asset, lease, projections, rate, engineFamily,
   );
 }
 
-function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
+// Forward Exposure Card — shows in-lease shortfall vs post-lease exposure
+// for a single asset, derived from a single-asset buildFleetExposure call.
+// Not visible to Data Entry role.
+function ForwardExposureCard({ asset, lease, reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections, inLeaseShortfallLow, inLeaseShortfallHigh }) {
+  const [exposure, setExposure] = useState(null);
+
+  useEffect(() => {
+    if (!window.buildFleetExposure || !window.projectReservePot || !window.projectEnLpPot || !window.buildMaintenanceCalendar) return;
+    try {
+      const anchoredPots = (reserveDocs || []).map(p => {
+        const override = {};
+        if (p.anchorMode === "manual" && p.lastPRDate) override.firstEventOverrideDate = new Date(p.lastPRDate);
+        return { ...p, ...override };
+      });
+      const result = window.buildFleetExposure({
+        assets: [{
+          assetId: asset.id,
+          msn: asset.msn,
+          lease,
+          pots: anchoredPots,
+          engines: asset.engines || [],
+          checks: asset.checks || [],
+          utilisation: utilRate,
+          scheduledEvents: scheduledEvents || [],
+          seasonalityProfile: seasonalityProfile || null,
+          costProjections: costProjections || []
+        }],
+        horizonPastLeaseEndMonths: 180,
+        brains: {
+          projectReservePot: window.projectReservePot,
+          projectEnLpPot: window.projectEnLpPot,
+          buildMaintenanceCalendar: window.buildMaintenanceCalendar
+        }
+      });
+      const assetResult = result.perAsset?.[0];
+      if (!assetResult || assetResult.excluded) { setExposure(null); return; }
+      const atoms = assetResult.atoms || [];
+      const postLeaseAtoms = atoms.filter(a => a.postLeaseEnd);
+      const postLeaseHigh = postLeaseAtoms.reduce((s, a) => s + Math.max(0, a.shortfallHigh || 0), 0);
+      const postLeaseLow  = postLeaseAtoms.reduce((s, a) => s + Math.max(0, a.shortfallLow  || 0), 0);
+      const totalHigh = Math.max(0, inLeaseShortfallHigh) + postLeaseHigh;
+      const totalLow  = Math.max(0, inLeaseShortfallLow)  + postLeaseLow;
+      setExposure({ postLeaseLow, postLeaseHigh, totalLow, totalHigh, hasPostLease: postLeaseAtoms.length > 0 });
+    } catch (e) {
+      setExposure(null);
+    }
+  }, [asset.id, lease?.leaseEnd]);
+
+  if (!exposure || !exposure.hasPostLease) return null;
+
+  const fmt = n => `$${Math.round(n).toLocaleString()}`;
+  const leaseEndYear = lease?.leaseEnd?.slice(0, 7) || "lease end";
+
+  return (
+    <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Forward Exposure Summary</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
+        <div style={{ background: "#0d1e33", borderRadius: 8, padding: "12px 14px" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#64748b", marginBottom: 6 }}>Within This Lease</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: inLeaseShortfallHigh > 0 ? "#f87171" : "#34d399" }}>
+            {fmt(Math.max(0, inLeaseShortfallLow))} – {fmt(Math.max(0, inLeaseShortfallHigh))}
+          </div>
+          <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Reserve pots projected short before {leaseEndYear}</div>
+        </div>
+        <div style={{ background: "#0d1e33", borderRadius: 8, padding: "12px 14px" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#64748b", marginBottom: 6 }}>Post-Lease Exposure</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: exposure.postLeaseHigh > 0 ? "#f87171" : "#34d399" }}>
+            {fmt(exposure.postLeaseLow)} – {fmt(exposure.postLeaseHigh)}
+          </div>
+          <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Next events after {leaseEndYear}, assuming no new lease</div>
+        </div>
+        <div style={{ background: "#0d1e33", borderRadius: 8, padding: "12px 14px" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#64748b", marginBottom: 6 }}>Total Asset Exposure</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: exposure.totalHigh > 0 ? "#f87171" : "#34d399" }}>
+            {fmt(exposure.totalLow)} – {fmt(exposure.totalHigh)}
+          </div>
+          <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Combined — see Fleet Exposure for full breakdown</div>
+        </div>
+      </div>
+      <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.6, borderTop: "1px solid #1e3048", paddingTop: 10 }}>
+        <strong style={{ color: "#64748b" }}>Post-lease exposure</strong> assumes no new lease is in place after {leaseEndYear}. Reserve pots stop accruing at lease end — no further lessee contributions are received. The figure shown is the shortfall between each pot's projected balance at lease end and the cost of its next maintenance event, whenever that falls due.
+      </div>
+    </div>
+  );
+}
+
+function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole }) {
   const [loading, setLoading] = useState(true);
   const [lease, setLease] = useState(null);
   const [reserveDocs, setReserveDocs] = useState([]);
@@ -688,6 +774,20 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData }) {
           </div>
         )}
       </div>
+
+      {userRole !== "dataEntry" && (
+        <ForwardExposureCard
+          asset={asset}
+          lease={lease}
+          reserveDocs={reserveDocs}
+          utilRate={utilRate}
+          scheduledEvents={scheduledEvents}
+          seasonalityProfile={seasonalityProfile}
+          costProjections={costProjections}
+          inLeaseShortfallLow={shortfallSummary.grandTotalLow}
+          inLeaseShortfallHigh={shortfallSummary.grandTotalHigh}
+        />
+      )}
 
       <div style={layoutMode === "landscape" ? { display: "grid", gridTemplateColumns: `repeat(${layoutWidth >= 1700 ? 4 : layoutWidth >= 1300 ? 3 : 2}, 1fr)`, columnGap: 16 } : undefined}>
         {projections.map((p, i) => {
