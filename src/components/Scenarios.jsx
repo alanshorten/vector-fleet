@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import { FF_COLORS, addMonthsFF, buildFlyForwardProjection } from '../lib/flyForwardHelpers';
 import { MiniLineChart } from './FlyForward';
+import { useLayoutMode } from '../lib/layoutMode';
 
 function colorForCode(code) {
   return FF_COLORS[(code || "").replace(/-/g, "")] || "#64748b";
@@ -171,6 +172,7 @@ function Scenarios({ asset }) {
   // has its deterministic explanation expanded. Independent of any
   // scenario state; works identically whether a scenario is active or not.
   const [explainedCode, setExplainedCode] = useState(null);
+  const { mode: layoutMode, width: layoutWidth } = useLayoutMode();
 
   useEffect(() => {
     let cancelled = false;
@@ -320,7 +322,11 @@ function Scenarios({ asset }) {
         </div>
       </div>
 
-      <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+      {(() => {
+        const pairInGrid = layoutMode === "landscape";
+        return (
+          <div style={pairInGrid ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 16, marginBottom: 16, alignItems: "start" } : undefined}>
+      <div className="card" style={{ padding: 16, marginBottom: pairInGrid ? 0 : 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Adjust the scenario</div>
         <ScenarioSlider label="Utilisation change" value={utilPct} onChange={setUtilPct} min={-50} max={50} step={1} format={fmtPct}/>
         <ScenarioSlider label="Lease extension" value={leaseExtMonths} onChange={setLeaseExtMonths} min={0} max={36} step={1} format={fmtMonths}/>
@@ -365,7 +371,7 @@ function Scenarios({ asset }) {
         </div>
       </div>
 
-      <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+      <div className="card" style={{ padding: 16, marginBottom: pairInGrid ? 0 : 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Per-Pot Worst-Case Shortfall — Base vs. Scenario</div>
         <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>Timing shift shows how many months the same projected event moves under this scenario — a pot showing "Beyond horizon" in base case had no event within the lease term until the scenario pulled it forward. Cost Overrun nudges that specific event's estimated cost up or down — default 0% on every row, only rows with a projected event get one.</div>
         <table style={{ fontSize: 12, width: "100%" }}>
@@ -446,6 +452,9 @@ function Scenarios({ asset }) {
           </tbody>
         </table>
       </div>
+          </div>
+        );
+      })()}
 
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Total Reserve Balance — Base Case vs. Scenario</div>
