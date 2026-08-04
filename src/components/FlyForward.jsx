@@ -686,13 +686,13 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole }) {
   const colorList = [FF_COLORS.AF6Y, FF_COLORS.AF12Y, FF_COLORS.LGOH, FF_COLORS.APOH, FF_COLORS.ENPR1, FF_COLORS.ENLP1, FF_COLORS.ENPR2, FF_COLORS.ENLP2];
   const eolTerms = lease.endOfLeaseTerms || getEndOfLeaseTermsDefaults();
 
-  // Memoised — 180-month Brain 3 pass is expensive, only rerun when lease
-  // or asset data actually changes, not on every render.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const forwardExposure = useMemo(() => userRole !== "dataEntry"
+  // Synchronous single-asset 180-month pass — safe to call here since
+  // it only runs when the component has real data (past all early returns).
+  // The original OOM was caused by useState/useEffect re-render loop, not
+  // the computation itself. Plain sync call is fine.
+  const forwardExposure = userRole !== "dataEntry"
     ? computeForwardExposure({ asset, lease, reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections, inLeaseShortfallLow: shortfallSummary.grandTotalLow, inLeaseShortfallHigh: shortfallSummary.grandTotalHigh })
-    : null,
-  [asset.id, lease?.leaseEnd, shortfallSummary.grandTotalHigh, userRole]);
+    : null;
 
   const showMissing = missingCodes.length > 0;
   const showMaintCal = maintenanceCal && maintenanceCal.dataCompleteness && maintenanceCal.dataCompleteness.length > 0;

@@ -45,7 +45,16 @@ function useLayoutModeSource() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  const [authed, setAuthed] = useState(!!window._authUser);
+
   useEffect(() => {
+    const onAuth = () => setAuthed(!!window._authUser);
+    window.addEventListener('auth-state-changed', onAuth);
+    return () => window.removeEventListener('auth-state-changed', onAuth);
+  }, []);
+
+  useEffect(() => {
+    if (!authed) return; // wait until auth is resolved before reading
     let cancelled = false;
     const uid = window._authUser?.uid || window._authUser?.email;
     db.getSetting(settingsKeyFor(uid)).then(val => {
@@ -55,7 +64,7 @@ function useLayoutModeSource() {
       setLoaded(true);
     }).catch(() => { if (!cancelled) setLoaded(true); });
     return () => { cancelled = true; };
-  }, []);
+  }, [authed]);
 
   const isWide = width >= LANDSCAPE_MIN_WIDTH;
   const mode = isWide ? rawMode : 'portrait';
