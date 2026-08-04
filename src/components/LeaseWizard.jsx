@@ -436,13 +436,19 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
             <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.6,marginBottom:14}}>
               Upload the lease document (PDF or Word). The whole document is processed to pull out lease details and reserve rates automatically — nothing is stored beyond standard short-term retention, and it's never used for training, but the full document (not just the rate schedule) does leave your browser to be processed.
             </div>
-            <input type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={aiBusy}
-              onChange={e=>setAiFile(e.target.files?.[0]||null)}/>
-            {aiFile&&!aiBusy&&<div style={{fontSize:11,color:"#94a3b8",marginTop:8}}>{aiFile.name}</div>}
+            <div className="card" style={{padding:24,textAlign:"center",marginBottom:16,border:"2px dashed #1e3048"}}>
+              <div style={{fontSize:36,marginBottom:10}}>📁</div>
+              <input type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                id="quick-upload-file" disabled={aiBusy} onChange={e=>setAiFile(e.target.files?.[0]||null)} style={{display:"none"}}/>
+              <label htmlFor="quick-upload-file" style={{cursor:aiBusy?"default":"pointer"}}>
+                <div style={{fontWeight:600,color:aiFile?"#C9A84C":"#64748b",marginBottom:4}}>{aiFile?aiFile.name:"Click to select file"}</div>
+                <div style={{fontSize:12,color:"#475569"}}>PDF or Word (.docx)</div>
+              </label>
+            </div>
             {aiBusy&&<div style={{fontSize:12,color:"#94a3b8",marginTop:10}}>Extracting… this can take a few seconds.</div>}
             {aiError&&<div style={{fontSize:12,color:"#f87171",marginTop:10}}>{aiError}</div>}
             <div style={{display:"flex",gap:10,marginTop:16}}>
-              <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>setStep("tier")}>← Back</button>
+              <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>{setAiFile(null);setStep("tier");}}>← Back</button>
               <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>setStep("details")}>Skip — Enter Manually</button>
               <button className="btn btn-gold" style={{flex:1}} disabled={aiBusy||!aiFile} onClick={()=>runQuickParse(aiFile)}>Extract →</button>
             </div>
@@ -454,13 +460,19 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
             <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.6,marginBottom:14}}>
               Upload the lease document (PDF or Word). It's read entirely in your browser first — nothing is sent anywhere yet. You'll then confirm which page or section has the reserve rate schedule, and only that part is sent for extraction.
             </div>
-            <input type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={aiBusy}
-              onChange={e=>setAiFile(e.target.files?.[0]||null)}/>
-            {aiFile&&!aiBusy&&<div style={{fontSize:11,color:"#94a3b8",marginTop:8}}>{aiFile.name}</div>}
+            <div className="card" style={{padding:24,textAlign:"center",marginBottom:16,border:"2px dashed #1e3048"}}>
+              <div style={{fontSize:36,marginBottom:10}}>📁</div>
+              <input type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                id="privacy-upload-file" disabled={aiBusy} onChange={e=>setAiFile(e.target.files?.[0]||null)} style={{display:"none"}}/>
+              <label htmlFor="privacy-upload-file" style={{cursor:aiBusy?"default":"pointer"}}>
+                <div style={{fontWeight:600,color:aiFile?"#C9A84C":"#64748b",marginBottom:4}}>{aiFile?aiFile.name:"Click to select file"}</div>
+                <div style={{fontSize:12,color:"#475569"}}>PDF or Word (.docx)</div>
+              </label>
+            </div>
             {aiBusy&&<div style={{fontSize:12,color:"#94a3b8",marginTop:10}}>Reading document…</div>}
             {aiError&&<div style={{fontSize:12,color:"#f87171",marginTop:10}}>{aiError}</div>}
             <div style={{display:"flex",gap:10,marginTop:16}}>
-              <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>setStep("tier")}>← Back</button>
+              <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>{setAiFile(null);setStep("tier");}}>← Back</button>
               <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>setStep("details")}>Skip — Enter Manually</button>
               <button className="btn btn-gold" style={{flex:1}} disabled={aiBusy||!aiFile} onClick={()=>handlePrivacyFile(aiFile)}>Extract →</button>
             </div>
@@ -517,7 +529,7 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
               These are a starting point, not final figures — you'll review and confirm every pot on the next screen exactly as you would with manual entry.
             </div>
             <div style={{display:"flex",gap:10}}>
-              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setStep("tier")}>← Start Over</button>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>{setAiFile(null);setStep("tier");}}>← Start Over</button>
               <button className="btn btn-gold" style={{flex:1}} onClick={acceptAiResult}>Use These Details →</button>
             </div>
           </>
@@ -578,7 +590,7 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
             </div>
 
             <div style={{display:"flex",gap:10,marginTop:14}}>
-              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>originalLease?setStep("overview"):(aiResult?setStep("tier"):onClose())}>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>originalLease?setStep("overview"):(aiResult?(()=>{setAiFile(null);setStep("tier");})():onClose())}>
                 {originalLease?"← Back":(aiResult?"← Back":"Cancel")}
               </button>
               <button className="btn btn-gold" style={{flex:1}} disabled={!canContinue} onClick={()=>setStep("pots")}>
