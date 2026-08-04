@@ -677,7 +677,7 @@ function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
         </div>
       )}
 
-      {tab==="guide"&&<div style={{maxWidth:920}}><GuideView/></div>}
+      {tab==="guide"&&<div style={{maxWidth:920}}><GuideView userRole={userRole}/></div>}
 
       {tab==="adminpanel"&&isAdmin&&(
         <div style={{display:"flex",flexDirection:"column",gap:28}}>

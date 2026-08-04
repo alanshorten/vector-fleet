@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
-function GuideView(){
+function GuideView({userRole}){
+  const canSeeAdminSections=userRole==='admin'||userRole==='editor';
   const sections=[
     {title:"Overview",icon:"🏠",content:[
       ["Dashboard — List View","Shows all aircraft in a sortable table with MSN, registration, model, operator, airframe TSN/CSN, engine LLP limiters, APU, landing gear due dates, and last report period. Click any row or the View button to open the asset."],
@@ -22,9 +23,9 @@ function GuideView(){
     {title:"Adding & Managing Assets",icon:"✈",content:[
       ["Create from Upload","Go to Upload → Utilisation Report → select PDF or Excel → Extract → review extracted data → Confirm & Save. If the MSN doesn't exist in the system, the asset is created automatically with all available data from the report."],
       ["Create via Email","Send a utilisation report PDF to maverick@reports.tailiq.app. The system extracts and processes it automatically. Low-severity reports apply immediately; high-severity reports (S/N change, delta mismatch, gap) are held in the Dashboard review queue."],
-      ["Create Manually","Go to Admin → Assets → New Asset. Enter MSN (required) and other details. Asset is created with blank data ready to populate."],
+      ["Create Manually","Go to Settings → Assets → New Asset. Enter MSN (required) and other details. Asset is created with blank data ready to populate."],
       ["Edit Asset Details","Open asset → Overview, Engines, Landing Gear, or APU tab → Edit button. For specs, weights, photos, and check history use the Specs tab → Edit All."],
-      ["Delete Asset","Admin → Assets → Delete button beside the asset."],
+      ["Delete Asset","Settings → Assets → Delete button beside the asset."],
     ]},
     {title:"Uploading Reports",icon:"📤",content:[
       ["Utilisation Report — Manual","Go to Upload → Utilisation Report. Select PDF or Excel. TailiQ extracts: airframe TSN/CSN/period FH/FC, engine model/S/N/TSN/CSN per position, APU S/N/TSN/CSN, landing gear P/N/S/N per position, and any titled component removals."],
@@ -39,17 +40,23 @@ function GuideView(){
       ["Adding a Lease — Single Asset","Open any asset → 📄 Lease button. Choose how to add it: ✏ Manual Entry (type everything in yourself), ⚡ Quick Extract (upload the lease PDF/Word document — the whole document is processed in one pass, so it can usually find the lessee and lease dates as well as the reserve rate schedule), or 🔒 Confidential Extract (the document is read in your browser first; you then confirm which page holds the rate schedule, and only that page is sent for extraction — it typically won't find the lessee or dates, so you fill those in yourself)."],
       ["Bulk Lease Import","Upload tab → Bulk Lease Import. Upload multiple lease documents at once for different aircraft. Choose Quick Extract or Confidential Extract once — it applies to the whole batch. Files are automatically matched to assets by MSN or registration found in the text; unmatched files can be assigned manually from a dropdown, and scanned/image-only files that have no extractable text are flagged for manual entry via that asset's own Lease Wizard instead."],
       ["Reserve Pot Checklist","After lease details, you'll see a checklist of reserve pots — the four fixed pots (Airframe 6-Year, Airframe 12-Year, APU Overhaul, Landing Gear Overhaul) plus engine pots generated automatically from the asset's own engine configuration, plus a + Add Custom Pot option for anything else. Each pot is entered as rate + opening balance together. Pots are colour-coded: green (complete), amber (in progress or flagged for review), red (outstanding)."],
-      ["Save Details for Later vs. Activate Lease","On the final step, Save Details for Later stores lease details and any parsed figures as a starting point without writing reserve pot data yet — useful if you want to come back and finish the pots another time. Activate Lease writes the reserve pot records for real, validated and saved together. Partial completion is fine either way — Brain 3 (Fly-Forward) flags any outstanding pots rather than treating them as zero."],
-      ["📄 Lease Indicator","A 📄 icon appears next to any asset that has lease data on file — visible on the Dashboard, Fleet Portfolio cards, and the asset page itself, so you can tell at a glance which assets are ready for Fly Forward."],
+      ["Save Details for Later vs. Activate Lease","On the final step, Save Details for Later stores lease details and any parsed figures as a starting point without writing reserve pot data yet — useful if you want to come back and finish the pots another time. Activate Lease writes the reserve pot records for real, validated and saved together. Partial completion is fine either way — the Financials tab flags any outstanding pots rather than treating them as zero."],
+      ["📄 Lease Indicator","A 📄 icon appears next to any asset that has lease data on file — visible on the Dashboard, Fleet Portfolio cards, and the asset page itself, so you can tell at a glance which assets are ready for the Financials tab."],
     ]},
-    {title:"Fly Forward",icon:"🚀",content:[
-      ["What It Is","A cash-flow projection for an asset's reserve pots, run against its real lease and reserve data. Reached via the 🚀 Fly Forward button on an asset page or a Fleet Portfolio card — only appears once that asset has an active lease on file."],
+    {title:"Financials",icon:"🚀",content:[
+      ["What It Is","A cash-flow projection for an asset's reserve pots, run against its real lease and reserve data. Found on the Financials tab (one of four tabs per asset: Details · Calendar · Financials · Scenarios) — only available once that asset has an active lease on file."],
       ["Reading the Projection","Each reserve pot gets its own chart showing the projected balance over time, with any upcoming shop visit or check events marked as cost points. A 📍 Anchored badge means the projection is tied to a real next-due date already known from the asset's data (e.g. LLP tracking or landing gear overhaul dates) rather than a generic estimate. A ⚠ Potential Shortfall badge means the projected cost of an event could exceed the projected balance at that point — worth a closer look, not a certainty."],
-      ["Viewer Access","Viewer-role users can open Fly Forward and see the same projections as Editors/Admins, but cannot edit lease or reserve pot data — that stays restricted to the Lease Wizard."],
-      ["Data Completeness","If some reserve pots aren't confirmed yet, Fly Forward still runs on whatever is available and notes which pots are excluded from the projection, rather than silently treating missing data as zero."],
+      ["Viewer Access","Viewer-role users can open the Financials tab and see the same projections as Editors/Admins, but cannot edit lease or reserve pot data — that stays restricted to the Lease Wizard."],
+      ["Data Completeness","If some reserve pots aren't confirmed yet, the Financials tab still runs on whatever is available and notes which pots are excluded from the projection, rather than silently treating missing data as zero."],
+    ]},
+    {title:"Scenarios",icon:"🎛",content:[
+      ["What It Is","The Scenarios tab lets you model what-if situations without affecting any saved data. Found alongside Details · Calendar · Financials as the fourth tab per asset, and also available at fleet level."],
+      ["Asset-Level Controls","Adjust utilisation rate, model a lessee default (which suspends accrual and grounds the aircraft), apply a cost overrun to a specific reserve pot, or extend the lease. Projections update instantly."],
+      ["Fleet-Level Scenarios","The fleet Scenarios view applies a pandemic utilisation slider across all assets simultaneously — useful for stress-testing the whole portfolio under reduced flying conditions."],
+      ["Nothing Is Saved","Nothing you do in Scenarios is saved — closing or refreshing the tab resets it. All changes are projection-only."],
     ]},
     {title:"Prospects",icon:"🔍",content:[
-      ["What It Is","A separate space for aircraft or engines you're evaluating but don't yet own or operate — visible to every role including Viewer, via the Prospects nav item. Prospect assets are kept fully separate from the live fleet: they don't appear on the Dashboard, Fleet Portfolio, Admin → Assets, or the Upload matching pool."],
+      ["What It Is","A separate space for aircraft or engines you're evaluating but don't yet own or operate — visible to every role including Viewer, via the Prospects nav item. Prospect assets are kept fully separate from the live fleet: they don't appear on the Dashboard, Fleet Portfolio, Settings → Assets, or the Upload matching pool."],
       ["Creating a Prospect","Prospects → New Prospect. Choose Aircraft (enter MSN and basic details) or Engine (enter ESN, engine type, and thrust) for a standalone single-engine prospect."],
       ["Editing & Tech Specs","Each prospect opens in a split editor — fields on one side, a live tech spec preview on the other, refreshing as you make changes. The same Generate Tech Spec and Share/QR tools used for live fleet assets work identically for prospects."],
     ]},
@@ -103,8 +110,22 @@ function GuideView(){
         <h1 style={{fontSize:22,color:"#C9A84C",fontWeight:700}}>User Guide</h1>
         <p style={{color:"#5a7a9a",fontSize:13,marginTop:4}}>TailiQ Fleet Intelligence — Complete Reference</p>
       </div>
-      {sections.map((s,si)=>(
+      {sections.slice(0,-3).map((s,si)=>(
         <div key={si} className="card" style={{padding:24,marginBottom:14}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,paddingBottom:12,borderBottom:"1px solid #1e3348"}}>
+            <span style={{fontSize:22}}>{s.icon}</span>
+            <h2 style={{fontSize:13,fontWeight:700,color:"#e2e8f0",textTransform:"uppercase",letterSpacing:"0.07em"}}>{s.title}</h2>
+          </div>
+          {s.content.map(([label,text],i)=>(
+            <div key={i} style={{marginBottom:14,paddingBottom:14,borderBottom:i<s.content.length-1?"1px solid #152030":"none"}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#C9A84C",marginBottom:4}}>{label}</div>
+              <div style={{fontSize:13,color:"#7a9ab5",lineHeight:1.65}}>{text}</div>
+            </div>
+          ))}
+        </div>
+      ))}
+      {canSeeAdminSections&&sections.slice(-3).map((s,si)=>(
+        <div key={`admin-${si}`} className="card" style={{padding:24,marginBottom:14}}>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,paddingBottom:12,borderBottom:"1px solid #1e3348"}}>
             <span style={{fontSize:22}}>{s.icon}</span>
             <h2 style={{fontSize:13,fontWeight:700,color:"#e2e8f0",textTransform:"uppercase",letterSpacing:"0.07em"}}>{s.title}</h2>
