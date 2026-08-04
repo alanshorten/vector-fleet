@@ -350,15 +350,15 @@ function AppInner(){
                 <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isPortfolio={isPortfolio}/>
               </div>
             ) : view==="asset" && selectedAsset ? (
-              /* Asset view — row 1: back + title, row 2: asset layer pill + Share/TechSpec
-                 Row 1 stretches via alignItems:stretch to match row 2's width. */
+              /* Asset view — row 1: Fleet Portfolio + ☰ (same as fleet view)
+                 row 2: asset layer pill + Share/TechSpec trailing block */
               <>
-                <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
-                  <button className="btn btn-ghost" style={{flexShrink:0}} onClick={()=>{setView("dashboard");setSelectedId(null);}}>← Fleet</button>
-                  <div style={{minWidth:0}}>
-                    <div style={{fontSize:16,color:"#C9A84C",fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>MSN {selectedAsset.msn} — {selectedAsset.registration||"—"}</div>
-                    <div style={{color:"#475569",fontSize:11,whiteSpace:"nowrap"}}>{selectedAsset.model} · {selectedAsset.operator||"—"}</div>
-                  </div>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  {canSeeAdvanced&&<button onClick={()=>{setView("portfolio");setSelectedId(null);}}
+                    style={{flex:1,padding:"7px 14px",background:"transparent",border:"1px solid #2a4060",borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
+                    ✈ Fleet Portfolio
+                  </button>}
+                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isPortfolio={false}/>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"nowrap"}}>
                   {(()=>{
