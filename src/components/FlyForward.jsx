@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { PotNumInput } from './AssetView';
 import { LeaseWizard } from './LeaseWizard';
 import { isCFM } from '../lib/assetHelpers';
@@ -686,6 +686,14 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole }) {
   const colorList = [FF_COLORS.AF6Y, FF_COLORS.AF12Y, FF_COLORS.LGOH, FF_COLORS.APOH, FF_COLORS.ENPR1, FF_COLORS.ENLP1, FF_COLORS.ENPR2, FF_COLORS.ENLP2];
   const eolTerms = lease.endOfLeaseTerms || getEndOfLeaseTermsDefaults();
 
+  // Memoised — 180-month Brain 3 pass is expensive, only rerun when lease
+  // or asset data actually changes, not on every render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const forwardExposure = useMemo(() => userRole !== "dataEntry"
+    ? computeForwardExposure({ asset, lease, reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections, inLeaseShortfallLow: shortfallSummary.grandTotalLow, inLeaseShortfallHigh: shortfallSummary.grandTotalHigh })
+    : null,
+  [asset.id, lease?.leaseEnd, shortfallSummary.grandTotalHigh, userRole]);
+
   const showMissing = missingCodes.length > 0;
   const showMaintCal = maintenanceCal && maintenanceCal.dataCompleteness && maintenanceCal.dataCompleteness.length > 0;
   const showRiskPeaks = riskPeaks.length > 0;
@@ -775,7 +783,7 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole }) {
 
       {userRole !== "dataEntry" && (
         <ForwardExposureCard
-          exposure={computeForwardExposure({ asset, lease, reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections, inLeaseShortfallLow: shortfallSummary.grandTotalLow, inLeaseShortfallHigh: shortfallSummary.grandTotalHigh })}
+          exposure={forwardExposure}
           lease={lease}
           inLeaseShortfallLow={shortfallSummary.grandTotalLow}
           inLeaseShortfallHigh={shortfallSummary.grandTotalHigh}

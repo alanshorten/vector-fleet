@@ -35,7 +35,7 @@ function settingsKeyFor(uid) {
 // mode on every tab navigation while each one re-fetches — exactly what
 // prompted pulling this out of FlyForward.jsx in the first place.
 function useLayoutModeSource() {
-  const [rawMode, setRawMode] = useState('portrait');
+  const [rawMode, setRawMode] = useState('landscape');
   const [width, setWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [loaded, setLoaded] = useState(false);
 
@@ -51,6 +51,7 @@ function useLayoutModeSource() {
     db.getSetting(settingsKeyFor(uid)).then(val => {
       if (cancelled) return;
       if (val === 'landscape' || val === 'portrait') setRawMode(val);
+      else setRawMode('landscape');
       setLoaded(true);
     }).catch(() => { if (!cancelled) setLoaded(true); });
     return () => { cancelled = true; };
@@ -68,7 +69,7 @@ function useLayoutModeSource() {
   return { mode, rawMode, setMode, isWide, width, loaded };
 }
 
-const LayoutModeContext = createContext({ mode: 'portrait', rawMode: 'portrait', setMode: () => {}, isWide: false, width: 1200, loaded: false });
+const LayoutModeContext = createContext({ mode: 'landscape', rawMode: 'landscape', setMode: () => {}, isWide: true, width: 1200, loaded: false });
 
 // Wrap the whole app once (App.jsx, outside the tab/view switch) — this
 // is what makes the preference and the toggle button genuinely
