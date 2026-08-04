@@ -473,59 +473,57 @@ function EndOfLeasePositionView({ asset, lease, projections, rate, engineFamily,
   );
 }
 
-// Forward Exposure Card — shows in-lease shortfall vs post-lease exposure
-// for a single asset, derived from a single-asset buildFleetExposure call.
-// Not visible to Data Entry role.
-function ForwardExposureCard({ asset, lease, reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections, inLeaseShortfallLow, inLeaseShortfallHigh }) {
-  const [exposure, setExposure] = useState(null);
+// Computes forward exposure split (in-lease vs post-lease) for a single
+// asset synchronously — called directly in FlyForward's render path after
+// buildFlyForwardProjection, so it runs exactly once per data load with
+// no useState/useEffect re-render risk.
+function computeForwardExposure({ asset, lease, reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections, inLeaseShortfallLow, inLeaseShortfallHigh }) {
+  if (!window.buildFleetExposure || !window.projectReservePot || !window.projectEnLpPot || !window.buildMaintenanceCalendar) return null;
+  try {
+    const anchoredPots = (reserveDocs || []).map(p => {
+      const override = {};
+      if (p.anchorMode === "manual" && p.lastPRDate) override.firstEventOverrideDate = new Date(p.lastPRDate);
+      return { ...p, ...override };
+    });
+    const result = window.buildFleetExposure({
+      assets: [{
+        assetId: asset.id,
+        msn: asset.msn,
+        lease,
+        pots: anchoredPots,
+        engines: asset.engines || [],
+        checks: asset.checks || [],
+        utilisation: utilRate,
+        scheduledEvents: scheduledEvents || [],
+        seasonalityProfile: seasonalityProfile || null,
+        costProjections: costProjections || []
+      }],
+      horizonPastLeaseEndMonths: 180,
+      brains: {
+        projectReservePot: window.projectReservePot,
+        projectEnLpPot: window.projectEnLpPot,
+        buildMaintenanceCalendar: window.buildMaintenanceCalendar
+      }
+    });
+    const assetResult = result.perAsset?.[0];
+    if (!assetResult || assetResult.excluded) return null;
+    const atoms = assetResult.atoms || [];
+    const postLeaseAtoms = atoms.filter(a => a.postLeaseEnd);
+    if (!postLeaseAtoms.length) return null;
+    const postLeaseHigh = postLeaseAtoms.reduce((s, a) => s + Math.max(0, a.shortfallHigh || 0), 0);
+    const postLeaseLow  = postLeaseAtoms.reduce((s, a) => s + Math.max(0, a.shortfallLow  || 0), 0);
+    const totalHigh = Math.max(0, inLeaseShortfallHigh) + postLeaseHigh;
+    const totalLow  = Math.max(0, inLeaseShortfallLow)  + postLeaseLow;
+    return { postLeaseLow, postLeaseHigh, totalLow, totalHigh };
+  } catch (e) {
+    return null;
+  }
+}
 
-  useEffect(() => {
-    if (!window.buildFleetExposure || !window.projectReservePot || !window.projectEnLpPot || !window.buildMaintenanceCalendar) return;
-    try {
-      const anchoredPots = (reserveDocs || []).map(p => {
-        const override = {};
-        if (p.anchorMode === "manual" && p.lastPRDate) override.firstEventOverrideDate = new Date(p.lastPRDate);
-        return { ...p, ...override };
-      });
-      const result = window.buildFleetExposure({
-        assets: [{
-          assetId: asset.id,
-          msn: asset.msn,
-          lease,
-          pots: anchoredPots,
-          engines: asset.engines || [],
-          checks: asset.checks || [],
-          utilisation: utilRate,
-          scheduledEvents: scheduledEvents || [],
-          seasonalityProfile: seasonalityProfile || null,
-          costProjections: costProjections || []
-        }],
-        horizonPastLeaseEndMonths: 180,
-        brains: {
-          projectReservePot: window.projectReservePot,
-          projectEnLpPot: window.projectEnLpPot,
-          buildMaintenanceCalendar: window.buildMaintenanceCalendar
-        }
-      });
-      const assetResult = result.perAsset?.[0];
-      if (!assetResult || assetResult.excluded) { setExposure(null); return; }
-      const atoms = assetResult.atoms || [];
-      const postLeaseAtoms = atoms.filter(a => a.postLeaseEnd);
-      const postLeaseHigh = postLeaseAtoms.reduce((s, a) => s + Math.max(0, a.shortfallHigh || 0), 0);
-      const postLeaseLow  = postLeaseAtoms.reduce((s, a) => s + Math.max(0, a.shortfallLow  || 0), 0);
-      const totalHigh = Math.max(0, inLeaseShortfallHigh) + postLeaseHigh;
-      const totalLow  = Math.max(0, inLeaseShortfallLow)  + postLeaseLow;
-      setExposure({ postLeaseLow, postLeaseHigh, totalLow, totalHigh, hasPostLease: postLeaseAtoms.length > 0 });
-    } catch (e) {
-      setExposure(null);
-    }
-  }, [asset.id, lease?.leaseEnd]);
-
-  if (!exposure || !exposure.hasPostLease) return null;
-
+function ForwardExposureCard({ exposure, lease, inLeaseShortfallLow, inLeaseShortfallHigh }) {
+  if (!exposure) return null;
   const fmt = n => `$${Math.round(n).toLocaleString()}`;
   const leaseEndYear = lease?.leaseEnd?.slice(0, 7) || "lease end";
-
   return (
     <div className="card" style={{ padding: 16, marginBottom: 16 }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Forward Exposure Summary</div>
@@ -777,13 +775,8 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole }) {
 
       {userRole !== "dataEntry" && (
         <ForwardExposureCard
-          asset={asset}
+          exposure={computeForwardExposure({ asset, lease, reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections, inLeaseShortfallLow: shortfallSummary.grandTotalLow, inLeaseShortfallHigh: shortfallSummary.grandTotalHigh })}
           lease={lease}
-          reserveDocs={reserveDocs}
-          utilRate={utilRate}
-          scheduledEvents={scheduledEvents}
-          seasonalityProfile={seasonalityProfile}
-          costProjections={costProjections}
           inLeaseShortfallLow={shortfallSummary.grandTotalLow}
           inLeaseShortfallHigh={shortfallSummary.grandTotalHigh}
         />
