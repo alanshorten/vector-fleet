@@ -1151,7 +1151,7 @@ function ExtendedMaintenanceScenarioView({ assets }) {
 function FleetScenarioControls({ assets }) {
   const { mode: layoutMode } = useLayoutMode();
   const paired = layoutMode === "landscape";
-  const pairStyle = paired ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 16, alignItems: "start" } : undefined;
+  const pairStyle = paired ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 16, alignItems: "stretch" } : undefined;
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Fleet Scenario Controls</div>

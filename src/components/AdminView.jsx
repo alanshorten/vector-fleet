@@ -615,21 +615,33 @@ function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
 
       {tab==="settings"&&(
         <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth: layoutMode==="landscape" ? 1400 : 700}}>
-          <div style={layoutMode==="landscape" ? {display:"grid",gridTemplateColumns:"1fr 1fr",columnGap:16,alignItems:"start"} : undefined}>
-            <div className="card" style={{padding:20}}>
+          {/* Display + Disclaimer stack in one column, Logo spans both rows
+              in the other column, so the two columns land at the same
+              height (Alan: the previous Display+combined-card pairing left
+              Display looking short next to a much taller card). Named
+              grid-template-areas so the Logo card's "logo" area naturally
+              covers both rows without any height math. Portrait stays a
+              plain stack of three separate cards — Display, Logo,
+              Disclaimer — same content, just no grid applied. */}
+          <div style={layoutMode==="landscape" ? { display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateAreas: canEditBranding ? '"display logo" "disclaimer logo"' : '"display display"', columnGap: 16, rowGap: 16 } : undefined}>
+            <div className="card" style={{padding:20, gridArea: layoutMode==="landscape" ? "display" : undefined}}>
               <div className="section-title">Display</div>
               <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Choose how TailiQ arranges cards on a wide screen. This is a personal preference — changing it doesn't affect what anyone else sees.</p>
               <LayoutModeSettingsControl/>
             </div>
             {canEditBranding&&(
-              <div className="card" style={{padding:20}}>
-                <div className="section-title">Tech Spec Logo & Disclaimer</div>
-                <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Resize or replace the logo shown on the tech spec cover pages.</p>
-                <LogoSettings notify={notify}/>
-                <div style={{height:1,background:"#1e3348",margin:"20px 0"}}/>
-                <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Set the default disclaimer text shown at the bottom of every generated tech spec.</p>
-                <DisclaimerSettings notify={notify}/>
-              </div>
+              <>
+                <div className="card" style={{padding:20, gridArea: layoutMode==="landscape" ? "logo" : undefined}}>
+                  <div className="section-title">Tech Spec Logo</div>
+                  <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Resize or replace the logo shown on the tech spec cover pages.</p>
+                  <LogoSettings notify={notify}/>
+                </div>
+                <div className="card" style={{padding:20, gridArea: layoutMode==="landscape" ? "disclaimer" : undefined}}>
+                  <div className="section-title">Disclaimer</div>
+                  <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Set the default disclaimer text shown at the bottom of every generated tech spec.</p>
+                  <DisclaimerSettings notify={notify}/>
+                </div>
+              </>
             )}
           </div>
           {canEditBranding?(

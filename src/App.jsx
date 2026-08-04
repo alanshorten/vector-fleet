@@ -239,7 +239,7 @@ function AppInner(){
         {view==="fleetcalendar"&&canSeeAdvanced&&<FleetCalendarView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetInitialLayer("financials");setView("asset");}}/>}
         {view==="fleetscenarios"&&canSeeAdvanced&&(
           <>
-            <div style={layoutMode==="landscape" ? {display:"grid",gridTemplateColumns:"1fr 1fr",columnGap:16,alignItems:"start"} : undefined}>
+            <div style={layoutMode==="landscape" ? {display:"grid",gridTemplateColumns:"1fr 1fr",columnGap:16,alignItems:"stretch"} : undefined}>
               <RouteMatcherView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetInitialLayer("financials");setView("asset");}}/>
               <PandemicScenarioView assets={liveAssets}/>
             </div>
