@@ -130,7 +130,19 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
           boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
           animation: 'fadeIn 0.12s ease',
         }}>
-          {/* Tools — Prospects always visible; Upload on mobile only (stays in visible pill on desktop) */}
+          {/* Group 1 — Fleet Nav (portrait only — on desktop the pill stays on screen) */}
+          {isMobile && canSeeAdvanced && (
+            <>
+              <GroupLabel>Fleet</GroupLabel>
+              <Item value="dashboard" label="Details"/>
+              <Item value="fleetcalendar" label="Calendar"/>
+              <Item value="fleetexposure" label="Financials"/>
+              <Item value="fleetscenarios" label="Scenarios"/>
+              <Divider/>
+            </>
+          )}
+
+          {/* Group 2 — Tools */}
           <GroupLabel>Tools</GroupLabel>
           <Item value="prospects" label="Prospects"/>
           {isMobile && canUpload && <Item value="upload" label="Upload"/>}
@@ -320,16 +332,21 @@ function AppInner(){
         <div className="app-header-row" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"nowrap",maxWidth:1480,margin:"0 auto",padding:"8px 22px",boxSizing:"border-box"}}>
           <img src={isPortfolio?HEADER_LOGO_WHITE:HEADER_LOGO_NAVY} alt="TailiQ" style={{height:44,maxWidth:"55vw",objectFit:"contain",objectPosition:"left center",borderRadius:0}} className="header-logo"/>
 
-          {/* Right side: Fleet button + nav pills row, hamburger lives in the fleet-button row */}
+          {/* Right side: two rows stacked.
+              Alignment principle: every row's trailing element is exactly
+              TRAILING_PILL_WIDTH (400px) wide, so the NavPill left edge is
+              the same across fleet row 2 and the asset-level header row.
+              Row 1: [Fleet Portfolio + ☰] — pinned to TRAILING_PILL_WIDTH
+              Row 2: [fleet NavPill] [Upload — TRAILING_PILL_WIDTH] */}
           <div className="app-header-right" style={{display:"flex",flexDirection:"column",gap:5,alignItems:"stretch",flexShrink:0}}>
 
-            {/* Row 1: Fleet Portfolio button + hamburger icon side by side.
-                Fleet Portfolio narrows slightly to accommodate ☰ — the nav pill
-                below does NOT shift (hamburger-menu-build-handoff.md §6). */}
-            <div style={{display:"flex",alignItems:"center",gap:6,justifyContent:"flex-end"}}>
+            {/* Row 1 — Fleet Portfolio button + hamburger, total width = TRAILING_PILL_WIDTH
+                so it lines up with the Upload pill on row 2 and the Share/TechSpec
+                trailing pill in the asset header. */}
+            <div style={{display:"flex",alignItems:"center",gap:6,justifyContent:"space-between",width:TRAILING_PILL_WIDTH,flexShrink:0}}>
               {canSeeAdvanced&&<button onClick={()=>{setView("portfolio");setSelectedId(null);}}
                 className="app-fleet-btn"
-                style={{flex:1,padding:"7px 16px",background:isPortfolio?"#f1f5f9":"transparent",border:`1px solid ${isPortfolio?"#e2e8f0":"#2a4060"}`,borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:isPortfolio?"#0f172a":"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
+                style={{flex:1,padding:"7px 14px",background:isPortfolio?"#f1f5f9":"transparent",border:`1px solid ${isPortfolio?"#e2e8f0":"#2a4060"}`,borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:isPortfolio?"#0f172a":"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
                 ✈ Fleet Portfolio
               </button>}
               <HamburgerMenu
@@ -342,19 +359,16 @@ function AppInner(){
               />
             </div>
 
-            {/* Row 2: Fleet nav pill always visible at all breakpoints (Alan, August 2026:
-                fleet pill must be present on portrait too). Upload trailing pill on
-                desktop only — on mobile Upload moves into the hamburger. Width locked
-                to TRAILING_PILL_WIDTH so the fleet nav pill and asset-level nav pill
-                share the same left edge across both header rows. */}
+            {/* Row 2 — nav pills.
+                Fleet nav pill: always visible on desktop; hidden on portrait (moves
+                into hamburger so the asset-level pill doesn't duplicate it).
+                Upload trailing pill: desktop only, width = TRAILING_PILL_WIDTH. */}
             <div className="flab g8 app-nav-tools-row" style={{flexWrap:"nowrap",whiteSpace:"nowrap",justifyContent:"flex-end",flexShrink:0}}>
-              <NavPill
+              {!isMobile&&<NavPill
                 items={[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]}
                 activeValue={view}
                 onSelect={v=>{setView(v);setSelectedId(null);}}
-                theme={isPortfolio?"light":"dark"}/>
-              {/* Trailing pill: Upload on desktop only. Hidden on mobile — Upload
-                  moves into the hamburger. Width fixed to TRAILING_PILL_WIDTH. */}
+                theme={isPortfolio?"light":"dark"}/>}
               {!isMobile&&canUpload&&<NavPill
                 items={[["upload","Upload"]]}
                 activeValue={view}
