@@ -90,26 +90,37 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
     <div style={{ height: 1, background: divider, margin: '6px 0' }}/>
   );
 
-  // Icon colour: white on dark header, slate on portfolio white header
-  const iconColor = isPortfolio ? '#475569' : '#e2e8f0';
+  // Pill colours — match NavPill dark/light theme
+  const pillBg = isPortfolio ? '#f1f5f9' : '#0d1e2e';
+  const pillBorder = isPortfolio ? '#e2e8f0' : '#1e3a5f';
+  const iconColor = isPortfolio ? '#475569' : '#94a3b8';
+  const iconColorActive = isPortfolio ? '#0f172a' : '#e2e8f0';
 
   return (
     <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        aria-label="Menu"
-        aria-expanded={open}
-        style={{
-          background: open ? (isPortfolio ? '#f1f5f9' : 'rgba(255,255,255,0.08)') : 'transparent',
-          border: `1px solid ${open ? (isPortfolio ? '#e2e8f0' : '#2a4060') : 'transparent'}`,
-          borderRadius: 7, padding: '7px 10px', cursor: 'pointer',
-          color: iconColor, fontSize: 18, lineHeight: 1,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'all 0.15s',
-        }}
-      >
-        ☰
-      </button>
+      {/* Pill wrapper — same visual language as NavPill so ☰ reads as a nav element */}
+      <div style={{
+        background: pillBg, border: `1px solid ${pillBorder}`,
+        borderRadius: 8, padding: '2px',
+        display: 'inline-flex', alignItems: 'center',
+      }}>
+        <button
+          onClick={() => setOpen(o => !o)}
+          aria-label="Menu"
+          aria-expanded={open}
+          style={{
+            background: open ? (isPortfolio ? '#e2e8f0' : 'rgba(255,255,255,0.10)') : 'transparent',
+            border: 'none', borderRadius: 6,
+            padding: '5px 11px', cursor: 'pointer',
+            color: open ? iconColorActive : iconColor,
+            fontSize: 16, lineHeight: 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 0.15s', fontFamily: 'inherit',
+          }}
+        >
+          ☰
+        </button>
+      </div>
 
       {open && (
         <div style={{
@@ -119,26 +130,13 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
           boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
           animation: 'fadeIn 0.12s ease',
         }}>
-          {/* Group 1 — Fleet Nav (mobile only — on desktop this stays on screen) */}
-          {isMobile && canSeeAdvanced && (
-            <>
-              <GroupLabel>Fleet</GroupLabel>
-              <Item value="dashboard" label="Details"/>
-              <Item value="fleetcalendar" label="Calendar"/>
-              <Item value="fleetexposure" label="Financials"/>
-              <Item value="fleetscenarios" label="Scenarios"/>
-              <Divider/>
-            </>
-          )}
-
-          {/* Group 2 — Tools */}
+          {/* Tools — Prospects always visible; Upload on mobile only (stays in visible pill on desktop) */}
           <GroupLabel>Tools</GroupLabel>
           <Item value="prospects" label="Prospects"/>
-          {/* Upload only in hamburger on mobile — stays visible on desktop */}
           {isMobile && canUpload && <Item value="upload" label="Upload"/>}
           <Divider/>
 
-          {/* Group 3 — Account */}
+          {/* Account */}
           <GroupLabel>Account</GroupLabel>
           <Item value="settings" label="Settings"/>
           <Item value="signout" label="⎋ Sign Out"/>
@@ -344,37 +342,26 @@ function AppInner(){
               />
             </div>
 
-            {/* Row 2: The two nav pills.
-                On mobile: the fleet-level nav pill (Details/Calendar/Financials/
-                Scenarios) is hidden — it moves into the hamburger. The trailing
-                pill (Upload on desktop only; Prospects/Settings/Sign Out now live
-                in the hamburger) is also hidden on mobile.
-                On desktop: both pills remain visible. Upload stays in the trailing
-                pill at its fixed TRAILING_PILL_WIDTH so the two pills maintain
-                vertical alignment with the asset-level nav pill in AssetView.
-                Note: Prospects/Settings/Sign Out have moved into the hamburger on
-                both breakpoints — the trailing pill on desktop now holds Upload
-                only, but its container width is kept at TRAILING_PILL_WIDTH so
-                there's no visual jump when switching fleet ↔ asset.
-                (hamburger-menu-build-handoff.md §4, §6) */}
-            {!isMobile && (
-              <div className="flab g8 app-nav-tools-row" style={{flexWrap:"nowrap",whiteSpace:"nowrap",justifyContent:"flex-end",flexShrink:0}}>
-                <NavPill
-                  items={[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]}
-                  activeValue={view}
-                  onSelect={v=>{setView(v);setSelectedId(null);}}
-                  theme={isPortfolio?"light":"dark"}/>
-                {/* Trailing pill: Upload only on desktop. Width locked to
-                    TRAILING_PILL_WIDTH to preserve vertical alignment with the
-                    asset-level row's trailing element. */}
-                {canUpload&&<NavPill
-                  items={[["upload","Upload"]]}
-                  activeValue={view}
-                  onSelect={v=>{setView(v);setSelectedId(null);}}
-                  theme={isPortfolio?"light":"dark"}
-                  width={TRAILING_PILL_WIDTH}/>}
-              </div>
-            )}
+            {/* Row 2: Fleet nav pill always visible at all breakpoints (Alan, August 2026:
+                fleet pill must be present on portrait too). Upload trailing pill on
+                desktop only — on mobile Upload moves into the hamburger. Width locked
+                to TRAILING_PILL_WIDTH so the fleet nav pill and asset-level nav pill
+                share the same left edge across both header rows. */}
+            <div className="flab g8 app-nav-tools-row" style={{flexWrap:"nowrap",whiteSpace:"nowrap",justifyContent:"flex-end",flexShrink:0}}>
+              <NavPill
+                items={[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]}
+                activeValue={view}
+                onSelect={v=>{setView(v);setSelectedId(null);}}
+                theme={isPortfolio?"light":"dark"}/>
+              {/* Trailing pill: Upload on desktop only. Hidden on mobile — Upload
+                  moves into the hamburger. Width fixed to TRAILING_PILL_WIDTH. */}
+              {!isMobile&&canUpload&&<NavPill
+                items={[["upload","Upload"]]}
+                activeValue={view}
+                onSelect={v=>{setView(v);setSelectedId(null);}}
+                theme={isPortfolio?"light":"dark"}
+                width={TRAILING_PILL_WIDTH}/>}
+            </div>
           </div>
         </div>
       </header>

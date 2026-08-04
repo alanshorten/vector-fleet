@@ -109,14 +109,17 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
   return(
     <div style={{animation:"fadeIn 0.2s ease"}}>
       <div className="flab g12 asset-header-row" style={{marginBottom:24,justifyContent:"space-between",flexWrap:"nowrap"}}>
-        <div className="flab g12 asset-header-top" style={{flexShrink:0}}>
-          <button className="btn btn-ghost" onClick={onBack}>← Fleet</button>
-          <div>
-            <h1 style={{fontSize:18,color:"#C9A84C",fontWeight:700,whiteSpace:"nowrap"}}>MSN {asset.msn} — {asset.registration||"—"}</h1>
+        <div className="flab g12 asset-header-top" style={{flexShrink:0,minWidth:0,overflow:"hidden"}}>
+          <button className="btn btn-ghost" style={{flexShrink:0}} onClick={onBack}>← Fleet</button>
+          <div style={{minWidth:0}}>
+            <h1 style={{fontSize:18,color:"#C9A84C",fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>MSN {asset.msn} — {asset.registration||"—"}</h1>
             <p style={{color:"#475569",fontSize:12,whiteSpace:"nowrap"}}>{asset.model} · {asset.operator||"—"}</p>
           </div>
         </div>
-        <div className="flab g12 asset-header-actions" style={{flexShrink:0}}>
+        {/* Actions aligned to the right edge — marginLeft:auto pushes this block
+            flush right so the NavPill's left edge lines up with the fleet-level
+            nav pill in App.jsx's header row above it. */}
+        <div className="flab g8 asset-header-actions" style={{flexShrink:0,marginLeft:"auto"}}>
           <NavPill items={LAYERS} activeValue={layer} onSelect={setLayer}/>
           <div className="app-nav-pill trailing-pill" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",gap:8,background:"rgba(13,25,37,0.8)",border:"1px solid #1e3348",borderRadius:8,padding:"5px 6px",width:TRAILING_PILL_WIDTH,flexShrink:0}}>
             <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>setShareOpen(true)}>🔗 Share</button>
