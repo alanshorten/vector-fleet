@@ -402,17 +402,6 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
                 <div style={{fontSize:11,color:"#64748b",marginTop:2}}>Type in lease details and reserve rates yourself.</div>
                 {tierInfoOpen==="manual"&&<div style={{fontSize:11,color:"#64748b",marginTop:6,paddingTop:6,borderTop:"1px solid #1e293b"}}>No automated extraction, no document upload — everything is entered by hand on the next screen.</div>}
               </button>
-              <button className="btn btn-ghost" style={{padding:"12px 14px",textAlign:"left"}} onClick={()=>{setAiError(null);setStep("quick-upload");}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div style={{fontWeight:700,fontSize:13,color:"#e2e8f0"}}>⚡ Quick Extract</div>
-                  <span role="button" tabIndex={0} onClick={e=>{e.stopPropagation();setTierInfoOpen(tierInfoOpen==="quick"?null:"quick");}}
-                    style={{display:"flex",alignItems:"center",gap:3,color:"#60a5fa",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-                    Details<span style={{display:"inline-block",transition:"transform 0.15s",transform:tierInfoOpen==="quick"?"rotate(180deg)":"rotate(0deg)",fontSize:9}}>▾</span>
-                  </span>
-                </div>
-                <div style={{fontSize:11,color:"#64748b",marginTop:2}}>Upload the lease document — details and rates are extracted automatically in one pass.</div>
-                {tierInfoOpen==="quick"&&<div style={{fontSize:11,color:"#64748b",marginTop:6,paddingTop:6,borderTop:"1px solid #1e293b"}}>The fastest and most complete option: because the whole document is processed at once, it can find the lessee and lease dates as well as the rate schedule, which live on different pages of most leases.</div>}
-              </button>
               <button className="btn btn-ghost" style={{padding:"12px 14px",textAlign:"left"}} onClick={()=>{setAiError(null);setStep("privacy-upload");}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div style={{fontWeight:700,fontSize:13,color:"#e2e8f0"}}>🔒 Confidential Extract</div>
@@ -423,6 +412,17 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
                 </div>
                 <div style={{fontSize:11,color:"#64748b",marginTop:2}}>Only the page or section you confirm is ever sent — the rest of your lease stays in your browser.</div>
                 {tierInfoOpen==="privacy"&&<div style={{fontSize:11,color:"#64748b",marginTop:6,paddingTop:6,borderTop:"1px solid #1e293b"}}>We never store your lease document. Because only that one confirmed piece is sent, it typically won't pick up the lessee name or lease dates — you'll fill those in on the next screen.</div>}
+              </button>
+              <button className="btn btn-ghost" style={{padding:"12px 14px",textAlign:"left"}} onClick={()=>{setAiError(null);setStep("quick-upload");}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{fontWeight:700,fontSize:13,color:"#e2e8f0"}}>⚡ Quick Extract</div>
+                  <span role="button" tabIndex={0} onClick={e=>{e.stopPropagation();setTierInfoOpen(tierInfoOpen==="quick"?null:"quick");}}
+                    style={{display:"flex",alignItems:"center",gap:3,color:"#60a5fa",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                    Details<span style={{display:"inline-block",transition:"transform 0.15s",transform:tierInfoOpen==="quick"?"rotate(180deg)":"rotate(0deg)",fontSize:9}}>▾</span>
+                  </span>
+                </div>
+                <div style={{fontSize:11,color:"#64748b",marginTop:2}}>Upload the lease document — details and rates are extracted automatically in one pass.</div>
+                {tierInfoOpen==="quick"&&<div style={{fontSize:11,color:"#64748b",marginTop:6,paddingTop:6,borderTop:"1px solid #1e293b"}}>The fastest and most complete option: because the whole document is processed at once, it can find the lessee and lease dates as well as the rate schedule, which live on different pages of most leases.</div>}
               </button>
             </div>
             <div style={{display:"flex",marginTop:14}}>
@@ -437,12 +437,14 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
               Upload the lease document (PDF or Word). The whole document is processed to pull out lease details and reserve rates automatically — nothing is stored beyond standard short-term retention, and it's never used for training, but the full document (not just the rate schedule) does leave your browser to be processed.
             </div>
             <input type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={aiBusy}
-              onChange={e=>e.target.files?.[0]&&runQuickParse(e.target.files[0])}/>
+              onChange={e=>setAiFile(e.target.files?.[0]||null)}/>
+            {aiFile&&!aiBusy&&<div style={{fontSize:11,color:"#94a3b8",marginTop:8}}>{aiFile.name}</div>}
             {aiBusy&&<div style={{fontSize:12,color:"#94a3b8",marginTop:10}}>Extracting… this can take a few seconds.</div>}
             {aiError&&<div style={{fontSize:12,color:"#f87171",marginTop:10}}>{aiError}</div>}
             <div style={{display:"flex",gap:10,marginTop:16}}>
               <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>setStep("tier")}>← Back</button>
               <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>setStep("details")}>Skip — Enter Manually</button>
+              <button className="btn btn-gold" style={{flex:1}} disabled={aiBusy||!aiFile} onClick={()=>runQuickParse(aiFile)}>Extract →</button>
             </div>
           </>
         )}
@@ -453,12 +455,14 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
               Upload the lease document (PDF or Word). It's read entirely in your browser first — nothing is sent anywhere yet. You'll then confirm which page or section has the reserve rate schedule, and only that part is sent for extraction.
             </div>
             <input type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={aiBusy}
-              onChange={e=>e.target.files?.[0]&&handlePrivacyFile(e.target.files[0])}/>
+              onChange={e=>setAiFile(e.target.files?.[0]||null)}/>
+            {aiFile&&!aiBusy&&<div style={{fontSize:11,color:"#94a3b8",marginTop:8}}>{aiFile.name}</div>}
             {aiBusy&&<div style={{fontSize:12,color:"#94a3b8",marginTop:10}}>Reading document…</div>}
             {aiError&&<div style={{fontSize:12,color:"#f87171",marginTop:10}}>{aiError}</div>}
             <div style={{display:"flex",gap:10,marginTop:16}}>
               <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>setStep("tier")}>← Back</button>
               <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>setStep("details")}>Skip — Enter Manually</button>
+              <button className="btn btn-gold" style={{flex:1}} disabled={aiBusy||!aiFile} onClick={()=>handlePrivacyFile(aiFile)}>Extract →</button>
             </div>
           </>
         )}
