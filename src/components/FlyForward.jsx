@@ -690,9 +690,7 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole }) {
   // it only runs when the component has real data (past all early returns).
   // The original OOM was caused by useState/useEffect re-render loop, not
   // the computation itself. Plain sync call is fine.
-  const forwardExposure = userRole !== "dataEntry"
-    ? computeForwardExposure({ asset, lease, reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections, inLeaseShortfallLow: shortfallSummary.grandTotalLow, inLeaseShortfallHigh: shortfallSummary.grandTotalHigh })
-    : null;
+  const forwardExposure = null; // temporarily disabled pending performance review
 
   const showMissing = missingCodes.length > 0;
   const showMaintCal = maintenanceCal && maintenanceCal.dataCompleteness && maintenanceCal.dataCompleteness.length > 0;
