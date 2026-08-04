@@ -1149,14 +1149,21 @@ function ExtendedMaintenanceScenarioView({ assets }) {
 // Wrapper — groups all four new controls under one heading, sits
 // alongside PandemicScenarioView on the fleet Scenarios page.
 function FleetScenarioControls({ assets }) {
+  const { mode: layoutMode } = useLayoutMode();
+  const paired = layoutMode === "landscape";
+  const pairStyle = paired ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 16, alignItems: "start" } : undefined;
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Fleet Scenario Controls</div>
       <div style={{ fontSize: 12, color: "#64748b" }}>Four independent structured controls — each runs its own base-vs-scenario comparison. Not combined with each other or with the pandemic slider above.</div>
-      <LesseeDefaultScenarioView assets={assets}/>
-      <FleetUtilisationScenarioView assets={assets}/>
-      <EngineCostShockScenarioView assets={assets}/>
-      <ExtendedMaintenanceScenarioView assets={assets}/>
+      <div style={pairStyle}>
+        <LesseeDefaultScenarioView assets={assets}/>
+        <FleetUtilisationScenarioView assets={assets}/>
+      </div>
+      <div style={pairStyle}>
+        <EngineCostShockScenarioView assets={assets}/>
+        <ExtendedMaintenanceScenarioView assets={assets}/>
+      </div>
     </div>
   );
 }
