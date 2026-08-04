@@ -667,6 +667,135 @@ function RouteMatcherView({ assets, onSelectAsset }) {
 
 
 // ---------------------------------------------------------------------
+// Fleet Completed Events — read-only view of every cost-tracker entry
+// across all assets, surfaced from the fleet Calendar tab via a toggle
+// button. Reads db.getCompletedEvents() (same collection the per-asset
+// SV Cost Tracker writes to). Sorted newest first. No write paths here —
+// logging stays on the per-asset Calendar tab.
+// ---------------------------------------------------------------------
+
+// assets prop used to resolve MSN from assetId — MSN is not stored on
+// the completedEvent record itself, only assetId is (db.js schema).
+function FleetCompletedEventsView({ assets, onSelectAsset }) {
+  const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState([]);
+  const [loadError, setLoadError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    db.getAllCompletedEvents()
+      .then(data => {
+        if (!cancelled) { setEvents(data || []); setLoadError(null); }
+      })
+      .catch(e => { if (!cancelled) setLoadError(e.message || String(e)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Build assetId → msn lookup from the fleet assets array
+  const msnById = {};
+  (assets || []).forEach(a => { if (a.id) msnById[a.id] = a.msn; });
+
+  const fmtCost = (v) => v != null ? '$' + Math.round(v).toLocaleString() : '—';
+  const fmtDate = (v) => {
+    if (!v) return '—';
+    try {
+      const d = new Date(v);
+      return isNaN(d) ? String(v) : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch { return String(v); }
+  };
+  // Use projectedCostHigh as the comparison figure — that's what the Cost
+  // Tracker stores (projectedCostLow/Likely/High), and High is what Fleet
+  // Exposure uses throughout, so this is the most meaningful comparison.
+  const deltaColor = (actual, projected) => {
+    if (actual == null || projected == null) return '#94a3b8';
+    return actual > projected ? '#f87171' : actual < projected ? '#34d399' : '#94a3b8';
+  };
+  const deltaLabel = (actual, projected) => {
+    if (actual == null || projected == null) return null;
+    const diff = actual - projected;
+    if (diff === 0) return 'On projection';
+    return (diff > 0 ? '▲ $' : '▼ $') + Math.round(Math.abs(diff)).toLocaleString() + ' vs projected';
+  };
+
+  if (loading) {
+    return <div style={{ padding: '24px 0', textAlign: 'center', color: '#64748b', fontSize: 13 }}>Loading completed events…</div>;
+  }
+  if (loadError) {
+    return <div style={{ padding: 16, color: '#f87171', fontSize: 13 }}>Couldn't load completed events: {loadError}</div>;
+  }
+  if (!events.length) {
+    return (
+      <div style={{ padding: '28px 0', textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+        No completed events logged yet — use the Cost Tracker on each asset's Calendar tab to log an event.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 4 }}>
+      {/* Column headers */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px 110px 120px 150px', gap: 8, padding: '0 12px 8px', borderBottom: '1px solid #1e3048' }}>
+        {['Asset', 'Event', 'Date logged', 'Actual cost', 'Projected (high)', 'Delta'].map(h => (
+          <div key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#475569' }}>{h}</div>
+        ))}
+      </div>
+      {events.map((ev, i) => {
+        const msn = msnById[ev.assetId] || null;
+        const actual = ev.totalCost ?? null;
+        const projected = ev.projectedCostHigh ?? null;
+        const dc = deltaColor(actual, projected);
+        const noCostData = !!ev.noCostData;
+        return (
+          <div
+            key={ev.id || i}
+            style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px 110px 120px 150px', gap: 8, padding: '10px 12px', borderBottom: '1px solid #1a2a3a', alignItems: 'center', transition: 'background 0.1s' }}
+            onMouseEnter={e => e.currentTarget.style.background = '#0d1e33'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            {/* Asset — clickable, opens asset at Financials tab */}
+            <div>
+              <span
+                style={{ fontSize: 13, fontWeight: 700, color: onSelectAsset ? '#60a5fa' : '#e2e8f0', cursor: onSelectAsset ? 'pointer' : 'default' }}
+                onClick={() => onSelectAsset && ev.assetId && onSelectAsset(ev.assetId)}
+              >
+                {msn ? `MSN ${msn}` : ev.assetId || '—'}
+              </span>
+              {ev.mroRegion && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{ev.mroRegion}</div>}
+            </div>
+            {/* Event code + label */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', fontFamily: 'monospace' }}>{ev.code || '—'}</div>
+              {ev.label && <div style={{ fontSize: 10, color: '#64748b', marginTop: 1 }}>{ev.label}</div>}
+            </div>
+            {/* Date logged (confirmedAt) */}
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>{fmtDate(ev.confirmedAt)}</div>
+            {/* Actual cost — muted if no cost data was entered (Dismiss path) */}
+            <div style={{ fontSize: 13, fontWeight: 700, color: noCostData ? '#475569' : '#e2e8f0', fontFamily: 'monospace', fontStyle: noCostData ? 'italic' : 'normal' }}>
+              {noCostData ? 'No data' : fmtCost(actual)}
+            </div>
+            {/* Projected cost high */}
+            <div style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>{fmtCost(projected)}</div>
+            {/* Delta */}
+            <div>
+              {noCostData
+                ? <span style={{ fontSize: 11, color: '#475569', fontStyle: 'italic' }}>Dismissed</span>
+                : deltaLabel(actual, projected)
+                  ? <span style={{ fontSize: 12, color: dc, fontWeight: 600 }}>{deltaLabel(actual, projected)}</span>
+                  : <span style={{ fontSize: 12, color: '#475569' }}>No projection</span>}
+            </div>
+          </div>
+        );
+      })}
+      <div style={{ padding: '10px 12px', borderTop: '1px solid #1e3048', fontSize: 11, color: '#475569' }}>
+        {events.length} event{events.length === 1 ? '' : 's'} logged
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
 // Fleet Calendar — fleet-level "Calendar" nav tab (layer3-scenarios-
 // build-handoff.md §7 four-layer nav; content itself was unscoped until
 // this session — Alan's decision: reuse the asset-level calendar view
@@ -685,6 +814,7 @@ function FleetCalendarView({ assets, onSelectAsset }) {
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [showExcluded, setShowExcluded] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -727,7 +857,15 @@ function FleetCalendarView({ assets, onSelectAsset }) {
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
       <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Calendar</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Calendar</div>
+          <button
+            onClick={() => setShowCompleted(s => !s)}
+            style={{ flexShrink: 0, background: showCompleted ? "#1e4a7a" : "transparent", border: "1px solid #2a4060", borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 700, color: showCompleted ? "#e2e8f0" : "#6a8aaa", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s", whiteSpace: "nowrap" }}
+          >
+            {showCompleted ? "Hide completed events" : "View completed events"}
+          </button>
+        </div>
         <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
           Event clustering across the fleet's maintenance calendar — scheduling only, no cost figures. See Financials for the money view. Every asset appears here regardless of lease status — a scheduled check happens whether or not there's a lease on file.
         </div>
@@ -763,6 +901,14 @@ function FleetCalendarView({ assets, onSelectAsset }) {
       {events.length === 0
         ? <div className="card" style={{ padding: 24, textAlign: "center", color: "#64748b" }}>No scheduled events across the fleet.</div>
         : <MaintenanceCalendarGrid events={events}/>}
+
+      {/* Completed events panel — toggled via header button */}
+      {showCompleted && (
+        <div className="card" style={{ padding: 16, marginTop: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Completed Events — fleet log</div>
+          <FleetCompletedEventsView assets={assets} onSelectAsset={onSelectAsset}/>
+        </div>
+      )}
     </div>
   );
 }

@@ -358,6 +358,15 @@ const db = {
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => new Date(b.confirmedAt) - new Date(a.confirmedAt));
   },
+  // Fleet-wide read — no assetId filter. Used by FleetCompletedEventsView
+  // on the fleet Calendar tab to show all logged events across all assets.
+  // Same single-tenant pattern as getAssets() — no companyId filter needed
+  // at current scale (all data in one Firestore instance).
+  async getAllCompletedEvents() {
+    const { db: fs, collection, getDocs } = getFS();
+    const snap = await getDocs(collection(fs, "completedEvents"));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => new Date(b.confirmedAt) - new Date(a.confirmedAt));
+  },
   async saveCompletedEvent(assetId, companyId, data) {
     const { db: fs, collection, addDoc } = getFS();
     const now = new Date().toISOString();
