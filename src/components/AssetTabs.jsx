@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { daysFromNow, isEmpty, parseHHMM, engineStockPhotoKey } from '../lib/assetHelpers';
 import { db } from '../lib/db';
-import { getDefaultDisclaimer, getTechSpecLogo } from '../lib/techSpec';
+import { getDefaultDisclaimer, getTechSpecBrandingHidden, getTechSpecLogo } from '../lib/techSpec';
 import { extractOperatorHistory, mergeOperatorHistory } from '../lib/extraction';
 import { useLayoutMode } from '../lib/layoutMode';
 
@@ -400,9 +400,8 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
                 <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={async()=>{
                   const photoKey=engineStockPhotoKey(eng.type);
                   const engPhoto=photoKey?(await db.getSetting(photoKey).catch(()=>null)||""):"";
-                  const logo=await getTechSpecLogo();
-                  const defaultDisclaimer=await getDefaultDisclaimer();
-                  const base=buildTechSpecHTML({...asset,engines:[eng],_engineOnly:true,_enginePos:eng.position||ei+1},engPhoto,logo,defaultDisclaimer);
+                  const [logo,defaultDisclaimer,hideBranding]=await Promise.all([getTechSpecLogo(),getDefaultDisclaimer(),getTechSpecBrandingHidden()]);
+                  const base=buildTechSpecHTML({...asset,engines:[eng],_engineOnly:true,_enginePos:eng.position||ei+1},engPhoto,logo,defaultDisclaimer,"",!!hideBranding);
                   const withBar=base.replace('<body>',`<body><div style="position:fixed;top:0;left:0;right:0;background:#1B3A6B;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.3)"><span style="color:#C9A84C;font-weight:700;font-size:14px;flex:1">TailiQ — Engine Spec ESN ${eng.sn||"—"}</span><button onclick="window.print()" style="background:#C9A84C;color:#0a1520;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button><button onclick="window.close()" style="background:transparent;color:#94a3b8;border:1px solid #2d3f55;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">✕ Close</button></div><div style="height:52px"></div>`);
                   const withPrint=withBar.replace('</style>','@media print{body>div:first-child{display:none!important}div[style*="height:52px"]{display:none!important}}</style>');
                   const win=window.open();win.document.write(withPrint);win.document.close();

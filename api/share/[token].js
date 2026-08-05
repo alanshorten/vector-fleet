@@ -105,15 +105,7 @@ module.exports = async (req, res) => {
       // should never break the share link itself.
     }
 
-    let hideBranding = false;
-    try {
-      const brandingSnap = await fs.collection('settings').doc('tech_spec_hide_branding').get();
-      if (brandingSnap.exists) hideBranding = !!brandingSnap.data().value;
-    } catch (e) {
-      // Non-fatal — defaults to branding shown if the fetch fails.
-    }
-
-    return res.status(200).json({ asset: pickAllowed(asset), defaultDisclaimer, hideBranding });
+    return res.status(200).json({ asset: pickAllowed(asset), defaultDisclaimer });
   } catch (err) {
     console.error('share token lookup failed', err);
     return res.status(500).json({ error: 'Internal error' });
