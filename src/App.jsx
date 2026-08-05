@@ -340,8 +340,26 @@ function AppInner(){
               pixel-perfect alignment. Asset pills replace fleet pills when in asset view. */}
           <div className="app-header-right" style={{display:"flex",flexDirection:"column",gap:5,alignItems:"stretch",flexShrink:0}}>
 
-            {isMobile ? (
-              /* Portrait — Portfolio + ☰ only, fleet nav lives in hamburger */
+            {isMobile && view==="asset" && selectedAsset ? (
+              /* Portrait + asset view — Portfolio+☰ row, then asset layer pill below */
+              <>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  {canSeeAdvanced&&<button onClick={()=>{setView("portfolio");setSelectedId(null);}}
+                    style={{flex:1,padding:"7px 14px",background:"transparent",border:"1px solid #2a4060",borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
+                    ✈ Fleet Portfolio
+                  </button>}
+                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isPortfolio={false}/>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"nowrap"}}>
+                  {(()=>{
+                    const canSeeAdv=!!userRole&&userRole!=='dataEntry';
+                    const LAYERS=[["details","Details"],...(canSeeAdv?[["calendar","Calendar"],["financials","Financials"],["scenarios","Scenarios"]]:[])]; 
+                    return <NavPill items={LAYERS} activeValue={assetLayer} onSelect={setAssetLayer} theme="dark"/>;
+                  })()}
+                </div>
+              </>
+            ) : isMobile ? (
+              /* Portrait + fleet view — Portfolio + ☰ only, fleet nav lives in hamburger */
               <div style={{display:"flex",alignItems:"center",gap:6}}>
                 {canSeeAdvanced&&<button onClick={()=>{setView("portfolio");setSelectedId(null);}}
                   style={{flex:1,padding:"7px 14px",background:isPortfolio?"#f1f5f9":"transparent",border:`1px solid ${isPortfolio?"#e2e8f0":"#2a4060"}`,borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:isPortfolio?"#0f172a":"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
