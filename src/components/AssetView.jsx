@@ -82,6 +82,7 @@ function LLPExtractor({kind,label,onApply,notify}){
 function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,initialLayer,
   layer,setLayer,shareOpen,setShareOpen,genSpecRef}){
   const[tab,setTab]=useState("overview");
+  const[financialsHeaderActions,setFinancialsHeaderActions]=useState(null);
   // Data Entry sees Details only (raw inputs, no financial outputs) — matches
   // the four-role model's Nav visibility table (VECTORIQ_ROADMAP.md §7a).
   const canSeeAdvanced=!!userRole&&userRole!=='dataEntry';
@@ -122,6 +123,11 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
             <p style={{color:"#475569",fontSize:12,whiteSpace:"nowrap"}}>{asset.model} · {asset.operator||"—"}</p>
           </div>
         </div>
+        {financialsHeaderActions && layer==="financials" && (
+          <div className="flab g12" style={{marginLeft:"auto",flexShrink:0}}>
+            {financialsHeaderActions}
+          </div>
+        )}
       </div>
 
       {layer==="details"&&(
@@ -143,7 +149,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
         </>
       )}
       {layer==="calendar"&&canSeeAdvanced&&<MaintenanceCalendarView asset={asset} notify={notify} canEnterCosts={canEnterLeaseData}/>}
-      {layer==="financials"&&canSeeAdvanced&&<FlyForward asset={asset} saveAsset={saveAsset} notify={notify} canEnterLeaseData={canEnterLeaseData} userRole={userRole}/>}
+      {layer==="financials"&&canSeeAdvanced&&<FlyForward asset={asset} saveAsset={saveAsset} notify={notify} canEnterLeaseData={canEnterLeaseData} userRole={userRole} onHeaderActions={setFinancialsHeaderActions}/>}
       {layer==="scenarios"&&canSeeAdvanced&&<Scenarios asset={asset}/>}
       {shareOpen&&<ShareModal asset={asset} notify={notify} onClose={()=>setShareOpen(false)}/>}
     </div>
