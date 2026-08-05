@@ -129,10 +129,11 @@ function MiniLineChart({ labels, datasets, height, leaseEndIdx }) {
       id: "leaseEndDivider",
       afterDraw(chart) {
         const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
-        if (!x || leaseEndIdx >= x.ticks.length) return;
+        if (!x || leaseEndIdx >= labels.length) return;
 
-        // x-pixel position for the lease-end tick
-        const xPx = x.getPixelForValue(leaseEndIdx);
+        // x-pixel position for the lease-end tick — category scale needs
+        // the label string, not the numeric index
+        const xPx = x.getPixelForValue(labels[leaseEndIdx]);
 
         // Muted grey shading over the post-lease region
         ctx.save();
@@ -389,6 +390,16 @@ function FFPotCard({ projection, color, anchored }) {
           <div style={{ fontSize: 10, color: "#475569", marginTop: 4 }}>
             Pot balance frozen at lease end — accruals stop when this lessee's lease expires. Shortfall is the gap between the frozen balance and the next event cost.
           </div>
+        </div>
+      )}
+
+      {projection.leaseEndLimiter && (
+        <div style={{ marginTop: 10, padding: "8px 10px", background: "#0d1e33", borderRadius: 6, fontSize: 11, color: "#94a3b8" }}>
+          <span style={{ color: "#64748b", fontWeight: 700, marginRight: 6 }}>Lowest limiter at lease end:</span>
+          {projection.leaseEndLimiter.desc} — {projection.leaseEndLimiter.remainingFC.toLocaleString()} FC remaining
+          {projection.leaseEndLimiter.fcPerMonth
+            ? ` (~${Math.round(projection.leaseEndLimiter.remainingFC / projection.leaseEndLimiter.fcPerMonth)} months at current rate)`
+            : ""}
         </div>
       )}
 

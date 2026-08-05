@@ -390,6 +390,7 @@ function projectEnLpPot(pot, ctx) {
   const warnings = [];
   let balance = pot.openingBalance || 0;
   let missingApprovedLifeWarned = false;
+  let leaseEndLimiter = null; // captured at m === horizonMonths
 
   for (let m = 0; m <= horizonMonths; m++) {
     const date = addMonths(leaseStart, m);
@@ -408,6 +409,17 @@ function projectEnLpPot(pot, ctx) {
     const currentFC = fcAccum;
 
     if (!llps.length) continue;
+
+    // Capture lowest-limiter state at lease end for post-lease display
+    if (m === horizonMonths) {
+      const withRem = llps.map(l => ({ ...l, remainingFC: window.calcLLPRem(l, currentFC) }));
+      const limiter = withRem.reduce((min, p) => (p.remainingFC < min.remainingFC ? p : min));
+      leaseEndLimiter = {
+        desc: limiter.desc || limiter.pn || "Limiting part",
+        remainingFC: Math.round(limiter.remainingFC),
+        fcPerMonth: fcPerMonth > 0 ? fcPerMonth : null
+      };
+    }
 
     // TRUE lowest limiter from the FULL raw stack — mirrors Brain 2's
     // lowestLimiter() and is independent of whether approvedLife is
@@ -505,7 +517,7 @@ function projectEnLpPot(pot, ctx) {
     }
   }
 
-  return { code: pot.code, label: pot.label, monthlySeries, events, partialFundedNote: null, warnings };
+  return { code: pot.code, label: pot.label, monthlySeries, events, partialFundedNote: null, leaseEndLimiter, warnings };
 }
 
 // Per-part cost estimate for a harvested set. Three tiers, in order of
