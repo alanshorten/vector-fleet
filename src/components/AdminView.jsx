@@ -828,7 +828,7 @@ function UsersCard({notify}){
   };
   const resendInvite=async(u)=>{
     setBusy(u.uid);
-    setResendLink(prev=>({...prev,[u.uid]:null}));
+    setResendLink(prev=>({...prev,[u.email]:null}));
     try{
       const idToken=await window._auth.getIdToken();
       const resp=await fetch("/api/invite-user",{
@@ -839,17 +839,17 @@ function UsersCard({notify}){
       const result=await resp.json();
       if(!resp.ok||result.error)throw new Error(result.error||"Resend failed.");
       notify(`Invite resent to ${u.email}`);
-      if(result.inviteLink) setResendLink(prev=>({...prev,[u.uid]:result.inviteLink}));
       await load();
+      if(result.inviteLink) setResendLink(prev=>({...prev,[u.email]:result.inviteLink}));
     }catch(e){notify(e.message||"Could not resend invite.","error");}
     setBusy(null);
   };
-  const copyResendLink=async(uid)=>{
-    const link=resendLink[uid];
+  const copyResendLink=async(email)=>{
+    const link=resendLink[email];
     if(!link) return;
     await navigator.clipboard.writeText(link);
-    setResendCopied(prev=>({...prev,[uid]:true}));
-    setTimeout(()=>setResendCopied(prev=>({...prev,[uid]:false})),2500);
+    setResendCopied(prev=>({...prev,[email]:true}));
+    setTimeout(()=>setResendCopied(prev=>({...prev,[email]:false})),2500);
   };
   const removeUser=async(u)=>{
     setBusy(u.uid);setConfirmRemove(null);
@@ -912,13 +912,13 @@ function UsersCard({notify}){
                   {u.role==="admin"&&<span style={{fontSize:11,color:"#475569"}}>Protected</span>}
                 </td>
               </tr>
-              {resendLink[u.uid]&&(
+              {resendLink[u.email]&&(
                 <tr>
                   <td colSpan={3} style={{paddingBottom:8}}>
                     <div style={{display:"flex",alignItems:"center",gap:8,background:"#0d1c2c",border:"1px solid #2d3f55",borderRadius:6,padding:"7px 12px"}}>
-                      <span style={{fontSize:11,color:"#7a9ab5",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{resendLink[u.uid]}</span>
-                      <button onClick={()=>copyResendLink(u.uid)} style={{background:"none",border:"1px solid #2d3f55",color:resendCopied[u.uid]?"#3FA66B":"#94a3b8",borderRadius:4,padding:"4px 10px",fontSize:11,cursor:"pointer",flexShrink:0,transition:"color 0.2s"}}>
-                        {resendCopied[u.uid]?"Copied ✓":"Copy link"}
+                      <span style={{fontSize:11,color:"#7a9ab5",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{resendLink[u.email]}</span>
+                      <button onClick={()=>copyResendLink(u.email)} style={{background:"none",border:"1px solid #2d3f55",color:resendCopied[u.email]?"#3FA66B":"#94a3b8",borderRadius:4,padding:"4px 10px",fontSize:11,cursor:"pointer",flexShrink:0,transition:"color 0.2s"}}>
+                        {resendCopied[u.email]?"Copied ✓":"Copy link"}
                       </button>
                     </div>
                   </td>
