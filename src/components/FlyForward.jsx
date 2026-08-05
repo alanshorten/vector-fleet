@@ -1260,7 +1260,7 @@ function CompletedEventsHistory({ asset, completedEvents, reserveDocs, canEnterC
   );
 }
 
-function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = false }) {
+function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = false, showSeasonality: showSeasonalityProp = false, setShowSeasonality: setShowSeasonalityProp = null }) {
   const [loading, setLoading] = useState(true);
   const [lease, setLease] = useState(null);
   const [reserveDocs, setReserveDocs] = useState([]);
@@ -1271,7 +1271,10 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
   const [completedEvents, setCompletedEvents] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [busy, setBusy] = useState(null);
-  const [showSeasonality, setShowSeasonality] = useState(false);
+  const [_showSeasonalityLocal, _setShowSeasonalityLocal] = useState(false);
+  // Use lifted state from AssetView when available, otherwise local fallback
+  const showSeasonality = setShowSeasonalityProp ? showSeasonalityProp : _showSeasonalityLocal;
+  const setShowSeasonality = setShowSeasonalityProp || _setShowSeasonalityLocal;
   const [expanded, setExpanded] = useState(null); // key of the one event row currently expanded for editing
 
   const reload = useCallback(async () => {
@@ -1400,10 +1403,6 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
-      <div className="flab g12" style={{ marginBottom: 16, justifyContent: "flex-end" }}>
-        <button className="btn btn-ghost" onClick={() => setShowSeasonality(s => !s)}>{showSeasonality ? "Hide" : "🌤 Edit"} Seasonality Profile</button>
-      </div>
-
       <PendingCompletionsPanel asset={asset} pending={pendingCompletions} onCompleted={reload} notify={notify} canEnterCosts={canEnterCosts}/>
 
       {/* Completed Events + Calendar description — side by side on landscape */}
