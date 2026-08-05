@@ -146,7 +146,16 @@ function calendarMonthEvents(pot, horizonMonths, leaseStart) {
     startOffset = interval;
   }
   const events = [];
-  for (let m = startOffset; m <= horizonMonths; m += interval) events.push(m);
+  // Generate one event beyond horizonMonths so partialFundedNote can be
+  // populated with the next post-lease event date/cost. Events past the
+  // horizon are never fired as real projection events — only the first
+  // one beyond the boundary feeds partialFundedNote.
+  let m = startOffset;
+  while (true) {
+    events.push(m);
+    if (m > horizonMonths) break;
+    m += interval;
+  }
   return events;
 }
 
@@ -166,8 +175,9 @@ function calendarOrCyclesEvents(pot, horizonMonths, leaseStart, fcPerMonth) {
   let m = pot.firstEventOverrideDate
     ? Math.max(0, monthsBetween(leaseStart, pot.firstEventOverrideDate))
     : interval;
-  while (m <= horizonMonths) {
+  while (true) {
     events.push(Math.round(m));
+    if (m > horizonMonths) break; // one event beyond horizon captured for partialFundedNote
     m += interval;
   }
   return events;
@@ -195,9 +205,9 @@ function apuHourEvents(pot, horizonMonths, apuHrPerMonth, startOffsetMonths) {
   while (true) {
     const monthMin = offsetMonths + minHr / apuHrPerMonth;
     const monthMax = offsetMonths + maxHr / apuHrPerMonth;
-    if (monthMin > horizonMonths) break;
     events.push({ monthMin, monthMax, monthMid: (monthMin + monthMax) / 2 });
     offsetMonths = (monthMin + monthMax) / 2; // reset at window midpoint
+    if (monthMin > horizonMonths) break; // one event beyond horizon captured for partialFundedNote
   }
   return events;
 }
