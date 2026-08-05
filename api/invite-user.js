@@ -129,15 +129,20 @@ module.exports = async (req, res) => {
     // API itself but is never shared with anyone or stored by us.
     try {
       await auth.createUser({ email: normalizedEmail, emailVerified: false });
-      // Set role claim immediately so the user has the right access from first sign-in
-      const newUser = await auth.getUserByEmail(normalizedEmail);
-      await auth.setCustomUserClaims(newUser.uid, { role });
     } catch (err) {
       if (err.code === 'auth/email-already-exists') {
-        return res.status(409).json({ error: 'A user with this email already exists.' });
+        // Resend path: delete the existing user and recreate so a fresh
+        // oobCode is generated. Admin-only endpoint so this is intentional.
+        const existing = await auth.getUserByEmail(normalizedEmail);
+        await auth.deleteUser(existing.uid);
+        await auth.createUser({ email: normalizedEmail, emailVerified: false });
+      } else {
+        throw err;
       }
-      throw err;
     }
+    // Set role claim immediately so the user has the right access from first sign-in
+    const newUser = await auth.getUserByEmail(normalizedEmail);
+    await auth.setCustomUserClaims(newUser.uid, { role });
 
     const firebaseHostedLink = await auth.generatePasswordResetLink(normalizedEmail, {
       url: CONTINUE_URL,

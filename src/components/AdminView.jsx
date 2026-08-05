@@ -795,6 +795,9 @@ function UsersCard({notify}){
   const[users,setUsers]=useState([]);
   const[loading,setLoading]=useState(true);
   const[busy,setBusy]=useState(null);
+  const[confirmRemove,setConfirmRemove]=useState(null);
+  const[resendLink,setResendLink]=useState({});
+  const[resendCopied,setResendCopied]=useState({});
   const load=async()=>{
     setLoading(true);
     try{
@@ -823,32 +826,109 @@ function UsersCard({notify}){
     }catch(e){notify(e.message||"Could not update role","error");}
     setBusy(null);
   };
+  const resendInvite=async(u)=>{
+    setBusy(u.uid);
+    setResendLink(prev=>({...prev,[u.uid]:null}));
+    try{
+      const idToken=await window._auth.getIdToken();
+      const resp=await fetch("/api/invite-user",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":`Bearer ${idToken}`},
+        body:JSON.stringify({email:u.email,role:u.role})
+      });
+      const result=await resp.json();
+      if(!resp.ok||result.error)throw new Error(result.error||"Resend failed.");
+      notify(`Invite resent to ${u.email}`);
+      if(result.inviteLink) setResendLink(prev=>({...prev,[u.uid]:result.inviteLink}));
+      await load();
+    }catch(e){notify(e.message||"Could not resend invite.","error");}
+    setBusy(null);
+  };
+  const copyResendLink=async(uid)=>{
+    const link=resendLink[uid];
+    if(!link) return;
+    await navigator.clipboard.writeText(link);
+    setResendCopied(prev=>({...prev,[uid]:true}));
+    setTimeout(()=>setResendCopied(prev=>({...prev,[uid]:false})),2500);
+  };
+  const removeUser=async(u)=>{
+    setBusy(u.uid);setConfirmRemove(null);
+    try{
+      const idToken=await window._auth.getIdToken();
+      const resp=await fetch("/api/remove-user",{
+        method:"DELETE",
+        headers:{"Content-Type":"application/json","Authorization":`Bearer ${idToken}`},
+        body:JSON.stringify({uid:u.uid})
+      });
+      const data=await resp.json();
+      if(!resp.ok)throw new Error(data.error||"Failed to remove user");
+      notify(`${u.email} removed`);
+      await load();
+    }catch(e){notify(e.message||"Could not remove user.","error");}
+    setBusy(null);
+  };
   const roleColour={admin:"#C9A84C",editor:"#34d399",viewer:"#94a3b8",dataEntry:"#60a5fa"};
   if(loading)return<p style={{color:"#475569",fontSize:13}}>Loading users…</p>;
   if(!users.length)return<p style={{color:"#475569",fontSize:13}}>No users found.</p>;
   return(
-    <table style={{width:"100%"}}>
-      <thead><tr><th style={{textAlign:"left"}}>Email</th><th style={{textAlign:"left"}}>Role</th><th></th></tr></thead>
-      <tbody>
-        {users.map(u=>(
-          <tr key={u.uid}>
-            <td style={{fontSize:13,color:"#e2e8f0",padding:"8px 0"}}>{u.email}</td>
-            <td><span style={{fontSize:11,fontWeight:700,color:roleColour[u.role]||"#94a3b8",textTransform:"uppercase",letterSpacing:"0.05em"}}>{u.role||"—"}</span></td>
-            <td style={{textAlign:"right"}}>
-              {u.role!=="admin"&&(
-                <select value={u.role||""} onChange={e=>changeRole(u.uid,e.target.value)} disabled={busy===u.uid}
-                  style={{background:"#0d1c2c",color:"#e2e8f0",border:"1px solid #2d3f55",borderRadius:6,padding:"5px 10px",fontFamily:"inherit",fontSize:12,cursor:"pointer"}}>
-                  <option value="editor">Editor</option>
-                  <option value="viewer">Viewer</option>
-                  <option value="dataEntry">Data Entry</option>
-                </select>
+    <div style={{display:"flex",flexDirection:"column",gap:0}}>
+      <table style={{width:"100%"}}>
+        <thead><tr><th style={{textAlign:"left"}}>Email</th><th style={{textAlign:"left"}}>Role</th><th></th></tr></thead>
+        <tbody>
+          {users.map(u=>(
+            <React.Fragment key={u.uid}>
+              <tr>
+                <td style={{fontSize:13,color:"#e2e8f0",padding:"8px 0"}}>{u.email}</td>
+                <td><span style={{fontSize:11,fontWeight:700,color:roleColour[u.role]||"#94a3b8",textTransform:"uppercase",letterSpacing:"0.05em"}}>{u.role||"—"}</span></td>
+                <td style={{textAlign:"right"}}>
+                  {u.role!=="admin"&&(
+                    <div style={{display:"flex",gap:6,justifyContent:"flex-end",alignItems:"center"}}>
+                      <select value={u.role||""} onChange={e=>changeRole(u.uid,e.target.value)} disabled={!!busy}
+                        style={{background:"#0d1c2c",color:"#e2e8f0",border:"1px solid #2d3f55",borderRadius:6,padding:"5px 10px",fontFamily:"inherit",fontSize:12,cursor:"pointer"}}>
+                        <option value="editor">Editor</option>
+                        <option value="viewer">Viewer</option>
+                        <option value="dataEntry">Data Entry</option>
+                      </select>
+                      <button onClick={()=>resendInvite(u)} disabled={!!busy}
+                        style={{background:"none",border:"1px solid #2d3f55",color:"#94a3b8",borderRadius:4,padding:"5px 10px",fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>
+                        {busy===u.uid?"…":"Resend invite"}
+                      </button>
+                      {confirmRemove===u.uid?(
+                        <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                          <span style={{fontSize:11,color:"#f87171",whiteSpace:"nowrap"}}>Remove?</span>
+                          <button onClick={()=>removeUser(u)} disabled={!!busy}
+                            style={{background:"#7f1d1d",border:"1px solid #ef4444",color:"#fca5a5",borderRadius:4,padding:"5px 10px",fontSize:11,cursor:"pointer"}}>Yes</button>
+                          <button onClick={()=>setConfirmRemove(null)}
+                            style={{background:"none",border:"1px solid #2d3f55",color:"#94a3b8",borderRadius:4,padding:"5px 10px",fontSize:11,cursor:"pointer"}}>No</button>
+                        </div>
+                      ):(
+                        <button onClick={()=>setConfirmRemove(u.uid)} disabled={!!busy}
+                          style={{background:"none",border:"1px solid #2d3f55",color:"#64748b",borderRadius:4,padding:"5px 10px",fontSize:11,cursor:"pointer"}}>
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {u.role==="admin"&&<span style={{fontSize:11,color:"#475569"}}>Protected</span>}
+                </td>
+              </tr>
+              {resendLink[u.uid]&&(
+                <tr>
+                  <td colSpan={3} style={{paddingBottom:8}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,background:"#0d1c2c",border:"1px solid #2d3f55",borderRadius:6,padding:"7px 12px"}}>
+                      <span style={{fontSize:11,color:"#7a9ab5",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{resendLink[u.uid]}</span>
+                      <button onClick={()=>copyResendLink(u.uid)} style={{background:"none",border:"1px solid #2d3f55",color:resendCopied[u.uid]?"#3FA66B":"#94a3b8",borderRadius:4,padding:"4px 10px",fontSize:11,cursor:"pointer",flexShrink:0,transition:"color 0.2s"}}>
+                        {resendCopied[u.uid]?"Copied ✓":"Copy link"}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
               )}
-              {u.role==="admin"&&<span style={{fontSize:11,color:"#475569"}}>Protected</span>}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 };
 
