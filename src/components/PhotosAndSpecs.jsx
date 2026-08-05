@@ -226,7 +226,13 @@ function PhotoManager({asset, saveAsset, notify, label="photos", field="photos"}
     notify('Photo deleted');
   };
 
-  return (
+  const rotateLopaPhoto = async (i) => {
+    const updated = photos.map((p, idx) => idx === i ? {...p, rotate90: !p.rotate90} : p);
+    await saveAsset({...asset, [field]: updated});
+    notify('LOPA orientation updated');
+  };
+
+  return(
     <div>
       <div className="flab g8" style={{marginBottom:12,flexWrap:'wrap'}}>
         <select value={photoLabel} onChange={e=>setPhotoLabel(e.target.value)} style={{width:160}}>
@@ -248,11 +254,16 @@ function PhotoManager({asset, saveAsset, notify, label="photos", field="photos"}
       {photos.length === 0 && <div style={{color:'#475569',fontSize:12,fontStyle:'italic',padding:'8px 0'}}>No photos uploaded yet.</div>}
       <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
         {photos.map((p,i) => (
-          <div key={i} style={{background:'#0d1925',borderRadius:6,overflow:'hidden',border:'1px solid #1e3348',width:120}}>
-            <img src={p.url} alt={p.label} style={{width:'100%',height:70,objectFit:'cover',display:'block'}}/>
-            <div style={{padding:'5px 7px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <div style={{fontSize:10,color:'#94a3b8',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:70}}>{p.label}</div>
-              <button className="btn-danger btn" style={{fontSize:9,padding:'1px 5px'}} onClick={()=>deletePhoto(i)}>✕</button>
+          <div key={i} style={{background:'#0d1925',borderRadius:6,overflow:'hidden',border:'1px solid #1e3348',width:p.label==='LOPA'?180:120}}>
+            <div style={{position:'relative',width:'100%',height:p.label==='LOPA'?90:70,overflow:'hidden'}}>
+              <img src={p.url} alt={p.label} style={{width:'100%',height:'100%',objectFit:'contain',display:'block',transform:p.rotate90?'rotate(90deg)':'none',transformOrigin:'center'}}/>
+            </div>
+            <div style={{padding:'5px 7px',display:'flex',justifyContent:'space-between',alignItems:'center',gap:4}}>
+              <div style={{fontSize:10,color:'#94a3b8',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:p.label==='LOPA'?100:70}}>{p.label}</div>
+              <div style={{display:'flex',gap:3,flexShrink:0}}>
+                {p.label==='LOPA'&&<button className="btn btn-ghost" style={{fontSize:9,padding:'1px 5px'}} title={p.rotate90?'Rotate back':'Rotate 90°'} onClick={()=>rotateLopaPhoto(i)}>↻</button>}
+                <button className="btn-danger btn" style={{fontSize:9,padding:'1px 5px'}} onClick={()=>deletePhoto(i)}>✕</button>
+              </div>
             </div>
           </div>
         ))}
@@ -715,12 +726,31 @@ function AvionicsTab({asset,isAdmin,saveAsset,notify,defaultUploaderOpen=false})
       <div className="section-title" style={{marginBottom:14}}>Avionics LRU List</div>
       {!totalRows&&!editing?(
         <div style={{fontSize:12,color:"#475569",padding:"20px 0",textAlign:"center"}}>No avionics LRU data yet — upload a spec sheet above to get started.</div>
-      ):(
-        <div className="grid2" style={{marginTop:14}}>
-          {sortedChapters.map(key=><RowsTable key={key} chapterKey={key} rows={groups[key]}/>)}
-          {ungrouped.length>0&&<RowsTable chapterKey={null} rows={ungrouped}/>}
-        </div>
-      )}
+      ):(()=>{
+        // If all rows are ungrouped (no ATA chapters) and there are enough
+        // rows, split into two side-by-side halves — mirrors the tech spec
+        // two-column behaviour for long ungrouped lists.
+        const SPLIT_THRESHOLD=20;
+        const hasChapters=sortedChapters.length>0;
+        const longUngrouped=!hasChapters&&ungrouped.length>SPLIT_THRESHOLD;
+        if(longUngrouped){
+          const half=Math.ceil(ungrouped.length/2);
+          const leftRows=ungrouped.slice(0,half);
+          const rightRows=ungrouped.slice(half);
+          return(
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginTop:14}}>
+              <RowsTable chapterKey={null} rows={leftRows}/>
+              <RowsTable chapterKey={null} rows={rightRows}/>
+            </div>
+          );
+        }
+        return(
+          <div className="grid2" style={{marginTop:14}}>
+            {sortedChapters.map(key=><RowsTable key={key} chapterKey={key} rows={groups[key]}/>)}
+            {ungrouped.length>0&&<RowsTable chapterKey={null} rows={ungrouped}/>}
+          </div>
+        );
+      })()}
     </div>
   );
 };

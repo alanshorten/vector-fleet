@@ -354,10 +354,18 @@ ${apu.llps?.length?`${cO("APU Life Limited Parts",svgList)}<table style="width:1
 ${(()=>{
     const lopaPhoto=(asset.photos||[]).find(p=>p.label==="LOPA");
     if(!lopaPhoto)return"";
+    // rotate90: swap displayed w/h and rotate via CSS transform so the image
+    // fills the page width regardless of the source file orientation.
+    const lopaStyle=lopaPhoto.rotate90
+      ? `width:auto;max-height:100%;height:720px;max-width:none;object-fit:contain;background:#fff;border-radius:4px;display:block;margin:0 auto;transform:rotate(90deg);transform-origin:center`
+      : `width:100%;max-height:680px;object-fit:contain;background:#fff;border-radius:4px;display:block;margin:0 auto`;
+    const lopaWrap=lopaPhoto.rotate90
+      ? `style="text-align:center;margin-top:10px;height:720px;display:flex;align-items:center;justify-content:center;overflow:hidden"`
+      : `style="text-align:center;margin-top:10px"`;
     return`${PAGE_FOOTER}<div class="pb"></div>
 <h3>LOPA — Layout of Passenger Accommodation</h3>
-<div style="text-align:center;margin-top:10px">
-  <img src="${lopaPhoto.url}" style="width:100%;max-height:680px;object-fit:contain;background:#fff;border-radius:4px;display:block;margin:0 auto"/>
+<div ${lopaWrap}>
+  <img src="${lopaPhoto.url}" style="${lopaStyle}"/>
 </div>`;
   })()}
 ${(()=>{
