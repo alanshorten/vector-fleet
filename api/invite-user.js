@@ -59,7 +59,11 @@ function emailHTML(resetLink, role) {
         <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0 0 22px;">${roleDesc}</p>
         <a href="${resetLink}" style="display:inline-block;background:#C9A84C;color:#0a1520;text-decoration:none;
           font-weight:700;font-size:14px;padding:12px 22px;border-radius:6px;">Set your password</a>
-        <p style="color:#5a7a9a;font-size:12px;margin-top:24px;">
+        <p style="color:#5a7a9a;font-size:12px;margin-top:20px;line-height:1.5;">
+          If the button doesn't work, copy and paste this link into your browser:<br>
+          <a href="${resetLink}" style="color:#7a9ab5;word-break:break-all;">${resetLink}</a>
+        </p>
+        <p style="color:#5a7a9a;font-size:12px;margin-top:16px;">
           If you weren't expecting this invitation, you can safely ignore this email.
         </p>
       </div>
@@ -177,7 +181,7 @@ module.exports = async (req, res) => {
       });
     }
 
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({ ok: true, inviteLink: resetLink });
   } catch (err) {
     console.error('invite-user: failed', err);
     return res.status(500).json({ error: 'Something went wrong creating the invite. Please try again.' });
