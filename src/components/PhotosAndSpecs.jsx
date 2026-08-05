@@ -11,19 +11,18 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
   const[pageThumbs,setPageThumbs]=useState([]);
   const[selectedPage,setSelectedPage]=useState(1);
   const[pageImageUrl,setPageImageUrl]=useState(null);
-  const[imgNatural,setImgNatural]=useState({w:0,h:0});
   const[crop,setCrop]=useState({x:40,y:40,w:300,h:200});
-  const[dragMode,setDragMode]=useState(null); // null | "move" | "br" | "tl" etc
+  const[dragMode,setDragMode]=useState(null);
   const[dragStart,setDragStart]=useState(null);
   const[error,setError]=useState(null);
-  const[rotation,setRotation]=useState(0); // 0 | 90 | 180 | 270
+  const[rotating,setRotating]=useState(false);
   const imgRef=useRef(null);
   const containerRef=useRef(null);
 
   const handleFile=async(e)=>{
     const f=e.target.files?.[0];
     if(!f)return;
-    setFile(f);setError(null);setRotation(0);
+    setFile(f);setError(null);
     const isPDF=f.type==="application/pdf";
     if(isPDF){
       if(!window.pdfjsLib){setError("PDF rendering library failed to load. Please refresh and try again.");return;}
@@ -69,14 +68,33 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
   const choosePage=async(pageNum)=>{
     setSelectedPage(pageNum);
     await renderPage(pdfDoc,pageNum);
-    setRotation(0);
     setStage("crop");
+  };
+
+  // Bake a 90° CW rotation into a new canvas and replace pageImageUrl.
+  // The <img> always displays the image upright, so the crop box
+  // always covers the full image and coordinates are always valid.
+  const rotatePage=()=>{
+    const el=imgRef.current;
+    if(!el||rotating)return;
+    setRotating(true);
+    const srcW=el.naturalWidth, srcH=el.naturalHeight;
+    // 90° CW: output width = source height, output height = source width
+    const canvas=document.createElement("canvas");
+    canvas.width=srcH;
+    canvas.height=srcW;
+    const ctx=canvas.getContext("2d");
+    ctx.fillStyle="#fff";ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.translate(srcH/2,srcW/2);
+    ctx.rotate(Math.PI/2);
+    ctx.drawImage(el,-srcW/2,-srcH/2);
+    setPageImageUrl(canvas.toDataURL());
+    setRotating(false);
   };
 
   const onImgLoad=()=>{
     const el=imgRef.current;
     if(!el)return;
-    setImgNatural({w:el.naturalWidth,h:el.naturalHeight});
     const dispW=el.clientWidth,dispH=el.clientHeight;
     setCrop({x:dispW*0.1,y:dispH*0.1,w:dispW*0.8,h:dispH*0.8});
   };
@@ -123,25 +141,12 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
       const el=imgRef.current;
       const scaleX=el.naturalWidth/el.clientWidth;
       const scaleY=el.naturalHeight/el.clientHeight;
-      // Crop rectangle in natural image pixels
-      const srcX=crop.x*scaleX, srcY=crop.y*scaleY;
-      const srcW=crop.w*scaleX, srcH=crop.h*scaleY;
-      // Output canvas dimensions swap on 90/270 degree rotation
-      const isTransposed=rotation===90||rotation===270;
-      const outW=isTransposed?srcH:srcW;
-      const outH=isTransposed?srcW:srcH;
       const canvas=document.createElement("canvas");
-      canvas.width=outW;
-      canvas.height=outH;
+      canvas.width=crop.w*scaleX;
+      canvas.height=crop.h*scaleY;
       const ctx=canvas.getContext("2d");
-      ctx.fillStyle="#fff";ctx.fillRect(0,0,outW,outH);
-      // Apply rotation around the canvas centre before drawing
-      ctx.save();
-      ctx.translate(outW/2,outH/2);
-      ctx.rotate((rotation*Math.PI)/180);
-      // After rotation the crop rect maps to (-srcW/2,-srcH/2,srcW,srcH)
-      ctx.drawImage(el,srcX,srcY,srcW,srcH,-srcW/2,-srcH/2,srcW,srcH);
-      ctx.restore();
+      ctx.fillStyle="#fff";ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(el,crop.x*scaleX,crop.y*scaleY,crop.w*scaleX,crop.h*scaleY,0,0,canvas.width,canvas.height);
       const blob=await new Promise(res=>canvas.toBlob(res,"image/png"));
       const croppedFile=new File([blob],"lopa-crop.png",{type:"image/png"});
       const url=await uploadToCloudinary(croppedFile);
@@ -191,12 +196,12 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
 
         {stage==="crop"&&pageImageUrl&&(
           <div>
-            <div style={{fontSize:12,color:"#64748b",marginBottom:10}}>Drag the box to select just the cabin diagram. Drag corners to resize. Rotate if the image orientation needs correcting — rotation is baked into the saved file.</div>
-            <div ref={containerRef} style={{position:"relative",display:"inline-block",maxWidth:"100%",overflow:"hidden"}}
+            <div style={{fontSize:12,color:"#64748b",marginBottom:10}}>Drag the box to select the cabin diagram. Drag corners to resize. Use Rotate to correct orientation — the image is re-rendered upright each time so the full area is always available to crop.</div>
+            <div ref={containerRef} style={{position:"relative",display:"inline-block",maxWidth:"100%"}}
               onMouseMove={onDrag} onMouseUp={endDrag} onMouseLeave={endDrag}
               onTouchMove={onDrag} onTouchEnd={endDrag}>
               <img ref={imgRef} src={pageImageUrl} onLoad={onImgLoad}
-                style={{maxWidth:"100%",display:"block",userSelect:"none",transform:`rotate(${rotation}deg)`,transformOrigin:"center",transition:"transform 0.2s"}}
+                style={{maxWidth:"100%",display:"block",userSelect:"none"}}
                 draggable={false}/>
               <div onMouseDown={startDrag("move")} onTouchStart={startDrag("move")}
                 style={{position:"absolute",left:crop.x,top:crop.y,width:crop.w,height:crop.h,border:"2px solid #C9A84C",background:"rgba(201,168,76,0.15)",cursor:"move"}}>
@@ -205,8 +210,8 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
               </div>
             </div>
             <div className="flab g8" style={{marginTop:14}}>
-              <button className="btn btn-ghost" onClick={()=>{setStage("upload");setFile(null);setPageImageUrl(null);setRotation(0);}}>Start Over</button>
-              <button className="btn btn-ghost" onClick={()=>setRotation(r=>(r+90)%360)} title="Rotate 90° clockwise">↻ Rotate</button>
+              <button className="btn btn-ghost" onClick={()=>{setStage("upload");setFile(null);setPageImageUrl(null);}}>Start Over</button>
+              <button className="btn btn-ghost" onClick={rotatePage} disabled={rotating}>↻ Rotate</button>
               <button className="btn btn-gold" onClick={confirmCrop}>Save Crop as LOPA</button>
             </div>
           </div>
