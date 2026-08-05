@@ -296,12 +296,24 @@ function projectReservePot(pot, ctx) {
   // Horizon rule: an event that would fall beyond the lease end is not
   // fired or flagged as a shortfall — it's partial-funded at redelivery.
   // Surface it as informational, not as a shortfall event.
+  // costLow/costHigh/costLikely included so the chart can plot the event
+  // dot and compute the post-lease shortfall (balance frozen at lease end
+  // vs event cost) without re-running the projection.
   let partialFundedNote = null;
   if (nextEventIdx < eventMonths.length) {
     const nextM = eventMonths[nextEventIdx].monthMid;
+    const postLeaseDate = addMonths(leaseStart, Math.round(nextM));
+    const postLeaseCost = escalatedCostRange(pot, postLeaseDate);
+    const leaseEndBalance = monthlySeries.length ? monthlySeries[monthlySeries.length - 1].balance : 0;
     partialFundedNote = {
       monthIndex: Math.round(nextM),
-      date: addMonths(leaseStart, Math.round(nextM)),
+      date: postLeaseDate,
+      costLow: postLeaseCost.low,
+      costLikely: postLeaseCost.likely,
+      costHigh: postLeaseCost.high,
+      balanceAtLeaseEnd: leaseEndBalance,
+      shortfallLow: postLeaseCost.low - leaseEndBalance,
+      shortfallHigh: postLeaseCost.high - leaseEndBalance,
       note: "Falls beyond lease end — partial-funded, settles at redelivery (not a shortfall)."
     };
   }

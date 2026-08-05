@@ -112,12 +112,56 @@ function MaintenanceCalendarGrid({ events }) {
   );
 }
 
-function MiniLineChart({ labels, datasets, height }) {
+// leaseEndIdx: index in labels[] where the lease ends. When supplied,
+// draws a vertical divider line + "Lease end · Accruals stop" label,
+// and the post-lease region gets a muted grey background fill.
+function MiniLineChart({ labels, datasets, height, leaseEndIdx }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
   useEffect(() => {
     if (!window.Chart || !canvasRef.current) return;
     if (chartRef.current) chartRef.current.destroy();
+
+    // Inline Chart.js plugin — draws the lease-end divider + shaded
+    // post-lease region directly on the canvas after each render.
+    // No external annotation plugin needed.
+    const leaseEndPlugin = (typeof leaseEndIdx === "number" && leaseEndIdx >= 0) ? {
+      id: "leaseEndDivider",
+      afterDraw(chart) {
+        const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+        if (!x || leaseEndIdx >= x.ticks.length) return;
+
+        // x-pixel position for the lease-end tick
+        const xPx = x.getPixelForValue(leaseEndIdx);
+
+        // Muted grey shading over the post-lease region
+        ctx.save();
+        ctx.fillStyle = "rgba(30,48,72,0.45)";
+        ctx.fillRect(xPx, top, chart.chartArea.right - xPx, bottom - top);
+
+        // Vertical divider line
+        ctx.beginPath();
+        ctx.strokeStyle = "#475569";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 3]);
+        ctx.moveTo(xPx, top);
+        ctx.lineTo(xPx, bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Label — two lines: "Lease end" + "Accruals stop"
+        ctx.font = "bold 9px sans-serif";
+        ctx.fillStyle = "#64748b";
+        ctx.textAlign = "left";
+        const labelX = xPx + 4;
+        ctx.fillText("Lease end", labelX, top + 12);
+        ctx.font = "9px sans-serif";
+        ctx.fillStyle = "#475569";
+        ctx.fillText("Accruals stop", labelX, top + 23);
+        ctx.restore();
+      }
+    } : null;
+
     chartRef.current = new window.Chart(canvasRef.current, {
       type: "line",
       data: { labels, datasets },
@@ -144,21 +188,126 @@ function MiniLineChart({ labels, datasets, height }) {
             grid: { color: "#1e3048" }
           }
         }
-      }
+      },
+      plugins: leaseEndPlugin ? [leaseEndPlugin] : []
     });
     return () => { if (chartRef.current) chartRef.current.destroy(); };
-  }, [labels, JSON.stringify(datasets)]);
+  }, [labels, JSON.stringify(datasets), leaseEndIdx]);
   return <div style={{ height: height || 220 }}><canvas ref={canvasRef}/></div>;
 };
 
-function FFPotCard({ projection, color, anchored }) {
-  const labels = projection.monthlySeries.map(m => m.date.toISOString().slice(0, 7));
-  const balanceData = projection.monthlySeries.map(m => Math.round(m.balance));
-  const eventLikelyByMonth = {};
-  projection.events.forEach(e => { eventLikelyByMonth[e.monthIndex] = e.costLikely; });
-  const eventPoints = projection.monthlySeries.map(m => eventLikelyByMonth[m.monthIndex] ?? null);
+// addMonthsToDate: pure JS date helper used only in FFPotCard for chart
+// extension — no Brain dependency needed, just month arithmetic.
+function addMonthsToDate(date, n) {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + n);
+  return d;
+}
 
-  const datasets = [
+function FFPotCard({ projection, color, anchored }) {
+  const note = projection.partialFundedNote;
+
+  // --- Base series (within lease) ---
+  const baseLabels = projection.monthlySeries.map(m => m.date.toISOString().slice(0, 7));
+  const baseBalance = projection.monthlySeries.map(m => Math.round(m.balance));
+  const leaseEndIdx = baseLabels.length - 1; // last point of the within-lease series
+
+  // --- Post-lease extension ---
+  // When partialFundedNote exists (non-LLP pots), extend the chart from
+  // lease end to the next event with a flat frozen balance line.
+  // Cap the extension at 6 months past lease end to avoid compressing the
+  // within-lease chart: if the event is further than 6 months out, we show
+  // 5 flat months then jump to an event stub at month 6 labelled with the
+  // real date. The broken-axis effect is visual only — the label at the
+  // event dot carries the real date so there's no ambiguity.
+  const POST_LEASE_MAX_MONTHS = 6;
+
+  let labels = baseLabels;
+  let balanceData = baseBalance;
+  let eventPoints = projection.monthlySeries.map(() => null);
+  let hasPostLease = false;
+
+  if (note && note.costLikely != null) {
+    hasPostLease = true;
+    const leaseEndDate = projection.monthlySeries[projection.monthlySeries.length - 1].date;
+    const frozenBalance = baseBalance[baseBalance.length - 1];
+
+    // How many months from lease end to the next event?
+    const monthsToEvent = Math.round(
+      (note.date.getFullYear() - leaseEndDate.getFullYear()) * 12 +
+      (note.date.getMonth() - leaseEndDate.getMonth())
+    );
+    const stubMonths = Math.min(monthsToEvent, POST_LEASE_MAX_MONTHS);
+    const compressed = monthsToEvent > POST_LEASE_MAX_MONTHS;
+
+    // Build the flat post-lease stub labels + balance
+    const stubLabels = [];
+    const stubBalance = [];
+    for (let i = 1; i <= stubMonths; i++) {
+      const d = addMonthsToDate(leaseEndDate, i);
+      // If compressed, label the final stub month with the real event date
+      // so the user sees the actual year-month, not a fake compressed one
+      if (compressed && i === stubMonths) {
+        stubLabels.push(note.date.toISOString().slice(0, 7));
+      } else {
+        stubLabels.push(d.toISOString().slice(0, 7));
+      }
+      stubBalance.push(frozenBalance);
+    }
+
+    labels = [...baseLabels, ...stubLabels];
+    balanceData = [...baseBalance, ...stubBalance];
+
+    // Event dots — within-lease events on their original indices,
+    // post-lease event dot at the final stub position
+    const withinLeaseEventPoints = projection.monthlySeries.map(m => {
+      const e = projection.events.find(ev => ev.monthIndex === m.monthIndex);
+      return e ? e.costLikely : null;
+    });
+    const stubEventPoints = stubLabels.map((_, i) =>
+      i === stubLabels.length - 1 ? note.costLikely : null
+    );
+    eventPoints = [...withinLeaseEventPoints, ...stubEventPoints];
+  } else {
+    // No post-lease extension — map within-lease event dots normally
+    const eventLikelyByMonth = {};
+    projection.events.forEach(e => { eventLikelyByMonth[e.monthIndex] = e.costLikely; });
+    eventPoints = projection.monthlySeries.map(m => eventLikelyByMonth[m.monthIndex] ?? null);
+  }
+
+  // Post-lease balance line: muted colour, dashed
+  const datasets = hasPostLease ? [
+    {
+      label: "Projected Balance",
+      data: balanceData.slice(0, leaseEndIdx + 1),
+      borderColor: color,
+      backgroundColor: color + "22",
+      fill: true,
+      tension: 0.15,
+      pointRadius: 0,
+      borderWidth: 2
+    },
+    {
+      label: "Frozen balance (post-lease)",
+      data: [...Array(leaseEndIdx + 1).fill(null), ...balanceData.slice(leaseEndIdx + 1)],
+      borderColor: "#475569",
+      backgroundColor: "transparent",
+      fill: false,
+      tension: 0,
+      pointRadius: 0,
+      borderWidth: 1.5,
+      borderDash: [4, 3]
+    },
+    {
+      label: "Event Cost (likely)",
+      data: eventPoints,
+      borderColor: "#e2e8f0",
+      backgroundColor: "#e2e8f0",
+      pointRadius: 5,
+      pointStyle: "rectRot",
+      showLine: false
+    }
+  ] : [
     { label: "Projected Balance", data: balanceData, borderColor: color, backgroundColor: color + "22", fill: true, tension: 0.15, pointRadius: 0, borderWidth: 2 },
     { label: "Event Cost (likely)", data: eventPoints, borderColor: "#e2e8f0", backgroundColor: "#e2e8f0", pointRadius: 5, pointStyle: "rectRot", showLine: false }
   ];
@@ -166,19 +315,26 @@ function FFPotCard({ projection, color, anchored }) {
   const worstShortfallHigh = projection.events.length
     ? Math.max(...projection.events.map(e => e.shortfallHigh))
     : -Infinity;
-  const atRisk = worstShortfallHigh > 0;
+  const postLeaseShortfall = note && note.shortfallHigh != null && note.shortfallHigh > 0;
+  const atRisk = worstShortfallHigh > 0 || postLeaseShortfall;
 
   return (
     <div className="card" style={{ padding: 16, marginBottom: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>{projection.code} — {projection.label}</div>
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{projection.events.length} projected event{projection.events.length===1?"":"s"} within lease horizon</div>
+          <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+            {projection.events.length} projected event{projection.events.length===1?"":"s"} within lease
+            {note ? ` · next event post-lease ${note.date.toISOString().slice(0,7)}` : ""}
+          </div>
         </div>
         {anchored && <span className="pill" style={{ background: "#0d2818", color: "#34d399" }}>📍 Anchored to real next-due date</span>}
-        {atRisk && <span className="pill" style={{ background: "#2a0e0e", color: "#f87171" }}>⚠ Potential shortfall</span>}
+        {atRisk && !postLeaseShortfall && <span className="pill" style={{ background: "#2a0e0e", color: "#f87171" }}>⚠ Potential shortfall</span>}
+        {postLeaseShortfall && <span className="pill" style={{ background: "#1a1505", color: "#fbbf24" }}>⚠ Post-lease shortfall</span>}
       </div>
-      <MiniLineChart labels={labels} datasets={datasets}/>
+      <MiniLineChart labels={labels} datasets={datasets} leaseEndIdx={hasPostLease ? leaseEndIdx : undefined}/>
+
+      {/* Within-lease events table */}
       {projection.events.length > 0 && (
         <div style={{ marginTop: 10, overflow: "auto" }}>
           <table style={{ fontSize: 11 }}>
@@ -203,11 +359,39 @@ function FFPotCard({ projection, color, anchored }) {
           </table>
         </div>
       )}
-      {projection.partialFundedNote && (
-        <div style={{ marginTop: 8, fontSize: 11, color: "#94a3b8" }}>
-          ℹ Next interval ({projection.partialFundedNote.date.toISOString().slice(0,7)}) falls beyond lease end — partial-funded, settles at redelivery.
+
+      {/* Post-lease event row — shown when partialFundedNote has cost data */}
+      {note && note.costLow != null && (
+        <div style={{ marginTop: projection.events.length > 0 ? 0 : 10, overflow: "auto" }}>
+          <table style={{ fontSize: 11 }}>
+            {projection.events.length === 0 && (
+              <thead><tr>
+                <th style={{ color: "#64748b", textAlign: "left" }}>Event Date</th>
+                <th style={{ color: "#64748b", textAlign: "right" }}>Cost Range</th>
+                <th style={{ color: "#64748b", textAlign: "right" }}>Balance at Lease End</th>
+                <th style={{ color: "#64748b", textAlign: "right" }}>Shortfall Band</th>
+              </tr></thead>
+            )}
+            <tbody>
+              <tr style={{ opacity: 0.75 }}>
+                <td>
+                  <span style={{ color: "#475569", marginRight: 6, fontSize: 10 }}>POST-LEASE</span>
+                  {note.date.toISOString().slice(0, 7)}
+                </td>
+                <td style={{ textAlign: "right" }}>${Math.round(note.costLow).toLocaleString()} – ${Math.round(note.costHigh).toLocaleString()}</td>
+                <td style={{ textAlign: "right" }}>${Math.round(note.balanceAtLeaseEnd).toLocaleString()}</td>
+                <td style={{ textAlign: "right", color: note.shortfallHigh > 0 ? "#fbbf24" : "#34d399" }}>
+                  ${Math.round(note.shortfallLow).toLocaleString()} – ${Math.round(note.shortfallHigh).toLocaleString()}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div style={{ fontSize: 10, color: "#475569", marginTop: 4 }}>
+            Pot balance frozen at lease end — accruals stop when this lessee's lease expires. Shortfall is the gap between the frozen balance and the next event cost.
+          </div>
         </div>
       )}
+
       {projection.warnings.map((w, i) => (
         <div key={i} style={{ marginTop: 8, fontSize: 11, color: "#fbbf24", background: "#2a1f0a", padding: "6px 10px", borderRadius: 6 }}>{w}</div>
       ))}
