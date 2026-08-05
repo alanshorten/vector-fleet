@@ -509,14 +509,11 @@ function RouteMatcherView({ assets, onSelectAsset }) {
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
-      <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
+      <div className="card" style={{ padding: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Route Suitability Matcher</div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2, marginBottom: 16 }}>
           Describe the route — a wet lease, a seasonal schedule, a reassignment — and every eligible asset is compared against it. Exploratory only; nothing here is saved.
         </div>
-      </div>
-
-      <div className="card" style={{ padding: 16, marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>The route</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 12 }}>
           <label style={{ fontSize: 11, color: "#94a3b8" }}>
@@ -953,7 +950,7 @@ function PandemicScenarioView({ assets }) {
   const deltaColor = (b, s) => (s > b ? "#f87171" : s < b ? "#34d399" : "#94a3b8");
 
   return (
-    <div className="card" style={{ padding: 16, marginTop: 16 }}>
+    <div className="card" style={{ padding: 16 }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Pandemic Scenario</div>
       <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
         Grounds the entire fleet from today for the selected period, combined with each asset's own real maintenance grounding — whichever grounds harder wins, downtime never stacks. Exploratory only; nothing here is saved.
