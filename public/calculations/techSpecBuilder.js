@@ -80,7 +80,7 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
     const llpRows=(llps,csn)=>!llps?.length?'<tr><td colspan="4" style="color:#aaa;font-style:italic">No LLP data entered</td></tr>':llps.map(l=>{const r=calcLLPRem(l,csn);return`<tr><td>${l.desc||""}</td><td style="font-family:monospace">${l.pn||""}</td><td style="font-family:monospace">${l.sn||""}</td><td style="font-weight:700;color:${r<1000?"#dc2626":r<3000?"#d97706":"#111"}">${r.toLocaleString()}</td></tr>`;}).join("");
   const svRows=(visits,currentFH,currentFC)=>{if(!visits||!visits.length)return'<tr><td colspan="4" style="color:#aaa;font-style:italic">No shop visits recorded</td></tr>';const mroLine=(mro)=>mro?'<br/><span style="font-size:9px;color:#6b7280">'+mro+'</span>':"";const rows=visits.map(sv=>'<tr><td>'+(sv.details||"")+'</td><td>'+fmtDate(sv.date)+mroLine(sv.mro)+'</td><td style="font-family:monospace">'+(fmtHHMM(sv.fh)||"")+'</td><td style="font-family:monospace">'+(sv.fc?sv.fc.toLocaleString():"")+'</td></tr>').join("");const last=visits[visits.length-1];const sinceFH=currentFH&&last.fh?currentFH-last.fh:null;const sinceFC=currentFC&&last.fc?currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;const sinceRow='<tr style="background:#f1f5f9"><td colspan="2" style="color:#323F42;font-weight:700">Since Last Shop Visit</td><td style="font-family:monospace">'+(sinceFH!==null?fmtHHMM(sinceFH):"—")+'</td><td style="font-family:monospace">'+(sinceFC!==null?sinceFC.toLocaleString():"—")+'</td></tr><tr style="background:#f1f5f9"><td colspan="4" style="color:#6b7280;font-size:9px">Days since last shop visit: '+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td></tr>';return rows+sinceRow;};
   const operatorHistoryRows=(rows)=>{if(!rows?.length)return'<tr><td colspan="7" style="color:#aaa;font-style:italic">No operator history recorded</td></tr>';const sorted=[...rows].sort((a,b)=>{if(!a.installDate)return 1;if(!b.installDate)return -1;return new Date(a.installDate)-new Date(b.installDate);});const mostRecent=sorted[sorted.length-1];return sorted.map(r=>'<tr'+(r._gapFlag?' style="background:#fef3cd"':'')+'><td>'+(r.operator||"—")+'</td><td style="font-family:monospace">'+(r.aircraft||"—")+'</td><td>'+fmtDate(r.installDate)+'</td><td>'+(r.removalDate?fmtDate(r.removalDate):(r===mostRecent?('No removal recorded'+(r.asOfDate?' (as of '+fmtDate(r.asOfDate)+')':'')):'Unknown'))+'</td><td style="font-family:monospace">'+(r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—")+'</td><td style="font-family:monospace">'+(r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—")+'</td><td>'+(r.reason||"—")+'</td></tr>').join("");};
-  const engSec=(eng,pos,fullHistory=false)=>{if(!eng)return"";const ll=lowestLimiter(eng);const llDesc=lowestLLPDesc(eng);const svRecent=(eng.shopVisits||[]).slice(-1);const svAll=eng.shopVisits||[];return`
+  const engSec=(eng,pos,fullHistory=false)=>{if(!eng)return"";const ll=lowestLimiter(eng);const llDesc=lowestLLPDesc(eng);const svSorted=[...(eng.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});const svRecent=svSorted.slice(-1);const svAll=svSorted;return`
 ${pgH(`Engine #${pos} \u2014 ESN ${eng.sn||"\u2014"}`)}
 ${col2(
   `<td style="${CS}">
@@ -280,7 +280,7 @@ ${(()=>{
     const pos=i+1;
     const ll=lowestLimiter(eng);
     const llDesc=lowestLLPDesc(eng);
-    const svList=(eng.shopVisits||[]).slice(-1);
+    const svList=[...(eng.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);}).slice(-1);
     return`
 ${pgH(`Engine #${pos} \u2014 Powerplant Status`)}
 ${col2(
@@ -349,7 +349,7 @@ ${col2(
     </table>
     ${(()=>{const ll=lowestLimiter(apu);const desc=lowestLLPDesc(apu);return ll!==null?progBar(ll)+(desc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${desc}</div>`:""):"";})()}
   </td>`,
-  (()=>{const svList=(apu.shopVisits||[]).slice(-1);return svList.length
+  (()=>{const svList=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);}).slice(-1);return svList.length
     ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,apu.currentFH,apu.currentFC)}</tbody></table></td>`
     :`<td style="border:none;padding:0"></td>`;})()
 )}
