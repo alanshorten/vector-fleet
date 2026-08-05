@@ -316,67 +316,73 @@ function Scenarios({ asset }) {
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
 
-      {/* Top section — 3-column grid on landscape: desc | sliders | per-pot */}
+      {/* Top section — 2-column grid on landscape.
+          Left col: description card (top) + sliders card (bottom), stacked.
+          Right col: per-pot table card, full height matching both left cards. */}
       <div style={layoutMode === "landscape"
-        ? { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", columnGap: 16, marginBottom: 16, alignItems: "stretch" }
+        ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 16, marginBottom: 16, alignItems: "stretch" }
         : undefined}>
 
-        {/* Col 1 — description */}
-        <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: layoutMode === "landscape" ? 0 : 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Scenarios — MSN {asset.msn}</div>
-          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-            Exploratory only — nothing here is saved. Escalation rates aren't adjustable here — they're reviewed yearly against the real catalogue, not a hypothetical.
-          </div>
-        </div>
+        {/* Left column — description + sliders stacked */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-        {/* Col 2 — sliders */}
-        <div className="card" style={{ padding: 16, marginBottom: layoutMode === "landscape" ? 0 : 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Adjust the scenario</div>
-          <ScenarioSlider label="Utilisation change" value={utilPct} onChange={setUtilPct} min={-50} max={50} step={1} format={fmtPct}/>
-          <ScenarioSlider label="Lease extension" value={leaseExtMonths} onChange={setLeaseExtMonths} min={0} max={36} step={1} format={fmtMonths}/>
-          <ScenarioSlider label="Average sector length change" value={sectorPct} onChange={setSectorPct} min={-50} max={50} step={1} format={fmtPct}/>
-
-          <div style={{ borderTop: "1px solid #1e3048", marginTop: 4, paddingTop: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>AOG window</div>
-            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10 }}>Grounds the aircraft for a period — usage-basis pots freeze, calendar-basis pots keep accruing (same as a C-Check grounding).</div>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
-                Starts (months from now)
-                <input type="number" min="0" step="1" value={aogStartMonth} onChange={e => setAogStartMonth(Math.max(0, Number(e.target.value) || 0))}
-                  style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
-              </label>
-              <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
-                Duration (months)
-                <input type="number" min="0" step="1" value={aogDurationMonths} onChange={e => setAogDurationMonths(Math.max(0, Number(e.target.value) || 0))}
-                  style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
-              </label>
+          {/* Description */}
+          <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Scenarios — MSN {asset.msn}</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+              Exploratory only — nothing here is saved. Escalation rates aren't adjustable here — they're reviewed yearly against the real catalogue, not a hypothetical.
             </div>
           </div>
 
-          <div style={{ borderTop: "1px solid #1e3048", marginTop: 14, paddingTop: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Lessee default</div>
-            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10 }}>Suspends reserve accrual across every pot for a period — usage continues (the aircraft keeps flying), the lessee just isn't paying into any account.</div>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
-                Starts (months from now)
-                <input type="number" min="0" step="1" value={defaultStartMonth} onChange={e => setDefaultStartMonth(Math.max(0, Number(e.target.value) || 0))}
-                  style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
-              </label>
-              <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
-                Duration (months)
-                <input type="number" min="0" step="1" value={defaultDurationMonths} onChange={e => setDefaultDurationMonths(Math.max(0, Number(e.target.value) || 0))}
-                  style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
-              </label>
-            </div>
-          </div>
+          {/* Sliders */}
+          <div className="card" style={{ padding: 16, flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Adjust the scenario</div>
+            <ScenarioSlider label="Utilisation change" value={utilPct} onChange={setUtilPct} min={-50} max={50} step={1} format={fmtPct}/>
+            <ScenarioSlider label="Lease extension" value={leaseExtMonths} onChange={setLeaseExtMonths} min={0} max={36} step={1} format={fmtMonths}/>
+            <ScenarioSlider label="Average sector length change" value={sectorPct} onChange={setSectorPct} min={-50} max={50} step={1} format={fmtPct}/>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
-            <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} disabled={!scenarioActive} onClick={resetScenario}>Reset to base case</button>
+            <div style={{ borderTop: "1px solid #1e3048", marginTop: 4, paddingTop: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>AOG window</div>
+              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10 }}>Grounds the aircraft for a period — usage-basis pots freeze, calendar-basis pots keep accruing (same as a C-Check grounding).</div>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+                  Starts (months from now)
+                  <input type="number" min="0" step="1" value={aogStartMonth} onChange={e => setAogStartMonth(Math.max(0, Number(e.target.value) || 0))}
+                    style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+                </label>
+                <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+                  Duration (months)
+                  <input type="number" min="0" step="1" value={aogDurationMonths} onChange={e => setAogDurationMonths(Math.max(0, Number(e.target.value) || 0))}
+                    style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+                </label>
+              </div>
+            </div>
+
+            <div style={{ borderTop: "1px solid #1e3048", marginTop: 14, paddingTop: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Lessee default</div>
+              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10 }}>Suspends reserve accrual across every pot for a period — usage continues (the aircraft keeps flying), the lessee just isn't paying into any account.</div>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+                  Starts (months from now)
+                  <input type="number" min="0" step="1" value={defaultStartMonth} onChange={e => setDefaultStartMonth(Math.max(0, Number(e.target.value) || 0))}
+                    style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+                </label>
+                <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+                  Duration (months)
+                  <input type="number" min="0" step="1" value={defaultDurationMonths} onChange={e => setDefaultDurationMonths(Math.max(0, Number(e.target.value) || 0))}
+                    style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+                </label>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+              <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} disabled={!scenarioActive} onClick={resetScenario}>Reset to base case</button>
+            </div>
           </div>
         </div>
 
-        {/* Col 3 — per-pot table */}
-        <div className="card" style={{ padding: 16, marginBottom: layoutMode === "landscape" ? 0 : 16 }}>
+        {/* Right column — per-pot table, full height */}
+        <div className="card" style={{ padding: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Per-Pot Worst-Case Shortfall — Base vs. Scenario</div>
           <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>Timing shift shows how many months the same projected event moves under this scenario — a pot showing "Beyond horizon" in base case had no event within the lease term until the scenario pulled it forward. Cost Overrun nudges that specific event's estimated cost up or down — default 0% on every row, only rows with a projected event get one.</div>
           <table style={{ fontSize: 12, width: "100%" }}>
