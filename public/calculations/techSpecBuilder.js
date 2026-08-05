@@ -354,18 +354,10 @@ ${apu.llps?.length?`${cO("APU Life Limited Parts",svgList)}<table style="width:1
 ${(()=>{
     const lopaPhoto=(asset.photos||[]).find(p=>p.label==="LOPA");
     if(!lopaPhoto)return"";
-    // rotate90: swap displayed w/h and rotate via CSS transform so the image
-    // fills the page width regardless of the source file orientation.
-    const lopaStyle=lopaPhoto.rotate90
-      ? `width:auto;max-height:100%;height:720px;max-width:none;object-fit:contain;background:#fff;border-radius:4px;display:block;margin:0 auto;transform:rotate(90deg);transform-origin:center`
-      : `width:100%;max-height:680px;object-fit:contain;background:#fff;border-radius:4px;display:block;margin:0 auto`;
-    const lopaWrap=lopaPhoto.rotate90
-      ? `style="text-align:center;margin-top:10px;height:720px;display:flex;align-items:center;justify-content:center;overflow:hidden"`
-      : `style="text-align:center;margin-top:10px"`;
     return`${PAGE_FOOTER}<div class="pb"></div>
 <h3>LOPA — Layout of Passenger Accommodation</h3>
-<div ${lopaWrap}>
-  <img src="${lopaPhoto.url}" style="${lopaStyle}"/>
+<div style="text-align:center;margin-top:10px">
+  <img src="${lopaPhoto.url}" style="width:100%;max-height:680px;object-fit:contain;background:#fff;border-radius:4px;display:block;margin:0 auto"/>
 </div>`;
   })()}
 ${(()=>{
@@ -404,12 +396,13 @@ ${(()=>{
       // chapter boundary. Tables are opened lazily, on the first row
       // actually written to a column, so a split landing exactly on a
       // chapter boundary never leaves a stray header-only empty table.
-      const splitPoint=Math.ceil(totalRows/2);
+    const UNSET=Symbol("unset");
+    const splitPoint=Math.ceil(totalRows/2);
       let col1="",col2Body="",running=0,col=1;
-      let openInCol={1:null,2:null};
+      let openInCol={1:UNSET,2:UNSET};
       const ensureOpen=(colNum,key)=>{
         if(openInCol[colNum]!==key){
-          if(openInCol[colNum]!==null){if(colNum===1)col1+=closeTableTag;else col2Body+=closeTableTag;}
+          if(openInCol[colNum]!==UNSET){if(colNum===1)col1+=closeTableTag;else col2Body+=closeTableTag;}
           if(colNum===1)col1+=openTable(key);else col2Body+=openTable(key);
           openInCol[colNum]=key;
         }
@@ -417,7 +410,7 @@ ${(()=>{
       allChapters.forEach(c=>{
         c.rows.forEach(r=>{
           if(col===1&&running>=splitPoint){
-            if(openInCol[1]!==null){col1+=closeTableTag;openInCol[1]=null;}
+            if(openInCol[1]!==UNSET){col1+=closeTableTag;openInCol[1]=UNSET;}
             col=2;
           }
           ensureOpen(col,c.key);
@@ -426,8 +419,8 @@ ${(()=>{
           running++;
         });
       });
-      if(openInCol[1]!==null)col1+=closeTableTag;
-      if(openInCol[2]!==null)col2Body+=closeTableTag;
+      if(openInCol[1]!==UNSET)col1+=closeTableTag;
+      if(openInCol[2]!==UNSET)col2Body+=closeTableTag;
       twoColumnHtml=col2(`<td style="${CS}">${col1}</td>`,`<td style="${CS}">${col2Body}</td>`);
     }
     const imgs=avionicsPhotos.map(p=>`<img src="${p.url}" style="width:100%;max-height:680px;object-fit:contain;background:#fff;border-radius:4px;display:block;margin:0 auto 10px"/>`).join("");

@@ -16,13 +16,14 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
   const[dragMode,setDragMode]=useState(null); // null | "move" | "br" | "tl" etc
   const[dragStart,setDragStart]=useState(null);
   const[error,setError]=useState(null);
+  const[rotation,setRotation]=useState(0); // 0 | 90 | 180 | 270
   const imgRef=useRef(null);
   const containerRef=useRef(null);
 
   const handleFile=async(e)=>{
     const f=e.target.files?.[0];
     if(!f)return;
-    setFile(f);setError(null);
+    setFile(f);setError(null);setRotation(0);
     const isPDF=f.type==="application/pdf";
     if(isPDF){
       if(!window.pdfjsLib){setError("PDF rendering library failed to load. Please refresh and try again.");return;}
@@ -68,6 +69,7 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
   const choosePage=async(pageNum)=>{
     setSelectedPage(pageNum);
     await renderPage(pdfDoc,pageNum);
+    setRotation(0);
     setStage("crop");
   };
 
@@ -75,7 +77,6 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
     const el=imgRef.current;
     if(!el)return;
     setImgNatural({w:el.naturalWidth,h:el.naturalHeight});
-    // default crop box to 80% centered
     const dispW=el.clientWidth,dispH=el.clientHeight;
     setCrop({x:dispW*0.1,y:dispH*0.1,w:dispW*0.8,h:dispH*0.8});
   };
@@ -122,12 +123,25 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
       const el=imgRef.current;
       const scaleX=el.naturalWidth/el.clientWidth;
       const scaleY=el.naturalHeight/el.clientHeight;
+      // Crop rectangle in natural image pixels
+      const srcX=crop.x*scaleX, srcY=crop.y*scaleY;
+      const srcW=crop.w*scaleX, srcH=crop.h*scaleY;
+      // Output canvas dimensions swap on 90/270 degree rotation
+      const isTransposed=rotation===90||rotation===270;
+      const outW=isTransposed?srcH:srcW;
+      const outH=isTransposed?srcW:srcH;
       const canvas=document.createElement("canvas");
-      canvas.width=crop.w*scaleX;
-      canvas.height=crop.h*scaleY;
+      canvas.width=outW;
+      canvas.height=outH;
       const ctx=canvas.getContext("2d");
-      ctx.fillStyle="#fff";ctx.fillRect(0,0,canvas.width,canvas.height);
-      ctx.drawImage(el,crop.x*scaleX,crop.y*scaleY,crop.w*scaleX,crop.h*scaleY,0,0,canvas.width,canvas.height);
+      ctx.fillStyle="#fff";ctx.fillRect(0,0,outW,outH);
+      // Apply rotation around the canvas centre before drawing
+      ctx.save();
+      ctx.translate(outW/2,outH/2);
+      ctx.rotate((rotation*Math.PI)/180);
+      // After rotation the crop rect maps to (-srcW/2,-srcH/2,srcW,srcH)
+      ctx.drawImage(el,srcX,srcY,srcW,srcH,-srcW/2,-srcH/2,srcW,srcH);
+      ctx.restore();
       const blob=await new Promise(res=>canvas.toBlob(res,"image/png"));
       const croppedFile=new File([blob],"lopa-crop.png",{type:"image/png"});
       const url=await uploadToCloudinary(croppedFile);
@@ -153,8 +167,11 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
 
         {stage==="upload"&&(
           <div>
-            <div style={{fontSize:12,color:"#64748b",marginBottom:10}}>Upload the full LOPA file (PDF or image). You'll be able to pick a page and crop to just the cabin diagram.</div>
-            <input type="file" accept=".pdf,image/*" onChange={handleFile}/>
+            <div style={{fontSize:12,color:"#64748b",marginBottom:12}}>Upload the full LOPA file (PDF or image). You'll be able to pick a page, rotate, and crop to just the cabin diagram.</div>
+            <label style={{cursor:"pointer"}}>
+              <input type="file" accept=".pdf,image/*" onChange={handleFile} style={{display:"none"}}/>
+              <span className="btn btn-primary" style={{fontSize:12,padding:"7px 14px"}}>+ Choose File</span>
+            </label>
           </div>
         )}
 
@@ -174,11 +191,13 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
 
         {stage==="crop"&&pageImageUrl&&(
           <div>
-            <div style={{fontSize:12,color:"#64748b",marginBottom:10}}>Drag the box to select just the cabin diagram. Drag corners to resize.</div>
-            <div ref={containerRef} style={{position:"relative",display:"inline-block",maxWidth:"100%"}}
+            <div style={{fontSize:12,color:"#64748b",marginBottom:10}}>Drag the box to select just the cabin diagram. Drag corners to resize. Rotate if the image orientation needs correcting — rotation is baked into the saved file.</div>
+            <div ref={containerRef} style={{position:"relative",display:"inline-block",maxWidth:"100%",overflow:"hidden"}}
               onMouseMove={onDrag} onMouseUp={endDrag} onMouseLeave={endDrag}
               onTouchMove={onDrag} onTouchEnd={endDrag}>
-              <img ref={imgRef} src={pageImageUrl} onLoad={onImgLoad} style={{maxWidth:"100%",display:"block",userSelect:"none"}} draggable={false}/>
+              <img ref={imgRef} src={pageImageUrl} onLoad={onImgLoad}
+                style={{maxWidth:"100%",display:"block",userSelect:"none",transform:`rotate(${rotation}deg)`,transformOrigin:"center",transition:"transform 0.2s"}}
+                draggable={false}/>
               <div onMouseDown={startDrag("move")} onTouchStart={startDrag("move")}
                 style={{position:"absolute",left:crop.x,top:crop.y,width:crop.w,height:crop.h,border:"2px solid #C9A84C",background:"rgba(201,168,76,0.15)",cursor:"move"}}>
                 <div onMouseDown={startDrag("tl")} onTouchStart={startDrag("tl")} style={{position:"absolute",left:-6,top:-6,width:14,height:14,background:"#C9A84C",borderRadius:"50%",cursor:"nwse-resize"}}/>
@@ -186,7 +205,8 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
               </div>
             </div>
             <div className="flab g8" style={{marginTop:14}}>
-              <button className="btn btn-ghost" onClick={()=>{setStage("upload");setFile(null);setPageImageUrl(null);}}>Start Over</button>
+              <button className="btn btn-ghost" onClick={()=>{setStage("upload");setFile(null);setPageImageUrl(null);setRotation(0);}}>Start Over</button>
+              <button className="btn btn-ghost" onClick={()=>setRotation(r=>(r+90)%360)} title="Rotate 90° clockwise">↻ Rotate</button>
               <button className="btn btn-gold" onClick={confirmCrop}>Save Crop as LOPA</button>
             </div>
           </div>
@@ -226,12 +246,6 @@ function PhotoManager({asset, saveAsset, notify, label="photos", field="photos"}
     notify('Photo deleted');
   };
 
-  const rotateLopaPhoto = async (i) => {
-    const updated = photos.map((p, idx) => idx === i ? {...p, rotate90: !p.rotate90} : p);
-    await saveAsset({...asset, [field]: updated});
-    notify('LOPA orientation updated');
-  };
-
   return(
     <div>
       <div className="flab g8" style={{marginBottom:12,flexWrap:'wrap'}}>
@@ -254,16 +268,11 @@ function PhotoManager({asset, saveAsset, notify, label="photos", field="photos"}
       {photos.length === 0 && <div style={{color:'#475569',fontSize:12,fontStyle:'italic',padding:'8px 0'}}>No photos uploaded yet.</div>}
       <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
         {photos.map((p,i) => (
-          <div key={i} style={{background:'#0d1925',borderRadius:6,overflow:'hidden',border:'1px solid #1e3348',width:p.label==='LOPA'?180:120}}>
-            <div style={{position:'relative',width:'100%',height:p.label==='LOPA'?90:70,overflow:'hidden'}}>
-              <img src={p.url} alt={p.label} style={{width:'100%',height:'100%',objectFit:'contain',display:'block',transform:p.rotate90?'rotate(90deg)':'none',transformOrigin:'center'}}/>
-            </div>
-            <div style={{padding:'5px 7px',display:'flex',justifyContent:'space-between',alignItems:'center',gap:4}}>
-              <div style={{fontSize:10,color:'#94a3b8',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:p.label==='LOPA'?100:70}}>{p.label}</div>
-              <div style={{display:'flex',gap:3,flexShrink:0}}>
-                {p.label==='LOPA'&&<button className="btn btn-ghost" style={{fontSize:9,padding:'1px 5px'}} title={p.rotate90?'Rotate back':'Rotate 90°'} onClick={()=>rotateLopaPhoto(i)}>↻</button>}
-                <button className="btn-danger btn" style={{fontSize:9,padding:'1px 5px'}} onClick={()=>deletePhoto(i)}>✕</button>
-              </div>
+          <div key={i} style={{background:'#0d1925',borderRadius:6,overflow:'hidden',border:'1px solid #1e3348',width:120}}>
+            <img src={p.url} alt={p.label} style={{width:'100%',height:70,objectFit:'cover',display:'block'}}/>
+            <div style={{padding:'5px 7px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div style={{fontSize:10,color:'#94a3b8',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:70}}>{p.label}</div>
+              <button className="btn-danger btn" style={{fontSize:9,padding:'1px 5px'}} onClick={()=>deletePhoto(i)}>✕</button>
             </div>
           </div>
         ))}
