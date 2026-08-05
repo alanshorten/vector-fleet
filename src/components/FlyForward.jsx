@@ -1212,7 +1212,7 @@ function CompletedEventsHistory({ asset, completedEvents, reserveDocs, canEnterC
   const sorted = [...completedEvents].sort((a, b) => new Date(b.eventDateProjected || b.confirmedAt) - new Date(a.eventDateProjected || a.confirmedAt));
 
   return (
-    <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+    <div className="card" style={{ padding: 16 }}>
       <div className="flj" style={{ marginBottom: 10 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Completed Events — Cost History</div>
         {canEnterCosts && <button className="btn btn-ghost" style={{ fontSize: 11, padding: "3px 8px" }} onClick={() => setPickerOpen(o => !o)}>{pickerOpen ? "Cancel" : "+ Log Completed Event"}</button>}
@@ -1395,6 +1395,9 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
     return daysPast >= 30;
   });
 
+  const { mode: layoutMode } = useLayoutMode();
+  const inLandscape = layoutMode === "landscape";
+
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
       <div className="flab g12" style={{ marginBottom: 16, justifyContent: "flex-end" }}>
@@ -1403,18 +1406,20 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
 
       <PendingCompletionsPanel asset={asset} pending={pendingCompletions} onCompleted={reload} notify={notify} canEnterCosts={canEnterCosts}/>
 
-      <CompletedEventsHistory asset={asset} completedEvents={completedEvents} reserveDocs={reserveDocs} canEnterCosts={canEnterCosts} notify={notify} onSaved={reload}/>
+      {/* Completed Events + Calendar description — side by side on landscape */}
+      <div style={inLandscape ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 16, marginBottom: 16, alignItems: "stretch" } : undefined}>
+        <CompletedEventsHistory asset={asset} completedEvents={completedEvents} reserveDocs={reserveDocs} canEnterCosts={canEnterCosts} notify={notify} onSaved={reload}/>
+        <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: inLandscape ? 0 : 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Maintenance Calendar — MSN {asset.msn}</div>
+          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+            A financial-projection input, not a maintenance-tracking tool — dates are deliberately loose and self-correct against real utilisation reports over time. Accepting a seasonality suggestion or entering an airline-stated date is a suggestion you confirm here, never an automatic move.
+          </div>
+        </div>
+      </div>
 
       {showSeasonality && (
         <SeasonalityProfileEditor asset={asset} profile={seasonalityProfile} onSaved={reload}/>
       )}
-
-      <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Maintenance Calendar — MSN {asset.msn}</div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-          A financial-projection input, not a maintenance-tracking tool — dates are deliberately loose and self-correct against real utilisation reports over time. Accepting a seasonality suggestion or entering an airline-stated date is a suggestion you confirm here, never an automatic move.
-        </div>
-      </div>
 
       {usedSyntheticPots && (
         <div style={{ background: "#0d1e2e", border: "1px solid #1e3a52", borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: "#7dd3fc" }}>
@@ -1432,69 +1437,72 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
 
       {maintenanceCal.events.length > 0 && <MaintenanceCalendarGrid events={maintenanceCal.events}/>}
 
-      {maintenanceCal.events.map((evt) => {
-        const key = `${evt.code}_${evt.dueCycle}`;
-        const override = scheduledEvents.find(o => o.code === evt.code && o.dueCycle === evt.dueCycle);
-        const sStyle = sourceStyle[evt.source] || sourceStyle.derived;
-        const isRowBusy = busy === key;
-        const isExpanded = expanded === key;
-        return (
-          <div key={key} className="card" style={{ padding: 10, marginBottom: 6, opacity: isRowBusy ? 0.6 : 1 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: colorForCode(evt.code), flexShrink: 0 }}/>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {evt.code} — {evt.label}
-                    {evt.grounding && <span className="pill" style={{ marginLeft: 6, background: "#2a0e0e", color: "#f87171", fontSize: 10 }}>Grounds {evt.durationWeeks}wk</span>}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                    {evt.date.toISOString().slice(0, 10)}{evt.beyondHorizon ? " (beyond horizon)" : ""}
-                    {evt.cost && ` · $${Math.round(evt.cost.projectedCostLow).toLocaleString()}–$${Math.round(evt.cost.projectedCostHigh).toLocaleString()}`}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                <span className="pill" style={{ background: sStyle.background, color: sStyle.color, fontSize: 10 }}>{sStyle.label}</span>
-                {evt.seasonalitySuggestion && !override && (
-                  <button className="btn btn-ghost" style={{ fontSize: 11, padding: "3px 8px" }} disabled={isRowBusy} onClick={() => acceptSeasonality(evt)}>💡 Accept</button>
-                )}
-                <button className="btn btn-ghost" style={{ fontSize: 11, padding: "3px 8px" }} onClick={() => setExpanded(isExpanded ? null : key)}>{isExpanded ? "Hide ▴" : "Edit ▾"}</button>
-              </div>
-            </div>
-
-            {isExpanded && (
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e3048" }}>
-                {evt.mergedWithCodes.length > 0 && (
-                  <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>Absorbed with {evt.mergedWithCodes.map(c => c.code).join(", ")}</div>
-                )}
-                {evt.seasonalitySuggestion && !override && (
-                  <div style={{ marginBottom: 10, padding: 10, background: "#0d1622", borderRadius: 6, fontSize: 11, color: "#a3e635" }}>
-                    💡 Suggested: {evt.seasonalitySuggestion.suggestedDate.toISOString().slice(0, 10)} — {evt.seasonalitySuggestion.reason}
-                  </div>
-                )}
-                <div style={{ display: "flex", gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
-                  {evt.grounding && (
-                    <label style={{ fontSize: 10, color: "#94a3b8" }}>Duration (weeks)
-                      <div><PotNumInput value={evt.durationWeeks} onCommit={v => saveDuration(evt, v)} width={70}/></div>
-                    </label>
-                  )}
-                  <label style={{ fontSize: 10, color: "#94a3b8" }}>Airline-stated date
-                    <div>
-                      <input type="date" defaultValue={override?.source === "airline-stated" ? override.scheduledDate : ""}
-                        onBlur={e => saveAirlineStated(evt, e.target.value)}
-                        style={{ fontSize: 12, padding: "4px 6px" }} disabled={isRowBusy}/>
+      {/* Event rows — 4-column grid on landscape. Expanded rows span all 4 columns. */}
+      <div style={inLandscape ? { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", columnGap: 10 } : undefined}>
+        {maintenanceCal.events.map((evt) => {
+          const key = `${evt.code}_${evt.dueCycle}`;
+          const override = scheduledEvents.find(o => o.code === evt.code && o.dueCycle === evt.dueCycle);
+          const sStyle = sourceStyle[evt.source] || sourceStyle.derived;
+          const isRowBusy = busy === key;
+          const isExpanded = expanded === key;
+          return (
+            <div key={key} className="card" style={{ padding: 10, marginBottom: 6, opacity: isRowBusy ? 0.6 : 1, ...(inLandscape && isExpanded ? { gridColumn: "1 / -1" } : {}) }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: colorForCode(evt.code), flexShrink: 0 }}/>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {evt.code} — {evt.label}
+                      {evt.grounding && <span className="pill" style={{ marginLeft: 6, background: "#2a0e0e", color: "#f87171", fontSize: 10 }}>Grounds {evt.durationWeeks}wk</span>}
                     </div>
-                  </label>
-                  {override && (
-                    <button className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} disabled={isRowBusy} onClick={() => revertToDerived(evt)}>Revert to derived</button>
+                    <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                      {evt.date.toISOString().slice(0, 10)}{evt.beyondHorizon ? " (beyond horizon)" : ""}
+                      {evt.cost && ` · $${Math.round(evt.cost.projectedCostLow).toLocaleString()}–$${Math.round(evt.cost.projectedCostHigh).toLocaleString()}`}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                  <span className="pill" style={{ background: sStyle.background, color: sStyle.color, fontSize: 10 }}>{sStyle.label}</span>
+                  {evt.seasonalitySuggestion && !override && (
+                    <button className="btn btn-ghost" style={{ fontSize: 11, padding: "3px 8px" }} disabled={isRowBusy} onClick={() => acceptSeasonality(evt)}>💡 Accept</button>
                   )}
+                  <button className="btn btn-ghost" style={{ fontSize: 11, padding: "3px 8px" }} onClick={() => setExpanded(isExpanded ? null : key)}>{isExpanded ? "Hide ▴" : "Edit ▾"}</button>
                 </div>
               </div>
-            )}
-          </div>
-        );
-      })}
+
+              {isExpanded && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e3048" }}>
+                  {evt.mergedWithCodes.length > 0 && (
+                    <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>Absorbed with {evt.mergedWithCodes.map(c => c.code).join(", ")}</div>
+                  )}
+                  {evt.seasonalitySuggestion && !override && (
+                    <div style={{ marginBottom: 10, padding: 10, background: "#0d1622", borderRadius: 6, fontSize: 11, color: "#a3e635" }}>
+                      💡 Suggested: {evt.seasonalitySuggestion.suggestedDate.toISOString().slice(0, 10)} — {evt.seasonalitySuggestion.reason}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
+                    {evt.grounding && (
+                      <label style={{ fontSize: 10, color: "#94a3b8" }}>Duration (weeks)
+                        <div><PotNumInput value={evt.durationWeeks} onCommit={v => saveDuration(evt, v)} width={70}/></div>
+                      </label>
+                    )}
+                    <label style={{ fontSize: 10, color: "#94a3b8" }}>Airline-stated date
+                      <div>
+                        <input type="date" defaultValue={override?.source === "airline-stated" ? override.scheduledDate : ""}
+                          onBlur={e => saveAirlineStated(evt, e.target.value)}
+                          style={{ fontSize: 12, padding: "4px 6px" }} disabled={isRowBusy}/>
+                      </div>
+                    </label>
+                    {override && (
+                      <button className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} disabled={isRowBusy} onClick={() => revertToDerived(evt)}>Revert to derived</button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       {maintenanceCal.events.length === 0 && (
         <div className="card" style={{ padding: 24, textAlign: "center", color: "#64748b" }}>No maintenance events projected within the current calendar horizon.</div>
