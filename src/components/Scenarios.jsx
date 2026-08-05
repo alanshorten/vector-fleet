@@ -315,160 +315,167 @@ function Scenarios({ asset }) {
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
-      <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Scenarios — MSN {asset.msn}</div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-          Exploratory only — nothing here is saved. Escalation rates aren't adjustable here — they're reviewed yearly against the real catalogue, not a hypothetical.
-        </div>
-      </div>
 
-      {(() => {
-        const pairInGrid = layoutMode === "landscape";
-        return (
-          <div style={pairInGrid ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 16, marginBottom: 16, alignItems: "start" } : undefined}>
-      <div className="card" style={{ padding: 16, marginBottom: pairInGrid ? 0 : 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Adjust the scenario</div>
-        <ScenarioSlider label="Utilisation change" value={utilPct} onChange={setUtilPct} min={-50} max={50} step={1} format={fmtPct}/>
-        <ScenarioSlider label="Lease extension" value={leaseExtMonths} onChange={setLeaseExtMonths} min={0} max={36} step={1} format={fmtMonths}/>
-        <ScenarioSlider label="Average sector length change" value={sectorPct} onChange={setSectorPct} min={-50} max={50} step={1} format={fmtPct}/>
+      {/* Top section — 3-column grid on landscape: desc | sliders | per-pot */}
+      <div style={layoutMode === "landscape"
+        ? { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", columnGap: 16, marginBottom: 16, alignItems: "stretch" }
+        : undefined}>
 
-        <div style={{ borderTop: "1px solid #1e3048", marginTop: 4, paddingTop: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>AOG window</div>
-          <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10 }}>Grounds the aircraft for a period — usage-basis pots freeze, calendar-basis pots keep accruing (same as a C-Check grounding).</div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
-              Starts (months from now)
-              <input type="number" min="0" step="1" value={aogStartMonth} onChange={e => setAogStartMonth(Math.max(0, Number(e.target.value) || 0))}
-                style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
-            </label>
-            <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
-              Duration (months)
-              <input type="number" min="0" step="1" value={aogDurationMonths} onChange={e => setAogDurationMonths(Math.max(0, Number(e.target.value) || 0))}
-                style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
-            </label>
+        {/* Col 1 — description */}
+        <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: layoutMode === "landscape" ? 0 : 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Scenarios — MSN {asset.msn}</div>
+          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+            Exploratory only — nothing here is saved. Escalation rates aren't adjustable here — they're reviewed yearly against the real catalogue, not a hypothetical.
           </div>
         </div>
 
-        <div style={{ borderTop: "1px solid #1e3048", marginTop: 14, paddingTop: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Lessee default</div>
-          <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10 }}>Suspends reserve accrual across every pot for a period — usage continues (the aircraft keeps flying), the lessee just isn't paying into any account.</div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
-              Starts (months from now)
-              <input type="number" min="0" step="1" value={defaultStartMonth} onChange={e => setDefaultStartMonth(Math.max(0, Number(e.target.value) || 0))}
-                style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
-            </label>
-            <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
-              Duration (months)
-              <input type="number" min="0" step="1" value={defaultDurationMonths} onChange={e => setDefaultDurationMonths(Math.max(0, Number(e.target.value) || 0))}
-                style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
-            </label>
+        {/* Col 2 — sliders */}
+        <div className="card" style={{ padding: 16, marginBottom: layoutMode === "landscape" ? 0 : 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Adjust the scenario</div>
+          <ScenarioSlider label="Utilisation change" value={utilPct} onChange={setUtilPct} min={-50} max={50} step={1} format={fmtPct}/>
+          <ScenarioSlider label="Lease extension" value={leaseExtMonths} onChange={setLeaseExtMonths} min={0} max={36} step={1} format={fmtMonths}/>
+          <ScenarioSlider label="Average sector length change" value={sectorPct} onChange={setSectorPct} min={-50} max={50} step={1} format={fmtPct}/>
+
+          <div style={{ borderTop: "1px solid #1e3048", marginTop: 4, paddingTop: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>AOG window</div>
+            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10 }}>Grounds the aircraft for a period — usage-basis pots freeze, calendar-basis pots keep accruing (same as a C-Check grounding).</div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+                Starts (months from now)
+                <input type="number" min="0" step="1" value={aogStartMonth} onChange={e => setAogStartMonth(Math.max(0, Number(e.target.value) || 0))}
+                  style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+              </label>
+              <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+                Duration (months)
+                <input type="number" min="0" step="1" value={aogDurationMonths} onChange={e => setAogDurationMonths(Math.max(0, Number(e.target.value) || 0))}
+                  style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+              </label>
+            </div>
+          </div>
+
+          <div style={{ borderTop: "1px solid #1e3048", marginTop: 14, paddingTop: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Lessee default</div>
+            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10 }}>Suspends reserve accrual across every pot for a period — usage continues (the aircraft keeps flying), the lessee just isn't paying into any account.</div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+                Starts (months from now)
+                <input type="number" min="0" step="1" value={defaultStartMonth} onChange={e => setDefaultStartMonth(Math.max(0, Number(e.target.value) || 0))}
+                  style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+              </label>
+              <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+                Duration (months)
+                <input type="number" min="0" step="1" value={defaultDurationMonths} onChange={e => setDefaultDurationMonths(Math.max(0, Number(e.target.value) || 0))}
+                  style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
+              </label>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+            <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} disabled={!scenarioActive} onClick={resetScenario}>Reset to base case</button>
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
-          <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} disabled={!scenarioActive} onClick={resetScenario}>Reset to base case</button>
-        </div>
-      </div>
-
-      <div className="card" style={{ padding: 16, marginBottom: pairInGrid ? 0 : 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Per-Pot Worst-Case Shortfall — Base vs. Scenario</div>
-        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>Timing shift shows how many months the same projected event moves under this scenario — a pot showing "Beyond horizon" in base case had no event within the lease term until the scenario pulled it forward. Cost Overrun nudges that specific event's estimated cost up or down — default 0% on every row, only rows with a projected event get one.</div>
-        <table style={{ fontSize: 12, width: "100%" }}>
-          <thead><tr>
-            <th style={{ color: "#64748b", textAlign: "left" }}>Pot</th>
-            <th style={{ color: "#64748b", textAlign: "right" }}>Base Case</th>
-            <th style={{ color: "#64748b", textAlign: "right" }}>Scenario</th>
-            <th style={{ color: "#64748b", textAlign: "right" }}>Timing Shift</th>
-            <th style={{ color: "#64748b", textAlign: "right" }}>Cost Overrun</th>
-          </tr></thead>
-          <tbody>
-            {potRows.map(row => (
-              <React.Fragment key={row.code}>
-              <tr>
-                <td style={{ padding: "6px 0" }}>
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: colorForCode(row.code), display: "inline-block", marginRight: 6 }}/>
-                  {row.code} — {row.label}
-                  {(row.bEvt || row.sEvt) && (
-                    <button className="btn btn-ghost" style={{ fontSize: 10, padding: "1px 6px", marginLeft: 8 }}
-                      onClick={() => setExplainedCode(explainedCode === row.code ? null : row.code)}>
-                      {explainedCode === row.code ? "Explain ▴" : "Explain ▾"}
-                    </button>
-                  )}
-                </td>
-                <td style={{ textAlign: "right", color: shortfallColor(row.baseHigh) }}>
-                  {row.baseHigh == null ? (row.baseTracked ? "Beyond horizon" : "—") : `$${Math.round(row.baseHigh).toLocaleString()}`}
-                  {row.baseDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.baseDate.toISOString().slice(0, 7)}</div>}
-                </td>
-                <td style={{ textAlign: "right", color: scenarioActive ? deltaColor(row.baseHigh, row.scenarioHigh) : shortfallColor(row.scenarioHigh) }}>
-                  {row.scenarioHigh == null ? (row.scenarioTracked ? "Beyond horizon" : "—") : `$${Math.round(row.scenarioHigh).toLocaleString()}`}
-                  {row.scenarioDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.scenarioDate.toISOString().slice(0, 7)}</div>}
-                </td>
-                <td style={{ textAlign: "right", fontSize: 11, color: row.shiftMonths == null ? "#475569" : (row.shiftMonths < 0 ? "#f87171" : row.shiftMonths > 0 ? "#34d399" : "#64748b") }}>
-                  {row.shiftMonths != null
-                    ? formatShift(row.shiftMonths)
-                    : (row.scenarioDate && !row.baseDate ? "Now within horizon" : (row.baseDate && !row.scenarioDate ? "No longer within horizon" : "—"))}
-                </td>
-                <td style={{ textAlign: "right" }}>
-                  {row.baseTracked ? (
-                    (row.baseHigh == null && row.scenarioHigh == null) ? (
-                      <input type="number" step="1" placeholder="0%" value={costOverrunByCode[row.code] || ""}
-                        title="No projected event in the current horizon yet — this won't have a visible effect until something (e.g. Utilisation change) pulls an event within the lease term."
-                        onChange={e => {
-                          const v = e.target.value === "" ? undefined : Number(e.target.value);
-                          setCostOverrunByCode(prev => {
-                            const next = { ...prev };
-                            if (!v) delete next[row.code]; else next[row.code] = v;
-                            return next;
-                          });
-                        }}
-                        style={{ width: 60, fontSize: 12, padding: "4px 6px", textAlign: "right", opacity: 0.45 }}/>
-                    ) : (
-                      <input type="number" step="1" placeholder="0%" value={costOverrunByCode[row.code] || ""}
-                        onChange={e => {
-                          const v = e.target.value === "" ? undefined : Number(e.target.value);
-                          setCostOverrunByCode(prev => {
-                            const next = { ...prev };
-                            if (!v) delete next[row.code]; else next[row.code] = v;
-                            return next;
-                          });
-                        }}
-                        style={{ width: 60, fontSize: 12, padding: "4px 6px", textAlign: "right" }}/>
-                    )
-                  ) : <span style={{ color: "#475569" }}>—</span>}
-                </td>
-              </tr>
-              {explainedCode === row.code && (
+        {/* Col 3 — per-pot table */}
+        <div className="card" style={{ padding: 16, marginBottom: layoutMode === "landscape" ? 0 : 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Per-Pot Worst-Case Shortfall — Base vs. Scenario</div>
+          <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>Timing shift shows how many months the same projected event moves under this scenario — a pot showing "Beyond horizon" in base case had no event within the lease term until the scenario pulled it forward. Cost Overrun nudges that specific event's estimated cost up or down — default 0% on every row, only rows with a projected event get one.</div>
+          <table style={{ fontSize: 12, width: "100%" }}>
+            <thead><tr>
+              <th style={{ color: "#64748b", textAlign: "left" }}>Pot</th>
+              <th style={{ color: "#64748b", textAlign: "right" }}>Base Case</th>
+              <th style={{ color: "#64748b", textAlign: "right" }}>Scenario</th>
+              <th style={{ color: "#64748b", textAlign: "right" }}>Timing Shift</th>
+              <th style={{ color: "#64748b", textAlign: "right" }}>Cost Overrun</th>
+            </tr></thead>
+            <tbody>
+              {potRows.map(row => (
+                <React.Fragment key={row.code}>
                 <tr>
-                  <td colSpan={5} style={{ padding: "0 0 10px 0" }}>
-                    <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 8, padding: "10px 12px", fontSize: 11, color: "#94a3b8", lineHeight: 1.6 }}>
-                      {buildPotExplanation(row, scenarioActive)}
-                    </div>
+                  <td style={{ padding: "6px 0" }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: colorForCode(row.code), display: "inline-block", marginRight: 6 }}/>
+                    {row.code} — {row.label}
+                    {(row.bEvt || row.sEvt) && (
+                      <button className="btn btn-ghost" style={{ fontSize: 10, padding: "1px 6px", marginLeft: 8 }}
+                        onClick={() => setExplainedCode(explainedCode === row.code ? null : row.code)}>
+                        {explainedCode === row.code ? "Explain ▴" : "Explain ▾"}
+                      </button>
+                    )}
+                  </td>
+                  <td style={{ textAlign: "right", color: shortfallColor(row.baseHigh) }}>
+                    {row.baseHigh == null ? (row.baseTracked ? "Beyond horizon" : "—") : `$${Math.round(row.baseHigh).toLocaleString()}`}
+                    {row.baseDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.baseDate.toISOString().slice(0, 7)}</div>}
+                  </td>
+                  <td style={{ textAlign: "right", color: scenarioActive ? deltaColor(row.baseHigh, row.scenarioHigh) : shortfallColor(row.scenarioHigh) }}>
+                    {row.scenarioHigh == null ? (row.scenarioTracked ? "Beyond horizon" : "—") : `$${Math.round(row.scenarioHigh).toLocaleString()}`}
+                    {row.scenarioDate && <div style={{ fontSize: 10, color: "#475569" }}>{row.scenarioDate.toISOString().slice(0, 7)}</div>}
+                  </td>
+                  <td style={{ textAlign: "right", fontSize: 11, color: row.shiftMonths == null ? "#475569" : (row.shiftMonths < 0 ? "#f87171" : row.shiftMonths > 0 ? "#34d399" : "#64748b") }}>
+                    {row.shiftMonths != null
+                      ? formatShift(row.shiftMonths)
+                      : (row.scenarioDate && !row.baseDate ? "Now within horizon" : (row.baseDate && !row.scenarioDate ? "No longer within horizon" : "—"))}
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    {row.baseTracked ? (
+                      (row.baseHigh == null && row.scenarioHigh == null) ? (
+                        <input type="number" step="1" placeholder="0%" value={costOverrunByCode[row.code] || ""}
+                          title="No projected event in the current horizon yet — this won't have a visible effect until something (e.g. Utilisation change) pulls an event within the lease term."
+                          onChange={e => {
+                            const v = e.target.value === "" ? undefined : Number(e.target.value);
+                            setCostOverrunByCode(prev => {
+                              const next = { ...prev };
+                              if (!v) delete next[row.code]; else next[row.code] = v;
+                              return next;
+                            });
+                          }}
+                          style={{ width: 60, fontSize: 12, padding: "4px 6px", textAlign: "right", opacity: 0.45 }}/>
+                      ) : (
+                        <input type="number" step="1" placeholder="0%" value={costOverrunByCode[row.code] || ""}
+                          onChange={e => {
+                            const v = e.target.value === "" ? undefined : Number(e.target.value);
+                            setCostOverrunByCode(prev => {
+                              const next = { ...prev };
+                              if (!v) delete next[row.code]; else next[row.code] = v;
+                              return next;
+                            });
+                          }}
+                          style={{ width: 60, fontSize: 12, padding: "4px 6px", textAlign: "right" }}/>
+                      )
+                    ) : <span style={{ color: "#475569" }}>—</span>}
                   </td>
                 </tr>
-              )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
+                {explainedCode === row.code && (
+                  <tr>
+                    <td colSpan={5} style={{ padding: "0 0 10px 0" }}>
+                      <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 8, padding: "10px 12px", fontSize: 11, color: "#94a3b8", lineHeight: 1.6 }}>
+                        {buildPotExplanation(row, scenarioActive)}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-          </div>
-        );
-      })()}
 
+      {/* Total Reserve Balance chart — full width */}
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Total Reserve Balance — Base Case vs. Scenario</div>
         <MiniLineChart labels={labels} datasets={chartDatasets} height={240}/>
       </div>
 
-      <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
-        <div className="card" style={{ padding: 16, flex: 1, minWidth: 240 }}>
+      {/* Bottom — 3-column grid: base case | scenario | risk peaks */}
+      <div style={layoutMode === "landscape"
+        ? { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", columnGap: 16, alignItems: "stretch" }
+        : undefined}>
+        <div className="card" style={{ padding: 16, marginBottom: layoutMode === "landscape" ? 0 : 16 }}>
           <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>Base Case — Portfolio Shortfall</div>
           <div style={{ fontSize: 20, fontWeight: 700, color: shortfallColor(baseSummary.grandTotalHigh) }}>
             ${Math.round(baseSummary.grandTotalLow).toLocaleString()} – ${Math.round(baseSummary.grandTotalHigh).toLocaleString()}
           </div>
         </div>
-        <div className="card" style={{ padding: 16, flex: 1, minWidth: 240 }}>
+        <div className="card" style={{ padding: 16, marginBottom: layoutMode === "landscape" ? 0 : 16 }}>
           <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>Scenario — Portfolio Shortfall</div>
           <div style={{ fontSize: 20, fontWeight: 700, color: shortfallColor(scenarioSummary.grandTotalHigh) }}>
             ${Math.round(scenarioSummary.grandTotalLow).toLocaleString()} – ${Math.round(scenarioSummary.grandTotalHigh).toLocaleString()}
@@ -480,22 +487,21 @@ function Scenarios({ asset }) {
             </div>
           )}
         </div>
-      </div>
-
-      <div className="card" style={{ padding: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Risk Peaks (earliest first)</div>
-        {baseRiskPeaks.length === 0 && scenarioRiskPeaks.length === 0 && (
-          <div style={{ fontSize: 12, color: "#64748b" }}>No risk peaks projected in either case.</div>
-        )}
-        {(scenarioActive ? scenarioRiskPeaks : baseRiskPeaks).map((r, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: i > 0 ? "1px solid #1e3048" : "none", fontSize: 12 }}>
-            <span style={{ color: "#e2e8f0" }}>{r.code} — {r.dateWindow ? `${r.dateWindow.start.toISOString().slice(0,7)} – ${r.dateWindow.end.toISOString().slice(0,7)}` : r.date.toISOString().slice(0, 7)}</span>
-            <span style={{ color: r.severity === "high" ? "#f87171" : "#fbbf24" }}>
-              {r.severity === "high" ? "High" : "Medium"} — ${Math.round(r.shortfallLow).toLocaleString()} to ${Math.round(r.shortfallHigh).toLocaleString()}
-            </span>
-          </div>
-        ))}
-        {scenarioActive && <div style={{ fontSize: 10, color: "#475569", marginTop: 8 }}>Showing scenario risk peaks. Base case had {baseRiskPeaks.length} risk peak{baseRiskPeaks.length===1?"":"s"}.</div>}
+        <div className="card" style={{ padding: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Risk Peaks (earliest first)</div>
+          {baseRiskPeaks.length === 0 && scenarioRiskPeaks.length === 0 && (
+            <div style={{ fontSize: 12, color: "#64748b" }}>No risk peaks projected in either case.</div>
+          )}
+          {(scenarioActive ? scenarioRiskPeaks : baseRiskPeaks).map((r, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: i > 0 ? "1px solid #1e3048" : "none", fontSize: 12 }}>
+              <span style={{ color: "#e2e8f0" }}>{r.code} — {r.dateWindow ? `${r.dateWindow.start.toISOString().slice(0,7)} – ${r.dateWindow.end.toISOString().slice(0,7)}` : r.date.toISOString().slice(0, 7)}</span>
+              <span style={{ color: r.severity === "high" ? "#f87171" : "#fbbf24" }}>
+                {r.severity === "high" ? "High" : "Medium"} — ${Math.round(r.shortfallLow).toLocaleString()} to ${Math.round(r.shortfallHigh).toLocaleString()}
+              </span>
+            </div>
+          ))}
+          {scenarioActive && <div style={{ fontSize: 10, color: "#475569", marginTop: 8 }}>Showing scenario risk peaks. Base case had {baseRiskPeaks.length} risk peak{baseRiskPeaks.length===1?"":"s"}.</div>}
+        </div>
       </div>
     </div>
   );
