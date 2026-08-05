@@ -353,9 +353,13 @@ function AppInner(){
                 <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"nowrap"}}>
                   {(()=>{
                     const canSeeAdv=!!userRole&&userRole!=='dataEntry';
-                    const LAYERS=[["details","Details"],...(canSeeAdv?[["calendar","Calendar"],["financials","Financials"],["scenarios","Scenarios"]]:[])]; 
+                    const LAYERS=[["details","Details"],...(canSeeAdv?[["calendar","Calendar"],["financials","Financials"],["scenarios","Scenarios"]]:[])];
                     return <NavPill items={LAYERS} activeValue={assetLayer} onSelect={setAssetLayer} theme="dark"/>;
                   })()}
+                  <div className="app-nav-pill trailing-pill" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",gap:8,background:"rgba(13,25,37,0.8)",border:"1px solid #1e3348",borderRadius:8,padding:"5px 6px",width:TRAILING_PILL_WIDTH,flexShrink:0}}>
+                    <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 12px"}} onClick={()=>setAssetShareOpen(true)}>🔗 Share</button>
+                    <button className="btn btn-gold" style={{fontSize:12,padding:"8px 12px"}} onClick={()=>genSpecRef.current&&genSpecRef.current()}>📋 Generate Tech Spec</button>
+                  </div>
                 </div>
               </>
             ) : isMobile ? (
