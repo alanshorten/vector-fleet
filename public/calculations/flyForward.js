@@ -517,7 +517,37 @@ function projectEnLpPot(pot, ctx) {
     }
   }
 
-  return { code: pot.code, label: pot.label, monthlySeries, events, partialFundedNote: null, leaseEndLimiter, warnings };
+  // Build a synthetic partialFundedNote for EN-LP using the lease-end
+  // limiter state and the pot's current cost estimate. The event date is
+  // estimated from FC remaining ÷ utilisation rate — not a stack-sim
+  // result, so it's labelled as estimated in the UI. Cost is the pot's
+  // own projectedCostLow/High (current estimate, not escalated) — honest
+  // about the limitation but still useful for ballpark shortfall sizing.
+  let partialFundedNote = null;
+  if (leaseEndLimiter && leaseEndLimiter.remainingFC > 0 && fcPerMonth > 0) {
+    const monthsToEvent = leaseEndLimiter.remainingFC / fcPerMonth;
+    const postLeaseDate = addMonths(leaseStart, Math.round(horizonMonths + monthsToEvent));
+    const leaseEndBalance = monthlySeries.length ? monthlySeries[monthlySeries.length - 1].balance : 0;
+    const costLow = pot.projectedCostLow || 0;
+    const costHigh = pot.projectedCostHigh || 0;
+    const costLikely = (costLow + costHigh) / 2;
+    partialFundedNote = {
+      monthIndex: Math.round(horizonMonths + monthsToEvent),
+      date: postLeaseDate,
+      costLow,
+      costLikely,
+      costHigh,
+      balanceAtLeaseEnd: leaseEndBalance,
+      shortfallLow: costLow - leaseEndBalance,
+      shortfallHigh: costHigh - leaseEndBalance,
+      isLLPEstimate: true, // flag so UI can label it as estimated
+      remainingFC: leaseEndLimiter.remainingFC,
+      limiterDesc: leaseEndLimiter.desc,
+      note: "EN-LP event date estimated from FC remaining at lease end ÷ current utilisation rate. Cost is current estimate only — not escalated to event date."
+    };
+  }
+
+  return { code: pot.code, label: pot.label, monthlySeries, events, partialFundedNote, leaseEndLimiter, warnings };
 }
 
 // Per-part cost estimate for a harvested set. Three tiers, in order of

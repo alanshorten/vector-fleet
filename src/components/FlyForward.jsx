@@ -378,8 +378,12 @@ function FFPotCard({ projection, color, anchored }) {
                 <td>
                   <span style={{ color: "#475569", marginRight: 6, fontSize: 10 }}>POST-LEASE</span>
                   {note.date.toISOString().slice(0, 7)}
+                  {note.isLLPEstimate && <span style={{ color: "#475569", marginLeft: 4, fontSize: 10 }}>est.</span>}
                 </td>
-                <td style={{ textAlign: "right" }}>${Math.round(note.costLow).toLocaleString()} – ${Math.round(note.costHigh).toLocaleString()}</td>
+                <td style={{ textAlign: "right" }}>
+                  ${Math.round(note.costLow).toLocaleString()} – ${Math.round(note.costHigh).toLocaleString()}
+                  {note.isLLPEstimate && <span style={{ color: "#475569", marginLeft: 4, fontSize: 10 }}>current</span>}
+                </td>
                 <td style={{ textAlign: "right" }}>${Math.round(note.balanceAtLeaseEnd).toLocaleString()}</td>
                 <td style={{ textAlign: "right", color: note.shortfallHigh > 0 ? "#fbbf24" : "#34d399" }}>
                   ${Math.round(note.shortfallLow).toLocaleString()} – ${Math.round(note.shortfallHigh).toLocaleString()}
@@ -388,12 +392,14 @@ function FFPotCard({ projection, color, anchored }) {
             </tbody>
           </table>
           <div style={{ fontSize: 10, color: "#475569", marginTop: 4 }}>
-            Pot balance frozen at lease end — accruals stop when this lessee's lease expires. Shortfall is the gap between the frozen balance and the next event cost.
+            {note.isLLPEstimate
+              ? `Pot frozen at lease end. Event date estimated from ${note.limiterDesc} — ${note.remainingFC.toLocaleString()} FC remaining at lease end. Cost is current estimate, not escalated to event date.`
+              : "Pot balance frozen at lease end — accruals stop when this lessee's lease expires. Shortfall is the gap between the frozen balance and the next event cost."}
           </div>
         </div>
       )}
 
-      {projection.leaseEndLimiter && (
+      {projection.leaseEndLimiter && !note && (
         <div style={{ marginTop: 10, padding: "8px 10px", background: "#0d1e33", borderRadius: 6, fontSize: 11, color: "#94a3b8" }}>
           <span style={{ color: "#64748b", fontWeight: 700, marginRight: 6 }}>Lowest limiter at lease end:</span>
           {projection.leaseEndLimiter.desc} — {projection.leaseEndLimiter.remainingFC.toLocaleString()} FC remaining
@@ -752,7 +758,7 @@ function ForwardExposureCard({ exposure, lease, inLeaseShortfallLow, inLeaseShor
   );
 }
 
-function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, onHeaderActions }) {
+function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole }) {
   const [loading, setLoading] = useState(true);
   const [lease, setLease] = useState(null);
   const [reserveDocs, setReserveDocs] = useState([]);
@@ -766,22 +772,6 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, onH
   const [showEOLPosition, setShowEOLPosition] = useState(false);
   const { mode: layoutMode, width: layoutWidth } = useLayoutMode();
   const engineFamily = isCFM(asset) ? "CFM" : "V2500";
-
-  // Push the 3 action buttons up into AssetView's header row so they sit
-  // inline with the MSN title rather than as a separate row below it.
-  // Runs whenever toggle state or available actions change.
-  useEffect(() => {
-    if (!onHeaderActions) return;
-    // eolTerms not yet loaded at this point — read from lease state
-    const eolApplies = lease?.endOfLeaseTerms?.applies;
-    onHeaderActions(
-      <>
-        {eolApplies && <button className="btn btn-ghost" onClick={() => setShowEOLPosition(s => !s)}>{showEOLPosition ? "Hide " : "📄 "}End of Lease Position</button>}
-        <button className="btn btn-ghost" onClick={() => setShowAssumptions(s => !s)}>{showAssumptions ? "Hide " : "📋 "}Assumptions</button>
-        {canEnterLeaseData && <button className="btn btn-ghost" onClick={() => setLeaseWizardOpen(true)}>📄 Edit Lease</button>}
-      </>
-    );
-  }, [lease, showEOLPosition, showAssumptions, canEnterLeaseData, onHeaderActions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -919,16 +909,22 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, onH
   // rows too, only present in the template when actually rendered so an
   // absent banner doesn't leave a stray empty grid track.
   const headerPairInGrid = layoutMode === "landscape";
-  const headerAreaRows = ['"desc summary riskpeaks"'];
-  if (showMissing) headerAreaRows.push('"warn1 warn1 warn1"');
-  if (showMaintCal) headerAreaRows.push('"warn2 warn2 warn2"');
+  const headerAreaRows = ['"desc summary"'];
+  if (showMissing) headerAreaRows.push('"warn1 warn1"');
+  if (showMaintCal) headerAreaRows.push('"warn2 warn2"');
+  if (showRiskPeaks) headerAreaRows.push('"riskpeaks riskpeaks"');
   const headerGridStyle = headerPairInGrid
-    ? { display: "grid", gridTemplateColumns: showRiskPeaks ? "1fr 1fr 1fr" : "1fr 1fr", gridTemplateAreas: headerAreaRows.join(" "), columnGap: 16, rowGap: 16, marginBottom: 16, alignItems: "start" }
+    ? { display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateAreas: headerAreaRows.join(" "), columnGap: 16, rowGap: 16, marginBottom: 16, alignItems: "start" }
     : undefined;
   const mb = headerPairInGrid ? 0 : 16;
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
+      <div className="flab g12" style={{ marginBottom: 16, justifyContent: "flex-end" }}>
+        {eolTerms.applies && <button className="btn btn-ghost" onClick={() => setShowEOLPosition(s => !s)}>{showEOLPosition ? "Hide " : "📄 "}End of Lease Position</button>}
+        <button className="btn btn-ghost" onClick={() => setShowAssumptions(s => !s)}>{showAssumptions ? "Hide " : "📋 "}Assumptions</button>
+        {canEnterLeaseData && <button className="btn btn-ghost" onClick={() => setLeaseWizardOpen(true)}>📄 Edit Lease</button>}
+      </div>
       {leaseWizardOpen && <LeaseWizard asset={asset} saveAsset={saveAsset} notify={notify} onClose={() => setLeaseWizardOpen(false)}/>}
       {showAssumptions && <AssumptionsPanel engineFamily={engineFamily}/>}
       {showEOLPosition && (
