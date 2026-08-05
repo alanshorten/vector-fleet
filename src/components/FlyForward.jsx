@@ -228,7 +228,7 @@ function FFPotCard({ projection, color, anchored }) {
   let eventPoints = projection.monthlySeries.map(() => null);
   let hasPostLease = false;
 
-  if (note && note.costLikely != null) {
+  if (note && note.costLikely != null && projection.events.length === 0) {
     hasPostLease = true;
     const leaseEndDate = projection.monthlySeries[projection.monthlySeries.length - 1].date;
     const frozenBalance = baseBalance[baseBalance.length - 1];
@@ -361,46 +361,49 @@ function FFPotCard({ projection, color, anchored }) {
         </div>
       )}
 
-      {/* Post-lease event row — shown when partialFundedNote has cost data */}
-      {note && note.costLow != null && (
-        <div style={{ marginTop: projection.events.length > 0 ? 0 : 10, overflow: "auto" }}>
-          <table style={{ fontSize: 11 }}>
-            {projection.events.length === 0 && (
+      {/* Post-lease section — suppressed when a within-lease event already fired.
+          For LLP pots (leaseEndLimiter present): just balance + limiter FC remaining.
+          For all other pots: full event row with cost and shortfall. */}
+      {note && projection.events.length === 0 && (
+        projection.leaseEndLimiter ? (
+          <div style={{ marginTop: 10, padding: "8px 10px", background: "#0d1e33", borderRadius: 6, fontSize: 11, color: "#94a3b8" }}>
+            <div style={{ marginBottom: 4 }}>
+              <span style={{ color: "#64748b", fontWeight: 700 }}>Balance at lease end: </span>
+              ${Math.round(note.balanceAtLeaseEnd).toLocaleString()}
+            </div>
+            <div>
+              <span style={{ color: "#64748b", fontWeight: 700 }}>Lowest limiter: </span>
+              {projection.leaseEndLimiter.desc} — {projection.leaseEndLimiter.remainingFC.toLocaleString()} FC remaining
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginTop: 10, overflow: "auto" }}>
+            <table style={{ fontSize: 11 }}>
               <thead><tr>
                 <th style={{ color: "#64748b", textAlign: "left" }}>Event Date</th>
                 <th style={{ color: "#64748b", textAlign: "right" }}>Cost Range</th>
                 <th style={{ color: "#64748b", textAlign: "right" }}>Balance at Lease End</th>
                 <th style={{ color: "#64748b", textAlign: "right" }}>Shortfall Band</th>
               </tr></thead>
-            )}
-            <tbody>
-              <tr style={{ opacity: 0.75 }}>
-                <td>
-                  <span style={{ color: "#475569", marginRight: 6, fontSize: 10 }}>POST-LEASE</span>
-                  {note.date.toISOString().slice(0, 7)}
-                </td>
-                <td style={{ textAlign: "right" }}>${Math.round(note.costLow).toLocaleString()} – ${Math.round(note.costHigh).toLocaleString()}</td>
-                <td style={{ textAlign: "right" }}>${Math.round(note.balanceAtLeaseEnd).toLocaleString()}</td>
-                <td style={{ textAlign: "right", color: note.shortfallHigh > 0 ? "#fbbf24" : "#34d399" }}>
-                  ${Math.round(note.shortfallLow).toLocaleString()} – ${Math.round(note.shortfallHigh).toLocaleString()}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div style={{ fontSize: 10, color: "#475569", marginTop: 4 }}>
-            Pot balance frozen at lease end — accruals stop when this lessee's lease expires. Shortfall is the gap between the frozen balance and the next event cost.
+              <tbody>
+                <tr style={{ opacity: 0.75 }}>
+                  <td>
+                    <span style={{ color: "#475569", marginRight: 6, fontSize: 10 }}>POST-LEASE</span>
+                    {note.date.toISOString().slice(0, 7)}
+                  </td>
+                  <td style={{ textAlign: "right" }}>${Math.round(note.costLow).toLocaleString()} – ${Math.round(note.costHigh).toLocaleString()}</td>
+                  <td style={{ textAlign: "right" }}>${Math.round(note.balanceAtLeaseEnd).toLocaleString()}</td>
+                  <td style={{ textAlign: "right", color: note.shortfallHigh > 0 ? "#fbbf24" : "#34d399" }}>
+                    ${Math.round(note.shortfallLow).toLocaleString()} – ${Math.round(note.shortfallHigh).toLocaleString()}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div style={{ fontSize: 10, color: "#475569", marginTop: 4 }}>
+              Pot balance frozen at lease end — accruals stop when this lessee's lease expires. Shortfall is the gap between the frozen balance and the next event cost.
+            </div>
           </div>
-        </div>
-      )}
-
-      {projection.leaseEndLimiter && (
-        <div style={{ marginTop: 10, padding: "8px 10px", background: "#0d1e33", borderRadius: 6, fontSize: 11, color: "#94a3b8" }}>
-          <span style={{ color: "#64748b", fontWeight: 700, marginRight: 6 }}>Lowest limiter at lease end:</span>
-          {projection.leaseEndLimiter.desc} — {projection.leaseEndLimiter.remainingFC.toLocaleString()} FC remaining
-          {projection.leaseEndLimiter.fcPerMonth
-            ? ` (~${Math.round(projection.leaseEndLimiter.remainingFC / projection.leaseEndLimiter.fcPerMonth)} months at current rate)`
-            : ""}
-        </div>
+        )
       )}
 
       {projection.warnings.map((w, i) => (
@@ -896,7 +899,7 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
   const warn2Span = headerInGrid ? (showRiskPeaks ? '"warn2 warn2 warn2"' : '"warn2 warn2"') : null;
   const headerAreaRows = [headerAreaRow, showMissing && warnSpan, showMaintCal && warn2Span].filter(Boolean);
   const headerGridStyle = headerInGrid
-    ? { display: "grid", gridTemplateColumns: `repeat(${colCount}, 1fr)`, gridTemplateAreas: headerAreaRows.join(" "), columnGap: 16, rowGap: 16, marginBottom: 16, alignItems: "start" }
+    ? { display: "grid", gridTemplateColumns: `repeat(${colCount}, 1fr)`, gridTemplateAreas: headerAreaRows.join(" "), columnGap: 16, rowGap: 16, marginBottom: 16, alignItems: "stretch" }
     : undefined;
   const mb = headerInGrid ? 0 : 16;
 
