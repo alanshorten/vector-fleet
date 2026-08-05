@@ -20,7 +20,7 @@ const TECH_SPEC_LOGO="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUND
 
 
 
-function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverride=null,stockAirframePhoto=""){
+function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverride=null,stockAirframePhoto="",hideBranding=false){
   const logoUrl=logoOverride?.url||TECH_SPEC_LOGO;
   const logoWidth=logoOverride?.width||200;
   const today=new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"});
@@ -73,7 +73,7 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
 .mini-l{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;margin-bottom:3px}
 .mini-v{font-size:14px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.01em}
 .mini-s{font-size:8px;color:#94a3b8;margin-top:2px}`;
-  const PAGE_FOOTER='<div class="pgfooter"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#dc2626;margin-right:3px;vertical-align:middle"></span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#16a34a;margin-right:6px;vertical-align:middle"></span>Powered by <span style="text-transform:none">TailiQ</span> Fleet Intelligence</div>';
+  const PAGE_FOOTER=hideBranding?'':'<div class="pgfooter"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#dc2626;margin-right:3px;vertical-align:middle"></span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#16a34a;margin-right:6px;vertical-align:middle"></span>Powered by <span style="text-transform:none">TailiQ</span> Fleet Intelligence</div>';
   // QR pill disabled for internal use — QR_TAILIQ constant retained for future reactivation.
   // To re-enable: restore the original COVER_PILL definition from git history (commit before this change).
   const COVER_PILL='';
@@ -159,7 +159,7 @@ ${eng.operatorHistory?.length?`${cO("Operator History",svgList)}<table style="wi
     const ll=lowestLimiter(eng);
     return`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Engine Spec ESN ${eng?.sn}</title><style>${specCSS}</style></head><body>
 <div class="cover"><div class="cover-top"><div>
-  <div class="cov-hdr"><img src="${VECTORIQ_BANNER}" alt="TailiQ"/></div>
+  ${hideBranding?'':'<div class="cov-hdr"><img src="'+VECTORIQ_BANNER+'" alt="TailiQ"/></div>'}
   <div class="hero">
     <center style="margin-bottom:18px"><img src="${logoUrl}" alt="Maverick Horizon" style="height:60px;width:auto"/></center>
     <div class="hero-rule"></div>
@@ -190,7 +190,7 @@ ${PAGE_FOOTER}
   const coverPhotoUrl=coverPhoto?.url||stockAirframePhoto||"";
   return`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Tech Spec MSN ${asset.msn}</title><style>${specCSS}</style></head><body>
 <div class="cover"><div class="cover-top"><div>
-  <div class="cov-hdr"><img src="${VECTORIQ_BANNER}" alt="TailiQ"/></div>
+  ${hideBranding?'':'<div class="cov-hdr"><img src="'+VECTORIQ_BANNER+'" alt="TailiQ"/></div>'}
   <div class="hero">
     <center style="margin-bottom:18px"><img src="${logoUrl}" alt="Maverick Horizon" style="height:60px;width:auto"/></center>
     <div class="hero-rule"></div>

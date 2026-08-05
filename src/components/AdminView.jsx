@@ -83,6 +83,50 @@ function LogoSettings({notify}) {
   );
 };
 
+function BrandingToggle({notify}) {
+  const [hidden, setHidden] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    db.getSetting('tech_spec_hide_branding').then(v => { if(v) setHidden(true); }).catch(()=>{});
+  }, []);
+
+  const toggle = async () => {
+    const next = !hidden;
+    setSaving(true);
+    try {
+      await db.setSetting('tech_spec_hide_branding', next ? true : null);
+      setHidden(next);
+      notify(next ? 'TailiQ branding hidden from tech specs' : 'TailiQ branding restored to tech specs');
+    } catch(err) {
+      notify('Failed: ' + err.message, 'error');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div>
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:10}}>
+        <button
+          onClick={toggle}
+          disabled={saving}
+          style={{
+            padding:'8px 16px',fontSize:12,fontWeight:600,borderRadius:7,cursor:saving?'wait':'pointer',
+            background:hidden?'#16a34a':'transparent',
+            border:`1px solid ${hidden?'#16a34a':'#2a4060'}`,
+            color:hidden?'#ffffff':'#6a8aaa',
+            transition:'all 0.15s'
+          }}
+        >
+          {saving ? '⏳ Saving…' : hidden ? '✓ Branding hidden' : 'Hide branding'}
+        </button>
+        {hidden && <button className="btn btn-ghost" style={{fontSize:11,padding:'7px 14px'}} onClick={toggle}>Restore branding</button>}
+      </div>
+      <p style={{fontSize:11,color:'#475569',marginTop:4}}>When enabled, the TailiQ header banner, footer, and preview bar label are removed from generated tech specs. Your company logo is unaffected.</p>
+    </div>
+  );
+};
+
 function DisclaimerSettings({notify}) {
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -635,6 +679,10 @@ function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
                   <div className="section-title">Tech Spec Logo</div>
                   <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Resize or replace the logo shown on the tech spec cover pages.</p>
                   <LogoSettings notify={notify}/>
+                  <div style={{marginTop:20,paddingTop:16,borderTop:'1px solid #1e3348'}}>
+                    <div className="section-title" style={{marginBottom:8}}>TailiQ Branding</div>
+                    <BrandingToggle notify={notify}/>
+                  </div>
                 </div>
                 <div className="card" style={{padding:20, gridArea: layoutMode==="landscape" ? "disclaimer" : undefined}}>
                   <div className="section-title">Disclaimer</div>

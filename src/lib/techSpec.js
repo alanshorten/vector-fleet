@@ -13,12 +13,17 @@ async function getTechSpecLogo(){
   return {url:url||null,width:width||200};
 };
 
+async function getTechSpecBrandingHidden(){
+  return await db.getSetting('tech_spec_hide_branding').catch(()=>null);
+};
+
 async function getDefaultDisclaimer(){
   return await db.getSetting('default_disclaimer').catch(()=>null);
 };
 
-function openTechSpec(html){
-  const withBar=html.replace('<body>',`<body><div style="position:fixed;top:0;left:0;right:0;background:#1B3A6B;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.3)"><span style="color:#C9A84C;font-weight:700;font-size:14px;flex:1">TailiQ Fleet Intelligence</span><button onclick="window.print()" style="background:#C9A84C;color:#0a1520;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button><button onclick="window.close()" style="background:transparent;color:#94a3b8;border:1px solid #2d3f55;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">✕ Close</button></div><div style="height:52px"></div>`);
+function openTechSpec(html,hideBranding=false){
+  const barLabel=hideBranding?'':' <span style="color:#C9A84C;font-weight:700;font-size:14px;flex:1">TailiQ Fleet Intelligence</span>';
+  const withBar=html.replace('<body>',`<body><div style="position:fixed;top:0;left:0;right:0;background:#1B3A6B;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${barLabel}<button onclick="window.print()" style="background:#C9A84C;color:#0a1520;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button><button onclick="window.close()" style="background:transparent;color:#94a3b8;border:1px solid #2d3f55;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">✕ Close</button></div><div style="height:52px"></div>`);
   const withPrint=withBar.replace('</style>','@media print{body>div:first-child{display:none!important}div[style*="height:52px"]{display:none!important}}</style>');
   const win=window.open();win.document.write(withPrint);win.document.close();
 };
@@ -32,14 +37,15 @@ async function generateTechSpec(asset){
   const specAsset=asset.prospectKind==="engine"?{...asset,_engineOnly:true,_enginePos:1}:asset;
   const photoKey=assetEngineStockPhotoKey(specAsset);
   const airframePhotoKey=airframeStockPhotoKey(specAsset.model);
-  const[engPhoto,stockAirframePhoto,logo,defaultDisclaimer]=await Promise.all([
+  const[engPhoto,stockAirframePhoto,logo,defaultDisclaimer,hideBranding]=await Promise.all([
     photoKey?db.getSetting(photoKey).catch(()=>null):Promise.resolve(null),
     airframePhotoKey?db.getSetting(airframePhotoKey).catch(()=>null):Promise.resolve(null),
     getTechSpecLogo(),
-    getDefaultDisclaimer()
+    getDefaultDisclaimer(),
+    getTechSpecBrandingHidden()
   ]);
-  openTechSpec(buildTechSpecHTML(specAsset,engPhoto||"",logo,defaultDisclaimer,stockAirframePhoto||""));
+  openTechSpec(buildTechSpecHTML(specAsset,engPhoto||"",logo,defaultDisclaimer,stockAirframePhoto||"",!!hideBranding),!!hideBranding);
 };
 
 
-export { HEADER_LOGO_NAVY, HEADER_LOGO_WHITE, generateTechSpec, getDefaultDisclaimer, getTechSpecLogo, openTechSpec };
+export { HEADER_LOGO_NAVY, HEADER_LOGO_WHITE, generateTechSpec, getDefaultDisclaimer, getTechSpecBrandingHidden, getTechSpecLogo, openTechSpec };
