@@ -82,7 +82,9 @@ function LLPExtractor({kind,label,onApply,notify}){
 function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,initialLayer,
   layer,setLayer,shareOpen,setShareOpen,genSpecRef}){
   const[tab,setTab]=useState("overview");
-  const[financialsHeaderActions,setFinancialsHeaderActions]=useState(null);
+  const[showEOLPosition,setShowEOLPosition]=useState(false);
+  const[showAssumptions,setShowAssumptions]=useState(false);
+  const[leaseWizardOpen,setLeaseWizardOpen]=useState(false);
   // Data Entry sees Details only (raw inputs, no financial outputs) — matches
   // the four-role model's Nav visibility table (VECTORIQ_ROADMAP.md §7a).
   const canSeeAdvanced=!!userRole&&userRole!=='dataEntry';
@@ -123,9 +125,11 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
             <p style={{color:"#475569",fontSize:12,whiteSpace:"nowrap"}}>{asset.model} · {asset.operator||"—"}</p>
           </div>
         </div>
-        {financialsHeaderActions && layer==="financials" && (
+        {layer==="financials"&&canSeeAdvanced&&(
           <div className="flab g12" style={{marginLeft:"auto",flexShrink:0}}>
-            {financialsHeaderActions}
+            <button className="btn btn-ghost" onClick={()=>setShowEOLPosition(s=>!s)}>{showEOLPosition?"Hide ":"📄 "}End of Lease Position</button>
+            <button className="btn btn-ghost" onClick={()=>setShowAssumptions(s=>!s)}>{showAssumptions?"Hide ":"📋 "}Assumptions</button>
+            {canEnterLeaseData&&<button className="btn btn-ghost" onClick={()=>setLeaseWizardOpen(true)}>📄 Edit Lease</button>}
           </div>
         )}
       </div>
@@ -149,7 +153,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
         </>
       )}
       {layer==="calendar"&&canSeeAdvanced&&<MaintenanceCalendarView asset={asset} notify={notify} canEnterCosts={canEnterLeaseData}/>}
-      {layer==="financials"&&canSeeAdvanced&&<FlyForward asset={asset} saveAsset={saveAsset} notify={notify} canEnterLeaseData={canEnterLeaseData} userRole={userRole} onHeaderActions={setFinancialsHeaderActions}/>}
+      {layer==="financials"&&canSeeAdvanced&&<FlyForward asset={asset} saveAsset={saveAsset} notify={notify} canEnterLeaseData={canEnterLeaseData} userRole={userRole} showEOLPosition={showEOLPosition} setShowEOLPosition={setShowEOLPosition} showAssumptions={showAssumptions} leaseWizardOpen={leaseWizardOpen} setLeaseWizardOpen={setLeaseWizardOpen}/>}
       {layer==="scenarios"&&canSeeAdvanced&&<Scenarios asset={asset}/>}
       {shareOpen&&<ShareModal asset={asset} notify={notify} onClose={()=>setShareOpen(false)}/>}
     </div>
