@@ -238,36 +238,40 @@ ${col2(
     </tbody></table>
   </td>`
 )}
-${col2(
-  `<td style="${CS}">
+${(()=>{
+  const _hf=new Set(asset.hiddenSpecFields||[]);
+  const sh=(k)=>_hf.has(k);
+  return col2(
+    `<td style="${CS}">
     ${IH("Configuration",svgClip)}
     <table width="100%" cellpadding="0" cellspacing="0">
-      ${kvR("Configuration",asset.specs?.config||"—")}
-      ${kvR("Seat Config",asset.specs?.seatConfig||"—")}
-      ${kvR("Seat Manufacturer",asset.specs?.seatMfr||"—")}
-      ${kvR("Passenger Seats P/N",asset.specs?.seatPN||"—")}
-      ${kvR("Attendant Seats",asset.specs?.attendantSeats||"—")}
-      ${kvR("Galleys",asset.specs?.galleys||"—")}
-      ${kvR("Lavatories",asset.specs?.lavs||"—")}
-      ${kvR("Cargo Type",asset.specs?.cargoType||"—")}
-      ${kvR("Winglets",asset.specs?.winglets||"—")}
+      ${sh("specs.config")?"":kvR("Configuration",asset.specs?.config||"—")}
+      ${sh("specs.seatConfig")?"":kvR("Seat Config",asset.specs?.seatConfig||"—")}
+      ${sh("specs.seatMfr")?"":kvR("Seat Manufacturer",asset.specs?.seatMfr||"—")}
+      ${sh("specs.seatPN")?"":kvR("Passenger Seats P/N",asset.specs?.seatPN||"—")}
+      ${sh("specs.attendantSeats")?"":kvR("Attendant Seats",asset.specs?.attendantSeats||"—")}
+      ${sh("specs.galleys")?"":kvR("Galleys",asset.specs?.galleys||"—")}
+      ${sh("specs.lavs")?"":kvR("Lavatories",asset.specs?.lavs||"—")}
+      ${sh("specs.cargoType")?"":kvR("Cargo Type",asset.specs?.cargoType||"—")}
+      ${sh("specs.winglets")?"":kvR("Winglets",asset.specs?.winglets||"—")}
     </table>
   </td>`,
-  `<td style="${CS}">
+    `<td style="${CS}">
     ${IH("Systems",svgCog)}
     <table width="100%" cellpadding="0" cellspacing="0">
-      ${kvR("ADS-B",asset.specs?.adsb?"Installed":"—")}
-      ${kvR("CPDLC",asset.specs?.cpdlc?"Installed":"—")}
-      ${kvR("TCAS 7.1",asset.specs?.tcas?"Installed":"—")}
-      ${kvR("EFB",asset.specs?.efb?"Installed":"—")}
-      ${kvR("Enhanced Mode-S",asset.specs?.modeS?"Installed":"—")}
-      ${kvR("QAR",asset.specs?.qar?"Installed":"—")}
-      ${kvR("Cockpit Door Surv Sys",asset.specs?.cdss?"Installed":"—")}
-      ${kvR("Reinf. Flight Deck Door",asset.specs?.rfdd?"Installed":"—")}
+      ${sh("specs.adsb")?"":kvR("ADS-B",asset.specs?.adsb?"Installed":"—")}
+      ${sh("specs.cpdlc")?"":kvR("CPDLC",asset.specs?.cpdlc?"Installed":"—")}
+      ${sh("specs.tcas")?"":kvR("TCAS 7.1",asset.specs?.tcas?"Installed":"—")}
+      ${sh("specs.efb")?"":kvR("EFB",asset.specs?.efb?"Installed":"—")}
+      ${sh("specs.modeS")?"":kvR("Enhanced Mode-S",asset.specs?.modeS?"Installed":"—")}
+      ${sh("specs.qar")?"":kvR("QAR",asset.specs?.qar?"Installed":"—")}
+      ${sh("specs.cdss")?"":kvR("Cockpit Door Surv Sys",asset.specs?.cdss?"Installed":"—")}
+      ${sh("specs.rfdd")?"":kvR("Reinf. Flight Deck Door",asset.specs?.rfdd?"Installed":"—")}
       ${(asset.specs?.custom||[]).filter(f=>f.label&&f.value).map(f=>kvR(f.label,f.value)).join("")}
     </table>
   </td>`
-)}
+  );
+})()}
 ${PAGE_FOOTER}<div class="pb"></div>
 ${(()=>{
   const engines=(asset.engines||[]).filter(e=>e&&(e.type||e.sn||e.currentFH));
