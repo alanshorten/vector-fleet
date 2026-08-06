@@ -14,9 +14,9 @@ import { LayoutModeProvider, useLayoutMode } from './lib/layoutMode';
 // ---------------------------------------------------------------------
 // HamburgerMenu — low-frequency items off the main nav bar.
 //
-// Desktop / landscape (≥ ~900px): holds Prospects · Settings · Sign Out
+// Desktop / landscape (≥ ~900px): holds Prospects · iQ (admin) · Settings · Sign Out
 // Mobile / portrait (< ~900px):   holds Fleet Nav group (Details ·
-//   Calendar · Financials · Scenarios) + Tools (Prospects, Upload) +
+//   Calendar · Financials · Scenarios) + Tools (Prospects, Upload, iQ) +
 //   Account (Settings, Sign Out)
 //
 // Three groups separated by thin dividers. Active page highlighted same
@@ -25,7 +25,7 @@ import { LayoutModeProvider, useLayoutMode } from './lib/layoutMode';
 //
 // Scoping: hamburger-menu-build-handoff.md
 // ---------------------------------------------------------------------
-function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, isPortfolio }) {
+function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, isAdmin, isPortfolio }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -146,6 +146,7 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
           <GroupLabel>Tools</GroupLabel>
           <Item value="prospects" label="Prospects"/>
           {isMobile && canUpload && <Item value="upload" label="Upload"/>}
+          {isAdmin && <Item value="iq" label="iQ"/>}
           <Divider/>
 
           {/* Account */}
@@ -154,6 +155,18 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
           <Item value="signout" label="⎋ Sign Out"/>
         </div>
       )}
+    </div>
+  );
+}
+
+// iQ tab placeholder — nav-only build (TECH_DEBT sv-analytics-iq-tab-build-spec.md
+// step 1). SVAnalyticsCard/IQView land in a later Sonnet session; this just
+// gives the new nav destination somewhere to go so the route doesn't dead-end.
+function IQPlaceholderView(){
+  return(
+    <div className="card" style={{padding:32,textAlign:"center",maxWidth:480,margin:"40px auto"}}>
+      <div style={{fontSize:11,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}}>iQ</div>
+      <p style={{color:"#94a3b8",fontSize:13}}>SV Interval Analytics is being built next. This tab will show time-on-wing patterns by engine family and removal reason.</p>
     </div>
   );
 }
@@ -348,7 +361,7 @@ function AppInner(){
                     style={{flex:1,padding:"7px 14px",background:"transparent",border:"1px solid #2a4060",borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
                     ✈ Fleet Portfolio
                   </button>}
-                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isPortfolio={false}/>
+                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   {(()=>{
@@ -357,10 +370,11 @@ function AppInner(){
                     return <NavPill items={LAYERS} activeValue={assetLayer} onSelect={setAssetLayer} theme="dark"/>;
                   })()}
                 </div>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 12px",flex:1}} onClick={()=>setAssetShareOpen(true)}>🔗 Share</button>
-                  <button className="btn btn-gold" style={{fontSize:12,padding:"8px 12px",flex:1}} onClick={()=>genSpecRef.current&&genSpecRef.current()}>📋 Generate Tech Spec</button>
-                </div>
+                {canUpload&&(
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <NavPill items={[["upload","Upload"]]} activeValue={view} onSelect={v=>{setView(v);setSelectedId(null);}} theme="dark" width="100%"/>
+                  </div>
+                )}
               </>
             ) : isMobile ? (
               /* Portrait + fleet view — Portfolio + ☰ only, fleet nav lives in hamburger */
@@ -369,7 +383,7 @@ function AppInner(){
                   style={{flex:1,padding:"7px 14px",background:isPortfolio?"#f1f5f9":"transparent",border:`1px solid ${isPortfolio?"#e2e8f0":"#2a4060"}`,borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:isPortfolio?"#0f172a":"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
                   ✈ Fleet Portfolio
                 </button>}
-                <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isPortfolio={isPortfolio}/>
+                <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
               </div>
             ) : view==="asset" && selectedAsset ? (
               /* Asset view — row 1: Fleet Portfolio + ☰ (same as fleet view)
@@ -380,7 +394,7 @@ function AppInner(){
                     style={{flex:1,padding:"7px 14px",background:"transparent",border:"1px solid #2a4060",borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
                     ✈ Fleet Portfolio
                   </button>}
-                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isPortfolio={false}/>
+                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"nowrap"}}>
                   {(()=>{
@@ -388,10 +402,12 @@ function AppInner(){
                     const LAYERS=[["details","Details"],...(canSeeAdv?[["calendar","Calendar"],["financials","Financials"],["scenarios","Scenarios"]]:[])];
                     return <NavPill items={LAYERS} activeValue={assetLayer} onSelect={setAssetLayer} theme="dark"/>;
                   })()}
-                  <div className="app-nav-pill trailing-pill" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",gap:8,background:"rgba(13,25,37,0.8)",border:"1px solid #1e3348",borderRadius:8,padding:"5px 6px",width:TRAILING_PILL_WIDTH,flexShrink:0}}>
-                    <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 12px"}} onClick={()=>setAssetShareOpen(true)}>🔗 Share</button>
-                    <button className="btn btn-gold" style={{fontSize:12,padding:"8px 12px"}} onClick={()=>genSpecRef.current&&genSpecRef.current()}>📋 Generate Tech Spec</button>
-                  </div>
+                  {canUpload&&<NavPill
+                    items={[["upload","Upload"]]}
+                    activeValue={view}
+                    onSelect={v=>{setView(v);setSelectedId(null);}}
+                    theme="dark"
+                    width={TRAILING_PILL_WIDTH}/>}
                 </div>
               </>
             ) : (
@@ -402,7 +418,7 @@ function AppInner(){
                     style={{flex:1,padding:"7px 14px",background:isPortfolio?"#f1f5f9":"transparent",border:`1px solid ${isPortfolio?"#e2e8f0":"#2a4060"}`,borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:isPortfolio?"#0f172a":"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
                     ✈ Fleet Portfolio
                   </button>}
-                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isPortfolio={isPortfolio}/>
+                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"nowrap"}}>
                   <NavPill
@@ -438,6 +454,7 @@ function AppInner(){
         {view==="asset"&&selectedId&&selectedAsset&&<AssetView asset={selectedAsset} saveAsset={saveAsset} isAdmin={userRole==='admin'||userRole==='editor'} userRole={userRole} notify={notify} onBack={()=>{setView("dashboard");setSelectedId(null);}} loadAssets={loadAssets} initialLayer={assetInitialLayer} layer={assetLayer} setLayer={setAssetLayer} shareOpen={assetShareOpen} setShareOpen={setAssetShareOpen} genSpecRef={genSpecRef}/>}
         {view==="upload"&&canUpload&&<UploadView assets={liveAssets} saveAsset={saveAsset} notify={notify}/>}
         {view==="guide"&&<GuideView/>}
+        {view==="iq"&&userRole==='admin'&&<IQPlaceholderView/>}
         {view==="portfolio"&&canSeeAdvanced&&<PortfolioView assets={liveAssets} notify={notify} onSelect={(id)=>{setSelectedId(id);setAssetLayer("details");setView("asset");}} onFlyForward={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>}
         {view==="fleetexposure"&&canSeeAdvanced&&<FleetExposureView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>}
         {view==="fleetcalendar"&&canSeeAdvanced&&<FleetCalendarView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>}

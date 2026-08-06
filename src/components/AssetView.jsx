@@ -119,7 +119,10 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
 
   return(
     <div style={{animation:"fadeIn 0.2s ease"}}>
-      {/* Asset title row — pills have moved to App.jsx header for alignment */}
+      {/* Asset title row — layer nav pill lives in App.jsx header for alignment.
+          Share/Generate Tech Spec live here, Details layer only (they used to
+          sit in the App.jsx header trailing pill on every layer; that slot is
+          now Upload, matching the fleet header's trailing pill). */}
       <div className="flab g12 asset-header-row" style={{marginBottom:24,flexWrap:"nowrap"}}>
         <div className="flab g12 asset-header-top" style={{flexShrink:0,minWidth:0,overflow:"hidden"}}>
           <button className="btn btn-ghost" style={{flexShrink:0}} onClick={onBack}>← Fleet</button>
@@ -128,6 +131,12 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
             <p style={{color:"#475569",fontSize:12,whiteSpace:"nowrap"}}>{asset.model} · {asset.operator||"—"}</p>
           </div>
         </div>
+        {layer==="details"&&(
+          <div className="flab g12" style={{marginLeft:"auto",flexShrink:0}}>
+            <button className="btn btn-ghost" onClick={()=>setShareOpen(true)}>🔗 Share</button>
+            <button className="btn btn-gold" onClick={()=>genSpecRef.current&&genSpecRef.current()}>📋 Generate Tech Spec</button>
+          </div>
+        )}
         {layer==="financials"&&canSeeAdvanced&&(
           <div className="flab g12" style={{marginLeft:"auto",flexShrink:0}}>
             <button className="btn btn-ghost" onClick={()=>setShowEOLPosition(s=>!s)}>{showEOLPosition?"Hide ":"📄 "}End of Lease Position</button>
