@@ -10,6 +10,7 @@ import { db, logAudit } from './lib/db';
 import { bootstrapKnowledgeBaseGlobals } from './lib/knowledgeBase';
 import { HEADER_LOGO_NAVY, HEADER_LOGO_WHITE } from './lib/techSpec';
 import { LayoutModeProvider, useLayoutMode } from './lib/layoutMode';
+import { IQView } from './components/IQView';
 
 // ---------------------------------------------------------------------
 // HamburgerMenu — low-frequency items off the main nav bar.
@@ -155,18 +156,6 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
           <Item value="signout" label="⎋ Sign Out"/>
         </div>
       )}
-    </div>
-  );
-}
-
-// iQ tab placeholder — nav-only build (TECH_DEBT sv-analytics-iq-tab-build-spec.md
-// step 1). SVAnalyticsCard/IQView land in a later Sonnet session; this just
-// gives the new nav destination somewhere to go so the route doesn't dead-end.
-function IQPlaceholderView(){
-  return(
-    <div className="card" style={{padding:32,textAlign:"center",maxWidth:480,margin:"40px auto"}}>
-      <div style={{fontSize:11,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}}>iQ</div>
-      <p style={{color:"#94a3b8",fontSize:13}}>SV Interval Analytics is being built next. This tab will show time-on-wing patterns by engine family and removal reason.</p>
     </div>
   );
 }
@@ -454,7 +443,7 @@ function AppInner(){
         {view==="asset"&&selectedId&&selectedAsset&&<AssetView asset={selectedAsset} saveAsset={saveAsset} isAdmin={userRole==='admin'||userRole==='editor'} userRole={userRole} notify={notify} onBack={()=>{setView("dashboard");setSelectedId(null);}} loadAssets={loadAssets} initialLayer={assetInitialLayer} layer={assetLayer} setLayer={setAssetLayer} shareOpen={assetShareOpen} setShareOpen={setAssetShareOpen} genSpecRef={genSpecRef}/>}
         {view==="upload"&&canUpload&&<UploadView assets={liveAssets} saveAsset={saveAsset} notify={notify}/>}
         {view==="guide"&&<GuideView/>}
-        {view==="iq"&&userRole==='admin'&&<IQPlaceholderView/>}
+        {view==="iq"&&userRole==='admin'&&<IQView assets={liveAssets}/>}
         {view==="portfolio"&&canSeeAdvanced&&<PortfolioView assets={liveAssets} notify={notify} onSelect={(id)=>{setSelectedId(id);setAssetLayer("details");setView("asset");}} onFlyForward={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>}
         {view==="fleetexposure"&&canSeeAdvanced&&<FleetExposureView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>}
         {view==="fleetcalendar"&&canSeeAdvanced&&<FleetCalendarView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>}
