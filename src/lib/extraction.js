@@ -1,4 +1,10 @@
-import { APU_LLP_PROMPT, ENGINE_LLP_PROMPT, OPERATOR_HISTORY_PROMPT, SHOP_VISIT_PROMPT } from './assetHelpers';
+import { APU_LLP_PROMPT, ENGINE_LLP_PROMPT, OPERATOR_HISTORY_PROMPT, REASON_CATEGORIES, SHOP_VISIT_PROMPT } from './assetHelpers';
+
+// sv-analytics-iq-tab-build-spec.md §3 — AI suggests, human confirms. If the
+// model returns something outside the fixed taxonomy (or omits it), fall
+// back to "Other" per spec rather than storing an invalid/empty value —
+// the review screen lets the user correct it before it's ever saved.
+const normaliseReasonCategory=(v)=>REASON_CATEGORIES.includes(v)?v:"Other";
 
 async function callExtractAPI(base64,prompt,model,maxTokens,invalidFormatLabel){
   const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model,max_tokens:maxTokens,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:prompt}]}]})});
@@ -160,6 +166,7 @@ async function extractOperatorHistory(file){
       tsnAtRemoval:r.tsnAtRemoval!=null?+r.tsnAtRemoval:null,
       csnAtRemoval:r.csnAtRemoval!=null?+r.csnAtRemoval:null,
       reason:r.reason||"",
+      reasonCategory:normaliseReasonCategory(r.reasonCategory),
       source:"extracted",
       extractedFrom:file.name,
       asOfDate
@@ -533,6 +540,7 @@ async function extractShopVisits(file){
       fh:r.tsn!=null?+r.tsn:null,
       fc:r.csn!=null?+r.csn:null,
       mro:r.mro||"",
+      reasonCategory:normaliseReasonCategory(r.reasonCategory),
       source:"extracted",
       extractedFrom:file.name
     }));

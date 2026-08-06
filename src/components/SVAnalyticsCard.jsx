@@ -1,12 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { engineFamily } from '../lib/assetHelpers';
+import { engineFamily, REASON_CATEGORIES } from '../lib/assetHelpers';
 
-// sv-analytics-iq-tab-build-spec.md §3 — 8-category taxonomy. Only PR and
+// sv-analytics-iq-tab-build-spec.md §3 — 8-category taxonomy (canonical list
+// now lives in assetHelpers.js, shared with the extraction prompts and the
+// Shop Visit / Operator History review-screen dropdowns). Only PR and
 // Hardware are trended (interval calcs); the rest still appear in the raw
-// table. reasonCategory doesn't exist on any records yet — that's steps
-// 4-6 of the build sequence (extraction prompt + review-screen dropdowns).
-// Until then every row shows as Uncategorised, which is expected.
-const REASON_CATEGORIES=["PR","Hardware","FOD","Lease Event","Swap","TIMEX","Scheduled LLP","Other"];
+// table.
 const TRENDED_CATEGORIES=["PR","Hardware"];
 const SUMMARY_LABELS={PR:"Performance Restoration",Hardware:"Hardware"};
 
@@ -237,4 +236,4 @@ function SVAnalyticsCard({assets}){
   );
 }
 
-export { SVAnalyticsCard, REASON_CATEGORIES, TRENDED_CATEGORIES };
+export { SVAnalyticsCard, TRENDED_CATEGORIES };

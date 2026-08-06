@@ -1,9 +1,24 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { daysFromNow, isEmpty, parseHHMM, engineStockPhotoKey } from '../lib/assetHelpers';
+import { daysFromNow, isEmpty, parseHHMM, engineStockPhotoKey, REASON_CATEGORIES } from '../lib/assetHelpers';
 import { db } from '../lib/db';
 import { getDefaultDisclaimer, getTechSpecBrandingHidden, getTechSpecLogo } from '../lib/techSpec';
 import { extractOperatorHistory, mergeOperatorHistory, extractShopVisits, mergeShopVisits } from '../lib/extraction';
 import { useLayoutMode } from '../lib/layoutMode';
+
+// Shared reasonCategory control — used on Shop Visit / Operator History
+// inline edit rows, the Add Visit / Add Row manual forms, and the
+// post-extraction review screens (sv-analytics-iq-tab-build-spec.md §8).
+function CategorySelect({value,onChange,style}){
+  return(
+    <select value={value||""} onChange={e=>onChange(e.target.value)} style={{fontSize:11,padding:"4px 6px",...style}}>
+      <option value="">Uncategorised</option>
+      {REASON_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
+    </select>
+  );
+}
+function CategoryBadge({value}){
+  return value?<span style={{color:"#94a3b8"}}>{value}</span>:<span style={{color:"#475569",fontStyle:"italic"}}>Uncategorised</span>;
+}
 
 function OverviewTab({asset,isAdmin,saveAsset,notify}){
   const[editing,setEditing]=useState(false);
@@ -157,7 +172,7 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
 
 function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
   const[adding,setAdding]=useState(false);
-  const[newSV,setNewSV]=useState({details:"",date:"",fh:"",fc:"",mro:""});
+  const[newSV,setNewSV]=useState({details:"",date:"",fh:"",fc:"",mro:"",reasonCategory:""});
   const[uploading,setUploading]=useState(false);
   const[reviewRows,setReviewRows]=useState(null);
   const[editIdx,setEditIdx]=useState(null);
@@ -166,9 +181,9 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
   const saveSV=async()=>{
     const engines=JSON.parse(JSON.stringify(asset.engines||[]));
     const existing=engines[engIdx].shopVisits||[];
-    engines[engIdx].shopVisits=mergeShopVisits(existing,[{...newSV,fh:parseHHMM(newSV.fh),fc:newSV.fc===""?null:+newSV.fc,id:"sv_"+Date.now()}]);
+    engines[engIdx].shopVisits=mergeShopVisits(existing,[{...newSV,fh:parseHHMM(newSV.fh),fc:newSV.fc===""?null:+newSV.fc,reasonCategory:newSV.reasonCategory||null,id:"sv_"+Date.now()}]);
     await saveAsset({...asset,engines});
-    setAdding(false);setNewSV({details:"",date:"",fh:"",fc:"",mro:""});notify("Shop visit added");
+    setAdding(false);setNewSV({details:"",date:"",fh:"",fc:"",mro:"",reasonCategory:""});notify("Shop visit added");
   };
 
   const delSV=async(si)=>{
@@ -183,7 +198,7 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
   const saveEditSV=async(si)=>{
     const engines=JSON.parse(JSON.stringify(asset.engines||[]));
     const svs=[...(engines[engIdx].shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});
-    svs[si]={...svs[si],...editForm,fh:editForm.fh===""||editForm.fh==null?null:(typeof editForm.fh==="string"?parseHHMM(editForm.fh):editForm.fh),fc:editForm.fc===""||editForm.fc==null?null:+editForm.fc};
+    svs[si]={...svs[si],...editForm,fh:editForm.fh===""||editForm.fh==null?null:(typeof editForm.fh==="string"?parseHHMM(editForm.fh):editForm.fh),fc:editForm.fc===""||editForm.fc==null?null:+editForm.fc,reasonCategory:editForm.reasonCategory||null};
     engines[engIdx].shopVisits=mergeShopVisits(svs,[]);
     await saveAsset({...asset,engines});
     setEditIdx(null);setEditForm(null);notify("Shop visit updated");
@@ -234,7 +249,7 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
 
       {(()=>{if(!svs.length)return null;const last=svs[svs.length-1];const sinceFH=eng.currentFH&&last.fh?eng.currentFH-last.fh:null;const sinceFC=eng.currentFC&&last.fc?eng.currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;return(<div style={{background:"#0a1a2a",border:"1px solid #1B3A6B",borderRadius:6,padding:"10px 12px",marginBottom:10}}><div style={{fontSize:9,color:"#C9A84C",fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Since Last Shop Visit</div><div className="grid3" style={{gap:8}}><div><div style={{fontSize:9,color:"#475569"}}>Days</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceDays!==null?sinceDays.toLocaleString():"—"}</div></div><div><div style={{fontSize:9,color:"#475569"}}>FH</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceFH!==null?fmtHHMM(sinceFH):"—"}</div></div><div><div style={{fontSize:9,color:"#475569"}}>FC</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceFC!==null?sinceFC.toLocaleString():"—"}</div></div></div></div>);})()}
 
-      <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th>{isAdmin&&<th></th>}</tr></thead>
+      <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th><th>Category</th>{isAdmin&&<th></th>}</tr></thead>
       <tbody>{svs.length?svs.map((sv,si)=>{
         const isEditingRow=editIdx===si;
         const ed=isEditingRow?editForm:sv;
@@ -245,6 +260,7 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
             <td><input value={ed.fh!=null?fmtHHMM(ed.fh):""} onChange={e=>setEditForm({...editForm,fh:e.target.value})} style={{width:80}} placeholder="HH:MM"/></td>
             <td><input type="number" value={ed.fc!=null?ed.fc:""} onChange={e=>setEditForm({...editForm,fc:e.target.value})} style={{width:70}}/></td>
             <td><input value={ed.mro||""} onChange={e=>setEditForm({...editForm,mro:e.target.value})} style={{width:110}}/></td>
+            <td><CategorySelect value={ed.reasonCategory} onChange={v=>setEditForm({...editForm,reasonCategory:v})}/></td>
             <td><div className="flab g8"><button className="btn btn-ghost" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>{setEditIdx(null);setEditForm(null);}}>Cancel</button><button className="btn btn-gold" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>saveEditSV(si)}>Save</button></div></td>
           </tr>
         );
@@ -254,10 +270,11 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
             <td style={{fontFamily:"monospace"}}>{sv.fh!=null?fmtHHMM(sv.fh):"—"}</td>
             <td style={{fontFamily:"monospace"}}>{sv.fc!=null?sv.fc.toLocaleString():"—"}</td>
             <td style={{color:"#94a3b8"}}>{sv.mro||"—"}</td>
+            <td><CategoryBadge value={sv.reasonCategory}/></td>
             {isAdmin&&<td><div className="flab g8"><button className="btn btn-ghost" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>{setEditIdx(si);setEditForm({...sv,fh:sv.fh!=null?fmtHHMM(sv.fh):"",fc:sv.fc!=null?sv.fc:""});}}>Edit</button><button className="btn-danger btn" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>delSV(si)}>✕</button></div></td>}
           </tr>
         );
-      }):<tr><td colSpan={isAdmin?6:5} style={{color:"#475569",fontStyle:"italic"}}>No shop visits recorded</td></tr>}</tbody></table>
+      }):<tr><td colSpan={isAdmin?7:6} style={{color:"#475569",fontStyle:"italic"}}>No shop visits recorded</td></tr>}</tbody></table>
 
       {adding&&(
         <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #1e3048"}}>
@@ -266,6 +283,7 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
             {[["Date","date","date"],["TSN (HH:MM)","fh","text"],["CSN","fc","number"],["MRO Facility","mro","text"]].map(([l,k,t])=>(
               <div key={k}><label className="form-label">{l}</label><input type={t} value={newSV[k]} onChange={e=>setNewSV({...newSV,[k]:e.target.value})}/></div>
             ))}
+            <div><label className="form-label">Category</label><CategorySelect value={newSV.reasonCategory} onChange={v=>setNewSV({...newSV,reasonCategory:v})} style={{width:"100%"}}/></div>
           </div>
           <div className="flab g8"><button className="btn btn-ghost" onClick={()=>setAdding(false)}>Cancel</button><button className="btn btn-gold" onClick={saveSV}>Add Visit</button></div>
         </div>
@@ -274,7 +292,7 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
       {reviewRows&&(
         <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #C9A84C"}}>
           <div style={{fontSize:11,color:"#C9A84C",fontWeight:700,marginBottom:8}}>Review extracted shop visits before saving — {reviewRows.length} event{reviewRows.length===1?"":"s"} found</div>
-          <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th></tr></thead>
+          <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th><th>Category</th></tr></thead>
           <tbody>{reviewRows.map((r,i)=>(
             <tr key={i}>
               <td><input value={r.details} onChange={e=>updateReviewRow(i,"details",e.target.value)} style={{width:160}}/></td>
@@ -282,6 +300,7 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
               <td><input type="number" value={r.fh!=null?r.fh:""} onChange={e=>updateReviewRow(i,"fh",e.target.value===""?null:+e.target.value)} style={{width:80}}/></td>
               <td><input type="number" value={r.fc!=null?r.fc:""} onChange={e=>updateReviewRow(i,"fc",e.target.value===""?null:+e.target.value)} style={{width:70}}/></td>
               <td><input value={r.mro} onChange={e=>updateReviewRow(i,"mro",e.target.value)} style={{width:110}}/></td>
+              <td><CategorySelect value={r.reasonCategory} onChange={v=>updateReviewRow(i,"reasonCategory",v)}/></td>
             </tr>
           ))}</tbody></table>
           <div className="flab g8" style={{marginTop:10}}>
@@ -298,7 +317,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
   const[uploading,setUploading]=useState(false);
   const[reviewRows,setReviewRows]=useState(null);
   const[manualAdd,setManualAdd]=useState(false);
-  const[newRow,setNewRow]=useState({operator:"",aircraft:"",installDate:"",removalDate:"",tsnAtRemoval:"",csnAtRemoval:"",reason:""});
+  const[newRow,setNewRow]=useState({operator:"",aircraft:"",installDate:"",removalDate:"",tsnAtRemoval:"",csnAtRemoval:"",reason:"",reasonCategory:""});
   const[editIdx,setEditIdx]=useState(null);
   const[editForm,setEditForm]=useState(null);
 
@@ -338,12 +357,12 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
       operator:newRow.operator,aircraft:newRow.aircraft,installDate:newRow.installDate,removalDate:newRow.removalDate,
       tsnAtRemoval:newRow.tsnAtRemoval===""?null:+newRow.tsnAtRemoval,
       csnAtRemoval:newRow.csnAtRemoval===""?null:+newRow.csnAtRemoval,
-      reason:newRow.reason,source:"manual",extractedFrom:null
+      reason:newRow.reason,reasonCategory:newRow.reasonCategory||null,source:"manual",extractedFrom:null
     };
     engines[engIdx].operatorHistory=mergeOperatorHistory(existing,[row]);
     await saveAsset({...asset,engines});
     setManualAdd(false);
-    setNewRow({operator:"",aircraft:"",installDate:"",removalDate:"",tsnAtRemoval:"",csnAtRemoval:"",reason:""});
+    setNewRow({operator:"",aircraft:"",installDate:"",removalDate:"",tsnAtRemoval:"",csnAtRemoval:"",reason:"",reasonCategory:""});
     notify("Row added");
   };
 
@@ -353,7 +372,8 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
     rows[i]={
       ...rows[i],...editForm,
       tsnAtRemoval:editForm.tsnAtRemoval===""||editForm.tsnAtRemoval==null?null:+editForm.tsnAtRemoval,
-      csnAtRemoval:editForm.csnAtRemoval===""||editForm.csnAtRemoval==null?null:+editForm.csnAtRemoval
+      csnAtRemoval:editForm.csnAtRemoval===""||editForm.csnAtRemoval==null?null:+editForm.csnAtRemoval,
+      reasonCategory:editForm.reasonCategory||null
     };
     engines[engIdx].operatorHistory=mergeOperatorHistory(rows,[]);
     await saveAsset({...asset,engines});
@@ -398,7 +418,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
       </div>
 
       {rows.length?(
-        <table><thead><tr><th>Operator</th><th>Aircraft</th><th>Installed</th><th>Removed</th><th>TSN</th><th>CSN</th><th>Reason</th>{isAdmin&&<th></th>}</tr></thead>
+        <table><thead><tr><th>Operator</th><th>Aircraft</th><th>Installed</th><th>Removed</th><th>TSN</th><th>CSN</th><th>Reason</th><th>Category</th>{isAdmin&&<th></th>}</tr></thead>
         <tbody>{rows.map((r,i)=>{
           const isEditingRow=editIdx===i;
           const ed=isEditingRow?editForm:r;
@@ -411,6 +431,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
               <td><input type="number" value={ed.tsnAtRemoval??""} onChange={e=>setEditForm({...editForm,tsnAtRemoval:e.target.value})} style={{width:70}}/></td>
               <td><input type="number" value={ed.csnAtRemoval??""} onChange={e=>setEditForm({...editForm,csnAtRemoval:e.target.value})} style={{width:70}}/></td>
               <td><input value={ed.reason||""} onChange={e=>setEditForm({...editForm,reason:e.target.value})} style={{width:90}}/></td>
+              <td><CategorySelect value={ed.reasonCategory} onChange={v=>setEditForm({...editForm,reasonCategory:v})}/></td>
               <td><div className="flab g8"><button className="btn btn-ghost" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>{setEditIdx(null);setEditForm(null);}}>Cancel</button><button className="btn btn-gold" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>saveEditRow(i)}>Save</button></div></td>
             </tr>
           );
@@ -423,6 +444,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
               <td style={{fontFamily:"monospace"}}>{r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—"}</td>
               <td style={{fontFamily:"monospace"}}>{r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—"}</td>
               <td style={{color:"#94a3b8"}}>{r.reason||"—"}{r._gapFlag&&<span title="TSN/CSN doesn't line up with the previous stint — check this row" style={{color:"#fbbf24",marginLeft:6}}>⚠</span>}</td>
+              <td><CategoryBadge value={r.reasonCategory}/></td>
               {isAdmin&&<td><div className="flab g8"><button className="btn btn-ghost" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>{setEditIdx(i);setEditForm({...r});}}>Edit</button><button className="btn-danger btn" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>deleteRow(i)}>✕</button></div></td>}
             </tr>
           );
@@ -435,6 +457,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
             {[["Operator","operator","text"],["Aircraft","aircraft","text"],["Install Date","installDate","date"],["Removal Date (blank if not yet removed)","removalDate","date"],["TSN at Removal","tsnAtRemoval","number"],["CSN at Removal","csnAtRemoval","number"],["Reason","reason","text"]].map(([l,k,t])=>(
               <div key={k}><label className="form-label">{l}</label><input type={t} value={newRow[k]} onChange={e=>setNewRow({...newRow,[k]:e.target.value})}/></div>
             ))}
+            <div><label className="form-label">Category</label><CategorySelect value={newRow.reasonCategory} onChange={v=>setNewRow({...newRow,reasonCategory:v})} style={{width:"100%"}}/></div>
           </div>
           <div className="flab g8"><button className="btn btn-ghost" onClick={()=>setManualAdd(false)}>Cancel</button><button className="btn btn-gold" onClick={addManualRow}>Add Row</button></div>
         </div>
@@ -443,7 +466,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
       {reviewRows&&(
         <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #C9A84C"}}>
           <div style={{fontSize:11,color:"#C9A84C",fontWeight:700,marginBottom:8}}>Review extracted rows before saving — {reviewRows.length} stint{reviewRows.length===1?"":"s"} found</div>
-          <table><thead><tr><th>Operator</th><th>Aircraft</th><th>Installed</th><th>Removed</th><th>TSN</th><th>CSN</th><th>Reason</th></tr></thead>
+          <table><thead><tr><th>Operator</th><th>Aircraft</th><th>Installed</th><th>Removed</th><th>TSN</th><th>CSN</th><th>Reason</th><th>Category</th></tr></thead>
           <tbody>{reviewRows.map((r,i)=>(
             <tr key={i}>
               <td><input value={r.operator} onChange={e=>updateReviewRow(i,"operator",e.target.value)} style={{width:100}}/></td>
@@ -453,6 +476,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
               <td><input type="number" value={r.tsnAtRemoval??""} onChange={e=>updateReviewRow(i,"tsnAtRemoval",e.target.value===""?null:+e.target.value)} style={{width:70}}/></td>
               <td><input type="number" value={r.csnAtRemoval??""} onChange={e=>updateReviewRow(i,"csnAtRemoval",e.target.value===""?null:+e.target.value)} style={{width:70}}/></td>
               <td><input value={r.reason} onChange={e=>updateReviewRow(i,"reason",e.target.value)} style={{width:90}}/></td>
+              <td><CategorySelect value={r.reasonCategory} onChange={v=>updateReviewRow(i,"reasonCategory",v)}/></td>
             </tr>
           ))}</tbody></table>
           <div className="flab g8" style={{marginTop:10}}><button className="btn btn-ghost" onClick={()=>setReviewRows(null)}>Discard</button><button className="btn btn-gold" onClick={confirmReview}>Confirm & Save</button></div>
@@ -854,7 +878,7 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
   const[newLLP,setNewLLP]=useState({desc:"",pn:"",sn:"",startFCRem:0,refFC:0,approvedLife:""});
   const[addSV,setAddSV]=useState(false);
   const[editSVIdx,setEditSVIdx]=useState(null);
-  const[newSV,setNewSV]=useState({details:"",date:"",fh:"",fc:"",mro:""});
+  const[newSV,setNewSV]=useState({details:"",date:"",fh:"",fc:"",mro:"",reasonCategory:""});
   const[editSVForm,setEditSVForm]=useState(null);
   const apu=asset.apu||{};
   const startEdit=()=>{setForm(JSON.parse(JSON.stringify(asset)));setEditing(true);};
@@ -863,9 +887,9 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
   const set=(path,val)=>{const f=JSON.parse(JSON.stringify(form));const parts=path.split(".");let obj=f;for(let i=0;i<parts.length-1;i++){if(!obj[parts[i]])obj[parts[i]]={};obj=obj[parts[i]];}obj[parts[parts.length-1]]=val;setForm(f);};
   const doAddLLP=async()=>{const updated={...asset,apu:{...apu,llps:[...(apu.llps||[]),{...newLLP,startFCRem:+newLLP.startFCRem,refFC:+newLLP.refFC,approvedLife:newLLP.approvedLife===""?null:+newLLP.approvedLife}]}};await saveAsset(updated);setAddLLP(false);setNewLLP({desc:"",pn:"",sn:"",startFCRem:0,refFC:0,approvedLife:""});notify("LLP added");};
   const delLLP=async(li)=>{if(!confirm("Delete?"))return;const llps=[...(apu.llps||[])];llps.splice(li,1);await saveAsset({...asset,apu:{...apu,llps}});notify("LLP deleted");};
-  const doAddSV=async()=>{const svs=[...(apu.shopVisits||[]),{...newSV,fh:parseHHMM(newSV.fh),fc:+newSV.fc}];await saveAsset({...asset,apu:{...apu,shopVisits:svs}});setAddSV(false);setNewSV({details:"",date:"",fh:"",fc:"",mro:""});notify("Shop visit added");};
+  const doAddSV=async()=>{const svs=[...(apu.shopVisits||[]),{...newSV,fh:parseHHMM(newSV.fh),fc:+newSV.fc,reasonCategory:newSV.reasonCategory||null}];await saveAsset({...asset,apu:{...apu,shopVisits:svs}});setAddSV(false);setNewSV({details:"",date:"",fh:"",fc:"",mro:"",reasonCategory:""});notify("Shop visit added");};
   const delSV=async(si)=>{if(!confirm("Delete shop visit?"))return;const svs=[...(apu.shopVisits||[])];svs.splice(si,1);await saveAsset({...asset,apu:{...apu,shopVisits:svs}});notify("Deleted");};
-  const saveEditSV=async(si)=>{const svs=JSON.parse(JSON.stringify(apu.shopVisits||[]));svs[si]={...editSVForm,fh:parseHHMM(editSVForm.fh),fc:+editSVForm.fc};await saveAsset({...asset,apu:{...apu,shopVisits:svs}});setEditSVIdx(null);setEditSVForm(null);notify("Updated");};
+  const saveEditSV=async(si)=>{const svs=JSON.parse(JSON.stringify(apu.shopVisits||[]));svs[si]={...editSVForm,fh:parseHHMM(editSVForm.fh),fc:+editSVForm.fc,reasonCategory:editSVForm.reasonCategory||null};await saveAsset({...asset,apu:{...apu,shopVisits:svs}});setEditSVIdx(null);setEditSVForm(null);notify("Updated");};
   const ll=apu.llps?.length?Math.min(...apu.llps.map(l=>calcLLPRem(l,apu.currentFC))):null;
   const ed=editing?form.apu||{}:apu;
   return(
@@ -931,14 +955,15 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
           {isAdmin&&<button className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setAddSV(true)}>+ Add Visit</button>}
         </div>
         {(()=>{const svs=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});if(!svs.length)return null;const last=svs[svs.length-1];const sinceFH=apu.currentFH&&last.fh?apu.currentFH-last.fh:null;const sinceFC=apu.currentFC&&last.fc?apu.currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;return(<div style={{background:"#0a1a2a",border:"1px solid #1B3A6B",borderRadius:6,padding:"10px 12px",marginBottom:10}}><div style={{fontSize:9,color:"#C9A84C",fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Since Last Shop Visit</div><div className="grid3" style={{gap:8}}><div><div style={{fontSize:9,color:"#475569"}}>Days</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceDays!==null?sinceDays.toLocaleString():"—"}</div></div><div><div style={{fontSize:9,color:"#475569"}}>FH</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceFH!==null?fmtHHMM(sinceFH):"—"}</div></div><div><div style={{fontSize:9,color:"#475569"}}>FC</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceFC!==null?sinceFC.toLocaleString():"—"}</div></div></div></div>);})()}
-        <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th>{isAdmin&&<th></th>}</tr></thead>
-        <tbody>{(()=>{const svs=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});if(!svs.length)return<tr><td colSpan={isAdmin?6:5} style={{color:"#475569",fontStyle:"italic"}}>No shop visits recorded</td></tr>;const si=svs.length-1;const sv=svs[si];return editSVIdx===si?(
+        <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th><th>Category</th>{isAdmin&&<th></th>}</tr></thead>
+        <tbody>{(()=>{const svs=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});if(!svs.length)return<tr><td colSpan={isAdmin?7:6} style={{color:"#475569",fontStyle:"italic"}}>No shop visits recorded</td></tr>;const si=svs.length-1;const sv=svs[si];return editSVIdx===si?(
             <tr style={{background:"#0d1925"}}>
               <td><input defaultValue={editSVForm.details} onBlur={e=>setEditSVForm({...editSVForm,details:e.target.value})} style={{width:"100%"}}/></td>
               <td><input type="date" defaultValue={editSVForm.date} onBlur={e=>setEditSVForm({...editSVForm,date:e.target.value})} style={{width:130}}/></td>
               <td><input defaultValue={editSVForm.fh||""} onBlur={e=>setEditSVForm({...editSVForm,fh:e.target.value})} style={{width:80}}/></td>
               <td><input type="number" defaultValue={editSVForm.fc||""} onBlur={e=>setEditSVForm({...editSVForm,fc:e.target.value})} style={{width:80}}/></td>
               <td><input defaultValue={editSVForm.mro||""} onBlur={e=>setEditSVForm({...editSVForm,mro:e.target.value})} style={{width:100}}/></td>
+              <td><CategorySelect value={editSVForm.reasonCategory} onChange={v=>setEditSVForm({...editSVForm,reasonCategory:v})}/></td>
               <td><div className="flab g8"><button className="btn btn-gold" style={{fontSize:10,padding:"2px 8px"}} onClick={()=>saveEditSV(si)}>Save</button><button className="btn btn-ghost" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>{setEditSVIdx(null);setEditSVForm(null);}}>✕</button></div></td>
             </tr>
           ):(
@@ -946,6 +971,7 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
               <td style={{fontWeight:500}}>{sv.details}</td><td>{fmtDate(sv.date)}</td>
               <td style={{fontFamily:"monospace"}}>{fmtHHMM(sv.fh)}</td><td style={{fontFamily:"monospace"}}>{sv.fc?.toLocaleString()}</td>
               <td style={{color:"#94a3b8"}}>{sv.mro}</td>
+              <td><CategoryBadge value={sv.reasonCategory}/></td>
               {isAdmin&&<td><div className="flab g8">
                 <button className="btn btn-primary" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>{setEditSVIdx(si);setEditSVForm({...sv,fh:fmtHHMM(sv.fh)});}}>Edit</button>
                 <button className="btn-danger btn" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>delSV(si)}>✕</button>
@@ -959,6 +985,7 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
               {[["Date","date","date"],["TSN (HH:MM)","fh","text"],["CSN","fc","number"],["MRO Facility","mro","text"]].map(([l,k,t])=>(
                 <div key={k}><label className="form-label">{l}</label><input type={t} value={newSV[k]} onChange={e=>setNewSV({...newSV,[k]:e.target.value})}/></div>
               ))}
+              <div><label className="form-label">Category</label><CategorySelect value={newSV.reasonCategory} onChange={v=>setNewSV({...newSV,reasonCategory:v})} style={{width:"100%"}}/></div>
             </div>
             <div className="flab g8"><button className="btn btn-ghost" onClick={()=>setAddSV(false)}>Cancel</button><button className="btn btn-gold" onClick={doAddSV}>Add Visit</button></div>
           </div>

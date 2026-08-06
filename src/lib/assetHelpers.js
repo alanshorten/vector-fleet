@@ -93,6 +93,24 @@ const ENGINE_LLP_PROMPT="Extract engine LLP data from this document. Process eac
 
 const APU_LLP_PROMPT="Extract APU LLP data ONLY from this document. The APU serial number is labelled SERIAL NUMBER. The fc_remaining value for each LLP must come from the RESIDUAL LIFE - CYS column (also labelled REMAINING COMPON. LIFE or similar), not the TOTAL LIFE or FIXED LIFE column. Also extract cycle_limit (the approved life limit) for each LLP from the TOTAL LIFE or FIXED LIFE column (whichever is present on this document) — this is the figure fc_remaining is explicitly NOT taken from. cycle_limit must be a number, or null if that cell reads N/L, N/A, or is non-numeric. Never substitute 0 for null. IMPORTANT: this document may use European number formatting where a period is a thousands separator, not a decimal point (e.g. 38.093 means 38,093 and 47.075 means 47,075). Convert all numeric values to standard integers. Return ONLY valid JSON, no markdown:\n{\"msn\":\"string or null if not present\",\"registration\":\"string or null if not present\",\"apu\":{\"sn\":\"string\",\"pn\":\"string or null if not present\",\"csn\":number,\"llps\":[{\"desc\":\"string\",\"pn\":\"string\",\"sn\":\"string\",\"fc_remaining\":number,\"cycle_limit\":number}]}}";
 
+// sv-analytics-iq-tab-build-spec.md §3 — 8-category taxonomy for shop visit
+// / operator history removal reasons. Only PR and Hardware are trended in
+// SV Interval Analytics; the rest still appear in the raw table/history.
+// Declared ahead of OPERATOR_HISTORY_PROMPT/SHOP_VISIT_PROMPT since both
+// template literals reference REASON_CATEGORY_RULES — const TDZ means the
+// reference has to come after the declaration in file order.
+const REASON_CATEGORIES=["PR","Hardware","FOD","Lease Event","Swap","TIMEX","Scheduled LLP","Other"];
+
+const REASON_CATEGORY_RULES=`Also classify the removal/shop-visit reason into exactly one of these 8 categories:
+- "PR" — performance restoration, EGT margin erosion, performance degradation, hot section refurbishment
+- "Hardware" — HPC/HPT distress, blade damage, bearing failure, containment event, vibration, oil consumption, unplanned mechanical failure
+- "FOD" — foreign object damage (stated explicitly)
+- "Lease Event" — redelivery, lease return, end of lease, transition between operators for contractual reasons
+- "Swap" — operational swap, fleet management, engine rotation (airline chose to move it, no maintenance trigger stated)
+- "TIMEX" — time-expired, calendar limit reached
+- "Scheduled LLP" — LLP life limit, cycle limit, life-limited parts replacement as the primary/sole reason
+- "Other" — if the reason doesn't clearly fit any category above, or is ambiguous/absent`;
+
 const OPERATOR_HISTORY_PROMPT=`Extract the engine operator/movement history (chain of custody) from this document. Real documents vary hugely in format: some use a combined row (install date and removal date on the same row), some use paired rows (a separate IN row and OUT row for the same stint). Normalise every stint (one continuous installation on one aircraft) into a single output row.
 
 Also find the document's own stated effective/status date - the date the document itself claims to be current as of, NOT today's date and NOT any stint's install/removal date. Look for labels like "EFFECT DATE", "Status on:", "Date:", or similar, usually near the top or bottom of the document. Return this as "asOfDate" (ISO YYYY-MM-DD), or null if the document has no such stated date anywhere.
@@ -114,8 +132,11 @@ Position labels (1/2, LH/RH, Port/Stbd, POS:1/POS:2) may appear ONLY to help pai
 
 Date formats vary (DD-MMM-YY, DD-MMM-YYYY, YYYY/MM/DD, D-Mon-YY, DD-Mon-YYYY) - normalise all dates to ISO YYYY-MM-DD.
 
+${REASON_CATEGORY_RULES}
+If the reason text is ambiguous or absent, output "Other". Only classify stints that have a reason at all — if reason is null, reasonCategory should still be "Other".
+
 You may reason through the document section by section before answering. Once finished, output the final result as a single fenced code block starting with \`\`\`json and ending with \`\`\` - this fenced block must contain ONLY the JSON object below and nothing else inside the fences:
-{"asOfDate":"YYYY-MM-DD or null","rows":[{"operator":"string or null","aircraft":"string or null","installDate":"YYYY-MM-DD or null","removalDate":"YYYY-MM-DD or null","tsnAtRemoval":number_or_null,"csnAtRemoval":number_or_null,"reason":"string or null"}]}`;
+{"asOfDate":"YYYY-MM-DD or null","rows":[{"operator":"string or null","aircraft":"string or null","installDate":"YYYY-MM-DD or null","removalDate":"YYYY-MM-DD or null","tsnAtRemoval":number_or_null,"csnAtRemoval":number_or_null,"reason":"string or null","reasonCategory":"PR|Hardware|FOD|Lease Event|Swap|TIMEX|Scheduled LLP|Other"}]}`;
 
 function assetStatus(asset){
   const llpVals=(asset.engines||[]).flatMap(e=>(e.llps||[]).map(l=>calcLLPRem(l,e.currentFC)));
@@ -152,7 +173,10 @@ Do NOT include:
 - On-wing events unless they involve a named MRO facility
 - Installation events (return from shop) — only the removal/shop entry itself
 
-You may reason through the document before answering. Output the final result as a single fenced code block starting with \`\`\`json and ending with \`\`\` — this fenced block must contain ONLY the JSON array below and nothing else inside the fences:
-[{"details":"string or null","date":"YYYY-MM-DD or null","tsn":number_or_null,"csn":number_or_null,"mro":"string or null"}]`;
+${REASON_CATEGORY_RULES}
+If the reason text is ambiguous or absent, output "Other".
 
-export { APU_LLP_PROMPT, ENGINE_LLP_PROMPT, OPERATOR_HISTORY_PROMPT, SHOP_VISIT_PROMPT, SC, assetStatus, daysFromNow, isCFM, isEmpty, makeBlankAsset, makeBlankEngineProspect, parseHHMM, engineFamily, engineStockPhotoKey, assetEngineStockPhotoKey, airframeFamily, airframeStockPhotoKey };
+You may reason through the document before answering. Output the final result as a single fenced code block starting with \`\`\`json and ending with \`\`\` — this fenced block must contain ONLY the JSON array below and nothing else inside the fences:
+[{"details":"string or null","date":"YYYY-MM-DD or null","tsn":number_or_null,"csn":number_or_null,"mro":"string or null","reasonCategory":"PR|Hardware|FOD|Lease Event|Swap|TIMEX|Scheduled LLP|Other"}]`;
+
+export { APU_LLP_PROMPT, ENGINE_LLP_PROMPT, OPERATOR_HISTORY_PROMPT, REASON_CATEGORIES, SHOP_VISIT_PROMPT, SC, assetStatus, daysFromNow, isCFM, isEmpty, makeBlankAsset, makeBlankEngineProspect, parseHHMM, engineFamily, engineStockPhotoKey, assetEngineStockPhotoKey, airframeFamily, airframeStockPhotoKey };
