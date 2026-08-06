@@ -1,4 +1,4 @@
-import { APU_LLP_PROMPT, ENGINE_LLP_PROMPT, OPERATOR_HISTORY_PROMPT } from './assetHelpers';
+import { APU_LLP_PROMPT, ENGINE_LLP_PROMPT, OPERATOR_HISTORY_PROMPT, SHOP_VISIT_PROMPT } from './assetHelpers';
 
 async function callExtractAPI(base64,prompt,model,maxTokens,invalidFormatLabel){
   const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model,max_tokens:maxTokens,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:prompt}]}]})});
@@ -494,4 +494,69 @@ async function translateScenarioChat(text){
 };
 
 
-export { ATA_CHAPTER_MAP, AVIONICS_LRU_PROMPT, DOLLAR_FIGURE_RE, LEASE_EXTRACT_PROMPT, LEASE_PAGE_KEYWORDS, RATE_CONSTRUCT_RE, SCENARIO_CHAT_PROMPT, ataChapterLabel, ataChapterSortNum, escapeRegex, extractAvionicsLRU, extractDocxSectionChunks, extractLLPSheet, extractOperatorHistory, extractPdfPageTexts, fileToBase64, isBoldPseudoHeading, isDocxFile, isSupportedLeaseFile, matchAssetForText, mergeOperatorHistory, quickParseLeaseFile, runLeaseExtraction, scoreLeaseChunks, translateScenarioChat };
+async function extractShopVisits(file){
+  if(file.type!=="application/pdf")throw new Error("Please upload a PDF file.");
+  if(file.size>10*1024*1024)throw new Error("File is too large (maximum 10 MB).");
+  const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Could not read the file. Please try again."));r.readAsDataURL(file);});
+  const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:SHOP_VISIT_PROMPT}]}]})});
+  if(!resp.ok){
+    const status=resp.status;
+    if(status===401||status===403)throw new Error("Authentication error with the TailiQ service. Please contact your administrator.");
+    if(status===429)throw new Error("Too many requests — please wait a moment and try again.");
+    if(status>=500)throw new Error("The extraction service is temporarily unavailable. Please try again in a few minutes.");
+    throw new Error("Extraction request failed (error "+status+"). Please try again.");
+  }
+  let result;
+  try{result=await resp.json();}catch(jsonErr){throw new Error("Received an unexpected response from the server. Please try again.");}
+  if(result.error){
+    const msg=result.error;
+    if(msg.includes("credit")||msg.includes("billing"))throw new Error("TailiQ service billing issue — please contact your administrator.");
+    if(msg.includes("overloaded")||msg.includes("capacity"))throw new Error("TailiQ is busy right now. Please wait a moment and try again.");
+    throw new Error("Extraction failed. Please check the file is a valid engine document and try again.");
+  }
+  let parsed;
+  try{
+    const rawText=result.ok?JSON.stringify(result.data):(result.raw||"").replace(/```json|```/g,"").trim();
+    parsed=JSON.parse(rawText);
+  }catch(parseErr){
+    throw new Error("TailiQ could not extract structured data from this file. Check it is a valid engine document.");
+  }
+  if(!Array.isArray(parsed)){
+    throw new Error("TailiQ returned an unexpected format. Check the file is a valid engine document.");
+  }
+  return parsed
+    .filter(r=>r&&(r.date||r.details))
+    .map((r,i)=>({
+      id:"sv_"+Date.now()+"_"+i,
+      details:r.details||"",
+      date:r.date||"",
+      fh:r.tsn!=null?+r.tsn:null,
+      fc:r.csn!=null?+r.csn:null,
+      mro:r.mro||"",
+      source:"extracted",
+      extractedFrom:file.name
+    }));
+};
+
+// Merges new SV rows with existing, deduplicates by date+details similarity,
+// sorts ascending by date. No continuity-flag needed (SVs are discrete events,
+// not a chain-of-custody sequence).
+function mergeShopVisits(existingRows,newRows){
+  const all=[...(existingRows||[]),...(newRows||[])];
+  // Deduplicate: if two rows share the same date and the same first 20 chars
+  // of details, treat as the same event and keep the first (existing wins).
+  const seen=new Set();
+  const deduped=all.filter(r=>{
+    const key=(r.date||"")+"||"+(r.details||"").slice(0,20).toLowerCase().trim();
+    if(seen.has(key))return false;
+    seen.add(key);
+    return true;
+  });
+  return deduped.sort((a,b)=>{
+    if(!a.date)return 1;
+    if(!b.date)return -1;
+    return new Date(a.date)-new Date(b.date);
+  });
+};
+
+export { ATA_CHAPTER_MAP, AVIONICS_LRU_PROMPT, DOLLAR_FIGURE_RE, LEASE_EXTRACT_PROMPT, LEASE_PAGE_KEYWORDS, RATE_CONSTRUCT_RE, SCENARIO_CHAT_PROMPT, ataChapterLabel, ataChapterSortNum, escapeRegex, extractAvionicsLRU, extractDocxSectionChunks, extractLLPSheet, extractOperatorHistory, extractShopVisits, extractPdfPageTexts, fileToBase64, isBoldPseudoHeading, isDocxFile, isSupportedLeaseFile, matchAssetForText, mergeOperatorHistory, mergeShopVisits, quickParseLeaseFile, runLeaseExtraction, scoreLeaseChunks, translateScenarioChat };

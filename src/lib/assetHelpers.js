@@ -131,4 +131,28 @@ function assetStatus(asset){
 const SC={critical:{dot:"#f87171",border:"#dc2626"},warn:{dot:"#fbbf24",border:"#d97706"},ok:{dot:"#34d399",border:"#1e3348"}};
 
 
-export { APU_LLP_PROMPT, ENGINE_LLP_PROMPT, OPERATOR_HISTORY_PROMPT, SC, assetStatus, daysFromNow, isCFM, isEmpty, makeBlankAsset, makeBlankEngineProspect, parseHHMM, engineFamily, engineStockPhotoKey, assetEngineStockPhotoKey, airframeFamily, airframeStockPhotoKey };
+const SHOP_VISIT_PROMPT=`Extract all shop visit events from this engine document. The document may be an operator on/off log, a removal/installation history, or a dedicated shop visit record — shop visits appear as rows where the engine went to an MRO facility for maintenance.
+
+Identify shop visit rows by looking for:
+- Explicit labels: "SHOP VISIT", "SV", "Shop Visit", "Hospital repair", "SV for..."
+- Booking types of REMOVAL where the reason mentions a shop, repair, or MRO
+- Paired removal+installation rows around a named MRO facility event
+- Inline shop visit rows between operator stints
+
+For each shop visit extract:
+- details: the full verbatim reason/description text as it appears in the document (e.g. "SHOP VISIT - LLP LIMIT & DAC/SAC", "Engine Repaired (Top Case) by AIM", "HPC Rotor Stator Contact"). Preserve the complete text — do not shorten or rephrase.
+- date: ISO date (YYYY-MM-DD) of the shop visit/removal. Use the removal date if it is a removal-to-shop event. Normalise all date formats to ISO.
+- tsn: engine TSN (total hours, plain number not HH:MM) at the time of the shop visit, or null if not stated. May be labelled TSN, ETT, ENG FH, ETSN.
+- csn: engine CSN (total cycles) at the time of the shop visit, or null if not stated. May be labelled CSN, ETC, ENG FC, ECSN.
+- mro: the MRO facility name where the work was performed, or null if not stated. Extract from: explicit facility columns, inline text ("Repaired by Lufthansa", "by AIM", "SAFRAN MEXICO", "BEDEK", "AERO NORWAY"), or shop visit reason text.
+
+Do NOT include:
+- Pure operator convenience changes with no shop/repair involvement
+- Phase-in/phase-out events that are just fleet movements
+- On-wing events unless they involve a named MRO facility
+- Installation events (return from shop) — only the removal/shop entry itself
+
+You may reason through the document before answering. Output the final result as a single fenced code block starting with \`\`\`json and ending with \`\`\` — this fenced block must contain ONLY the JSON array below and nothing else inside the fences:
+[{"details":"string or null","date":"YYYY-MM-DD or null","tsn":number_or_null,"csn":number_or_null,"mro":"string or null"}]`;
+
+export { APU_LLP_PROMPT, ENGINE_LLP_PROMPT, OPERATOR_HISTORY_PROMPT, SHOP_VISIT_PROMPT, SC, assetStatus, daysFromNow, isCFM, isEmpty, makeBlankAsset, makeBlankEngineProspect, parseHHMM, engineFamily, engineStockPhotoKey, assetEngineStockPhotoKey, airframeFamily, airframeStockPhotoKey };

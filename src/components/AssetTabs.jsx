@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { daysFromNow, isEmpty, parseHHMM, engineStockPhotoKey } from '../lib/assetHelpers';
 import { db } from '../lib/db';
 import { getDefaultDisclaimer, getTechSpecBrandingHidden, getTechSpecLogo } from '../lib/techSpec';
-import { extractOperatorHistory, mergeOperatorHistory } from '../lib/extraction';
+import { extractOperatorHistory, mergeOperatorHistory, extractShopVisits, mergeShopVisits } from '../lib/extraction';
 import { useLayoutMode } from '../lib/layoutMode';
 
 function OverviewTab({asset,isAdmin,saveAsset,notify}){
@@ -158,34 +158,107 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
 function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
   const[adding,setAdding]=useState(false);
   const[newSV,setNewSV]=useState({details:"",date:"",fh:"",fc:"",mro:""});
+  const[uploading,setUploading]=useState(false);
+  const[reviewRows,setReviewRows]=useState(null);
+  const[editIdx,setEditIdx]=useState(null);
+  const[editForm,setEditForm]=useState(null);
+
   const saveSV=async()=>{
     const engines=JSON.parse(JSON.stringify(asset.engines||[]));
-    engines[engIdx].shopVisits=[...(engines[engIdx].shopVisits||[]),{...newSV,fh:parseHHMM(newSV.fh),fc:+newSV.fc}];
+    const existing=engines[engIdx].shopVisits||[];
+    engines[engIdx].shopVisits=mergeShopVisits(existing,[{...newSV,fh:parseHHMM(newSV.fh),fc:newSV.fc===""?null:+newSV.fc,id:"sv_"+Date.now()}]);
     await saveAsset({...asset,engines});
     setAdding(false);setNewSV({details:"",date:"",fh:"",fc:"",mro:""});notify("Shop visit added");
   };
+
   const delSV=async(si)=>{
     if(!confirm("Delete shop visit?"))return;
     const engines=JSON.parse(JSON.stringify(asset.engines||[]));
-    engines[engIdx].shopVisits.splice(si,1);
+    const svs=[...(engines[engIdx].shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});
+    svs.splice(si,1);
+    engines[engIdx].shopVisits=svs;
     await saveAsset({...asset,engines});notify("Deleted");
   };
+
+  const saveEditSV=async(si)=>{
+    const engines=JSON.parse(JSON.stringify(asset.engines||[]));
+    const svs=[...(engines[engIdx].shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});
+    svs[si]={...svs[si],...editForm,fh:editForm.fh===""||editForm.fh==null?null:(typeof editForm.fh==="string"?parseHHMM(editForm.fh):editForm.fh),fc:editForm.fc===""||editForm.fc==null?null:+editForm.fc};
+    engines[engIdx].shopVisits=mergeShopVisits(svs,[]);
+    await saveAsset({...asset,engines});
+    setEditIdx(null);setEditForm(null);notify("Shop visit updated");
+  };
+
+  const handleUpload=async(file)=>{
+    if(!file)return;
+    setUploading(true);
+    try{
+      const extracted=await extractShopVisits(file);
+      if(!extracted.length){notify("No shop visit events found in this document","error");setUploading(false);return;}
+      setReviewRows(extracted);
+    }catch(err){
+      notify(err.message,"error");
+    }
+    setUploading(false);
+  };
+
+  const confirmReview=async()=>{
+    const engines=JSON.parse(JSON.stringify(asset.engines||[]));
+    const existing=engines[engIdx].shopVisits||[];
+    engines[engIdx].shopVisits=mergeShopVisits(existing,reviewRows);
+    await saveAsset({...asset,engines});
+    setReviewRows(null);
+    notify("Shop visit history saved");
+  };
+
+  const updateReviewRow=(i,field,val)=>{
+    const rows=[...reviewRows];
+    rows[i]={...rows[i],[field]:val};
+    setReviewRows(rows);
+  };
+
+  const svs=[...(eng.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});
+
   return(
     <div>
       <div className="flj" style={{marginBottom:8}}>
         <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em"}}>Shop Visit History</div>
-        <button className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setAdding(true)}>+ Add Visit</button>
+        <div className="flab g8">
+          <label style={{cursor:uploading?"default":"pointer"}}>
+            <input type="file" accept="application/pdf" style={{display:"none"}} disabled={uploading} onChange={e=>{handleUpload(e.target.files?.[0]);e.target.value="";}}/>
+            <span className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}}>{uploading?"⏳ Parsing…":"Upload Document"}</span>
+          </label>
+          <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setAdding(true)}>+ Add Visit</button>
+        </div>
       </div>
-      {(()=>{const svs=[...(eng.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});if(!svs.length)return null;const last=svs[svs.length-1];const sinceFH=eng.currentFH&&last.fh?eng.currentFH-last.fh:null;const sinceFC=eng.currentFC&&last.fc?eng.currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;return(<div style={{background:"#0a1a2a",border:"1px solid #1B3A6B",borderRadius:6,padding:"10px 12px",marginBottom:10}}><div style={{fontSize:9,color:"#C9A84C",fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Since Last Shop Visit</div><div className="grid3" style={{gap:8}}><div><div style={{fontSize:9,color:"#475569"}}>Days</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceDays!==null?sinceDays.toLocaleString():"—"}</div></div><div><div style={{fontSize:9,color:"#475569"}}>FH</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceFH!==null?fmtHHMM(sinceFH):"—"}</div></div><div><div style={{fontSize:9,color:"#475569"}}>FC</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceFC!==null?sinceFC.toLocaleString():"—"}</div></div></div></div>);})()}
-      <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th><th></th></tr></thead>
-      <tbody>{eng.shopVisits?.length?[...(eng.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);}).map((sv,si)=>(
-        <tr key={si}>
-          <td style={{fontWeight:500}}>{sv.details}</td><td>{fmtDate(sv.date)}</td>
-          <td style={{fontFamily:"monospace"}}>{fmtHHMM(sv.fh)}</td><td style={{fontFamily:"monospace"}}>{sv.fc?.toLocaleString()}</td>
-          <td style={{color:"#94a3b8"}}>{sv.mro}</td>
-          <td><button className="btn-danger btn" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>delSV(si)}>✕</button></td>
-        </tr>
-      )):<tr><td colSpan={isAdmin?6:5} style={{color:"#475569",fontStyle:"italic"}}>No shop visits recorded</td></tr>}</tbody></table>
+
+      {(()=>{if(!svs.length)return null;const last=svs[svs.length-1];const sinceFH=eng.currentFH&&last.fh?eng.currentFH-last.fh:null;const sinceFC=eng.currentFC&&last.fc?eng.currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;return(<div style={{background:"#0a1a2a",border:"1px solid #1B3A6B",borderRadius:6,padding:"10px 12px",marginBottom:10}}><div style={{fontSize:9,color:"#C9A84C",fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Since Last Shop Visit</div><div className="grid3" style={{gap:8}}><div><div style={{fontSize:9,color:"#475569"}}>Days</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceDays!==null?sinceDays.toLocaleString():"—"}</div></div><div><div style={{fontSize:9,color:"#475569"}}>FH</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceFH!==null?fmtHHMM(sinceFH):"—"}</div></div><div><div style={{fontSize:9,color:"#475569"}}>FC</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceFC!==null?sinceFC.toLocaleString():"—"}</div></div></div></div>);})()}
+
+      <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th>{isAdmin&&<th></th>}</tr></thead>
+      <tbody>{svs.length?svs.map((sv,si)=>{
+        const isEditingRow=editIdx===si;
+        const ed=isEditingRow?editForm:sv;
+        if(isEditingRow)return(
+          <tr key={sv.id||si}>
+            <td><input value={ed.details||""} onChange={e=>setEditForm({...editForm,details:e.target.value})} style={{width:160}}/></td>
+            <td><input type="date" value={ed.date||""} onChange={e=>setEditForm({...editForm,date:e.target.value})}/></td>
+            <td><input value={ed.fh!=null?fmtHHMM(ed.fh):""} onChange={e=>setEditForm({...editForm,fh:e.target.value})} style={{width:80}} placeholder="HH:MM"/></td>
+            <td><input type="number" value={ed.fc!=null?ed.fc:""} onChange={e=>setEditForm({...editForm,fc:e.target.value})} style={{width:70}}/></td>
+            <td><input value={ed.mro||""} onChange={e=>setEditForm({...editForm,mro:e.target.value})} style={{width:110}}/></td>
+            <td><div className="flab g8"><button className="btn btn-ghost" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>{setEditIdx(null);setEditForm(null);}}>Cancel</button><button className="btn btn-gold" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>saveEditSV(si)}>Save</button></div></td>
+          </tr>
+        );
+        return(
+          <tr key={sv.id||si}>
+            <td style={{fontWeight:500}}>{sv.details}</td><td>{fmtDate(sv.date)}</td>
+            <td style={{fontFamily:"monospace"}}>{sv.fh!=null?fmtHHMM(sv.fh):"—"}</td>
+            <td style={{fontFamily:"monospace"}}>{sv.fc!=null?sv.fc.toLocaleString():"—"}</td>
+            <td style={{color:"#94a3b8"}}>{sv.mro||"—"}</td>
+            {isAdmin&&<td><div className="flab g8"><button className="btn btn-ghost" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>{setEditIdx(si);setEditForm({...sv,fh:sv.fh!=null?fmtHHMM(sv.fh):"",fc:sv.fc!=null?sv.fc:""});}}>Edit</button><button className="btn-danger btn" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>delSV(si)}>✕</button></div></td>}
+          </tr>
+        );
+      }):<tr><td colSpan={isAdmin?6:5} style={{color:"#475569",fontStyle:"italic"}}>No shop visits recorded</td></tr>}</tbody></table>
+
       {adding&&(
         <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #1e3048"}}>
           <div className="grid3" style={{gap:6,marginBottom:8}}>
@@ -195,6 +268,26 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
             ))}
           </div>
           <div className="flab g8"><button className="btn btn-ghost" onClick={()=>setAdding(false)}>Cancel</button><button className="btn btn-gold" onClick={saveSV}>Add Visit</button></div>
+        </div>
+      )}
+
+      {reviewRows&&(
+        <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #C9A84C"}}>
+          <div style={{fontSize:11,color:"#C9A84C",fontWeight:700,marginBottom:8}}>Review extracted shop visits before saving — {reviewRows.length} event{reviewRows.length===1?"":"s"} found</div>
+          <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th></tr></thead>
+          <tbody>{reviewRows.map((r,i)=>(
+            <tr key={i}>
+              <td><input value={r.details} onChange={e=>updateReviewRow(i,"details",e.target.value)} style={{width:160}}/></td>
+              <td><input type="date" value={r.date} onChange={e=>updateReviewRow(i,"date",e.target.value)}/></td>
+              <td><input type="number" value={r.fh!=null?r.fh:""} onChange={e=>updateReviewRow(i,"fh",e.target.value===""?null:+e.target.value)} style={{width:80}}/></td>
+              <td><input type="number" value={r.fc!=null?r.fc:""} onChange={e=>updateReviewRow(i,"fc",e.target.value===""?null:+e.target.value)} style={{width:70}}/></td>
+              <td><input value={r.mro} onChange={e=>updateReviewRow(i,"mro",e.target.value)} style={{width:110}}/></td>
+            </tr>
+          ))}</tbody></table>
+          <div className="flab g8" style={{marginTop:10}}>
+            <button className="btn btn-ghost" onClick={()=>setReviewRows(null)}>Cancel</button>
+            <button className="btn btn-gold" onClick={confirmReview}>Confirm & Save</button>
+          </div>
         </div>
       )}
     </div>
