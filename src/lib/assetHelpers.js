@@ -94,11 +94,11 @@ const ENGINE_LLP_PROMPT="Extract engine LLP data from this document. Process eac
 const APU_LLP_PROMPT="Extract APU LLP data ONLY from this document. The APU serial number is labelled SERIAL NUMBER. The fc_remaining value for each LLP must come from the RESIDUAL LIFE - CYS column (also labelled REMAINING COMPON. LIFE or similar), not the TOTAL LIFE or FIXED LIFE column. Also extract cycle_limit (the approved life limit) for each LLP from the TOTAL LIFE or FIXED LIFE column (whichever is present on this document) — this is the figure fc_remaining is explicitly NOT taken from. cycle_limit must be a number, or null if that cell reads N/L, N/A, or is non-numeric. Never substitute 0 for null. IMPORTANT: this document may use European number formatting where a period is a thousands separator, not a decimal point (e.g. 38.093 means 38,093 and 47.075 means 47,075). Convert all numeric values to standard integers. Return ONLY valid JSON, no markdown:\n{\"msn\":\"string or null if not present\",\"registration\":\"string or null if not present\",\"apu\":{\"sn\":\"string\",\"pn\":\"string or null if not present\",\"csn\":number,\"llps\":[{\"desc\":\"string\",\"pn\":\"string\",\"sn\":\"string\",\"fc_remaining\":number,\"cycle_limit\":number}]}}";
 
 // sv-analytics-iq-tab-build-spec.md §3 — 8-category taxonomy for shop visit
-// / operator history removal reasons. Only PR and Hardware are trended in
-// SV Interval Analytics; the rest still appear in the raw table/history.
-// Declared ahead of OPERATOR_HISTORY_PROMPT/SHOP_VISIT_PROMPT since both
-// template literals reference REASON_CATEGORY_RULES — const TDZ means the
-// reference has to come after the declaration in file order.
+// removal reasons (Alan confirmed operator history doesn't need this — it's
+// separate chain-of-custody metadata, not consumed by SV Interval Analytics).
+// Only PR and Hardware are trended; the rest still appear in the raw table.
+// Declared ahead of SHOP_VISIT_PROMPT since it references REASON_CATEGORY_RULES
+// — const TDZ means the reference has to come after the declaration in file order.
 const REASON_CATEGORIES=["PR","Hardware","FOD","Lease Event","Swap","TIMEX","Scheduled LLP","Other"];
 
 const REASON_CATEGORY_RULES=`Also classify the removal/shop-visit reason into exactly one of these 8 categories:
@@ -132,11 +132,8 @@ Position labels (1/2, LH/RH, Port/Stbd, POS:1/POS:2) may appear ONLY to help pai
 
 Date formats vary (DD-MMM-YY, DD-MMM-YYYY, YYYY/MM/DD, D-Mon-YY, DD-Mon-YYYY) - normalise all dates to ISO YYYY-MM-DD.
 
-${REASON_CATEGORY_RULES}
-If the reason text is ambiguous or absent, output "Other". Only classify stints that have a reason at all — if reason is null, reasonCategory should still be "Other".
-
 You may reason through the document section by section before answering. Once finished, output the final result as a single fenced code block starting with \`\`\`json and ending with \`\`\` - this fenced block must contain ONLY the JSON object below and nothing else inside the fences:
-{"asOfDate":"YYYY-MM-DD or null","rows":[{"operator":"string or null","aircraft":"string or null","installDate":"YYYY-MM-DD or null","removalDate":"YYYY-MM-DD or null","tsnAtRemoval":number_or_null,"csnAtRemoval":number_or_null,"reason":"string or null","reasonCategory":"PR|Hardware|FOD|Lease Event|Swap|TIMEX|Scheduled LLP|Other"}]}`;
+{"asOfDate":"YYYY-MM-DD or null","rows":[{"operator":"string or null","aircraft":"string or null","installDate":"YYYY-MM-DD or null","removalDate":"YYYY-MM-DD or null","tsnAtRemoval":number_or_null,"csnAtRemoval":number_or_null,"reason":"string or null"}]}`;
 
 function assetStatus(asset){
   const llpVals=(asset.engines||[]).flatMap(e=>(e.llps||[]).map(l=>calcLLPRem(l,e.currentFC)));

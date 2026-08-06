@@ -166,7 +166,6 @@ async function extractOperatorHistory(file){
       tsnAtRemoval:r.tsnAtRemoval!=null?+r.tsnAtRemoval:null,
       csnAtRemoval:r.csnAtRemoval!=null?+r.csnAtRemoval:null,
       reason:r.reason||"",
-      reasonCategory:normaliseReasonCategory(r.reasonCategory),
       source:"extracted",
       extractedFrom:file.name,
       asOfDate

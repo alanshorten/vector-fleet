@@ -5,9 +5,10 @@ import { getDefaultDisclaimer, getTechSpecBrandingHidden, getTechSpecLogo } from
 import { extractOperatorHistory, mergeOperatorHistory, extractShopVisits, mergeShopVisits } from '../lib/extraction';
 import { useLayoutMode } from '../lib/layoutMode';
 
-// Shared reasonCategory control — used on Shop Visit / Operator History
-// inline edit rows, the Add Visit / Add Row manual forms, and the
-// post-extraction review screens (sv-analytics-iq-tab-build-spec.md §8).
+// Shared reasonCategory control — used on Shop Visit inline edit rows, the
+// Add Visit manual form, and the post-extraction review screen (engine and
+// APU). Not used on Operator History — Alan confirmed that's separate
+// chain-of-custody metadata and doesn't need categorising.
 function CategorySelect({value,onChange,style}){
   return(
     <select value={value||""} onChange={e=>onChange(e.target.value)} style={{fontSize:11,padding:"4px 6px",...style}}>
@@ -317,7 +318,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
   const[uploading,setUploading]=useState(false);
   const[reviewRows,setReviewRows]=useState(null);
   const[manualAdd,setManualAdd]=useState(false);
-  const[newRow,setNewRow]=useState({operator:"",aircraft:"",installDate:"",removalDate:"",tsnAtRemoval:"",csnAtRemoval:"",reason:"",reasonCategory:""});
+  const[newRow,setNewRow]=useState({operator:"",aircraft:"",installDate:"",removalDate:"",tsnAtRemoval:"",csnAtRemoval:"",reason:""});
   const[editIdx,setEditIdx]=useState(null);
   const[editForm,setEditForm]=useState(null);
 
@@ -357,12 +358,12 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
       operator:newRow.operator,aircraft:newRow.aircraft,installDate:newRow.installDate,removalDate:newRow.removalDate,
       tsnAtRemoval:newRow.tsnAtRemoval===""?null:+newRow.tsnAtRemoval,
       csnAtRemoval:newRow.csnAtRemoval===""?null:+newRow.csnAtRemoval,
-      reason:newRow.reason,reasonCategory:newRow.reasonCategory||null,source:"manual",extractedFrom:null
+      reason:newRow.reason,source:"manual",extractedFrom:null
     };
     engines[engIdx].operatorHistory=mergeOperatorHistory(existing,[row]);
     await saveAsset({...asset,engines});
     setManualAdd(false);
-    setNewRow({operator:"",aircraft:"",installDate:"",removalDate:"",tsnAtRemoval:"",csnAtRemoval:"",reason:"",reasonCategory:""});
+    setNewRow({operator:"",aircraft:"",installDate:"",removalDate:"",tsnAtRemoval:"",csnAtRemoval:"",reason:""});
     notify("Row added");
   };
 
@@ -372,8 +373,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
     rows[i]={
       ...rows[i],...editForm,
       tsnAtRemoval:editForm.tsnAtRemoval===""||editForm.tsnAtRemoval==null?null:+editForm.tsnAtRemoval,
-      csnAtRemoval:editForm.csnAtRemoval===""||editForm.csnAtRemoval==null?null:+editForm.csnAtRemoval,
-      reasonCategory:editForm.reasonCategory||null
+      csnAtRemoval:editForm.csnAtRemoval===""||editForm.csnAtRemoval==null?null:+editForm.csnAtRemoval
     };
     engines[engIdx].operatorHistory=mergeOperatorHistory(rows,[]);
     await saveAsset({...asset,engines});
@@ -418,7 +418,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
       </div>
 
       {rows.length?(
-        <table><thead><tr><th>Operator</th><th>Aircraft</th><th>Installed</th><th>Removed</th><th>TSN</th><th>CSN</th><th>Reason</th><th>Category</th>{isAdmin&&<th></th>}</tr></thead>
+        <table><thead><tr><th>Operator</th><th>Aircraft</th><th>Installed</th><th>Removed</th><th>TSN</th><th>CSN</th><th>Reason</th>{isAdmin&&<th></th>}</tr></thead>
         <tbody>{rows.map((r,i)=>{
           const isEditingRow=editIdx===i;
           const ed=isEditingRow?editForm:r;
@@ -431,7 +431,6 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
               <td><input type="number" value={ed.tsnAtRemoval??""} onChange={e=>setEditForm({...editForm,tsnAtRemoval:e.target.value})} style={{width:70}}/></td>
               <td><input type="number" value={ed.csnAtRemoval??""} onChange={e=>setEditForm({...editForm,csnAtRemoval:e.target.value})} style={{width:70}}/></td>
               <td><input value={ed.reason||""} onChange={e=>setEditForm({...editForm,reason:e.target.value})} style={{width:90}}/></td>
-              <td><CategorySelect value={ed.reasonCategory} onChange={v=>setEditForm({...editForm,reasonCategory:v})}/></td>
               <td><div className="flab g8"><button className="btn btn-ghost" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>{setEditIdx(null);setEditForm(null);}}>Cancel</button><button className="btn btn-gold" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>saveEditRow(i)}>Save</button></div></td>
             </tr>
           );
@@ -444,7 +443,6 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
               <td style={{fontFamily:"monospace"}}>{r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—"}</td>
               <td style={{fontFamily:"monospace"}}>{r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—"}</td>
               <td style={{color:"#94a3b8"}}>{r.reason||"—"}{r._gapFlag&&<span title="TSN/CSN doesn't line up with the previous stint — check this row" style={{color:"#fbbf24",marginLeft:6}}>⚠</span>}</td>
-              <td><CategoryBadge value={r.reasonCategory}/></td>
               {isAdmin&&<td><div className="flab g8"><button className="btn btn-ghost" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>{setEditIdx(i);setEditForm({...r});}}>Edit</button><button className="btn-danger btn" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>deleteRow(i)}>✕</button></div></td>}
             </tr>
           );
@@ -457,7 +455,6 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
             {[["Operator","operator","text"],["Aircraft","aircraft","text"],["Install Date","installDate","date"],["Removal Date (blank if not yet removed)","removalDate","date"],["TSN at Removal","tsnAtRemoval","number"],["CSN at Removal","csnAtRemoval","number"],["Reason","reason","text"]].map(([l,k,t])=>(
               <div key={k}><label className="form-label">{l}</label><input type={t} value={newRow[k]} onChange={e=>setNewRow({...newRow,[k]:e.target.value})}/></div>
             ))}
-            <div><label className="form-label">Category</label><CategorySelect value={newRow.reasonCategory} onChange={v=>setNewRow({...newRow,reasonCategory:v})} style={{width:"100%"}}/></div>
           </div>
           <div className="flab g8"><button className="btn btn-ghost" onClick={()=>setManualAdd(false)}>Cancel</button><button className="btn btn-gold" onClick={addManualRow}>Add Row</button></div>
         </div>
@@ -466,7 +463,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
       {reviewRows&&(
         <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #C9A84C"}}>
           <div style={{fontSize:11,color:"#C9A84C",fontWeight:700,marginBottom:8}}>Review extracted rows before saving — {reviewRows.length} stint{reviewRows.length===1?"":"s"} found</div>
-          <table><thead><tr><th>Operator</th><th>Aircraft</th><th>Installed</th><th>Removed</th><th>TSN</th><th>CSN</th><th>Reason</th><th>Category</th></tr></thead>
+          <table><thead><tr><th>Operator</th><th>Aircraft</th><th>Installed</th><th>Removed</th><th>TSN</th><th>CSN</th><th>Reason</th></tr></thead>
           <tbody>{reviewRows.map((r,i)=>(
             <tr key={i}>
               <td><input value={r.operator} onChange={e=>updateReviewRow(i,"operator",e.target.value)} style={{width:100}}/></td>
@@ -476,7 +473,6 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
               <td><input type="number" value={r.tsnAtRemoval??""} onChange={e=>updateReviewRow(i,"tsnAtRemoval",e.target.value===""?null:+e.target.value)} style={{width:70}}/></td>
               <td><input type="number" value={r.csnAtRemoval??""} onChange={e=>updateReviewRow(i,"csnAtRemoval",e.target.value===""?null:+e.target.value)} style={{width:70}}/></td>
               <td><input value={r.reason} onChange={e=>updateReviewRow(i,"reason",e.target.value)} style={{width:90}}/></td>
-              <td><CategorySelect value={r.reasonCategory} onChange={v=>updateReviewRow(i,"reasonCategory",v)}/></td>
             </tr>
           ))}</tbody></table>
           <div className="flab g8" style={{marginTop:10}}><button className="btn btn-ghost" onClick={()=>setReviewRows(null)}>Discard</button><button className="btn btn-gold" onClick={confirmReview}>Confirm & Save</button></div>
