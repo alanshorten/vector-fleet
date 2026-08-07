@@ -465,6 +465,8 @@ All items in this section were addressed in a dedicated security session (June 2
 
 ## 5. Features Planned But Not Started
 
+*Last verified against live build state: August 2026. This section had gone stale — Layer 2 and most of Layer 3 shipped weeks ago while this list still read "not started." Corrected below; see note at end of section.*
+
 These are not debt — they are the backlog. Documented here so an engineer has a complete picture of where the product is going.
 
 ### Layer 1 — Enhancements to What Is Built
@@ -472,36 +474,39 @@ These are not debt — they are the backlog. Documented here so an engineer has 
 - [x] QR code generation from share links — done June 2026
 - [x] WhatsApp share integration — done June 2026
 - [ ] Documents tab — structured links to Google Drive docs per asset
-- [ ] Email ingestion — dedicated inbox, airline sends report, auto-processes
-- [ ] LLP extrapolation seasonal refinement (see 3.1)
+- [x] Email ingestion — dedicated inbox, airline sends report, auto-processes. **Fully automated** — parsed and processed by AI with no human confirmation step by default; only exceptions/issues are flagged for review. This is distinct from the manual document-upload path (upload → AI extract → human confirms → discard), which does require confirmation — don't conflate the two.
+- [ ] LLP extrapolation seasonal refinement (see 3.1) — no longer blocked (Brain 6 + seasonality profiles are built), but the refinement itself hasn't been built yet
 
-### Layer 2 — Financial Intelligence (Next Major Build)
-- [ ] Lease data input UI (manual + parse-and-discard PDF)
-- [ ] Reserve rates schema in Firestore per component
-- [ ] Seasonality profile configuration per asset
-- [ ] Scheduled maintenance events calendar (C-Checks, shop visits)
-- [ ] Brain 3: Fly-Forward Engine — core cash flow projection
-- [ ] Brain 4: Risk Peak Calculator
-- [ ] Brain 5: Shortfall / Surplus Engine
-- [ ] Brain 6: Maintenance Calendar Engine
-- [ ] Asset-level risk dashboard
-- [ ] Fleet-level portfolio snapshot and aggregation
-- [ ] Mid-lease asset onboarding wizard
+### Layer 2 — Financial Intelligence — ✅ Built and live (actively being iterated)
+- [x] Lease data input UI (manual + parse-and-discard PDF) — done
+- [x] Reserve rates schema in Firestore per component — done
+- [x] Seasonality profile configuration per asset — done
+- [x] Scheduled maintenance events calendar (C-Checks, shop visits) — done (Brain 6)
+- [x] Brain 3: Fly-Forward Engine — core cash flow projection — done
+- [x] Brain 4: Risk Peak Calculator — done
+- [x] Brain 5: Shortfall / Surplus Engine — done
+- [x] Brain 6: Maintenance Calendar Engine — done
+- [x] Asset-level financial view (Financials tab) — done
+- [x] Fleet-level portfolio snapshot and aggregation (Fleet Exposure) — done
+- [x] Mid-lease asset onboarding wizard — done
 
-### Layer 3 — Scenario Intelligence (After Layer 2 Proven)
-- [ ] Brain 7: Scenario Engine with utilisation/cost/rate sliders
-- [ ] Brain 8: Route Suitability Matcher
-- [ ] Brain 9: AI Narrative Generator (plain English risk summaries)
-- [ ] Portfolio-level stress testing
-- [ ] Liquidity cluster visualisation
+### Layer 3 — Scenario Intelligence — ✅ Core built and live; one item unconfirmed
+- [x] Brain 7: Scenario Engine — per-asset sliders + structured scenario input (utilisation, lease extension, FH:FC ratio), side-by-side base-case/scenario comparison — built and live-tested (MSN 4821, EI-GTQ)
+- [x] Brain 8: Route Suitability Matcher — done
+- [ ] Brain 9: AI Narrative Generator — scoped as a permitted exception to deterministic-only outputs (Layer 3/hypothetical context only); **status needs confirming** — design decision is locked, build completion isn't confirmed
+- [x] ~~Portfolio-level stress testing~~ — **killed**, not merely unbuilt. Superseded by the fleet-level chat box (fleet-wide hypotheticals with side-by-side Fleet Exposure), which covers the same use case. Don't resurrect as a separate feature.
+- [ ] Liquidity cluster visualisation — not started
 
 ### Infrastructure / Product
-- [x] Firebase Auth — email/password (single user) ✅ done June 2026; role-based access (Admin/Editor/Viewer) still open
-- [ ] Multi-tenant companyId implementation (bundled with Firestore rules scoping — see 2.3)
+- [x] Firebase Auth — email/password ✅ done June 2026
+- [x] Role-based access — ✅ done. Four roles live (Admin / Editor / Viewer / Data Entry, not the three originally scoped), enforced via Firebase custom claims at both UI and database level
+- [ ] Multi-tenant companyId implementation — still open. `companyId` exists in schema but is unset everywhere; no rule or query filters by it. Not a live risk at single-organisation scale; hard blocker before a second organisation is onboarded (bundled with Firestore rules scoping — see 2.3)
 - [x] Vercel environment variables for Firebase/Cloudinary/Anthropic credentials ✅ done June 2026
-- [ ] Next.js migration (if required for multi-user scale)
-- [ ] SOC 2 compliance (if required in future)
-- [ ] Mobile app — React Native (requires human developer)
+- [ ] Next.js migration (if required for multi-user scale) — not started
+- [ ] SOC 2 compliance (if required in future) — not started
+- [ ] Mobile app — React Native (requires human developer) — not started
+
+**Note on the remaining flagged item (Brain 9):** rather than guess, this is called out explicitly. Confirm actual build state against the live repo/app before next external use of this doc (e.g. before sharing with Niki again, or before ISTAT prep).
 
 ---
 
