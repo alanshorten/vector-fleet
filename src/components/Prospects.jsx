@@ -133,10 +133,6 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
   const[previewHtml,setPreviewHtml]=useState("");
   const[saving,setSaving]=useState(false);
   const[shareOpen,setShareOpen]=useState(false);
-  // Holds an engine position (1 or 2) when the per-engine "🔗 Share" button
-  // is clicked in the Engine card below, null otherwise. Separate from
-  // shareOpen (whole-aircraft share) so the two never collide.
-  const[engineShareOpen,setEngineShareOpen]=useState(null);
   const assetsRef=useRef(form);
   assetsRef.current=form;
 
@@ -382,12 +378,7 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
               <div className="card" key={ei} style={{padding:18}}>
                 <div className="flj">
                   <div className="section-title" style={{margin:0}}>{isEngineProspect?"Engine":`Engine #${ei+1}`}</div>
-                  {!isEngineProspect&&(
-                    <div style={{display:"flex",gap:6}}>
-                      <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setEngineShareOpen(eng.position||ei+1)}>🔗 Share</button>
-                      <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>generateTechSpec({...d,engines:[eng],_engineOnly:true,_enginePos:eng.position||ei+1})}>📋 Standalone Engine Spec</button>
-                    </div>
-                  )}
+                  {!isEngineProspect&&<button className="btn btn-ghost" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>generateTechSpec({...d,engines:[eng],_engineOnly:true,_enginePos:eng.position||ei+1})}>📋 Standalone Engine Spec</button>}
                 </div>
                 <div className="grid2" style={{gap:"0 16px"}}>
                   <PField label="Serial Number" val={eng.sn} onCommit={v=>commit(`engines.${ei}.sn`,v)}/>
@@ -566,7 +557,6 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
         </div>
       </div>
       {shareOpen&&<ShareModal asset={d} notify={notify} onClose={()=>setShareOpen(false)}/>}
-      {engineShareOpen&&<ShareModal asset={d} enginePos={engineShareOpen} notify={notify} onClose={()=>setEngineShareOpen(null)}/>}
     </div>
   );
 };

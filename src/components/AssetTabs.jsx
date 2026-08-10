@@ -4,6 +4,13 @@ import { db } from '../lib/db';
 import { getDefaultDisclaimer, getTechSpecBrandingHidden, getTechSpecLogo } from '../lib/techSpec';
 import { extractOperatorHistory, mergeOperatorHistory, extractShopVisits, mergeShopVisits } from '../lib/extraction';
 import { useLayoutMode } from '../lib/layoutMode';
+// ShareModal lives in AssetView.jsx, which itself imports EnginesTab (and
+// friends) from this file — a genuine circular import between the two
+// modules. Safe here because ShareModal is only referenced inside JSX
+// returned from EnginesTab, i.e. at render time, long after both modules
+// have finished evaluating — not at module-top-level. Same pattern already
+// used by Prospects.jsx importing ShareModal from AssetView.
+import { ShareModal } from './AssetView';
 
 // Shared reasonCategory control — used on Shop Visit inline edit rows, the
 // Add Visit manual form, and the post-extraction review screen (engine and
@@ -487,6 +494,10 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
   const[form,setForm]=useState(null);
   const[addLLPIdx,setAddLLPIdx]=useState(null);
   const[newLLP,setNewLLP]=useState({desc:"",pn:"",sn:"",startFCRem:0,refFC:0,approvedLife:""});
+  // Holds an engine index (0 or 1) while its per-engine Share modal is open,
+  // null otherwise — same idea as editIdx above, just for sharing instead
+  // of editing.
+  const[shareIdx,setShareIdx]=useState(null);
   const { mode: layoutMode } = useLayoutMode();
   const patchEngines=async(engines)=>{await saveAsset({...asset,engines});};
   const saveEngineEdit=async()=>{const engines=[...asset.engines];engines[editIdx]=form;await patchEngines(engines);setEditIdx(null);setForm(null);notify("Engine saved");};
@@ -499,6 +510,7 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
   // untouched.
   const wide = layoutMode === "landscape";
   return(
+    <>
     <div style={wide ? {display:"grid",gridTemplateColumns:"1fr 1fr",columnGap:20,rowGap:20} : {display:"flex",flexDirection:"column",gap:20}}>
       {(asset.engines||[]).map((eng,ei)=>{
         const ll=lowestLimiter(eng);const isEditing=editIdx===ei;const ed=isEditing?form:eng;
@@ -510,6 +522,7 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
                 {eng.atShop&&<span style={{fontSize:11,color:"#f87171"}}>🔧 At shop</span>}
               </div>
               <div className="flab g8">
+                <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>setShareIdx(ei)}>🔗 Share</button>
                 <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={async()=>{
                   const photoKey=engineStockPhotoKey(eng.type);
                   const engPhoto=photoKey?(await db.getSetting(photoKey).catch(()=>null)||""):"";
@@ -610,6 +623,8 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
         );
       })}
     </div>
+    {shareIdx!==null&&<ShareModal asset={asset} enginePos={asset.engines[shareIdx]?.position||shareIdx+1} notify={notify} onClose={()=>setShareIdx(null)}/>}
+    </>
   );
 };
 
