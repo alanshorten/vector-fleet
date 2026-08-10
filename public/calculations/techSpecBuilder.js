@@ -54,8 +54,10 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 @media screen and (max-width:600px){.sc-cards,.sc-cards tbody,.sc-cards tr{display:block;width:100%}.sc-cell{display:block;width:100%!important;padding:0 0 10px!important}.sc-cell:last-child{padding-bottom:0!important}.sc-inner{display:flex;align-items:center;gap:12px;padding:12px 14px;height:auto!important}.sc-icon{margin-bottom:0}.sc-val,.sc-val-sm{margin-bottom:0}.sc-lbl{margin-top:2px}.lg3col,.lg3col tbody,.lg3col tr{display:block;width:100%}.lg3col td{display:block;width:100%!important}.lg3col td:empty{display:none}.lg3col td:not(:empty){margin-bottom:12px}.lg3col td:not(:empty):last-child{margin-bottom:0}
 /* col2(): the generic "two cards side by side" layout used for Engine+ShopVisit, Airframe, APU, and Photos. Same stack pattern as .lg3col above — hide the empty 2% spacer cell, run each content cell full width with a gap between. */
 .col2,.col2 tbody,.col2 tr{display:block;width:100%}.col2 td{display:block;width:100%!important}.col2 td:empty{display:none}.col2 td:not(:empty){margin-bottom:12px}.col2 td:not(:empty):last-child{margin-bottom:0}
-/* Any other table (Check History, Shop Visit, LLP, Operator History, etc.) that's still wider than the screen scrolls inside its own box instead of forcing the whole page wider than the viewport — that page-wide sideways scroll is what was making the shared spec feel broken on a phone. .sc-cards/.lg3col/.col2 are excluded since those are handled by their own stacking rules above. */
-table:not(.sc-cards):not(.lg3col):not(.col2){display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}}
+/* .kv: label/value metadata rows (Engine, APU, Configuration, Systems, Landing Gear detail cards). Desktop/print keeps the fixed-width two-column layout above — on mobile each row becomes a single compact line, label left / value right, instead of stacking the label above the value. This is what was making the spec feel like a long left-aligned list instead of a compact readout. */
+.kv,.kv tbody{display:block;width:100%}.kv tr{display:flex;justify-content:space-between;align-items:baseline;gap:14px;width:100%;border-bottom:1px solid #f8fafc;padding:5px 0}.kv tr:last-child{border-bottom:none}.kv td{display:block;border:none!important;padding:0!important;width:auto!important}.kv td:first-child{flex-shrink:0;color:#64748b}.kv td:last-child{text-align:right}
+/* .tbl-wrap: wraps genuinely multi-column data tables (Check History, Shop Visit, LLP, Operator History, Landing Gear genealogy, Wheels & Brakes). The table itself is left completely untouched — same real table markup, same column alignment under headers — only the wrapper scrolls horizontally if the table is still wider than the phone. This is deliberately NOT done by setting the table itself to display:block: that approach was tried and it broke row/column structure on real devices (rows collapsed into an unlabelled flat list). Wrapping in a plain scrollable div is the safe version. */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:9px}.tbl-wrap table{margin-bottom:0}}
 .cov-disc{font-size:9px;color:#6b7280;margin:26px 10px 0;line-height:1.6}
 .cov-date{margin-top:8px;font-size:11px;color:#374151;margin-left:10px}
 h3{background:#1e293b;color:#FFFFFF;font-size:11.5px;padding:5px 10px;border-radius:4px;margin:18px 0 7px;letter-spacing:0.04em}
@@ -89,7 +91,7 @@ ${pgH(`Engine #${pos} \u2014 ESN ${eng.sn||"\u2014"}`)}
 ${col2(
   `<td style="${CS}">
     ${IH(`Engine #${pos} \u2014 ESN ${eng.sn||"\u2014"}`,svgEngine)}
-    <table width="100%" cellpadding="0" cellspacing="0">
+    <table class="kv" width="100%" cellpadding="0" cellspacing="0">
       ${kvR("Model / Thrust",`${eng.type||"\u2014"} \u00b7 ${eng.thrust||"\u2014"}`)}
       ${kvR("Flight Hours Since New",`${fmtHHMM(eng.currentFH)} FH`)}
       ${kvR("Flight Cycles Since New",`${(eng.currentFC||0).toLocaleString()} FC`)}
@@ -97,18 +99,18 @@ ${col2(
     ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
   </td>`,
   svRecent.length
-    ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svRecent,eng.currentFH,eng.currentFC)}</tbody></table></td>`
+    ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svRecent,eng.currentFH,eng.currentFC)}</tbody></table>`)}</td>`
     :`<td style="border:none;padding:0"></td>`
 )}
 ${cO("Life Limited Parts",svgList)}
-<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th></tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>
+${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th></tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>`)}
 ${cC}
 ${fullHistory?`${PAGE_FOOTER}<div class="pb"></div>
 ${pgH(`Engine #${pos} \u2014 Maintenance History`)}
 ${cO("Shop Visit History",svgCal)}
-<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svAll,eng.currentFH,eng.currentFC)}</tbody></table>
+${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svAll,eng.currentFH,eng.currentFC)}</tbody></table>`)}
 ${cC}
-${eng.operatorHistory?.length?`${cO("Operator History",svgList)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Operator</th><th style="${TH}">Aircraft</th><th style="${TH}">Installed</th><th style="${TH}">Removed</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th><th style="${TH}">Reason</th></tr></thead><tbody>${operatorHistoryRows(eng.operatorHistory)}</tbody></table>${cC}`:""}`:""}`;};
+${eng.operatorHistory?.length?`${cO("Operator History",svgList)}${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Operator</th><th style="${TH}">Aircraft</th><th style="${TH}">Installed</th><th style="${TH}">Removed</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th><th style="${TH}">Reason</th></tr></thead><tbody>${operatorHistoryRows(eng.operatorHistory)}</tbody></table>`)}${cC}`:""}`:""}`;};
   const lgFromDDMMYYYY=(s)=>{if(!s)return"";const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);if(m)return m[3]+"-"+m[2]+"-"+m[1];return s;};
   const lgFmtDate=(s)=>fmtDate(s);
   const lgSec=(g,title)=>{
@@ -143,6 +145,10 @@ ${eng.operatorHistory?.length?`${cO("Operator History",svgList)}<table style="wi
   const CS='border:1px solid #e2e8f0;border-radius:10px;padding:14px 17px;vertical-align:top';
   const col2=(l,r)=>`<table class="col2" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin-bottom:13px"><colgroup><col width="49%"/><col width="2%"/><col width="49%"/></colgroup><tr>${l}<td style="border:none;padding:0"></td>${r}</tr></table>`;
   const col3=(a,b,c)=>`<table width="100%" cellpadding="0" cellspacing="0" class="lg3col" style="border-collapse:separate;margin-bottom:13px"><colgroup><col width="32%"/><col width="2%"/><col width="32%"/><col width="2%"/><col width="32%"/></colgroup><tr>${a}<td style="border:none;padding:0"></td>${b}<td style="border:none;padding:0"></td>${c}</tr></table>`;
+  // Wraps a data table (Check History, Shop Visit, LLP, Operator History, LG genealogy,
+  // Wheels & Brakes) so it can scroll horizontally within its own card on mobile instead of
+  // forcing the whole page wider than the screen. See .tbl-wrap in the CSS above.
+  const scrollWrap=(tableHtml)=>`<div class="tbl-wrap">${tableHtml}</div>`;
   const cC=`</div>`;
   const kvR=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10px;color:#64748b;font-weight:600;width:150px;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10.5px;color:#0f172a;font-weight:600;vertical-align:top">${v}</td></tr>`;
   const mT=(lbl,val,sub)=>`<div class="mini-t"><div class="mini-l">${lbl}</div><div class="mini-v">${val}</div>${sub?`<div class="mini-s">${sub}</div>`:""}</div>`;
@@ -235,11 +241,11 @@ ${col2(
   </td>`,
   `<td style="${CS}">
     ${IH("Check History",svgWrench)}
-    <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr>
+    ${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr>
       <th style="${TH}">Check</th><th style="${TH}">Last Date</th><th style="${TH}">FH</th><th style="${TH}">FC</th><th style="${TH}">Next Due</th>
     </tr></thead><tbody>
     ${(()=>{const enteredChecks=(asset.checks||[]).filter(c=>c.lastDate||c.nextDate);if(!enteredChecks.length)return'<tr><td colspan="5" style="color:#aaa;font-style:italic">No check history entered</td></tr>';return enteredChecks.map(c=>`<tr><td style="${TD}">${c.name}</td><td style="${TD}">${fmtDate(c.lastDate)}</td><td style="${TD}">${c.lastFH?.toLocaleString()||"—"}</td><td style="${TD}">${c.lastFC?.toLocaleString()||"—"}</td><td style="${TD};font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("");})()}
-    </tbody></table>
+    </tbody></table>`)}
   </td>`
 )}
 ${(()=>{
@@ -248,7 +254,7 @@ ${(()=>{
   return col2(
     `<td style="${CS}">
     ${IH("Configuration",svgClip)}
-    <table width="100%" cellpadding="0" cellspacing="0">
+    <table class="kv" width="100%" cellpadding="0" cellspacing="0">
       ${sh("specs.config")?"":kvR("Configuration",asset.specs?.config||"—")}
       ${sh("specs.seatConfig")?"":kvR("Seat Config",asset.specs?.seatConfig||"—")}
       ${sh("specs.seatMfr")?"":kvR("Seat Manufacturer",asset.specs?.seatMfr||"—")}
@@ -262,7 +268,7 @@ ${(()=>{
   </td>`,
     `<td style="${CS}">
     ${IH("Systems",svgCog)}
-    <table width="100%" cellpadding="0" cellspacing="0">
+    <table class="kv" width="100%" cellpadding="0" cellspacing="0">
       ${sh("specs.adsb")?"":kvR("ADS-B",asset.specs?.adsb?"Installed":"—")}
       ${sh("specs.cpdlc")?"":kvR("CPDLC",asset.specs?.cpdlc?"Installed":"—")}
       ${sh("specs.tcas")?"":kvR("TCAS 7.1",asset.specs?.tcas?"Installed":"—")}
@@ -290,7 +296,7 @@ ${pgH(`Engine #${pos} \u2014 Powerplant Status`)}
 ${col2(
   `<td style="${CS}">
     ${IH(`Engine #${pos} \u2014 ESN ${eng.sn||"\u2014"}`,svgEngine)}
-    <table width="100%" cellpadding="0" cellspacing="0">
+    <table class="kv" width="100%" cellpadding="0" cellspacing="0">
       ${kvR("Model / Thrust",`${eng.type||"\u2014"} \u00b7 ${eng.thrust||"\u2014"}`)}
       ${kvR("Flight Hours Since New",`${fmtHHMM(eng.currentFH)} FH`)}
       ${kvR("Flight Cycles Since New",`${(eng.currentFC||0).toLocaleString()} FC`)}
@@ -298,13 +304,13 @@ ${col2(
     ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
   </td>`,
   svList.length
-    ? `<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,eng.currentFH,eng.currentFC)}</tbody></table></td>`
+    ? `<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,eng.currentFH,eng.currentFC)}</tbody></table>`)}</td>`
     : `<td style="border:none;padding:0"></td>`
 )}
 ${cO("Life Limited Parts",svgList)}
-<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr>
+${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr>
   <th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th>
-</tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>
+</tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>`)}
 ${cC}`;
   });
   return pages.join('<div class="pb"></div>')+'<div class="pb"></div>';
@@ -321,7 +327,7 @@ ${(()=>{
     const intervalCycles=g?.overhaulIntervalCycles||20000;
     const cycRem=(g?.lastOverhaulFC!=null&&curFC!=null)?(g.lastOverhaulFC+intervalCycles)-curFC:null;
     const lkv=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #f8fafc;padding:4px 0;font-size:9.5px;color:#64748b;font-weight:600;width:42%;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #f8fafc;padding:4px 0;font-size:10px;color:#0f172a;font-weight:600;vertical-align:top;word-break:normal;overflow-wrap:anywhere">${v}</td></tr>`;
-    const rows=g?`<table width="100%" cellpadding="0" cellspacing="0">
+    const rows=g?`<table class="kv" width="100%" cellpadding="0" cellspacing="0">
       ${lkv("Part No.",g.pn||"—")}
       ${lkv("Serial No.",g.sn||"—")}
       ${lkv("Manufacturer",g.mfr||"—")}
@@ -337,14 +343,14 @@ ${(()=>{
   const wb=asset.wheelsBrakes||{};
   const rows=[["Main Wheels",wb.mainWheels],["Nose Wheels",wb.noseWheels],["Brake Unit",wb.brakes]].filter(([,item])=>item&&(item.pn||item.mfr));
   if(!rows.length)return"";
-  return`${cO("Wheels &amp; Brakes",svgWheel)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Component</th><th style="${TH}">Qty</th><th style="${TH}">P/N</th><th style="${TH}">Manufacturer</th></tr></thead><tbody>${rows.map(([label,item])=>`<tr><td style="${TD}">${label}</td><td style="${TD}">${item.qty||"—"}</td><td style="${TD}">${item.pn||"—"}</td><td style="${TD}">${item.mfr||"—"}</td></tr>`).join("")}</tbody></table>${cC}`;
+  return`${cO("Wheels &amp; Brakes",svgWheel)}${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Component</th><th style="${TH}">Qty</th><th style="${TH}">P/N</th><th style="${TH}">Manufacturer</th></tr></thead><tbody>${rows.map(([label,item])=>`<tr><td style="${TD}">${label}</td><td style="${TD}">${item.qty||"—"}</td><td style="${TD}">${item.pn||"—"}</td><td style="${TD}">${item.mfr||"—"}</td></tr>`).join("")}</tbody></table>`)}${cC}`;
 })()}
 ${PAGE_FOOTER}<div class="pb"></div>
 ${pgH("Auxiliary Power Unit")}
 ${col2(
   `<td style="${CS}">
     ${IH(`APU \u2014 ${apu.sn||"\u2014"}`,svgBolt)}
-    <table width="100%" cellpadding="0" cellspacing="0">
+    <table class="kv" width="100%" cellpadding="0" cellspacing="0">
       ${kvR("Manufacturer",apu.mfr||"—")}
       ${kvR("Part Number",apu.pn||"—")}
       ${kvR("Serial Number",apu.sn||"—")}
@@ -354,10 +360,10 @@ ${col2(
     ${(()=>{const ll=lowestLimiter(apu);const desc=lowestLLPDesc(apu);return ll!==null?progBar(ll)+(desc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${desc}</div>`:""):"";})()}
   </td>`,
   (()=>{const svList=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);}).slice(-1);return svList.length
-    ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,apu.currentFH,apu.currentFC)}</tbody></table></td>`
+    ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,apu.currentFH,apu.currentFC)}</tbody></table>`)}</td>`
     :`<td style="border:none;padding:0"></td>`;})()
 )}
-${apu.llps?.length?`${cO("APU Life Limited Parts",svgList)}<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:0;margin-bottom:0"><thead><tr><th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th></tr></thead><tbody>${llpRows(apu.llps,apu.currentFC)}</tbody></table>${cC}`:""}
+${apu.llps?.length?`${cO("APU Life Limited Parts",svgList)}${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:0;margin-bottom:0"><thead><tr><th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th></tr></thead><tbody>${llpRows(apu.llps,apu.currentFC)}</tbody></table>`)}${cC}`:""}
 
 ${(()=>{
     const lopaPhoto=(asset.photos||[]).find(p=>p.label==="LOPA");
