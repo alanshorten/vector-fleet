@@ -103,6 +103,10 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 .dt-row:last-child{border-bottom:none}
 .dt-l{color:#64748b;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;flex-shrink:0}
 .dt-v{font-weight:700;color:#0f172a;font-size:11px}
+/* .scroll-tbl: LLP stays a real table on every screen (Alan: cards don't work for
+   this one), just contained so a long descriptor/part-number row scrolls inside its
+   own card instead of forcing the whole page wider than the viewport. */
+.scroll-tbl{overflow-x:auto;-webkit-overflow-scrolling:touch}
 /* Avionics LRU list: same .dt-table/.dt-cards swap, but .dt-cards holds a 2-column grid
    of small parts instead of one-per-row — the "we have the space" complaint. */
 .av-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
@@ -146,6 +150,13 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
   // .dt-table/.dt-cards in the CSS — only one of table-vs-cards is ever visible at once.
   const dtRow=(l,v,style)=>v===null||v===undefined||v===""?"":`<div class="dt-row"><span class="dt-l">${l}</span><span class="dt-v"${style?` style="${style}"`:""}>${v}</span></div>`;
   const dualRender=(tableHtml,cardsHtml)=>`<div class="dt-table">${tableHtml}</div><div class="dt-cards">${cardsHtml}</div>`;
+  // For tables that stay tables on every screen size (LLP, per Alan: "table format
+  // like it always was, the cards don't work for this") — no card fallback, but still
+  // contained so a long descriptor/part-number combo scrolls inside its own card on a
+  // narrow phone instead of forcing the whole page wider than the viewport. Real table
+  // markup is completely untouched either way, unlike the .dt-table display:block
+  // approach tried earlier that broke row/column structure.
+  const tblScroll=(tableHtml)=>`<div class="scroll-tbl">${tableHtml}</div>`;
   const llpCards=(llps,csn)=>{
     if(!llps?.length)return'<div class="dt-card" style="color:#aaa;font-style:italic">No LLP data entered</div>';
     return llps.map(l=>{
@@ -187,7 +198,7 @@ ${col2(
     :`<td style="border:none;padding:0"></td>`
 )}
 ${cO("Life Limited Parts",svgList)}
-${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th></tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>`,llpCards(eng.llps,eng.currentFC))}
+${tblScroll(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th></tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>`)}
 ${cC}
 ${fullHistory?`${PAGE_FOOTER}<div class="pb"></div>
 ${pgH(`Engine #${pos} \u2014 Maintenance History`)}
@@ -390,9 +401,9 @@ ${col2(
     : `<td style="border:none;padding:0"></td>`
 )}
 ${cO("Life Limited Parts",svgList)}
-${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr>
+${tblScroll(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr>
   <th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th>
-</tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>`,llpCards(eng.llps,eng.currentFC))}
+</tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>`)}
 ${cC}`;
   });
   return pages.join('<div class="pb"></div>')+'<div class="pb"></div>';
@@ -447,7 +458,7 @@ ${col2(
     ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,apu.currentFH,apu.currentFC)}</tbody></table>`,svCards(svList,apu.currentFH,apu.currentFC))}</td>`
     :`<td style="border:none;padding:0"></td>`;})()
 )}
-${apu.llps?.length?`${cO("APU Life Limited Parts",svgList)}${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:0;margin-bottom:0"><thead><tr><th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th></tr></thead><tbody>${llpRows(apu.llps,apu.currentFC)}</tbody></table>`,llpCards(apu.llps,apu.currentFC))}${cC}`:""}
+${apu.llps?.length?`${cO("APU Life Limited Parts",svgList)}${tblScroll(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:0;margin-bottom:0"><thead><tr><th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th></tr></thead><tbody>${llpRows(apu.llps,apu.currentFC)}</tbody></table>`)}${cC}`:""}
 
 ${(()=>{
     const lopaPhoto=(asset.photos||[]).find(p=>p.label==="LOPA");
