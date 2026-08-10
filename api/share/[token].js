@@ -91,6 +91,20 @@ module.exports = async (req, res) => {
       return res.status(404).json({ error: 'Asset not found' });
     }
     const asset = { id: assetSnap.id, ...assetSnap.data() };
+    const allowed = pickAllowed(asset);
+
+    // Engine-scoped token (Prospects "Standalone Engine Spec" share, one
+    // engine out of a two-engine aircraft) — trim to just that engine and
+    // flag it so share.html renders the engine-only tech spec branch, same
+    // as it already does for standalone engine prospects. The rest of the
+    // asset (both engines, financial-adjacent fields, etc.) never leaves
+    // this trimmed object.
+    if (tokenData.enginePos) {
+      const eng = (asset.engines || [])[tokenData.enginePos - 1] || null;
+      allowed.engines = eng ? [eng] : [];
+      allowed._engineOnly = true;
+      allowed._enginePos = tokenData.enginePos;
+    }
 
     // The fleet-wide default disclaimer (Admin → Settings) is not asset
     // data, so it doesn't go through ALLOWED_FIELDS/pickAllowed — it's a
@@ -105,7 +119,7 @@ module.exports = async (req, res) => {
       // should never break the share link itself.
     }
 
-    return res.status(200).json({ asset: pickAllowed(asset), defaultDisclaimer });
+    return res.status(200).json({ asset: allowed, defaultDisclaimer });
   } catch (err) {
     console.error('share token lookup failed', err);
     return res.status(500).json({ error: 'Internal error' });

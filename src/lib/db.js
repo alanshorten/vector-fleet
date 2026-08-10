@@ -67,7 +67,12 @@ const db = {
     await deleteDoc(doc(fs, "utilisation", id));
   },
   // --- Share tokens (V1 gate item, Section 12 of roadmap) ---
-  async createShareToken(assetId, companyId = null) {
+  // enginePos: when set, this token shares just one engine (position 1 or 2)
+  // out of a two-engine aircraft, rather than the whole asset — used by the
+  // per-engine "Standalone Engine Spec" share on aircraft Prospects. null
+  // for a normal whole-asset share (including standalone engine prospects,
+  // which are already single-engine by nature and don't need this).
+  async createShareToken(assetId, companyId = null, enginePos = null) {
     const { db: fs, doc, setDoc } = getFS();
     const token = (window.crypto?.randomUUID ? window.crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2)).replace(/-/g, "");
     const now = new Date();
@@ -75,6 +80,7 @@ const db = {
     const data = {
       assetId: String(assetId),
       companyId,
+      enginePos: enginePos || null,
       createdAt: now.toISOString(),
       expiresAt: expires.toISOString(),
       revoked: false,

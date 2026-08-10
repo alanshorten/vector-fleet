@@ -177,13 +177,24 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
   );
 };
 
-function ShareModal({asset,notify,onClose}){
+// enginePos: optional. When set, this modal manages share links scoped to
+// just one engine (position 1 or 2) of a two-engine aircraft — used by the
+// per-engine "Standalone Engine Spec" share on aircraft Prospects. Existing
+// callers that don't pass it keep sharing the whole asset, unchanged.
+function ShareModal({asset,enginePos,notify,onClose}){
   const[tokens,setTokens]=useState(null);
   const[busy,setBusy]=useState(false);
 
+  const scopedEngine=enginePos?asset.engines?.[enginePos-1]:null;
+
   const load=async()=>{
     const list=await db.getShareTokensForAsset(asset.id).catch(()=>[]);
-    const active=list.filter(t=>!t.revoked&&new Date(t.expiresAt).getTime()>Date.now());
+    // A whole-asset token list also contains any per-engine tokens for this
+    // same asset (they share the assetId), so filter down to just the scope
+    // this modal instance is for — whole-asset tokens have no enginePos,
+    // engine-scoped tokens must match this exact enginePos.
+    const scoped=list.filter(t=>(t.enginePos||null)===(enginePos||null));
+    const active=scoped.filter(t=>!t.revoked&&new Date(t.expiresAt).getTime()>Date.now());
     setTokens(active);
   };
   useEffect(()=>{load();},[]);
@@ -193,7 +204,7 @@ function ShareModal({asset,notify,onClose}){
   const generate=async()=>{
     setBusy(true);
     try{
-      await db.createShareToken(asset.id, asset.companyId||null);
+      await db.createShareToken(asset.id, asset.companyId||null, enginePos||null);
       await load();
       notify("Share link created — expires in 7 days","success");
     }catch(e){
@@ -223,7 +234,7 @@ function ShareModal({asset,notify,onClose}){
     <div style={{position:"fixed",inset:0,background:"rgba(5,10,16,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={onClose}>
       <div className="card" style={{width:420,maxWidth:"92vw",padding:24}} onClick={e=>e.stopPropagation()}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <h2 style={{fontSize:15,color:"#C9A84C",fontWeight:700}}>Share {asset.prospectKind==="engine"?`ESN ${asset.engines?.[0]?.sn||"—"}`:`MSN ${asset.msn}`}</h2>
+          <h2 style={{fontSize:15,color:"#C9A84C",fontWeight:700}}>Share {enginePos?`Engine #${enginePos} — ESN ${scopedEngine?.sn||"—"}`:asset.prospectKind==="engine"?`ESN ${asset.engines?.[0]?.sn||"—"}`:`MSN ${asset.msn}`}</h2>
           <button className="btn btn-ghost" style={{padding:"4px 10px"}} onClick={onClose}>✕</button>
         </div>
         <p style={{fontSize:12,color:"#7a9ab5",marginBottom:16,lineHeight:1.5}}>

@@ -74,12 +74,14 @@ iframe{width:100%;border:none;background:#fff;border-radius:8px;min-height:80vh}
 
   const { asset, defaultDisclaimer, hideBranding } = await res.json();
 
-  // Standalone-engine prospects (Prospect Asset Flow) must render via the
-  // engine-only branch of buildTechSpecHTML — same derivation as
-  // generateTechSpec() in the main app. Without this, a shared engine
-  // prospect would render as a full (and largely blank) aircraft spec.
-  const specAsset = asset.prospectKind === 'engine'
-    ? { ...asset, _engineOnly: true, _enginePos: 1 }
+  // Standalone-engine prospects (Prospect Asset Flow), and single-engine
+  // shares carved out of a two-engine aircraft prospect (asset._engineOnly,
+  // set server-side by /api/share/[token] when the token is engine-scoped),
+  // must render via the engine-only branch of buildTechSpecHTML — same
+  // derivation as generateTechSpec() in the main app. Without this, a
+  // shared engine would render as a full (and largely blank) aircraft spec.
+  const specAsset = (asset.prospectKind === 'engine' || asset._engineOnly)
+    ? { ...asset, _engineOnly: true, _enginePos: asset._enginePos || 1 }
     : asset;
 
   // buildTechSpecHTML is the SAME function the authenticated app uses to
