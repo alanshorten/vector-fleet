@@ -37,7 +37,8 @@ function getApp() {
 const ALLOWED_FIELDS = [
   'id', 'msn', 'registration', 'model', 'manufacturer', 'operator', 'dom',
   'airframe', 'engines', 'apu', 'landingGear', 'wheelsBrakes', 'weights',
-  'specs', 'checks', 'photos', 'disclaimer', '_lastPeriod', 'prospectKind'
+  'specs', 'checks', 'photos', 'disclaimer', '_lastPeriod', 'prospectKind',
+  'avionicsLRU'
 ];
 
 function pickAllowed(asset) {

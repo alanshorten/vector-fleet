@@ -51,13 +51,41 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 .sc-val{font-size:20px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.02em;margin-bottom:5px}
 .sc-val-sm{font-size:13px;font-weight:700;color:#0f172a;line-height:1.3;letter-spacing:-0.01em;margin-bottom:5px}
 .sc-lbl{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8}
-@media screen and (max-width:600px){.sc-cards,.sc-cards tbody,.sc-cards tr{display:block;width:100%}.sc-cell{display:block;width:100%!important;padding:0 0 10px!important}.sc-cell:last-child{padding-bottom:0!important}.sc-inner{display:flex;align-items:center;gap:12px;padding:12px 14px;height:auto!important}.sc-icon{margin-bottom:0}.sc-val,.sc-val-sm{margin-bottom:0}.sc-lbl{margin-top:2px}.lg3col,.lg3col tbody,.lg3col tr{display:block;width:100%}.lg3col td{display:block;width:100%!important}.lg3col td:empty{display:none}.lg3col td:not(:empty){margin-bottom:12px}.lg3col td:not(:empty):last-child{margin-bottom:0}
-/* col2(): the generic "two cards side by side" layout used for Engine+ShopVisit, Airframe, APU, and Photos. Same stack pattern as .lg3col above — hide the empty 2% spacer cell, run each content cell full width with a gap between. */
-.col2,.col2 tbody,.col2 tr{display:block;width:100%}.col2 td{display:block;width:100%!important}.col2 td:empty{display:none}.col2 td:not(:empty){margin-bottom:12px}.col2 td:not(:empty):last-child{margin-bottom:0}
-/* .kv: label/value metadata rows (Engine, APU, Configuration, Systems, Landing Gear detail cards). Desktop/print keeps the fixed-width two-column layout above — on mobile each row becomes a single compact line, label left / value right, instead of stacking the label above the value. This is what was making the spec feel like a long left-aligned list instead of a compact readout. */
-.kv,.kv tbody{display:block;width:100%}.kv tr{display:flex;justify-content:space-between;align-items:baseline;gap:14px;width:100%;border-bottom:1px solid #f8fafc;padding:5px 0}.kv tr:last-child{border-bottom:none}.kv td{display:block;border:none!important;padding:0!important;width:auto!important}.kv td:first-child{flex-shrink:0;color:#64748b}.kv td:last-child{text-align:right}
-/* .tbl-wrap: wraps genuinely multi-column data tables (Check History, Shop Visit, LLP, Operator History, Landing Gear genealogy, Wheels & Brakes). The table itself is left completely untouched — same real table markup, same column alignment under headers — only the wrapper scrolls horizontally if the table is still wider than the phone. This is deliberately NOT done by setting the table itself to display:block: that approach was tried and it broke row/column structure on real devices (rows collapsed into an unlabelled flat list). Wrapping in a plain scrollable div is the safe version. */
-.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:9px}.tbl-wrap table{margin-bottom:0}}
+@media screen and (max-width:600px){.sc-cards,.sc-cards tbody,.sc-cards tr{display:block;width:100%}.sc-cell{display:block;width:100%!important;padding:0 0 10px!important}.sc-cell:last-child{padding-bottom:0!important}.sc-inner{display:flex;align-items:center;gap:12px;padding:12px 14px;height:auto!important}.sc-icon{margin-bottom:0}.sc-val,.sc-val-sm{margin-bottom:0}.sc-lbl{margin-top:2px}
+/* lg3col: outer table stacks to one column. Cell-level rule scoped to >tbody>tr>td
+   (direct children only) instead of a bare "td" descendant selector — a bare selector
+   reaches into any table nested inside an lg3col cell (e.g. the label/value table in
+   each Nose/LH/RH Gear card) and forces THOSE cells to display:block too. Same class of
+   bug as the .col2 leak below — fixed here for consistency even though .kv currently
+   masks it by winning the cascade tie. */
+.lg3col,.lg3col tbody,.lg3col tr{display:block;width:100%}.lg3col>tbody>tr>td{display:block;width:100%!important}.lg3col td:empty{display:none}.lg3col>tbody>tr>td:not(:empty){margin-bottom:12px}.lg3col>tbody>tr>td:not(:empty):last-child{margin-bottom:0}
+/* col2(): the generic "two cards side by side" layout used for Engine+ShopVisit,
+   Airframe, APU, and Photos. Same stack pattern as .lg3col above. Cell-level rule
+   scoped to >tbody>tr>td, NOT a bare "td" descendant selector — a bare selector reaches
+   into any table nested inside a col2 cell (Check History, Shop Visit, LLP, etc.) and
+   forces THEIR data cells to display:block too, which is exactly what was still
+   collapsing Check History into an unlabelled flat list even after wrapping it in
+   .tbl-wrap: the wrapper only controls scrolling, not each cell’s own display, so this
+   leak was untouched by that fix. */
+.col2,.col2 tbody,.col2 tr{display:block;width:100%}.col2>tbody>tr>td{display:block;width:100%!important}.col2 td:empty{display:none}.col2>tbody>tr>td:not(:empty){margin-bottom:12px}.col2>tbody>tr>td:not(:empty):last-child{margin-bottom:0}
+/* .kv: label/value metadata rows (Engine, APU, Configuration, Systems, Landing Gear
+   detail cards). Desktop/print keeps the fixed-width two-column layout above — on
+   mobile each row becomes a single compact line. Deliberately NOT
+   justify-content:space-between: on a full-width card that stretches the value all the
+   way to the right edge regardless of how short label/value are, leaving a big empty
+   gap in the middle (and, combined with the .col2 leak above, could push the value off
+   the right edge of the screen entirely). Label and value now sit close together with a
+   small fixed gap, wrapping only if either one is genuinely long. */
+.kv,.kv tbody{display:block;width:100%}.kv tr{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;width:100%;border-bottom:1px solid #f8fafc;padding:5px 0}.kv tr:last-child{border-bottom:none}.kv td{display:block;border:none!important;padding:0!important;width:auto!important;flex:0 1 auto}.kv td:first-child{flex-shrink:0;color:#64748b}.kv td:last-child{text-align:left;font-weight:700}
+/* .tbl-wrap: wraps genuinely multi-column data tables (Check History, Shop Visit, LLP,
+   Operator History, Landing Gear genealogy, Wheels & Brakes). The table itself is left
+   completely untouched — same real table markup, same column alignment under headers
+   — only the wrapper scrolls horizontally if the table is still wider than the phone.
+   This is deliberately NOT done by setting the table itself to display:block: that
+   approach was tried and it broke row/column structure on real devices (rows collapsed
+   into an unlabelled flat list). Wrapping in a plain scrollable div is the safe version. */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:9px}.tbl-wrap table{margin-bottom:0}
+}
 .cov-disc{font-size:9px;color:#6b7280;margin:26px 10px 0;line-height:1.6}
 .cov-date{margin-top:8px;font-size:11px;color:#374151;margin-left:10px}
 h3{background:#1e293b;color:#FFFFFF;font-size:11.5px;padding:5px 10px;border-radius:4px;margin:18px 0 7px;letter-spacing:0.04em}
