@@ -38,7 +38,7 @@ const ALLOWED_FIELDS = [
   'id', 'msn', 'registration', 'model', 'manufacturer', 'operator', 'dom',
   'airframe', 'engines', 'apu', 'landingGear', 'wheelsBrakes', 'weights',
   'specs', 'checks', 'photos', 'disclaimer', '_lastPeriod', 'prospectKind',
-  'avionicsLRU'
+  'avionicsLRU', 'hiddenSpecFields'
 ];
 
 function pickAllowed(asset) {
@@ -107,10 +107,16 @@ module.exports = async (req, res) => {
       allowed._enginePos = tokenData.enginePos;
     }
 
-    // The fleet-wide default disclaimer (Admin → Settings) is not asset
-    // data, so it doesn't go through ALLOWED_FIELDS/pickAllowed — it's a
-    // single non-sensitive string fetched and returned alongside the asset.
+    // The fleet-wide default disclaimer and "hide branding" toggle (Admin →
+    // Settings) are not asset data, so they don't go through
+    // ALLOWED_FIELDS/pickAllowed — they're single non-sensitive values
+    // fetched and returned alongside the asset. hideBranding previously
+    // wasn't fetched here at all, so the public share page always showed
+    // TailiQ branding regardless of the in-app toggle — the PDF path (which
+    // calls db.getSetting('tech_spec_hide_branding') directly) respected it,
+    // this endpoint just never read the same setting.
     let defaultDisclaimer = null;
+    let hideBranding = false;
     try {
       const settingSnap = await fs.collection('settings').doc('default_disclaimer').get();
       if (settingSnap.exists) defaultDisclaimer = settingSnap.data().value || null;
@@ -119,8 +125,14 @@ module.exports = async (req, res) => {
       // wording if this comes back null, so a settings-fetch failure
       // should never break the share link itself.
     }
+    try {
+      const brandingSnap = await fs.collection('settings').doc('tech_spec_hide_branding').get();
+      if (brandingSnap.exists) hideBranding = !!brandingSnap.data().value;
+    } catch (e) {
+      // Non-fatal — falls back to showing branding, same as an unset toggle.
+    }
 
-    return res.status(200).json({ asset: allowed, defaultDisclaimer });
+    return res.status(200).json({ asset: allowed, defaultDisclaimer, hideBranding });
   } catch (err) {
     console.error('share token lookup failed', err);
     return res.status(500).json({ error: 'Internal error' });

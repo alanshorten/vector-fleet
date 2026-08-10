@@ -77,14 +77,30 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
    the right edge of the screen entirely). Label and value now sit close together with a
    small fixed gap, wrapping only if either one is genuinely long. */
 .kv,.kv tbody{display:block;width:100%}.kv tr{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;width:100%;border-bottom:1px solid #f8fafc;padding:5px 0}.kv tr:last-child{border-bottom:none}.kv td{display:block;border:none!important;padding:0!important;width:auto!important;flex:0 1 auto}.kv td:first-child{flex-shrink:0;color:#64748b}.kv td:last-child{text-align:left;font-weight:700}
-/* .tbl-wrap: wraps genuinely multi-column data tables (Check History, Shop Visit, LLP,
-   Operator History, Landing Gear genealogy, Wheels & Brakes). The table itself is left
-   completely untouched — same real table markup, same column alignment under headers
-   — only the wrapper scrolls horizontally if the table is still wider than the phone.
-   This is deliberately NOT done by setting the table itself to display:block: that
-   approach was tried and it broke row/column structure on real devices (rows collapsed
-   into an unlabelled flat list). Wrapping in a plain scrollable div is the safe version. */
-.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:9px}.tbl-wrap table{margin-bottom:0}
+/* .dt-table / .dt-cards: Shop Visit, LLP, Check History, Operator History, and Wheels
+   & Brakes are genuinely multi-column data — no amount of CSS makes an HTML table with
+   auto-sized columns (long "23 Feb 2025 / FTAIC Aviation Canada" text next to a narrow
+   "CSN" number) read cleanly at 380px, and .tbl-wrap only added a scrollbar on top of
+   that unevenness rather than fixing it. Below 600px these sections render as a second,
+   parallel block — one small card per row, .kv-style label/value lines — and the table
+   is hidden. Desktop and the printed/downloaded PDF only ever see .dt-table; .dt-cards
+   is display:none there, so nothing duplicates on paper. */
+.dt-table{display:none}.dt-cards{display:block}
+.dt-card{border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;margin-bottom:9px;background:#fff}
+.dt-card:last-child{margin-bottom:0}
+.dt-card.dt-summary{background:#f1f5f9}
+.dt-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;padding:3px 0;border-bottom:1px solid #f8fafc}
+.dt-row:last-child{border-bottom:none}
+.dt-l{color:#64748b;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;flex-shrink:0}
+.dt-v{font-weight:700;color:#0f172a;font-size:11px}
+/* Avionics LRU list: same .dt-table/.dt-cards swap, but .dt-cards holds a 2-column grid
+   of small parts instead of one-per-row — the "we have the space" complaint. */
+.av-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.av-card{border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px}
+.av-card .dt-l{display:block;margin-bottom:2px}
+.av-card .dt-v{font-size:10.5px;word-break:break-word}
+.av-chapter{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#C9A84C;margin:12px 0 6px}
+.av-chapter:first-child{margin-top:0}
 }
 .cov-disc{font-size:9px;color:#6b7280;margin:26px 10px 0;line-height:1.6}
 .cov-date{margin-top:8px;font-size:11px;color:#374151;margin-left:10px}
@@ -106,7 +122,8 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
 .mini-t{border:1px solid #e2e8f0;border-radius:8px;padding:10px 11px}
 .mini-l{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;margin-bottom:3px}
 .mini-v{font-size:14px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.01em}
-.mini-s{font-size:8px;color:#94a3b8;margin-top:2px}`;
+.mini-s{font-size:8px;color:#94a3b8;margin-top:2px}
+.dt-cards{display:none}`;
   const PAGE_FOOTER=hideBranding?'':'<div class="pgfooter"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#dc2626;margin-right:3px;vertical-align:middle"></span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#16a34a;margin-right:6px;vertical-align:middle"></span>Powered by <span style="text-transform:none">TailiQ</span> Fleet Intelligence</div>';
   // QR pill disabled for internal use — QR_TAILIQ constant retained for future reactivation.
   // To re-enable: restore the original COVER_PILL definition from git history (commit before this change).
@@ -114,6 +131,36 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
     const llpRows=(llps,csn)=>!llps?.length?'<tr><td colspan="4" style="color:#aaa;font-style:italic">No LLP data entered</td></tr>':llps.map(l=>{const r=calcLLPRem(l,csn);return`<tr><td>${l.desc||""}</td><td style="font-family:monospace">${l.pn||""}</td><td style="font-family:monospace">${l.sn||""}</td><td style="font-weight:700;color:${r<1000?"#dc2626":r<3000?"#d97706":"#111"}">${r.toLocaleString()}</td></tr>`;}).join("");
   const svRows=(visits,currentFH,currentFC)=>{if(!visits||!visits.length)return'<tr><td colspan="4" style="color:#aaa;font-style:italic">No shop visits recorded</td></tr>';const mroLine=(mro)=>mro?'<br/><span style="font-size:9px;color:#6b7280">'+mro+'</span>':"";const rows=visits.map(sv=>'<tr><td>'+(sv.details||"")+'</td><td>'+fmtDate(sv.date)+mroLine(sv.mro)+'</td><td style="font-family:monospace">'+(fmtHHMM(sv.fh)||"")+'</td><td style="font-family:monospace">'+(sv.fc?sv.fc.toLocaleString():"")+'</td></tr>').join("");const last=visits[visits.length-1];const sinceFH=currentFH&&last.fh?currentFH-last.fh:null;const sinceFC=currentFC&&last.fc?currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;const sinceRow='<tr style="background:#f1f5f9"><td colspan="2" style="color:#323F42;font-weight:700">Since Last Shop Visit</td><td style="font-family:monospace">'+(sinceFH!==null?fmtHHMM(sinceFH):"—")+'</td><td style="font-family:monospace">'+(sinceFC!==null?sinceFC.toLocaleString():"—")+'</td></tr><tr style="background:#f1f5f9"><td colspan="4" style="color:#6b7280;font-size:9px">Days since last shop visit: '+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td></tr>';return rows+sinceRow;};
   const operatorHistoryRows=(rows)=>{if(!rows?.length)return'<tr><td colspan="7" style="color:#aaa;font-style:italic">No operator history recorded</td></tr>';const sorted=[...rows].sort((a,b)=>{if(!a.installDate)return 1;if(!b.installDate)return -1;return new Date(a.installDate)-new Date(b.installDate);});const mostRecent=sorted[sorted.length-1];return sorted.map(r=>'<tr'+(r._gapFlag?' style="background:#fef3cd"':'')+'><td>'+(r.operator||"—")+'</td><td style="font-family:monospace">'+(r.aircraft||"—")+'</td><td>'+fmtDate(r.installDate)+'</td><td>'+(r.removalDate?fmtDate(r.removalDate):(r===mostRecent?('No removal recorded'+(r.asOfDate?' (as of '+fmtDate(r.asOfDate)+')':'')):'Unknown'))+'</td><td style="font-family:monospace">'+(r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—")+'</td><td style="font-family:monospace">'+(r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—")+'</td><td>'+(r.reason||"—")+'</td></tr>').join("");};
+  // --- Mobile card variants of the three row-generators above. Same data, same
+  // formatting (fmtDate/fmtHHMM/toLocaleString calls match their table counterparts
+  // exactly), just laid out as .dt-card/.dt-row divs instead of <tr>/<td>. See
+  // .dt-table/.dt-cards in the CSS — only one of table-vs-cards is ever visible at once.
+  const dtRow=(l,v,style)=>v===null||v===undefined||v===""?"":`<div class="dt-row"><span class="dt-l">${l}</span><span class="dt-v"${style?` style="${style}"`:""}>${v}</span></div>`;
+  const dualRender=(tableHtml,cardsHtml)=>`<div class="dt-table">${tableHtml}</div><div class="dt-cards">${cardsHtml}</div>`;
+  const llpCards=(llps,csn)=>{
+    if(!llps?.length)return'<div class="dt-card" style="color:#aaa;font-style:italic">No LLP data entered</div>';
+    return llps.map(l=>{
+      const r=calcLLPRem(l,csn);
+      const col=r<1000?"#dc2626":r<3000?"#d97706":"#111";
+      return `<div class="dt-card">${dtRow("Descriptor",l.desc||"—")}${dtRow("P/N",l.pn||"—","font-family:monospace")}${dtRow("S/N",l.sn||"—","font-family:monospace")}${dtRow("FC Remaining",r.toLocaleString(),`color:${col};font-weight:800`)}</div>`;
+    }).join("");
+  };
+  const svCards=(visits,currentFH,currentFC)=>{
+    if(!visits||!visits.length)return'<div class="dt-card" style="color:#aaa;font-style:italic">No shop visits recorded</div>';
+    const cards=visits.map(sv=>`<div class="dt-card">${dtRow("Details",sv.details||"—")}${dtRow("Date",fmtDate(sv.date))}${dtRow("MRO",sv.mro)}${dtRow("TSN",fmtHHMM(sv.fh)||"—","font-family:monospace")}${dtRow("CSN",sv.fc?sv.fc.toLocaleString():"—","font-family:monospace")}</div>`).join("");
+    const last=visits[visits.length-1];
+    const sinceFH=currentFH&&last.fh?currentFH-last.fh:null;
+    const sinceFC=currentFC&&last.fc?currentFC-last.fc:null;
+    const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;
+    const sinceCard=`<div class="dt-card dt-summary"><div class="dt-l" style="margin-bottom:4px">Since Last Shop Visit</div>${dtRow("TSN",sinceFH!==null?fmtHHMM(sinceFH):"—","font-family:monospace")}${dtRow("CSN",sinceFC!==null?sinceFC.toLocaleString():"—","font-family:monospace")}${dtRow("Days Since",sinceDays!==null?sinceDays.toLocaleString():"—")}</div>`;
+    return cards+sinceCard;
+  };
+  const opHistCards=(rows)=>{
+    if(!rows?.length)return'<div class="dt-card" style="color:#aaa;font-style:italic">No operator history recorded</div>';
+    const sorted=[...rows].sort((a,b)=>{if(!a.installDate)return 1;if(!b.installDate)return -1;return new Date(a.installDate)-new Date(b.installDate);});
+    const mostRecent=sorted[sorted.length-1];
+    return sorted.map(r=>`<div class="dt-card"${r._gapFlag?' style="background:#fef3cd"':""}>${dtRow("Operator",r.operator||"—")}${dtRow("Aircraft",r.aircraft||"—","font-family:monospace")}${dtRow("Installed",fmtDate(r.installDate))}${dtRow("Removed",r.removalDate?fmtDate(r.removalDate):(r===mostRecent?("No removal recorded"+(r.asOfDate?" (as of "+fmtDate(r.asOfDate)+")":"")):"Unknown"))}${dtRow("TSN",r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—","font-family:monospace")}${dtRow("CSN",r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—","font-family:monospace")}${dtRow("Reason",r.reason||"—")}</div>`).join("");
+  };
   const engSec=(eng,pos,fullHistory=false)=>{if(!eng)return"";const ll=lowestLimiter(eng);const llDesc=lowestLLPDesc(eng);const svSorted=[...(eng.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});const svRecent=svSorted.slice(-1);const svAll=svSorted;return`
 ${pgH(`Engine #${pos} \u2014 ESN ${eng.sn||"\u2014"}`)}
 ${col2(
@@ -127,18 +174,18 @@ ${col2(
     ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
   </td>`,
   svRecent.length
-    ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svRecent,eng.currentFH,eng.currentFC)}</tbody></table>`)}</td>`
+    ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svRecent,eng.currentFH,eng.currentFC)}</tbody></table>`,svCards(svRecent,eng.currentFH,eng.currentFC))}</td>`
     :`<td style="border:none;padding:0"></td>`
 )}
 ${cO("Life Limited Parts",svgList)}
-${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th></tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>`)}
+${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th></tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>`,llpCards(eng.llps,eng.currentFC))}
 ${cC}
 ${fullHistory?`${PAGE_FOOTER}<div class="pb"></div>
 ${pgH(`Engine #${pos} \u2014 Maintenance History`)}
 ${cO("Shop Visit History",svgCal)}
-${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svAll,eng.currentFH,eng.currentFC)}</tbody></table>`)}
+${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svAll,eng.currentFH,eng.currentFC)}</tbody></table>`,svCards(svAll,eng.currentFH,eng.currentFC))}
 ${cC}
-${eng.operatorHistory?.length?`${cO("Operator History",svgList)}${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Operator</th><th style="${TH}">Aircraft</th><th style="${TH}">Installed</th><th style="${TH}">Removed</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th><th style="${TH}">Reason</th></tr></thead><tbody>${operatorHistoryRows(eng.operatorHistory)}</tbody></table>`)}${cC}`:""}`:""}`;};
+${eng.operatorHistory?.length?`${cO("Operator History",svgList)}${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Operator</th><th style="${TH}">Aircraft</th><th style="${TH}">Installed</th><th style="${TH}">Removed</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th><th style="${TH}">Reason</th></tr></thead><tbody>${operatorHistoryRows(eng.operatorHistory)}</tbody></table>`,opHistCards(eng.operatorHistory))}${cC}`:""}`:""}`;};
   const lgFromDDMMYYYY=(s)=>{if(!s)return"";const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);if(m)return m[3]+"-"+m[2]+"-"+m[1];return s;};
   const lgFmtDate=(s)=>fmtDate(s);
   const lgSec=(g,title)=>{
@@ -173,10 +220,6 @@ ${eng.operatorHistory?.length?`${cO("Operator History",svgList)}${scrollWrap(`<t
   const CS='border:1px solid #e2e8f0;border-radius:10px;padding:14px 17px;vertical-align:top';
   const col2=(l,r)=>`<table class="col2" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin-bottom:13px"><colgroup><col width="49%"/><col width="2%"/><col width="49%"/></colgroup><tr>${l}<td style="border:none;padding:0"></td>${r}</tr></table>`;
   const col3=(a,b,c)=>`<table width="100%" cellpadding="0" cellspacing="0" class="lg3col" style="border-collapse:separate;margin-bottom:13px"><colgroup><col width="32%"/><col width="2%"/><col width="32%"/><col width="2%"/><col width="32%"/></colgroup><tr>${a}<td style="border:none;padding:0"></td>${b}<td style="border:none;padding:0"></td>${c}</tr></table>`;
-  // Wraps a data table (Check History, Shop Visit, LLP, Operator History, LG genealogy,
-  // Wheels & Brakes) so it can scroll horizontally within its own card on mobile instead of
-  // forcing the whole page wider than the screen. See .tbl-wrap in the CSS above.
-  const scrollWrap=(tableHtml)=>`<div class="tbl-wrap">${tableHtml}</div>`;
   const cC=`</div>`;
   const kvR=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10px;color:#64748b;font-weight:600;width:150px;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10.5px;color:#0f172a;font-weight:600;vertical-align:top">${v}</td></tr>`;
   const mT=(lbl,val,sub)=>`<div class="mini-t"><div class="mini-l">${lbl}</div><div class="mini-v">${val}</div>${sub?`<div class="mini-s">${sub}</div>`:""}</div>`;
@@ -269,11 +312,13 @@ ${col2(
   </td>`,
   `<td style="${CS}">
     ${IH("Check History",svgWrench)}
-    ${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr>
-      <th style="${TH}">Check</th><th style="${TH}">Last Date</th><th style="${TH}">FH</th><th style="${TH}">FC</th><th style="${TH}">Next Due</th>
-    </tr></thead><tbody>
-    ${(()=>{const enteredChecks=(asset.checks||[]).filter(c=>c.lastDate||c.nextDate);if(!enteredChecks.length)return'<tr><td colspan="5" style="color:#aaa;font-style:italic">No check history entered</td></tr>';return enteredChecks.map(c=>`<tr><td style="${TD}">${c.name}</td><td style="${TD}">${fmtDate(c.lastDate)}</td><td style="${TD}">${c.lastFH?.toLocaleString()||"—"}</td><td style="${TD}">${c.lastFC?.toLocaleString()||"—"}</td><td style="${TD};font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("");})()}
-    </tbody></table>`)}
+    ${(()=>{
+      const enteredChecks=(asset.checks||[]).filter(c=>c.lastDate||c.nextDate);
+      const tableRows=!enteredChecks.length?'<tr><td colspan="5" style="color:#aaa;font-style:italic">No check history entered</td></tr>':enteredChecks.map(c=>`<tr><td style="${TD}">${c.name}</td><td style="${TD}">${fmtDate(c.lastDate)}</td><td style="${TD}">${c.lastFH?.toLocaleString()||"—"}</td><td style="${TD}">${c.lastFC?.toLocaleString()||"—"}</td><td style="${TD};font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("");
+      const cards=!enteredChecks.length?'<div class="dt-card" style="color:#aaa;font-style:italic">No check history entered</div>':enteredChecks.map(c=>`<div class="dt-card">${dtRow("Check",c.name)}${dtRow("Last Date",fmtDate(c.lastDate))}${dtRow("FH",c.lastFH?.toLocaleString()||"—")}${dtRow("FC",c.lastFC?.toLocaleString()||"—")}${dtRow("Next Due",fmtDate(c.nextDate),"font-weight:800")}</div>`).join("");
+      const tableHtml=`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Check</th><th style="${TH}">Last Date</th><th style="${TH}">FH</th><th style="${TH}">FC</th><th style="${TH}">Next Due</th></tr></thead><tbody>${tableRows}</tbody></table>`;
+      return dualRender(tableHtml,cards);
+    })()}
   </td>`
 )}
 ${(()=>{
@@ -332,13 +377,13 @@ ${col2(
     ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
   </td>`,
   svList.length
-    ? `<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,eng.currentFH,eng.currentFC)}</tbody></table>`)}</td>`
+    ? `<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,eng.currentFH,eng.currentFC)}</tbody></table>`,svCards(svList,eng.currentFH,eng.currentFC))}</td>`
     : `<td style="border:none;padding:0"></td>`
 )}
 ${cO("Life Limited Parts",svgList)}
-${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr>
+${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr>
   <th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th>
-</tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>`)}
+</tr></thead><tbody>${llpRows(eng.llps,eng.currentFC)}</tbody></table>`,llpCards(eng.llps,eng.currentFC))}
 ${cC}`;
   });
   return pages.join('<div class="pb"></div>')+'<div class="pb"></div>';
@@ -371,7 +416,9 @@ ${(()=>{
   const wb=asset.wheelsBrakes||{};
   const rows=[["Main Wheels",wb.mainWheels],["Nose Wheels",wb.noseWheels],["Brake Unit",wb.brakes]].filter(([,item])=>item&&(item.pn||item.mfr));
   if(!rows.length)return"";
-  return`${cO("Wheels &amp; Brakes",svgWheel)}${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Component</th><th style="${TH}">Qty</th><th style="${TH}">P/N</th><th style="${TH}">Manufacturer</th></tr></thead><tbody>${rows.map(([label,item])=>`<tr><td style="${TD}">${label}</td><td style="${TD}">${item.qty||"—"}</td><td style="${TD}">${item.pn||"—"}</td><td style="${TD}">${item.mfr||"—"}</td></tr>`).join("")}</tbody></table>`)}${cC}`;
+  const wbTable=`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Component</th><th style="${TH}">Qty</th><th style="${TH}">P/N</th><th style="${TH}">Manufacturer</th></tr></thead><tbody>${rows.map(([label,item])=>`<tr><td style="${TD}">${label}</td><td style="${TD}">${item.qty||"—"}</td><td style="${TD}">${item.pn||"—"}</td><td style="${TD}">${item.mfr||"—"}</td></tr>`).join("")}</tbody></table>`;
+  const wbCards=rows.map(([label,item])=>`<div class="dt-card">${dtRow("Component",label)}${dtRow("Qty",item.qty||"—")}${dtRow("P/N",item.pn||"—","font-family:monospace")}${dtRow("Manufacturer",item.mfr||"—")}</div>`).join("");
+  return`${cO("Wheels &amp; Brakes",svgWheel)}${dualRender(wbTable,wbCards)}${cC}`;
 })()}
 ${PAGE_FOOTER}<div class="pb"></div>
 ${pgH("Auxiliary Power Unit")}
@@ -388,10 +435,10 @@ ${col2(
     ${(()=>{const ll=lowestLimiter(apu);const desc=lowestLLPDesc(apu);return ll!==null?progBar(ll)+(desc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${desc}</div>`:""):"";})()}
   </td>`,
   (()=>{const svList=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);}).slice(-1);return svList.length
-    ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,apu.currentFH,apu.currentFC)}</tbody></table>`)}</td>`
+    ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,apu.currentFH,apu.currentFC)}</tbody></table>`,svCards(svList,apu.currentFH,apu.currentFC))}</td>`
     :`<td style="border:none;padding:0"></td>`;})()
 )}
-${apu.llps?.length?`${cO("APU Life Limited Parts",svgList)}${scrollWrap(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:0;margin-bottom:0"><thead><tr><th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th></tr></thead><tbody>${llpRows(apu.llps,apu.currentFC)}</tbody></table>`)}${cC}`:""}
+${apu.llps?.length?`${cO("APU Life Limited Parts",svgList)}${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:0;margin-bottom:0"><thead><tr><th style="${TH}">LLP Descriptor</th><th style="${TH}">P/N</th><th style="${TH}">S/N</th><th style="${TH}">FC Remaining</th></tr></thead><tbody>${llpRows(apu.llps,apu.currentFC)}</tbody></table>`,llpCards(apu.llps,apu.currentFC))}${cC}`:""}
 
 ${(()=>{
     const lopaPhoto=(asset.photos||[]).find(p=>p.label==="LOPA");
@@ -466,9 +513,14 @@ ${(()=>{
       twoColumnHtml=col2(`<td style="${CS}">${col1}</td>`,`<td style="${CS}">${col2Body}</td>`);
     }
     const imgs=avionicsPhotos.map(p=>`<img src="${p.url}" style="width:100%;max-height:680px;object-fit:contain;background:#fff;border-radius:4px;display:block;margin:0 auto 10px"/>`).join("");
+    // Mobile card grid: independent of the desktop pagination-split logic above
+    // (that split exists purely to balance a printed page, meaningless on an
+    // infinitely-scrolling phone screen) — built straight from allChapters,
+    // one small 2-per-row card per part, chapter headers as section labels.
+    const avCards=allChapters.map(c=>`${c.key?`<div class="av-chapter">${c.key}</div>`:""}<div class="av-grid">${c.rows.map(r=>`<div class="av-card"><span class="dt-l">${r.description||"—"}</span><span class="dt-v">${r.partNumber||"—"}</span></div>`).join("")}</div>`).join("");
     return`${PAGE_FOOTER}<div class="pb"></div>
 <h3>Avionics</h3>
-${twoColumnHtml||tableHtml}
+${dualRender(twoColumnHtml||tableHtml,avCards)}
 ${imgs?`<div style="text-align:center;margin-top:10px">${imgs}</div>`:""}`;
   })()}
 ${(()=>{
