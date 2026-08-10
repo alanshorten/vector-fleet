@@ -203,9 +203,9 @@ ${cC}
 ${fullHistory?`${PAGE_FOOTER}<div class="pb"></div>
 ${pgH(`Engine #${pos} \u2014 Maintenance History`)}
 ${cO("Shop Visit History",svgCal)}
-${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svAll,eng.currentFH,eng.currentFC)}</tbody></table>`,svCards(svAll,eng.currentFH,eng.currentFC))}
+${tblScroll(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svAll,eng.currentFH,eng.currentFC)}</tbody></table>`)}
 ${cC}
-${eng.operatorHistory?.length?`${cO("Operator History",svgList)}${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Operator</th><th style="${TH}">Aircraft</th><th style="${TH}">Installed</th><th style="${TH}">Removed</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th><th style="${TH}">Reason</th></tr></thead><tbody>${operatorHistoryRows(eng.operatorHistory)}</tbody></table>`,opHistCards(eng.operatorHistory))}${cC}`:""}`:""}`;};
+${eng.operatorHistory?.length?`${cO("Operator History",svgList)}${tblScroll(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Operator</th><th style="${TH}">Aircraft</th><th style="${TH}">Installed</th><th style="${TH}">Removed</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th><th style="${TH}">Reason</th></tr></thead><tbody>${operatorHistoryRows(eng.operatorHistory)}</tbody></table>`)}${cC}`:""}`:""}`;};
   const lgFromDDMMYYYY=(s)=>{if(!s)return"";const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);if(m)return m[3]+"-"+m[2]+"-"+m[1];return s;};
   const lgFmtDate=(s)=>fmtDate(s);
   const lgSec=(g,title)=>{
