@@ -28,6 +28,16 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
   const engineOnly=asset._engineOnly;
   const enginePos=asset._enginePos||1;
   const specCSS=`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+/* .dt-cards must be declared here, BEFORE the @media(max-width:600px) block further
+   down — CSS gives no specificity bonus to being inside a media query, so when two
+   rules of equal specificity both match (which happens at narrow widths, since this
+   unconditional rule always applies and the media rule's condition is also true),
+   the one LATER in the file wins. This rule used to sit after the media block, so it
+   silently beat the mobile ".dt-cards{display:block}" override at every viewport,
+   permanently hiding Shop Visit/LLP/Check History/Avionics mobile cards — the exact
+   "header shows, content blank" bug. Keeping it up here, textually first, means the
+   media query's rule is always the later (winning) declaration on mobile. */
+.dt-cards{display:none}
 @page{size:A4;margin:14mm 18mm}body{font-family:'Plus Jakarta Sans',Arial,sans-serif;color:#111;font-size:11px;line-height:1.45;margin:0;print-color-adjust:exact;-webkit-print-color-adjust:exact;color-adjust:exact}
 .cover{text-align:left;page-break-after:always;padding:0;box-sizing:border-box}
 @media print{html,body{height:100%}.cover{display:table;width:100%;height:100%}.cover-top{display:table-row}.cover-top>div{display:table-cell;vertical-align:top}.cover-bottom{display:table-row}.cover-bottom>div{display:table-cell;vertical-align:bottom;padding:0 30px 0}}
@@ -122,8 +132,7 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
 .mini-t{border:1px solid #e2e8f0;border-radius:8px;padding:10px 11px}
 .mini-l{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;margin-bottom:3px}
 .mini-v{font-size:14px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.01em}
-.mini-s{font-size:8px;color:#94a3b8;margin-top:2px}
-.dt-cards{display:none}`;
+.mini-s{font-size:8px;color:#94a3b8;margin-top:2px}`;
   const PAGE_FOOTER=hideBranding?'':'<div class="pgfooter"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#dc2626;margin-right:3px;vertical-align:middle"></span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#16a34a;margin-right:6px;vertical-align:middle"></span>Powered by <span style="text-transform:none">TailiQ</span> Fleet Intelligence</div>';
   // QR pill disabled for internal use — QR_TAILIQ constant retained for future reactivation.
   // To re-enable: restore the original COVER_PILL definition from git history (commit before this change).
