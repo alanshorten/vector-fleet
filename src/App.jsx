@@ -50,16 +50,15 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
     onSelect(v);
   };
 
-  // Colour tokens — TAILIQ_UI_DESIGN_SYSTEM.md palette. Header is always
-  // light now (no navy/white banner switching), so the menu itself stays a
-  // carbon surface (same treatment a context menu gets against a light
-  // page) with an ochre active-state, matching the NavPill underline.
-  const menuBg = '#151A1D';
-  const menuBorder = 'rgba(255,255,255,0.12)';
-  const itemHover = 'rgba(255,255,255,0.08)';
-  const textActive = '#B88728';
-  const textMuted = 'rgba(252,252,249,0.65)';
-  const divider = 'rgba(255,255,255,0.12)';
+  // Colour tokens — TAILIQ_UI_DESIGN_SYSTEM.md palette. The dropdown itself
+  // is now a light paper panel (was a dark carbon surface) so it doesn't
+  // read as a leftover from the old dark theme against the light header.
+  const menuBg = 'var(--color-soft-white)';
+  const menuBorder = 'var(--color-divider)';
+  const itemHover = 'var(--color-carbon-tint-05)';
+  const textActive = 'var(--color-ochre)';
+  const textMuted = 'var(--color-graphite)';
+  const divider = 'var(--color-divider-inner)';
 
   const Item = ({ value, label }) => {
     const active = view === value;
@@ -84,7 +83,7 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
   };
 
   const GroupLabel = ({ children }) => (
-    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(252,252,249,0.4)', padding: '8px 16px 4px', fontFamily: "'Barlow',inherit" }}>
+    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(21,26,29,0.4)', padding: '8px 16px 4px', fontFamily: "'Barlow',inherit" }}>
       {children}
     </div>
   );
@@ -97,9 +96,9 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
   // plain graphite icon rather than a filled dark pill (isPortfolio no
   // longer changes anything here; param kept for signature compatibility).
   const pillBg = 'transparent';
-  const pillBorder = '#D9DCD8';
-  const iconColor = '#687078';
-  const iconColorActive = '#151A1D';
+  const pillBorder = 'var(--color-divider)';
+  const iconColor = 'var(--color-graphite)';
+  const iconColorActive = 'var(--color-carbon)';
 
   return (
     <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
@@ -114,7 +113,7 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
           aria-label="Menu"
           aria-expanded={open}
           style={{
-            background: open ? (isPortfolio ? '#e2e8f0' : 'rgba(255,255,255,0.10)') : 'transparent',
+            background: open ? 'rgba(21,26,29,0.06)' : 'transparent',
             border: 'none', borderRadius: 6,
             padding: '5px 11px', cursor: 'pointer',
             color: open ? iconColorActive : iconColor,
@@ -132,7 +131,7 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
           position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 200,
           background: menuBg, border: `1px solid ${menuBorder}`,
           borderRadius: 10, padding: '6px 0', minWidth: 180,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+          boxShadow: '0 8px 24px rgba(21,26,29,0.14)',
           animation: 'fadeIn 0.12s ease',
         }}>
           {/* Group 1 — Fleet Nav (portrait only — on desktop the pill stays on screen) */}
@@ -339,7 +338,7 @@ function AppInner(){
 
   return(
     <div>
-      <header style={{background:"#FCFCF9",borderBottom:"1.5px solid #151A1D",position:"sticky",top:0,zIndex:100,boxShadow:"none",fontFamily:"'Barlow',system-ui,-apple-system,sans-serif"}}>
+      <header style={{background:"var(--color-soft-white)",borderBottom:"1.5px solid var(--color-carbon)",position:"sticky",top:0,zIndex:100,boxShadow:"none",fontFamily:"var(--font-interface)"}}>
         <div className="app-header-row" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"nowrap",maxWidth:1480,margin:"0 auto",padding:"8px 22px",boxSizing:"border-box"}}>
           {/* Logo is now the home/fleet-portfolio control — replaces the old
               separate "✈ Fleet Portfolio" button (design system §home nav).
@@ -392,7 +391,7 @@ function AppInner(){
                 })()}
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   {canUpload&&<button onClick={()=>{setView("upload");setSelectedId(null);}}
-                    style={{padding:"8px 16px",borderRadius:4,border:view==="upload"?"1px solid #151A1D":"1px solid #D9DCD8",background:view==="upload"?"#151A1D":"transparent",color:view==="upload"?"#FCFCF9":"#151A1D",fontFamily:"'Barlow',inherit",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                    style={{padding:"8px 16px",borderRadius:"var(--radius-button)",border:view==="upload"?"1px solid var(--color-carbon)":"1px solid var(--color-divider)",background:view==="upload"?"var(--color-carbon)":"transparent",color:view==="upload"?"var(--color-soft-white)":"var(--color-carbon)",fontFamily:"var(--font-interface)",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
                     Upload
                   </button>}
                   <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
@@ -409,7 +408,7 @@ function AppInner(){
                   theme="light"/>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   {canUpload&&<button onClick={()=>{setView("upload");setSelectedId(null);}}
-                    style={{padding:"8px 16px",borderRadius:4,border:view==="upload"?"1px solid #151A1D":"1px solid #D9DCD8",background:view==="upload"?"#151A1D":"transparent",color:view==="upload"?"#FCFCF9":"#151A1D",fontFamily:"'Barlow',inherit",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                    style={{padding:"8px 16px",borderRadius:"var(--radius-button)",border:view==="upload"?"1px solid var(--color-carbon)":"1px solid var(--color-divider)",background:view==="upload"?"var(--color-carbon)":"transparent",color:view==="upload"?"var(--color-soft-white)":"var(--color-carbon)",fontFamily:"var(--font-interface)",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
                     Upload
                   </button>}
                   <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
