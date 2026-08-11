@@ -547,7 +547,7 @@ function RouteMatcherView({ assets, onSelectAsset }) {
           </div>
         )}
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 18px" }}
+          <button className="btn btn-teal" style={{ fontSize: 12, padding: "8px 18px" }}
             disabled={loading || !fhPerMonth || !fcPerMonth || !startDate || !endDate}
             onClick={runMatch}>
             {loading ? "Matching…" : "Find best match"}
@@ -962,7 +962,7 @@ function PandemicScenarioView({ assets }) {
       <ScenarioSlider label="Grounding duration" value={months} onChange={setMonths} min={1} max={12} step={1} format={v => `${v} mo`}/>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: active ? 16 : 0 }}>
         {active && <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} onClick={reset}>Reset</button>}
-        <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 18px" }} disabled={loading} onClick={run}>
+        <button className="btn btn-teal" style={{ fontSize: 12, padding: "8px 18px" }} disabled={loading} onClick={run}>
           {loading ? "Running…" : "Run pandemic scenario"}
         </button>
       </div>
@@ -1108,7 +1108,7 @@ function LesseeDefaultScenarioView({ assets }) {
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: active ? 16 : 0 }}>
         {active && <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} onClick={reset}>Reset</button>}
-        <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 18px" }} disabled={loading} onClick={run}>
+        <button className="btn btn-teal" style={{ fontSize: 12, padding: "8px 18px" }} disabled={loading} onClick={run}>
           {loading ? "Running…" : "Run lessee default scenario"}
         </button>
       </div>
@@ -1157,7 +1157,7 @@ function FleetUtilisationScenarioView({ assets }) {
       <ScenarioSlider label="Utilisation change" value={pct} onChange={setPct} min={-50} max={50} step={1} format={v => (v > 0 ? "+" : "") + v + "%"}/>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: active ? 16 : 0 }}>
         {active && <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} onClick={reset}>Reset</button>}
-        <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 18px" }} disabled={loading} onClick={run}>
+        <button className="btn btn-teal" style={{ fontSize: 12, padding: "8px 18px" }} disabled={loading} onClick={run}>
           {loading ? "Running…" : "Run utilisation scenario"}
         </button>
       </div>
@@ -1220,7 +1220,7 @@ function EngineCostShockScenarioView({ assets }) {
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: active ? 16 : 0 }}>
         {active && <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} onClick={reset}>Reset</button>}
-        <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 18px" }} disabled={loading} onClick={run}>
+        <button className="btn btn-teal" style={{ fontSize: 12, padding: "8px 18px" }} disabled={loading} onClick={run}>
           {loading ? "Running…" : "Run cost shock scenario"}
         </button>
       </div>
@@ -1283,7 +1283,7 @@ function ExtendedMaintenanceScenarioView({ assets }) {
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: active ? 16 : 0 }}>
         {active && <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 14px" }} onClick={reset}>Reset</button>}
-        <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 18px" }} disabled={loading} onClick={run}>
+        <button className="btn btn-teal" style={{ fontSize: 12, padding: "8px 18px" }} disabled={loading} onClick={run}>
           {loading ? "Running…" : "Run duration scenario"}
         </button>
       </div>

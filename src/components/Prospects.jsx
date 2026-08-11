@@ -91,7 +91,7 @@ function ProspectListView({assets,saveAsset,notify,userRole,onSelect,loadAssets}
           return(
             <div key={a.id} className="card" style={{padding:16,cursor:"pointer"}} onClick={()=>onSelect(a.id)}>
               <div className="flj" style={{marginBottom:8}}>
-                <span style={{fontWeight:700,color:"var(--color-ochre)",fontFamily:"monospace",fontSize:14}}>{isEngine?`⚙ ESN ${a.engines?.[0]?.sn||"—"}`:a.msn}</span>
+                <span style={{fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)",fontSize:14}}>{isEngine?`⚙ ESN ${a.engines?.[0]?.sn||"—"}`:a.msn}</span>
                 {canDelete&&<button className="btn-danger btn" style={{fontSize:10,padding:"3px 8px"}} onClick={e=>{e.stopPropagation();deleteProspect(a.id);}}>Delete</button>}
               </div>
               {isEngine?(
@@ -289,12 +289,12 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
         <div style={{flex:1}}>
           {isEngineProspect?(
             <>
-              <h1 style={{fontSize:18,color:"var(--color-ochre)",fontWeight:700}}>Prospect Engine — ESN {d.engines?.[0]?.sn||"—"}</h1>
+              <h1 style={{fontSize:18,color:"var(--color-carbon)",fontWeight:700}}>Prospect Engine — ESN {d.engines?.[0]?.sn||"—"}</h1>
               <p style={{color:"var(--color-graphite)",fontSize:12}}>{d.engines?.[0]?.type||"Engine type not entered"} {saving&&<span style={{color:"var(--color-graphite)"}}> · saving…</span>}</p>
             </>
           ):(
             <>
-              <h1 style={{fontSize:18,color:"var(--color-ochre)",fontWeight:700}}>Prospect MSN {d.msn} — {d.registration||"—"}</h1>
+              <h1 style={{fontSize:18,color:"var(--color-carbon)",fontWeight:700}}>Prospect MSN {d.msn} — {d.registration||"—"}</h1>
               <p style={{color:"var(--color-graphite)",fontSize:12}}>{d.model} · {d.operator||"—"} {saving&&<span style={{color:"var(--color-graphite)"}}> · saving…</span>}</p>
             </>
           )}

@@ -41,6 +41,10 @@ body{font-family:var(--font-interface);background:var(--color-technical-grey);co
    fill is carbon, not ochre — the design system reserves ochre for the
    tab underline only and never as a button/fill colour. */
 .btn-gold{background:var(--color-carbon);color:var(--color-soft-white);padding:7px 14px;font-size:12px;font-weight:700}.btn-gold:hover{background:var(--color-carbon-hover)}
+/* Teal fill — for exploratory/"nothing here is saved" actions (Fleet
+   Scenarios' Run buttons) specifically, distinct from carbon (commit/save)
+   and ochre (identity/nav accent only). Not a global swap of .btn-gold. */
+.btn-teal{background:var(--color-teal);color:var(--color-soft-white);padding:7px 14px;font-size:12px;font-weight:700}.btn-teal:hover{background:#274B54}
 .btn-primary{background:var(--color-carbon);color:var(--color-soft-white);padding:7px 14px;font-size:12px}.btn-primary:hover{background:var(--color-carbon-hover)}
 .btn-ghost{background:transparent;border:1px solid var(--color-divider);color:var(--color-graphite);padding:6px 12px;font-size:12px}.btn-ghost:hover{border-color:var(--color-carbon);color:var(--color-carbon)}
 .btn-danger{background:var(--color-critical-tint);color:var(--color-critical);border:1px solid var(--color-critical-border);padding:5px 10px;font-size:11px;cursor:pointer;border-radius:var(--radius-button);font-family:inherit;font-weight:600}.btn-danger:hover{background:var(--color-critical-hover)}
@@ -76,7 +80,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--color-carbon-ti
     .header-logo{height:44px!important;max-width:none!important}
     header{padding:16px 32px!important}
   }
-  @media(max-width:768px){.grid2{grid-template-columns:1fr!important}.grid3{grid-template-columns:1fr!important}.grid4{grid-template-columns:1fr 1fr!important}main{padding:12px!important}.app-header-row{padding:12px!important}.tab-btn{padding:6px 8px!important;font-size:11px!important}table{font-size:11px!important}th,td{padding:5px 6px!important}.nav-btn{padding:5px 7px!important;font-size:11px!important}.btn-ghost{padding:4px 6px!important;font-size:10px!important}.btn-gold{padding:4px 6px!important;font-size:10px!important}.prospect-split{flex-direction:column!important}.prospect-split>div{flex:1 1 100%!important;position:static!important;max-height:none!important}}
+  @media(max-width:768px){.grid2{grid-template-columns:1fr!important}.grid3{grid-template-columns:1fr!important}.grid4{grid-template-columns:1fr 1fr!important}main{padding:12px!important}.app-header-row{padding:12px!important}.tab-btn{padding:6px 8px!important;font-size:11px!important}table{font-size:11px!important}th,td{padding:5px 6px!important}.nav-btn{padding:5px 7px!important;font-size:11px!important}.btn-ghost{padding:4px 6px!important;font-size:10px!important}.btn-gold{padding:4px 6px!important;font-size:10px!important}.btn-teal{padding:4px 6px!important;font-size:10px!important}.prospect-split{flex-direction:column!important}.prospect-split>div{flex:1 1 100%!important;position:static!important;max-height:none!important}}
   @media(max-width:900px){.app-nav-btn{padding:6px 10px!important;font-size:12px!important}.trailing-pill{width:280px!important}}
   @media(max-width:680px){
     .asset-header-row{flex-wrap:wrap!important}

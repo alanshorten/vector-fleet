@@ -133,7 +133,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
         <div className="flab g12 asset-header-top" style={{flexShrink:0,minWidth:0,overflow:"hidden"}}>
           <button className="btn btn-ghost" style={{flexShrink:0}} onClick={onBack}>← Fleet</button>
           <div style={{minWidth:0}}>
-            <h1 style={{fontSize:18,color:"var(--color-ochre)",fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>MSN {asset.msn} — {asset.registration||"—"}</h1>
+            <h1 style={{fontSize:18,color:"var(--color-carbon)",fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>MSN {asset.msn} — {asset.registration||"—"}</h1>
             <p style={{color:"var(--color-graphite)",fontSize:12,whiteSpace:"nowrap"}}>{asset.model} · {asset.operator||"—"}</p>
           </div>
         </div>
@@ -240,7 +240,7 @@ function ShareModal({asset,enginePos,notify,onClose}){
     <div style={{position:"fixed",inset:0,background:"rgba(21,26,29,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={onClose}>
       <div className="card" style={{width:420,maxWidth:"92vw",padding:24}} onClick={e=>e.stopPropagation()}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <h2 style={{fontSize:15,color:"var(--color-ochre)",fontWeight:700}}>Share {enginePos?`Engine #${enginePos} — ESN ${scopedEngine?.sn||"—"}`:asset.prospectKind==="engine"?`ESN ${asset.engines?.[0]?.sn||"—"}`:`MSN ${asset.msn}`}</h2>
+          <h2 style={{fontSize:15,color:"var(--color-carbon)",fontWeight:700}}>Share {enginePos?`Engine #${enginePos} — ESN ${scopedEngine?.sn||"—"}`:asset.prospectKind==="engine"?`ESN ${asset.engines?.[0]?.sn||"—"}`:`MSN ${asset.msn}`}</h2>
           <button className="btn btn-ghost" style={{padding:"4px 10px"}} onClick={onClose}>✕</button>
         </div>
         <p style={{fontSize:12,color:"var(--color-graphite)",marginBottom:16,lineHeight:1.5}}>
