@@ -200,10 +200,14 @@ function TimeAxisBarChart({ timeAxis, onBarClick, selectedMonthKey }) {
   const inLeaseShortfall = timeAxis.map(b => b.inLeaseShortfallHigh || 0);
   const postLeaseShortfall = timeAxis.map(b => b.postLeaseShortfallHigh || 0);
 
+  // Chart.js draws to a <canvas>, which can't resolve CSS custom
+  // properties — passing "var(--color-x)" as a fillStyle silently fails
+  // and Chart.js falls back to its own default (black). Use resolved
+  // hex values here, kept in sync with styles.css :root by hand.
   const datasets = [
-    { label: "Covered", data: covered, backgroundColor: "var(--color-positive)", stack: "s" },
-    { label: "Shortfall (within lease)", data: inLeaseShortfall, backgroundColor: "var(--color-critical)", stack: "s" },
-    { label: "Shortfall (post-lease)", data: postLeaseShortfall, backgroundColor: "var(--color-critical)66", stack: "s" }
+    { label: "Covered", data: covered, backgroundColor: "#25745A", stack: "s" },
+    { label: "Shortfall (within lease)", data: inLeaseShortfall, backgroundColor: "#B54848", stack: "s" },
+    { label: "Shortfall (post-lease)", data: postLeaseShortfall, backgroundColor: "#B5484866", stack: "s" }
   ];
 
   useEffect(() => {
@@ -221,7 +225,7 @@ function TimeAxisBarChart({ timeAxis, onBarClick, selectedMonthKey }) {
           onBarClick(timeAxis[idx].monthKey);
         },
         plugins: {
-          legend: { labels: { color: "var(--color-graphite)", font: { size: 11 }, boxWidth: 12 } },
+          legend: { labels: { color: "#687078", font: { size: 11 }, boxWidth: 12 } },
           tooltip: {
             callbacks: {
               label: ctx => {
@@ -233,8 +237,8 @@ function TimeAxisBarChart({ timeAxis, onBarClick, selectedMonthKey }) {
           }
         },
         scales: {
-          x: { stacked: true, ticks: { color: "var(--color-graphite)", font: { size: 10 }, maxTicksLimit: 12 }, grid: { color: "var(--color-divider)" } },
-          y: { stacked: true, ticks: { color: "var(--color-graphite)", font: { size: 10 }, callback: v => "$" + (v / 1000).toFixed(0) + "k" }, grid: { color: "var(--color-divider)" } }
+          x: { stacked: true, ticks: { color: "#687078", font: { size: 10 }, maxTicksLimit: 12 }, grid: { color: "#D9DCD8" } },
+          y: { stacked: true, ticks: { color: "#687078", font: { size: 10 }, callback: v => "$" + (v / 1000).toFixed(0) + "k" }, grid: { color: "#D9DCD8" } }
         }
       }
     });

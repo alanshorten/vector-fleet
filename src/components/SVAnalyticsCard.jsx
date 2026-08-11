@@ -138,7 +138,7 @@ function SVAnalyticsCard({assets}){
     return(
       <div className="card" style={{padding:18}}>
         <div className="section-title">SV Interval Analytics</div>
-        <p style={{color:"#475569",fontSize:12,fontStyle:"italic",marginTop:8}}>No shop visit records found across the fleet yet.</p>
+        <p style={{color:"var(--color-graphite)",fontSize:12,fontStyle:"italic",marginTop:8}}>No shop visit records found across the fleet yet.</p>
       </div>
     );
   }
@@ -147,7 +147,7 @@ function SVAnalyticsCard({assets}){
     <div className="card" style={{padding:18}}>
       <div className="flj" style={{marginBottom:14,flexWrap:"wrap",gap:10}}>
         <div className="section-title" style={{margin:0}}>SV Interval Analytics</div>
-        <select value={family} onChange={e=>setFamily(e.target.value)} style={{fontSize:12,padding:"6px 10px",borderRadius:6,background:"#0d1e2e",border:"1px solid #1e3a5f",color:"#e2e8f0",fontFamily:"inherit"}}>
+        <select value={family} onChange={e=>setFamily(e.target.value)} style={{fontSize:12,padding:"6px 10px",borderRadius:6,background:"var(--color-soft-white)",border:"1px solid var(--color-divider)",color:"var(--color-carbon)",fontFamily:"inherit"}}>
           <option value="all">All Families</option>
           {families.map(f=><option key={f} value={f}>{f}</option>)}
         </select>
@@ -156,26 +156,26 @@ function SVAnalyticsCard({assets}){
       {summaries.length>0&&(
         <div className="grid2" style={{gap:12,marginBottom:16}}>
           {summaries.map(({cat,stats})=>(
-            <div key={cat} style={{background:"#0a1a2a",border:"1px solid #1B3A6B",borderRadius:8,padding:"12px 14px"}}>
-              <div style={{fontSize:10,color:"#C9A84C",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>
-                {SUMMARY_LABELS[cat]||cat} <span style={{color:"#475569",fontWeight:500,textTransform:"none",letterSpacing:0}}>(n={stats.n})</span>
+            <div key={cat} style={{background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:8,padding:"12px 14px"}}>
+              <div style={{fontSize:10,color:"var(--color-teal)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>
+                {SUMMARY_LABELS[cat]||cat} <span style={{color:"var(--color-graphite)",fontWeight:500,textTransform:"none",letterSpacing:0}}>(n={stats.n})</span>
               </div>
               <div className="grid2" style={{gap:8}}>
                 <div>
-                  <div style={{fontSize:9,color:"#475569"}}>Mean / Median FH</div>
-                  <div style={{fontSize:13,fontWeight:700,color:"#e2e8f0",fontFamily:"monospace"}}>{fmtHHMM(stats.meanFH)} / {fmtHHMM(stats.medianFH)}</div>
+                  <div style={{fontSize:9,color:"var(--color-graphite)"}}>Mean / Median FH</div>
+                  <div style={{fontSize:13,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{fmtHHMM(stats.meanFH)} / {fmtHHMM(stats.medianFH)}</div>
                 </div>
                 <div>
-                  <div style={{fontSize:9,color:"#475569"}}>Mean / Median FC</div>
-                  <div style={{fontSize:13,fontWeight:700,color:"#e2e8f0",fontFamily:"monospace"}}>{fmtFC(stats.meanFC)} / {fmtFC(stats.medianFC)}</div>
+                  <div style={{fontSize:9,color:"var(--color-graphite)"}}>Mean / Median FC</div>
+                  <div style={{fontSize:13,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{fmtFC(stats.meanFC)} / {fmtFC(stats.medianFC)}</div>
                 </div>
                 <div>
-                  <div style={{fontSize:9,color:"#475569"}}>Range FH</div>
-                  <div style={{fontSize:12,color:"#94a3b8",fontFamily:"monospace"}}>{fmtHHMM(stats.minFH)}–{fmtHHMM(stats.maxFH)}</div>
+                  <div style={{fontSize:9,color:"var(--color-graphite)"}}>Range FH</div>
+                  <div style={{fontSize:12,color:"var(--color-graphite)",fontFamily:"var(--font-data)"}}>{fmtHHMM(stats.minFH)}–{fmtHHMM(stats.maxFH)}</div>
                 </div>
                 <div>
-                  <div style={{fontSize:9,color:"#475569"}}>Range FC</div>
-                  <div style={{fontSize:12,color:"#94a3b8",fontFamily:"monospace"}}>{fmtFC(stats.minFC)}–{fmtFC(stats.maxFC)}</div>
+                  <div style={{fontSize:9,color:"var(--color-graphite)"}}>Range FC</div>
+                  <div style={{fontSize:12,color:"var(--color-graphite)",fontFamily:"var(--font-data)"}}>{fmtFC(stats.minFC)}–{fmtFC(stats.maxFC)}</div>
                 </div>
               </div>
             </div>
@@ -186,11 +186,11 @@ function SVAnalyticsCard({assets}){
       <div className="flab g8" style={{flexWrap:"wrap",marginBottom:10}}>
         {[...REASON_CATEGORIES,"Uncategorised"].map(cat=>(
           <button key={cat} onClick={()=>toggleCategory(cat)}
-            style={{fontSize:10,padding:"3px 9px",borderRadius:12,border:`1px solid ${categoryFilter.includes(cat)?"#C9A84C":"#1e3a5f"}`,background:categoryFilter.includes(cat)?"rgba(201,168,76,0.15)":"transparent",color:categoryFilter.includes(cat)?"#C9A84C":"#6a8aaa",cursor:"pointer",fontWeight:600,fontFamily:"inherit"}}>
+            style={{fontSize:10,padding:"3px 9px",borderRadius:12,border:`1px solid ${categoryFilter.includes(cat)?"var(--color-teal)":"var(--color-divider)"}`,background:categoryFilter.includes(cat)?"var(--color-teal-tint)":"transparent",color:categoryFilter.includes(cat)?"var(--color-teal)":"var(--color-graphite)",cursor:"pointer",fontWeight:600,fontFamily:"inherit"}}>
             {cat}
           </button>
         ))}
-        {categoryFilter.length>0&&<button onClick={()=>setCategoryFilter([])} style={{fontSize:10,padding:"3px 9px",background:"none",border:"none",color:"#475569",cursor:"pointer",textDecoration:"underline",fontFamily:"inherit"}}>Clear filter</button>}
+        {categoryFilter.length>0&&<button onClick={()=>setCategoryFilter([])} style={{fontSize:10,padding:"3px 9px",background:"none",border:"none",color:"var(--color-graphite)",cursor:"pointer",textDecoration:"underline",fontFamily:"inherit"}}>Clear filter</button>}
       </div>
 
       <div style={{overflowX:"auto"}}>
@@ -211,25 +211,25 @@ function SVAnalyticsCard({assets}){
           </thead>
           <tbody>
             {sorted.length?sorted.map((r,i)=>(
-              <tr key={r.component.key+"-"+i} style={r.dataIssue?{background:"rgba(248,113,113,0.08)"}:undefined}>
-                <td style={{fontWeight:500}}>{r.component.idLabel}<div style={{fontSize:9,color:"#475569"}}>MSN {r.component.assetMsn}</div></td>
+              <tr key={r.component.key+"-"+i} style={r.dataIssue?{background:"var(--color-critical-tint)"}:undefined}>
+                <td style={{fontWeight:500}}>{r.component.idLabel}<div style={{fontSize:9,color:"var(--color-graphite)"}}>MSN {r.component.assetMsn}</div></td>
                 <td>{r.component.family}</td>
-                <td>{r.svNumber}{r.firstRunFlag&&<span title="First recorded SV — interval may include an earlier unrecorded visit" style={{color:"#fbbf24",marginLeft:4}}>⚠</span>}</td>
+                <td>{r.svNumber}{r.firstRunFlag&&<span title="First recorded SV — interval may include an earlier unrecorded visit" style={{color:"var(--color-attention)",marginLeft:4}}>⚠</span>}</td>
                 <td>{fmtDate(r.sv.date)}</td>
-                <td style={{fontFamily:"monospace"}}>{r.sv.fh!=null?fmtHHMM(r.sv.fh):"—"}</td>
-                <td style={{fontFamily:"monospace"}}>{r.sv.fc!=null?r.sv.fc.toLocaleString():"—"}</td>
-                <td style={{fontFamily:"monospace",color:r.dataIssue&&r.tsiFH!=null&&r.tsiFH<=0?"#f87171":"#e2e8f0"}}>{r.tsiFH!=null?fmtHHMM(r.tsiFH):"—"}{r.dataIssue&&r.tsiFH!=null&&r.tsiFH<=0?" ⚠":""}</td>
-                <td style={{fontFamily:"monospace",color:r.dataIssue&&r.tsiFC!=null&&r.tsiFC<=0?"#f87171":"#e2e8f0"}}>{r.tsiFC!=null?r.tsiFC.toLocaleString():"—"}{r.dataIssue&&r.tsiFC!=null&&r.tsiFC<=0?" ⚠":""}</td>
-                <td>{r.reasonCategory?r.reasonCategory:<span style={{color:"#475569",fontStyle:"italic"}}>Uncategorised</span>}</td>
-                <td style={{color:"#94a3b8"}}>{r.sv.mro||"—"}</td>
+                <td style={{fontFamily:"var(--font-data)"}}>{r.sv.fh!=null?fmtHHMM(r.sv.fh):"—"}</td>
+                <td style={{fontFamily:"var(--font-data)"}}>{r.sv.fc!=null?r.sv.fc.toLocaleString():"—"}</td>
+                <td style={{fontFamily:"var(--font-data)",color:r.dataIssue&&r.tsiFH!=null&&r.tsiFH<=0?"var(--color-critical)":"var(--color-carbon)"}}>{r.tsiFH!=null?fmtHHMM(r.tsiFH):"—"}{r.dataIssue&&r.tsiFH!=null&&r.tsiFH<=0?" ⚠":""}</td>
+                <td style={{fontFamily:"var(--font-data)",color:r.dataIssue&&r.tsiFC!=null&&r.tsiFC<=0?"var(--color-critical)":"var(--color-carbon)"}}>{r.tsiFC!=null?r.tsiFC.toLocaleString():"—"}{r.dataIssue&&r.tsiFC!=null&&r.tsiFC<=0?" ⚠":""}</td>
+                <td>{r.reasonCategory?r.reasonCategory:<span style={{color:"var(--color-graphite)",fontStyle:"italic"}}>Uncategorised</span>}</td>
+                <td style={{color:"var(--color-graphite)"}}>{r.sv.mro||"—"}</td>
               </tr>
             )):(
-              <tr><td colSpan={10} style={{color:"#475569",fontStyle:"italic"}}>No shop visits match the current filter</td></tr>
+              <tr><td colSpan={10} style={{color:"var(--color-graphite)",fontStyle:"italic"}}>No shop visits match the current filter</td></tr>
             )}
           </tbody>
         </table>
       </div>
-      <p style={{fontSize:10,color:"#475569",marginTop:10}}>
+      <p style={{fontSize:10,color:"var(--color-graphite)",marginTop:10}}>
         Only Performance Restoration and Hardware events are trended (n ≥ 3 required per segment). Rows highlighted in red have a zero or negative interval — a data quality issue — and are excluded from the summary above but still shown here. reasonCategory isn't collected yet, so every row shows as Uncategorised until the extraction prompt and review-screen updates land.
       </p>
     </div>

@@ -37,7 +37,10 @@ body{font-family:var(--font-interface);background:var(--color-technical-grey);co
 @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--color-divider-inner)}::-webkit-scrollbar-thumb{background:var(--color-divider);border-radius:3px}
 .btn{cursor:pointer;border:none;border-radius:var(--radius-button);font-family:inherit;font-weight:600;transition:all 0.15s}
-.btn-gold{background:var(--color-ochre);color:var(--color-carbon);padding:7px 14px;font-size:12px;font-weight:700}.btn-gold:hover{background:var(--color-ochre-hover)}
+/* Kept the .btn-gold class name (used across many components) but the
+   fill is carbon, not ochre — the design system reserves ochre for the
+   tab underline only and never as a button/fill colour. */
+.btn-gold{background:var(--color-carbon);color:var(--color-soft-white);padding:7px 14px;font-size:12px;font-weight:700}.btn-gold:hover{background:var(--color-carbon-hover)}
 .btn-primary{background:var(--color-carbon);color:var(--color-soft-white);padding:7px 14px;font-size:12px}.btn-primary:hover{background:var(--color-carbon-hover)}
 .btn-ghost{background:transparent;border:1px solid var(--color-divider);color:var(--color-graphite);padding:6px 12px;font-size:12px}.btn-ghost:hover{border-color:var(--color-carbon);color:var(--color-carbon)}
 .btn-danger{background:var(--color-critical-tint);color:var(--color-critical);border:1px solid var(--color-critical-border);padding:5px 10px;font-size:11px;cursor:pointer;border-radius:var(--radius-button);font-family:inherit;font-weight:600}.btn-danger:hover{background:var(--color-critical-hover)}

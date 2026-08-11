@@ -66,10 +66,10 @@ function MaintenanceCalendarGrid({ events }) {
 
   return (
     <div className="card" style={{ padding: 16, marginBottom: 16, position: "relative" }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Calendar Overview</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 12 }}>Calendar Overview</div>
       {years.map(year => (
         <div key={year} style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 6 }}>{year}</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-graphite)", marginBottom: 6 }}>{year}</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 4 }}>
             {MONTH_LABELS.map((label, m) => {
               const evts = byYear[year][m];
@@ -77,14 +77,14 @@ function MaintenanceCalendarGrid({ events }) {
                 <div key={m}
                   onMouseEnter={e => evts.length && setHover({ year, month: m, evts, x: e.currentTarget.offsetLeft, y: e.currentTarget.offsetTop })}
                   onMouseLeave={() => setHover(null)}
-                  style={{ border: "1px solid #1e3048", borderRadius: 6, padding: cellPad, textAlign: "center", cursor: evts.length ? "pointer" : "default", background: evts.length ? "#0d1622" : "transparent" }}>
-                  <div style={{ fontSize: labelSize, color: "#475569", marginBottom: 4 }}>{label}</div>
+                  style={{ border: "1px solid var(--color-divider)", borderRadius: 6, padding: cellPad, textAlign: "center", cursor: evts.length ? "pointer" : "default", background: evts.length ? "var(--color-technical-grey)" : "transparent" }}>
+                  <div style={{ fontSize: labelSize, color: "var(--color-graphite)", marginBottom: 4 }}>{label}</div>
                   {evts.length > 0 && (
                     <div style={{ display: "flex", justifyContent: "center", gap: 2, flexWrap: "wrap" }}>
                       {evts.slice(0, 3).map((e, i) => (
                         <span key={i} style={{ width: dotSize, height: dotSize, borderRadius: "50%", background: colorForCode(e.code), display: "inline-block" }}/>
                       ))}
-                      {evts.length > 3 && <span style={{ fontSize: 8, color: "#94a3b8" }}>+{evts.length - 3}</span>}
+                      {evts.length > 3 && <span style={{ fontSize: 8, color: "var(--color-graphite)" }}>+{evts.length - 3}</span>}
                     </div>
                   )}
                 </div>
@@ -94,16 +94,16 @@ function MaintenanceCalendarGrid({ events }) {
         </div>
       ))}
       {hover && (
-        <div style={{ position: "absolute", top: hover.y + 40, left: Math.min(hover.x, 700), zIndex: 20, background: "#111f30", border: "1px solid #2d3f55", borderRadius: 8, padding: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.4)", minWidth: 200, pointerEvents: "none" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", marginBottom: 6 }}>{MONTH_LABELS[hover.month]} {hover.year}</div>
+        <div style={{ position: "absolute", top: hover.y + 40, left: Math.min(hover.x, 700), zIndex: 20, background: "var(--color-soft-white)", border: "1px solid var(--color-divider)", borderRadius: 8, padding: 10, boxShadow: "0 4px 16px rgba(21,26,29,0.16)", minWidth: 200, pointerEvents: "none" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-graphite)", marginBottom: 6 }}>{MONTH_LABELS[hover.month]} {hover.year}</div>
           {hover.evts.map((e, i) => (
             <div key={i} style={{ marginBottom: i < hover.evts.length - 1 ? 8 : 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-carbon)" }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: colorForCode(e.code), display: "inline-block", marginRight: 6 }}/>
                 {e.msn ? `MSN ${e.msn} — ` : ""}{e.code} — {e.label}
               </div>
-              <div style={{ fontSize: 11, color: "#94a3b8" }}>{e.date.toISOString().slice(0, 10)}{e.grounding ? ` · grounds ${e.durationWeeks}wk` : ""}</div>
-              {e.cost && <div style={{ fontSize: 11, color: "#64748b" }}>${Math.round(e.cost.projectedCostLow).toLocaleString()}–${Math.round(e.cost.projectedCostHigh).toLocaleString()}</div>}
+              <div style={{ fontSize: 11, color: "var(--color-graphite)" }}>{e.date.toISOString().slice(0, 10)}{e.grounding ? ` · grounds ${e.durationWeeks}wk` : ""}</div>
+              {e.cost && <div style={{ fontSize: 11, color: "var(--color-graphite)" }}>${Math.round(e.cost.projectedCostLow).toLocaleString()}–${Math.round(e.cost.projectedCostHigh).toLocaleString()}</div>}
             </div>
           ))}
         </div>
