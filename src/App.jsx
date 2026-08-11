@@ -392,7 +392,7 @@ function AppInner(){
                 })()}
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   {canUpload&&<button onClick={()=>{setView("upload");setSelectedId(null);}}
-                    style={{padding:"8px 16px",borderRadius:4,border:view==="upload"?"1px solid #151A1D":"1px solid #D9DCD8",background:view==="upload"?"#151A1D":"transparent",color:view==="upload"?"#FCFCF9":"#151A1D",fontFamily:"'Barlow',inherit",fontSize:13,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                    style={{padding:"8px 16px",borderRadius:4,border:view==="upload"?"1px solid #151A1D":"1px solid #D9DCD8",background:view==="upload"?"#151A1D":"transparent",color:view==="upload"?"#FCFCF9":"#151A1D",fontFamily:"'Barlow',inherit",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
                     Upload
                   </button>}
                   <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
@@ -409,7 +409,7 @@ function AppInner(){
                   theme="light"/>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   {canUpload&&<button onClick={()=>{setView("upload");setSelectedId(null);}}
-                    style={{padding:"8px 16px",borderRadius:4,border:view==="upload"?"1px solid #151A1D":"1px solid #D9DCD8",background:view==="upload"?"#151A1D":"transparent",color:view==="upload"?"#FCFCF9":"#151A1D",fontFamily:"'Barlow',inherit",fontSize:13,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                    style={{padding:"8px 16px",borderRadius:4,border:view==="upload"?"1px solid #151A1D":"1px solid #D9DCD8",background:view==="upload"?"#151A1D":"transparent",color:view==="upload"?"#FCFCF9":"#151A1D",fontFamily:"'Barlow',inherit",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
                     Upload
                   </button>}
                   <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
