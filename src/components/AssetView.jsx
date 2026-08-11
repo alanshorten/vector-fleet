@@ -28,7 +28,7 @@ function NavPill({items,activeValue,onSelect,theme="dark",width}){
         const active=activeValue===v;
         return(
           <button key={v} className="app-nav-btn" onClick={()=>onSelect(v)}
-            style={{padding:"9px 14px",borderRadius:0,border:"none",borderBottom:active?"2px solid var(--color-ochre)":"2px solid transparent",marginBottom:-2,fontFamily:"var(--font-interface)",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all 0.15s",background:"transparent",color:active?"var(--color-carbon)":"var(--color-graphite)",letterSpacing:"0.02em",whiteSpace:"nowrap"}}>
+            style={{padding:"9px 14px",borderRadius:0,border:"none",borderBottom:active?"2px solid var(--color-ochre)":"2px solid transparent",marginBottom:-2,fontFamily:"var(--font-interface)",fontSize:13,fontWeight:active?700:500,cursor:"pointer",transition:"all 0.15s",background:"transparent",color:active?"var(--color-carbon)":"var(--color-graphite)",letterSpacing:"0.02em",whiteSpace:"nowrap"}}>
             {l}
           </button>
         );
