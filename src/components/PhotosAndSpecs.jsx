@@ -163,31 +163,31 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
 
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div className="card" style={{padding:20,maxWidth:900,width:"100%",maxHeight:"90vh",overflow:"auto",background:"#0b1520"}}>
+      <div className="card" style={{padding:20,maxWidth:900,width:"100%",maxHeight:"90vh",overflow:"auto"}}>
         <div className="flj" style={{marginBottom:14}}>
           <div className="section-title" style={{margin:0}}>LOPA Crop Tool</div>
           <button className="btn btn-ghost" onClick={onClose}>✕ Close</button>
         </div>
-        {error&&<div style={{color:"#f87171",fontSize:12,marginBottom:10}}>{error}</div>}
+        {error&&<div style={{color:"var(--color-critical)",fontSize:12,marginBottom:10}}>{error}</div>}
 
         {stage==="upload"&&(
           <div>
-            <div style={{fontSize:12,color:"#64748b",marginBottom:12}}>Upload the full LOPA file (PDF or image). You'll be able to pick a page, rotate, and crop to just the cabin diagram.</div>
+            <div style={{fontSize:12,color:"var(--color-graphite)",marginBottom:12}}>Upload the full LOPA file (PDF or image). You'll be able to pick a page, rotate, and crop to just the cabin diagram.</div>
             <label style={{cursor:"pointer"}}>
               <input type="file" accept=".pdf,image/*" onChange={handleFile} style={{display:"none"}}/>
-              <span className="btn btn-primary" style={{fontSize:12,padding:"7px 14px"}}>+ Choose File</span>
+              <span className="btn btn-teal" style={{fontSize:12,padding:"7px 14px"}}>+ Choose File</span>
             </label>
           </div>
         )}
 
         {stage==="pages"&&(
           <div>
-            <div style={{fontSize:12,color:"#64748b",marginBottom:10}}>This PDF has multiple pages. Select the page with the cabin diagram.</div>
+            <div style={{fontSize:12,color:"var(--color-graphite)",marginBottom:10}}>This PDF has multiple pages. Select the page with the cabin diagram.</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
               {pageThumbs.map(t=>(
-                <div key={t.page} onClick={()=>choosePage(t.page)} style={{cursor:"pointer",border:"2px solid #1e3348",borderRadius:6,overflow:"hidden",width:140}}>
+                <div key={t.page} onClick={()=>choosePage(t.page)} style={{cursor:"pointer",border:"2px solid var(--color-divider)",borderRadius:6,overflow:"hidden",width:140}}>
                   <img src={t.url} style={{width:"100%",display:"block"}}/>
-                  <div style={{textAlign:"center",fontSize:11,color:"#94a3b8",padding:"4px 0",background:"#0d1925"}}>Page {t.page}</div>
+                  <div style={{textAlign:"center",fontSize:11,color:"var(--color-graphite)",padding:"4px 0",background:"var(--color-technical-grey)"}}>Page {t.page}</div>
                 </div>
               ))}
             </div>
@@ -196,7 +196,7 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
 
         {stage==="crop"&&pageImageUrl&&(
           <div>
-            <div style={{fontSize:12,color:"#64748b",marginBottom:10}}>Drag the box to select the cabin diagram. Drag corners to resize. Use Rotate to correct orientation — the image is re-rendered upright each time so the full area is always available to crop.</div>
+            <div style={{fontSize:12,color:"var(--color-graphite)",marginBottom:10}}>Drag the box to select the cabin diagram. Drag corners to resize. Use Rotate to correct orientation — the image is re-rendered upright each time so the full area is always available to crop.</div>
             <div ref={containerRef} style={{position:"relative",display:"inline-block",maxWidth:"100%"}}
               onMouseMove={onDrag} onMouseUp={endDrag} onMouseLeave={endDrag}
               onTouchMove={onDrag} onTouchEnd={endDrag}>
@@ -204,9 +204,9 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
                 style={{maxWidth:"100%",display:"block",userSelect:"none"}}
                 draggable={false}/>
               <div onMouseDown={startDrag("move")} onTouchStart={startDrag("move")}
-                style={{position:"absolute",left:crop.x,top:crop.y,width:crop.w,height:crop.h,border:"2px solid #C9A84C",background:"rgba(201,168,76,0.15)",cursor:"move"}}>
-                <div onMouseDown={startDrag("tl")} onTouchStart={startDrag("tl")} style={{position:"absolute",left:-6,top:-6,width:14,height:14,background:"#C9A84C",borderRadius:"50%",cursor:"nwse-resize"}}/>
-                <div onMouseDown={startDrag("br")} onTouchStart={startDrag("br")} style={{position:"absolute",right:-6,bottom:-6,width:14,height:14,background:"#C9A84C",borderRadius:"50%",cursor:"nwse-resize"}}/>
+                style={{position:"absolute",left:crop.x,top:crop.y,width:crop.w,height:crop.h,border:"2px solid var(--color-teal)",background:"var(--color-teal-tint)",cursor:"move"}}>
+                <div onMouseDown={startDrag("tl")} onTouchStart={startDrag("tl")} style={{position:"absolute",left:-6,top:-6,width:14,height:14,background:"var(--color-teal)",borderRadius:"50%",cursor:"nwse-resize"}}/>
+                <div onMouseDown={startDrag("br")} onTouchStart={startDrag("br")} style={{position:"absolute",right:-6,bottom:-6,width:14,height:14,background:"var(--color-teal)",borderRadius:"50%",cursor:"nwse-resize"}}/>
               </div>
             </div>
             <div className="flab g8" style={{marginTop:14}}>
@@ -217,7 +217,7 @@ function LopaCropTool({asset,saveAsset,notify,onClose}){
           </div>
         )}
 
-        {stage==="saving"&&<div style={{textAlign:"center",padding:30,color:"#64748b"}}>Saving crop...</div>}
+        {stage==="saving"&&<div style={{textAlign:"center",padding:30,color:"var(--color-graphite)"}}>Saving crop...</div>}
       </div>
     </div>
   );

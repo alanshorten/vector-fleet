@@ -535,8 +535,8 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
             <PhotoManager asset={d} saveAsset={photoSaveAsset} notify={notify} label="photos" field="photos"/>
           </div>
 
-          <div className="card" style={{padding:20,background:"var(--color-technical-grey)",border:"1px solid var(--color-ochre)"}}>
-            <div className="section-title" style={{color:"var(--color-ochre)"}}>That's the full template</div>
+          <div className="card" style={{padding:20,background:"var(--color-technical-grey)",borderLeft:"3px solid var(--color-ochre)",borderRadius:"0 4px 4px 0"}}>
+            <div className="section-title">That's the full template</div>
             <p style={{fontSize:12,color:"var(--color-graphite)",marginBottom:14}}>Every field above feeds the preview on the right and autosaves as you go. When you're happy with it:</p>
             <div className="flab g8" style={{flexWrap:"wrap"}}>
               <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>generateTechSpec(specAsset)}>📋 Generate Full Tech Spec</button>
