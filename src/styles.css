@@ -1,3 +1,24 @@
+/* TAILIQ_UI_DESIGN_SYSTEM.md palette — additive only. Not yet applied to
+   body/global rules below (that's a later, app-wide re-skin pass); these
+   variables are consumed directly by header/nav inline styles in App.jsx
+   and AssetView.jsx (NavPill) for now. */
+:root{
+  --color-technical-grey:#F2F1EC;
+  --color-soft-white:#FCFCF9;
+  --color-carbon:#151A1D;
+  --color-graphite:#687078;
+  --color-divider:#D9DCD8;
+  --color-divider-inner:#E8E7E2;
+  --color-ochre:#B88728;
+  --color-teal:#315D68;
+  --color-positive:#25745A;
+  --color-attention:#B7791F;
+  --color-critical:#B54848;
+  --font-interface:'Barlow',system-ui,-apple-system,sans-serif;
+  --font-data:'IBM Plex Mono','Courier New',monospace;
+  --radius-panel:4px;
+  --radius-button:4px;
+}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter','Segoe UI',sans-serif;background:#0b1520;color:#e2e8f0;min-height:100vh}
 @keyframes spin{to{transform:rotate(360deg)}}

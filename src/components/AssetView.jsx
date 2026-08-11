@@ -18,15 +18,21 @@ import { getDefaultDisclaimer, getTechSpecBrandingHidden, getTechSpecLogo } from
 const TRAILING_PILL_WIDTH=300;
 
 function NavPill({items,activeValue,onSelect,theme="dark",width}){
-  const isLight=theme==="light";
+  // theme prop kept for call-site compatibility (all callers now pass
+  // "light" since the header is always the paper-white surface) — no
+  // visual branching left on it. Active state is an ochre underline
+  // rather than a filled pill, per TAILIQ_UI_DESIGN_SYSTEM.md.
   return(
-    <nav className={`app-nav-pill${width?" trailing-pill":""}`} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",gap:4,background:isLight?"#f1f5f9":"rgba(13,25,37,0.8)",border:`1px solid ${isLight?"#e2e8f0":"#1e3348"}`,borderRadius:8,padding:"5px 6px",...(width?{overflowX:"auto",WebkitOverflowScrolling:"touch",width}:{}),flexShrink:0}}>
-      {items.map(([v,l])=>(
-        <button key={v} className="app-nav-btn" onClick={()=>onSelect(v)}
-          style={{padding:"8px 16px",borderRadius:6,border:"none",fontFamily:"inherit",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all 0.15s",background:activeValue===v?"#1a3050":"transparent",color:activeValue===v?"#C9A84C":(isLight?"#475569":"#6a8aaa"),letterSpacing:"0.02em",whiteSpace:"nowrap"}}>
-          {l}
-        </button>
-      ))}
+    <nav className={`app-nav-pill${width?" trailing-pill":""}`} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",gap:2,background:"transparent",border:"none",borderRadius:0,padding:0,...(width?{overflowX:"auto",WebkitOverflowScrolling:"touch",width}:{}),flexShrink:0}}>
+      {items.map(([v,l])=>{
+        const active=activeValue===v;
+        return(
+          <button key={v} className="app-nav-btn" onClick={()=>onSelect(v)}
+            style={{padding:"9px 14px",borderRadius:0,border:"none",borderBottom:active?"2px solid #B88728":"2px solid transparent",marginBottom:-2,fontFamily:"'Barlow',inherit",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all 0.15s",background:"transparent",color:active?"#151A1D":"#687078",letterSpacing:"0.02em",whiteSpace:"nowrap"}}>
+            {l}
+          </button>
+        );
+      })}
     </nav>
   );
 };

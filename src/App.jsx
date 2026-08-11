@@ -8,7 +8,7 @@ import { ProspectEditor, ProspectListView } from './components/Prospects';
 import { UploadView } from './components/UploadView';
 import { db, logAudit } from './lib/db';
 import { bootstrapKnowledgeBaseGlobals } from './lib/knowledgeBase';
-import { HEADER_LOGO_NAVY, HEADER_LOGO_WHITE } from './lib/techSpec';
+import { HEADER_LOGO_NAVY } from './lib/techSpec';
 import { LayoutModeProvider, useLayoutMode } from './lib/layoutMode';
 import { IQView } from './components/IQView';
 
@@ -50,14 +50,16 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
     onSelect(v);
   };
 
-  // Colour tokens — match the nav pill dark theme
-  const menuBg = '#102A43';
-  const menuBorder = '#1e3a5f';
-  const itemActive = '#1e4a7a';
-  const itemHover = '#1a3a5c';
-  const textActive = '#e2e8f0';
-  const textMuted = '#94a3b8';
-  const divider = 'rgba(255,255,255,0.10)';
+  // Colour tokens — TAILIQ_UI_DESIGN_SYSTEM.md palette. Header is always
+  // light now (no navy/white banner switching), so the menu itself stays a
+  // carbon surface (same treatment a context menu gets against a light
+  // page) with an ochre active-state, matching the NavPill underline.
+  const menuBg = '#151A1D';
+  const menuBorder = 'rgba(255,255,255,0.12)';
+  const itemHover = 'rgba(255,255,255,0.08)';
+  const textActive = '#B88728';
+  const textMuted = 'rgba(252,252,249,0.65)';
+  const divider = 'rgba(255,255,255,0.12)';
 
   const Item = ({ value, label }) => {
     const active = view === value;
@@ -67,10 +69,10 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
         style={{
           display: 'block', width: '100%', textAlign: 'left',
           padding: '9px 16px', border: 'none', borderRadius: 6,
-          background: active ? itemActive : 'transparent',
+          background: 'transparent',
           color: active ? textActive : textMuted,
           fontSize: 13, fontWeight: active ? 700 : 500,
-          cursor: 'pointer', fontFamily: 'inherit',
+          cursor: 'pointer', fontFamily: "'Barlow',inherit",
           transition: 'background 0.12s, color 0.12s',
         }}
         onMouseEnter={e => { if (!active) e.currentTarget.style.background = itemHover; }}
@@ -82,7 +84,7 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
   };
 
   const GroupLabel = ({ children }) => (
-    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148,163,184,0.55)', padding: '8px 16px 4px' }}>
+    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(252,252,249,0.4)', padding: '8px 16px 4px', fontFamily: "'Barlow',inherit" }}>
       {children}
     </div>
   );
@@ -91,11 +93,13 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
     <div style={{ height: 1, background: divider, margin: '6px 0' }}/>
   );
 
-  // Pill colours — match NavPill dark/light theme
-  const pillBg = isPortfolio ? '#f1f5f9' : '#0d1e2e';
-  const pillBorder = isPortfolio ? '#e2e8f0' : '#1e3a5f';
-  const iconColor = isPortfolio ? '#475569' : '#94a3b8';
-  const iconColorActive = isPortfolio ? '#0f172a' : '#e2e8f0';
+  // Pill/icon colours — header is always light now, so the ☰ trigger is a
+  // plain graphite icon rather than a filled dark pill (isPortfolio no
+  // longer changes anything here; param kept for signature compatibility).
+  const pillBg = 'transparent';
+  const pillBorder = '#D9DCD8';
+  const iconColor = '#687078';
+  const iconColorActive = '#151A1D';
 
   return (
     <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
@@ -143,10 +147,12 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
             </>
           )}
 
-          {/* Group 2 — Tools */}
+          {/* Group 2 — Tools. Upload is deliberately not listed here — it's
+              a permanently anchored control in the header itself on every
+              screen size, never buried in the menu (design system,
+              non-negotiable). */}
           <GroupLabel>Tools</GroupLabel>
           <Item value="prospects" label="Prospects"/>
-          {isMobile && canUpload && <Item value="upload" label="Upload"/>}
           {isAdmin && <Item value="iq" label="iQ"/>}
           <Divider/>
 
@@ -333,9 +339,15 @@ function AppInner(){
 
   return(
     <div>
-      <header style={{background:isPortfolio?"#ffffff":"#0d1c2c",borderBottom:isPortfolio?"1px solid #e2e8f0":"1px solid #1e3348",position:"sticky",top:0,zIndex:100,boxShadow:isPortfolio?"0 2px 8px rgba(15,23,42,0.08)":"0 2px 8px rgba(0,0,0,0.3)"}}>
+      <header style={{background:"#FCFCF9",borderBottom:"1.5px solid #151A1D",position:"sticky",top:0,zIndex:100,boxShadow:"none",fontFamily:"'Barlow',system-ui,-apple-system,sans-serif"}}>
         <div className="app-header-row" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"nowrap",maxWidth:1480,margin:"0 auto",padding:"8px 22px",boxSizing:"border-box"}}>
-          <img src={isPortfolio?HEADER_LOGO_WHITE:HEADER_LOGO_NAVY} alt="TailiQ" style={{height:44,maxWidth:"55vw",objectFit:"contain",objectPosition:"left center",borderRadius:0}} className="header-logo"/>
+          {/* Logo is now the home/fleet-portfolio control — replaces the old
+              separate "✈ Fleet Portfolio" button (design system §home nav).
+              Always the navy mark now the header background is always light. */}
+          <img src={HEADER_LOGO_NAVY} alt="TailiQ"
+            onClick={()=>{if(canSeeAdvanced){setView("portfolio");setSelectedId(null);}else{setView("dashboard");setSelectedId(null);}}}
+            style={{height:44,maxWidth:"55vw",objectFit:"contain",objectPosition:"left center",borderRadius:0,cursor:"pointer"}}
+            className="header-logo"/>
 
           {/* Right side — two-row column (desktop) / single row (portrait).
               Both fleet and asset pills render here — same DOM context = guaranteed
@@ -345,68 +357,63 @@ function AppInner(){
             {isMobile && view==="asset" && selectedAsset ? (
               /* Portrait + asset view — Portfolio+☰ row, then asset layer pill below */
               <>
-                <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  {canSeeAdvanced&&<button onClick={()=>{setView("portfolio");setSelectedId(null);}}
-                    style={{flex:1,padding:"7px 14px",background:"transparent",border:"1px solid #2a4060",borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
-                    ✈ Fleet Portfolio
-                  </button>}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
                   <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   {(()=>{
                     const canSeeAdv=!!userRole&&userRole!=='dataEntry';
                     const LAYERS=[["details","Details"],...(canSeeAdv?[["calendar","Calendar"],["financials","Financials"],["scenarios","Scenarios"]]:[])];
-                    return <NavPill items={LAYERS} activeValue={assetLayer} onSelect={setAssetLayer} theme="dark"/>;
+                    return <NavPill items={LAYERS} activeValue={assetLayer} onSelect={setAssetLayer} theme="light"/>;
                   })()}
                 </div>
                 {canUpload&&(
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <NavPill items={[["upload","Upload"]]} activeValue={view} onSelect={v=>{setView(v);setSelectedId(null);}} theme="dark" width="100%"/>
+                    <NavPill items={[["upload","Upload"]]} activeValue={view} onSelect={v=>{setView(v);setSelectedId(null);}} theme="light" width="100%"/>
                   </div>
                 )}
               </>
             ) : isMobile ? (
-              /* Portrait + fleet view — Portfolio + ☰ only, fleet nav lives in hamburger */
-              <div style={{display:"flex",alignItems:"center",gap:6}}>
-                {canSeeAdvanced&&<button onClick={()=>{setView("portfolio");setSelectedId(null);}}
-                  style={{flex:1,padding:"7px 14px",background:isPortfolio?"#f1f5f9":"transparent",border:`1px solid ${isPortfolio?"#e2e8f0":"#2a4060"}`,borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:isPortfolio?"#0f172a":"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
-                  ✈ Fleet Portfolio
-                </button>}
-                <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
-              </div>
+              /* Portrait + fleet view — ☰ only (logo is now Home/Portfolio),
+                 fleet nav lives in hamburger. Upload gets its own anchored
+                 row below — non-negotiable per design system, it used to be
+                 buried inside the hamburger's Tools group here and that was
+                 a miss against the locked spec. */
+              <>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
+                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
+                </div>
+                {canUpload&&(
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <NavPill items={[["upload","Upload"]]} activeValue={view} onSelect={v=>{setView(v);setSelectedId(null);}} theme="light" width="100%"/>
+                  </div>
+                )}
+              </>
             ) : view==="asset" && selectedAsset ? (
               /* Asset view — row 1: Fleet Portfolio + ☰ (same as fleet view)
                  row 2: asset layer pill + Share/TechSpec trailing block */
               <>
-                <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  {canSeeAdvanced&&<button onClick={()=>{setView("portfolio");setSelectedId(null);}}
-                    style={{flex:1,padding:"7px 14px",background:"transparent",border:"1px solid #2a4060",borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
-                    ✈ Fleet Portfolio
-                  </button>}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
                   <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"nowrap"}}>
                   {(()=>{
                     const canSeeAdv=!!userRole&&userRole!=='dataEntry';
                     const LAYERS=[["details","Details"],...(canSeeAdv?[["calendar","Calendar"],["financials","Financials"],["scenarios","Scenarios"]]:[])];
-                    return <NavPill items={LAYERS} activeValue={assetLayer} onSelect={setAssetLayer} theme="dark"/>;
+                    return <NavPill items={LAYERS} activeValue={assetLayer} onSelect={setAssetLayer} theme="light"/>;
                   })()}
                   {canUpload&&<NavPill
                     items={[["upload","Upload"]]}
                     activeValue={view}
                     onSelect={v=>{setView(v);setSelectedId(null);}}
-                    theme="dark"
+                    theme="light"
                     width={TRAILING_PILL_WIDTH}/>}
                 </div>
               </>
             ) : (
               /* Fleet view — row 1: Portfolio+☰, row 2: fleet NavPill + Upload */
               <>
-                <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  {canSeeAdvanced&&<button onClick={()=>{setView("portfolio");setSelectedId(null);}}
-                    style={{flex:1,padding:"7px 14px",background:isPortfolio?"#f1f5f9":"transparent",border:`1px solid ${isPortfolio?"#e2e8f0":"#2a4060"}`,borderRadius:7,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",color:isPortfolio?"#0f172a":"#6a8aaa",letterSpacing:"0.06em",textTransform:"uppercase",transition:"all 0.15s",textAlign:"center",whiteSpace:"nowrap"}}>
-                    ✈ Fleet Portfolio
-                  </button>}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
                   <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"nowrap"}}>
@@ -414,12 +421,12 @@ function AppInner(){
                     items={[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]}
                     activeValue={view}
                     onSelect={v=>{setView(v);setSelectedId(null);}}
-                    theme={isPortfolio?"light":"dark"}/>
+                    theme="light"/>
                   {canUpload&&<NavPill
                     items={[["upload","Upload"]]}
                     activeValue={view}
                     onSelect={v=>{setView(v);setSelectedId(null);}}
-                    theme={isPortfolio?"light":"dark"}
+                    theme="light"
                     width={TRAILING_PILL_WIDTH}/>}
                 </div>
               </>
