@@ -9,7 +9,7 @@ function EngineSNAction({change,prevEngines,mergedAsset,saveAsset,notify}){
   const idx=change.position-1;
   const prevEng=prevEngines[idx]||{};
   const isReturn=!!(prevEng.atShop&&prevEng.titleEngine&&prevEng.titleEngine.sn===change.newSN);
-  if(mode==="resolved")return<div style={{fontSize:12,color:"#34d399",marginBottom:6}}>✓ Engine {change.position} S/N change resolved</div>;
+  if(mode==="resolved")return<div style={{fontSize:12,color:"var(--color-positive)",marginBottom:6}}>✓ Engine {change.position} S/N change resolved</div>;
   const startAtShop=()=>{setForm({tsn:fmtHHMM(prevEng.currentFH),csn:prevEng.currentFC||"",date:"",reason:""});setMode("atshop");};
   const doAtShop=async()=>{
     const newEngines=JSON.parse(JSON.stringify(mergedAsset.engines||[]));
@@ -35,8 +35,8 @@ function EngineSNAction({change,prevEngines,mergedAsset,saveAsset,notify}){
     setMode("resolved");
   };
   return(
-    <div style={{background:"#1a1306",border:"1px solid #92660a",borderRadius:6,padding:"8px 10px",marginBottom:8}}>
-      <div style={{fontSize:12,color:"#fcd34d",marginBottom:6}}>⚠ Engine {change.position} S/N change: was {change.previousSN}, now {change.newSN}</div>
+    <div style={{background:"var(--color-attention-tint)",border:"1px solid var(--color-attention)",borderRadius:6,padding:"8px 10px",marginBottom:8}}>
+      <div style={{fontSize:12,color:"var(--color-attention)",marginBottom:6}}>⚠ Engine {change.position} S/N change: was {change.previousSN}, now {change.newSN}</div>
       {mode==="atshop"?(
         <div style={{marginTop:6}}>
           <div className="grid3" style={{gap:6,marginBottom:8}}>
@@ -406,31 +406,31 @@ const extract=async()=>{
 
   return(
     <div style={{maxWidth:860,margin:"0 auto"}}>
-      <h1 style={{fontSize:20,color:"#C9A84C",fontWeight:700,marginBottom:6}}>Upload</h1>
-      <p style={{color:"#64748b",marginBottom:16,fontSize:13}}>Select report type, upload PDF or Excel, and TailiQ extracts the data for your review.</p>
+      <h1 style={{fontSize:20,color:"var(--color-ochre)",fontWeight:700,marginBottom:6}}>Upload</h1>
+      <p style={{color:"var(--color-graphite)",marginBottom:16,fontSize:13}}>Select report type, upload PDF or Excel, and TailiQ extracts the data for your review.</p>
       <div className="flab g8" style={{marginBottom:16}}>
         {[["util","📄 Utilisation Report",null],["llp","Engine LLP Sheet","engine"],["apu_llp","APU LLP Sheet","apu"],["tac","📄 TAC — Delivery Baseline","engine"],["lease","📑 Bulk Lease Import",null]].map(([v,l,icon])=>(
           <button key={v} onClick={()=>{setUploadType(v);setFile(null);setExtracted(null);setError(null);setDone(false);setInstructions("");setShowInstructions(false);setSheetNames([]);setSelectedSheet(null);setXlsxWorkbook(null);setMatchedLease(null);}}
-            style={{padding:"8px 16px",background:uploadType===v?"#1e3a5f":"#0d1e2e",color:uploadType===v?"#C9A84C":"#64748b",border:`1px solid ${uploadType===v?"#1B3A6B":"#1e3348"}`,borderRadius:6,fontSize:13,fontWeight:600,cursor:"pointer"}}>
-            {icon&&<TabIcon type={icon} color={uploadType===v?"#C9A84C":"#64748b"}/>}{l}
+            style={{padding:"8px 16px",background:uploadType===v?"var(--color-carbon)":"var(--color-technical-grey)",color:uploadType===v?"var(--color-ochre)":"var(--color-graphite)",border:`1px solid ${uploadType===v?"var(--color-carbon)":"var(--color-divider)"}`,borderRadius:6,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+            {icon&&<TabIcon type={icon} color={uploadType===v?"var(--color-ochre)":"var(--color-graphite)"}/>}{l}
           </button>
         ))}
       </div>
       {uploadType==="lease"?(
         <BulkLeaseImport assets={assets} saveAsset={saveAsset} notify={notify}/>
       ):(<>
-      <div className="card" style={{padding:32,textAlign:"center",marginBottom:16,border:"2px dashed #1e3048"}}>
+      <div className="card" style={{padding:32,textAlign:"center",marginBottom:16,border:"2px dashed var(--color-divider)"}}>
         <div style={{fontSize:36,marginBottom:10}}>📁</div>
         <input type="file" accept=".pdf,.xlsx" id="upfile" onChange={handleFile} style={{display:"none"}}/>
         <label htmlFor="upfile" style={{cursor:"pointer"}}>
-          <div style={{fontWeight:600,color:file?"#C9A84C":"#64748b",marginBottom:4}}>{file?file.name:"Click to select file"}</div>
-          <div style={{fontSize:12,color:"#475569"}}>{uploadType==="util"?"PDF or Excel (.xlsx)":uploadType==="llp"?"Engine LLP Status Sheet (PDF)":uploadType==="tac"?"Technical Acceptance Certificate — Engine LLP Status Sheet at Delivery (PDF)":"APU LLP Status Sheet (PDF)"}</div>
+          <div style={{fontWeight:600,color:file?"var(--color-ochre)":"var(--color-graphite)",marginBottom:4}}>{file?file.name:"Click to select file"}</div>
+          <div style={{fontSize:12,color:"var(--color-graphite)"}}>{uploadType==="util"?"PDF or Excel (.xlsx)":uploadType==="llp"?"Engine LLP Status Sheet (PDF)":uploadType==="tac"?"Technical Acceptance Certificate — Engine LLP Status Sheet at Delivery (PDF)":"APU LLP Status Sheet (PDF)"}</div>
         </label>
         {file&&!done&&(
           <div style={{marginTop:14,display:"flex",flexDirection:"column",gap:8,alignItems:"center",width:"100%"}}>
             {sheetNames.length>1&&(
               <div style={{width:"100%",maxWidth:500}}>
-                <label style={{fontSize:11,color:"#94a3b8",display:"block",marginBottom:4}}>Select sheet to parse</label>
+                <label style={{fontSize:11,color:"var(--color-graphite)",display:"block",marginBottom:4}}>Select sheet to parse</label>
                 <select value={selectedSheet||""} onChange={e=>setSelectedSheet(e.target.value)} style={{width:"100%",fontSize:12}}>
                   {sheetNames.map(n=><option key={n} value={n}>{n}</option>)}
                 </select>
@@ -449,8 +449,8 @@ const extract=async()=>{
           </div>
         )}
       </div>
-      {extracting&&<div className="card" style={{padding:32,textAlign:"center"}}><div style={{width:32,height:32,border:"3px solid #C9A84C",borderTop:"3px solid transparent",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 14px"}}/><p style={{color:"#94a3b8"}}>Reading document…</p></div>}
-      {error&&<div style={{background:"#2a0e0e",border:"1px solid #7f1d1d",borderRadius:8,padding:14,color:"#f87171",marginBottom:14,fontSize:13}}>⚠ {error}</div>}
+      {extracting&&<div className="card" style={{padding:32,textAlign:"center"}}><div style={{width:32,height:32,border:"3px solid var(--color-ochre)",borderTop:"3px solid transparent",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 14px"}}/><p style={{color:"var(--color-graphite)"}}>Reading document…</p></div>}
+      {error&&<div style={{background:"var(--color-critical-tint)",border:"1px solid var(--color-critical)",borderRadius:8,padding:14,color:"var(--color-critical)",marginBottom:14,fontSize:13}}>⚠ {error}</div>}
       {extracted&&!done&&(
         <div className="card" style={{padding:20}}>
           <div className="section-title">Extracted Data — Review Before Saving</div>
@@ -458,14 +458,14 @@ const extract=async()=>{
             <div style={{marginTop:14}}>
               <div className="grid2" style={{gap:8,marginBottom:12}}>
                 {[["MSN",extracted.parsed.msn||matchedAsset?.msn||"Matched by ESN/APU S/N"],["Registration",extracted.parsed.registration||matchedAsset?.registration||"—"]].map(([l,v])=>(
-                  <div key={l} style={{background:"#0d1925",borderRadius:6,padding:"8px 10px"}}>
-                    <div style={{fontSize:9,color:"#475569"}}>{l}</div>
-                    <div style={{fontSize:13,fontWeight:600,color:"#f1f5f9"}}>{v?.toString()||"—"}</div>
+                  <div key={l} style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
+                    <div style={{fontSize:9,color:"var(--color-graphite)"}}>{l}</div>
+                    <div style={{fontSize:13,fontWeight:600,color:"var(--color-carbon)"}}>{v?.toString()||"—"}</div>
                   </div>
                 ))}
               </div>
               {uploadType==="tac"&&(
-                <div style={{background:matchedLease?"#0d2818":"#2a0e0e",border:`1px solid ${matchedLease?"#166534":"#7f1d1d"}`,borderRadius:6,padding:"8px 12px",marginBottom:12,fontSize:12,color:matchedLease?"#34d399":"#f87171"}}>
+                <div style={{background:matchedLease?"var(--color-positive-tint)":"var(--color-critical-tint)",border:`1px solid ${matchedLease?"var(--color-positive)":"var(--color-critical)"}`,borderRadius:6,padding:"8px 12px",marginBottom:12,fontSize:12,color:matchedLease?"var(--color-positive)":"var(--color-critical)"}}>
                   {matchedLease
                     ?<>
                       ✓ Will attach to this asset's active lease: {matchedLease.lessee} ({matchedLease.leaseStart} – {matchedLease.leaseEnd}). Does not touch current LLP status — this is a separate, immutable delivery-date record.
@@ -481,34 +481,34 @@ const extract=async()=>{
                 </div>
               )}
               {(extracted.parsed.engines||[]).map((eng,i)=>(
-               <div key={i} style={{background:"#0d1925",borderRadius:8,padding:12,marginBottom:10}}>
-<div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>{eng.position} Engine — ESN {eng.esn} · {eng.llps?.length||0} LLPs</div>
+               <div key={i} style={{background:"var(--color-technical-grey)",borderRadius:8,padding:12,marginBottom:10}}>
+<div style={{fontSize:10,fontWeight:700,color:"var(--color-ochre)",textTransform:"uppercase",marginBottom:8}}>{eng.position} Engine — ESN {eng.esn} · {eng.llps?.length||0} LLPs</div>
 <div className="flab g8" style={{marginBottom:8,alignItems:"center"}}><label className="form-label" style={{margin:0,whiteSpace:"nowrap"}}>Ref CSN (edit if OCR wrong):</label><input type="number" defaultValue={eng.csn} style={{width:120,padding:"4px 8px",fontSize:12}} onChange={e=>{const val=+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].csn=val;return d;});}}/></div>
-<table style={{fontSize:11}}><thead><tr><th>Description</th><th>P/N</th><th>S/N</th><th>FC Remaining (edit if OCR wrong)</th><th>Cycle Limit (edit if OCR wrong)</th>{uploadType==="tac"&&<th>Delivery Baseline (D) — edit if needed</th>}</tr></thead><tbody>{(eng.llps||[]).map((l,j)=>{const col=l.fc_remaining<1000?"#f87171":l.fc_remaining<3000?"#fbbf24":"#34d399";return <tr key={j}><td>{l.desc}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.pn}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.sn}</td><td><input type="number" defaultValue={l.fc_remaining??""} style={{width:80,padding:"3px 6px",fontSize:11,fontWeight:700,color:col}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].llps[j].fc_remaining=val;return d;});}}/></td><td><input type="number" defaultValue={l.cycle_limit??""} placeholder="N/L" style={{width:80,padding:"3px 6px",fontSize:11}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].llps[j].cycle_limit=val;return d;});}}/></td>{uploadType==="tac"&&<td><input type="number" defaultValue={l.delivery_baseline??""} placeholder="—" style={{width:90,padding:"3px 6px",fontSize:11,fontWeight:700}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].llps[j].delivery_baseline=val;return d;});}}/></td>}</tr>;})}</tbody></table>
+<table style={{fontSize:11}}><thead><tr><th>Description</th><th>P/N</th><th>S/N</th><th>FC Remaining (edit if OCR wrong)</th><th>Cycle Limit (edit if OCR wrong)</th>{uploadType==="tac"&&<th>Delivery Baseline (D) — edit if needed</th>}</tr></thead><tbody>{(eng.llps||[]).map((l,j)=>{const col=l.fc_remaining<1000?"var(--color-critical)":l.fc_remaining<3000?"var(--color-attention)":"var(--color-positive)";return <tr key={j}><td>{l.desc}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.pn}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.sn}</td><td><input type="number" defaultValue={l.fc_remaining??""} style={{width:80,padding:"3px 6px",fontSize:11,fontWeight:700,color:col}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].llps[j].fc_remaining=val;return d;});}}/></td><td><input type="number" defaultValue={l.cycle_limit??""} placeholder="N/L" style={{width:80,padding:"3px 6px",fontSize:11}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].llps[j].cycle_limit=val;return d;});}}/></td>{uploadType==="tac"&&<td><input type="number" defaultValue={l.delivery_baseline??""} placeholder="—" style={{width:90,padding:"3px 6px",fontSize:11,fontWeight:700}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.engines[i].llps[j].delivery_baseline=val;return d;});}}/></td>}</tr>;})}</tbody></table>
 </div>
                   
               ))}
               {extracted.parsed.apu?.llps?.length>0&&uploadType!=="tac"&&(
-                <div style={{background:"#0d1925",borderRadius:8,padding:12,marginBottom:10}}>
-<div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>APU — S/N {extracted.parsed.apu.sn||"—"} · {extracted.parsed.apu.llps.length} LLPs</div>
+                <div style={{background:"var(--color-technical-grey)",borderRadius:8,padding:12,marginBottom:10}}>
+<div style={{fontSize:10,fontWeight:700,color:"var(--color-ochre)",textTransform:"uppercase",marginBottom:8}}>APU — S/N {extracted.parsed.apu.sn||"—"} · {extracted.parsed.apu.llps.length} LLPs</div>
 <div className="flab g8" style={{marginBottom:8,alignItems:"center",flexWrap:"wrap"}}>
   <label className="form-label" style={{margin:0,whiteSpace:"nowrap"}}>Ref CSN (edit if OCR wrong):</label><input type="number" defaultValue={extracted.parsed.apu.csn} style={{width:120,padding:"4px 8px",fontSize:12}} onChange={e=>{const val=+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.csn=val;return d;});}}/>
   <label className="form-label" style={{margin:0,whiteSpace:"nowrap"}}>APU P/N (enter if not extracted):</label><input type="text" defaultValue={extracted.parsed.apu.pn||""} placeholder="e.g. 3800000-3" style={{width:150,padding:"4px 8px",fontSize:12}} onChange={e=>{const val=e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.pn=val;return d;});}}/>
 </div>
-<table style={{fontSize:11}}><thead><tr><th>Description</th><th>P/N</th><th>S/N</th><th>FC Remaining (edit if OCR wrong)</th><th>Cycle Limit (edit if OCR wrong)</th></tr></thead><tbody>{extracted.parsed.apu.llps.map((l,j)=>{const col=l.fc_remaining<1000?"#f87171":l.fc_remaining<3000?"#fbbf24":"#34d399";return <tr key={j}><td>{l.desc}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.pn}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.sn}</td><td><input type="number" defaultValue={l.fc_remaining??""} style={{width:80,padding:"3px 6px",fontSize:11,fontWeight:700,color:col}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.llps[j].fc_remaining=val;return d;});}}/></td><td><input type="number" defaultValue={l.cycle_limit??""} placeholder="N/L" style={{width:80,padding:"3px 6px",fontSize:11}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.llps[j].cycle_limit=val;return d;});}}/></td></tr>;})} </tbody></table>
+<table style={{fontSize:11}}><thead><tr><th>Description</th><th>P/N</th><th>S/N</th><th>FC Remaining (edit if OCR wrong)</th><th>Cycle Limit (edit if OCR wrong)</th></tr></thead><tbody>{extracted.parsed.apu.llps.map((l,j)=>{const col=l.fc_remaining<1000?"var(--color-critical)":l.fc_remaining<3000?"var(--color-attention)":"var(--color-positive)";return <tr key={j}><td>{l.desc}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.pn}</td><td style={{fontFamily:"monospace",fontSize:10}}>{l.sn}</td><td><input type="number" defaultValue={l.fc_remaining??""} style={{width:80,padding:"3px 6px",fontSize:11,fontWeight:700,color:col}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.llps[j].fc_remaining=val;return d;});}}/></td><td><input type="number" defaultValue={l.cycle_limit??""} placeholder="N/L" style={{width:80,padding:"3px 6px",fontSize:11}} onChange={e=>{const val=e.target.value===""?null:+e.target.value;setExtracted(prev=>{const d=JSON.parse(JSON.stringify(prev));d.parsed.apu.llps[j].cycle_limit=val;return d;});}}/></td></tr>;})} </tbody></table>
 </div>
               )}
             </div>
           ):(
             <div className="grid2" style={{marginTop:14,gap:12}}>
-              <div style={{background:"#0d1925",borderRadius:8,padding:12}}>
-                <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>Airframe</div>
+              <div style={{background:"var(--color-technical-grey)",borderRadius:8,padding:12}}>
+                <div style={{fontSize:10,fontWeight:700,color:"var(--color-ochre)",textTransform:"uppercase",marginBottom:8}}>Airframe</div>
                 {[["MSN",extracted.parsed.msn||matchedAsset?.msn||"—"],["Registration",extracted.parsed.registration||matchedAsset?.registration||"—"],["Matched Aircraft",matchedAsset?`MSN ${matchedAsset.msn} — ${matchedAsset.registration||"—"}`:"Not yet matched"]].map(([l,v])=>(
-                  <div key={l} className="flj" style={{padding:"4px 0",borderBottom:"1px solid #1e3048"}}><span style={{fontSize:11,color:"#475569"}}>{l}</span><span style={{fontSize:12,fontWeight:700,color:"#f1f5f9"}}>{v?.toString()||"—"}</span></div>
+                  <div key={l} className="flj" style={{padding:"4px 0",borderBottom:"1px solid var(--color-divider)"}}><span style={{fontSize:11,color:"var(--color-graphite)"}}>{l}</span><span style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)"}}>{v?.toString()||"—"}</span></div>
                 ))}
               </div>
-              <div style={{background:"#0d1925",borderRadius:8,padding:12}}>
-                <div style={{fontSize:10,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:8}}>Engines & APU</div>
+              <div style={{background:"var(--color-technical-grey)",borderRadius:8,padding:12}}>
+                <div style={{fontSize:10,fontWeight:700,color:"var(--color-ochre)",textTransform:"uppercase",marginBottom:8}}>Engines & APU</div>
                 {(()=>{
                   const msn=(extracted.parsed.msn||"").toString().replace(/^0+/,"");
                   const prev=assets.find(a=>a.msn?.toString().replace(/^0+/,"")===msn);
@@ -526,12 +526,12 @@ const extract=async()=>{
                   return rows.map(([l,v,prevV,isNum,isSN])=>{
                     const changed=isSN&&prevV&&v&&String(v)!==String(prevV);
                     const delta=isNum&&v&&prevV?v-prevV:null;
-                    const deltaCol=delta===null?"#475569":delta<0?"#f87171":delta>500?"#fbbf24":"#34d399";
-                    return<div key={l} className="flj" style={{padding:"5px 6px",borderBottom:"1px solid #1e3048",background:changed?"#2a1400":"transparent",borderRadius:3}}>
-                      <span style={{fontSize:11,color:"#5a7a9a"}}>{l}</span>
+                    const deltaCol=delta===null?"var(--color-graphite)":delta<0?"var(--color-critical)":delta>500?"var(--color-attention)":"var(--color-positive)";
+                    return<div key={l} className="flj" style={{padding:"5px 6px",borderBottom:"1px solid var(--color-divider)",background:changed?"var(--color-attention-tint)":"transparent",borderRadius:3}}>
+                      <span style={{fontSize:11,color:"var(--color-graphite)"}}>{l}</span>
                       <div style={{textAlign:"right"}}>
-                        <span style={{fontSize:12,fontWeight:700,color:changed?"#fbbf24":"#f1f5f9"}}>{v?.toString()||"—"}</span>
-                        {changed&&<span style={{fontSize:10,color:"#f87171",marginLeft:6}}>⚠ changed</span>}
+                        <span style={{fontSize:12,fontWeight:700,color:changed?"var(--color-attention)":"var(--color-carbon)"}}>{v?.toString()||"—"}</span>
+                        {changed&&<span style={{fontSize:10,color:"var(--color-critical)",marginLeft:6}}>⚠ changed</span>}
                         {delta!==null&&<span style={{fontSize:10,color:deltaCol,marginLeft:6}}>{delta>0?"+":""}{delta}</span>}
                       </div>
                     </div>;
@@ -554,9 +554,9 @@ const extract=async()=>{
                 if(dc.status==="first_report")return null;
                 const isProblem=dc.status==="mismatch"||dc.status==="out_of_order"||dc.status==="period_unparseable";
                 const isInfo=dc.status==="gap_detected"||dc.status==="same_month_merge";
-                const bg=isProblem?"#2a0e0e":isInfo?"#2a1f0a":"#0d2818";
-                const border=isProblem?"#7f1d1d":isInfo?"#92660a":"#166534";
-                const fg=isProblem?"#f87171":isInfo?"#fbbf24":"#34d399";
+                const bg=isProblem?"var(--color-critical-tint)":isInfo?"var(--color-attention-tint)":"var(--color-positive-tint)";
+                const border=isProblem?"var(--color-critical)":isInfo?"var(--color-attention)":"var(--color-positive)";
+                const fg=isProblem?"var(--color-critical)":isInfo?"var(--color-attention)":"var(--color-positive)";
                 const headline=dc.status==="out_of_order"
                   ?"⚠ Out-of-order upload — this period predates the asset's current data. Will be saved to history only; live state will not change."
                   :dc.status==="mismatch"
@@ -576,37 +576,37 @@ const extract=async()=>{
                 const showGapLine=dc.monthsGap!==null&&dc.monthsGap>1&&dc.status!=="gap_detected";
                 return<div style={{gridColumn:"1/-1",background:bg,border:`1px solid ${border}`,borderRadius:6,padding:"8px 12px"}}>
                   <div style={{fontSize:11,fontWeight:700,color:fg}}>{headline}</div>
-                  {showGapLine&&<div style={{fontSize:11,fontWeight:700,color:"#fbbf24",marginTop:4}}>
+                  {showGapLine&&<div style={{fontSize:11,fontWeight:700,color:"var(--color-attention)",marginTop:4}}>
                     ⚠ Also: gap detected — {dc.monthsGap} months since last report. Delta tolerance was widened accordingly before checking the figures above.
                   </div>}
-                  {dc.fc.calc!==null&&<div style={{fontSize:10,color:"#64748b",marginTop:2}}>
+                  {dc.fc.calc!==null&&<div style={{fontSize:10,color:"var(--color-graphite)",marginTop:2}}>
                     FC delta: {dc.fc.calc} · Period FC: {dc.fc.reported??"—"} {dc.fc.match===false?"⚠":dc.fc.match===true?"✓":""}
                   </div>}
-                  {dc.fh.calc!==null&&<div style={{fontSize:10,color:"#64748b"}}>
+                  {dc.fh.calc!==null&&<div style={{fontSize:10,color:"var(--color-graphite)"}}>
                     FH delta: {fmtHHMM(dc.fh.calc)} · Period FH: {extracted.parsed.airframe?.fh_period||"—"} {dc.fh.match===false?"⚠":dc.fh.match===true?"✓":""}
                   </div>}
                 </div>;
               })()}
             </div>
           )}
-          <div className="flj" style={{marginTop:16,paddingTop:14,borderTop:"1px solid #1e3048"}}>
+          <div className="flj" style={{marginTop:16,paddingTop:14,borderTop:"1px solid var(--color-divider)"}}>
             <button className="btn btn-ghost" disabled={saving} onClick={()=>{setExtracted(null);setFile(null);}}>Discard</button>
             <button className="btn btn-gold" disabled={saving} onClick={uploadType==="util"?confirmSave:uploadType==="tac"?confirmTAC:confirmLLP}>{saving?"Saving…":"✓ Confirm & Save"}</button>
           </div>
         </div>
       )}
       {done&&(
-        <div style={{background:"#0d2818",border:"1px solid #166534",borderRadius:8,padding:24,textAlign:"center"}}>
+        <div style={{background:"var(--color-positive-tint)",border:"1px solid var(--color-positive)",borderRadius:8,padding:24,textAlign:"center"}}>
           <div style={{fontSize:36,marginBottom:8}}>✅</div>
-          <div style={{fontWeight:700,color:"#34d399",fontSize:16,marginBottom:10}}>Saved successfully</div>
+          <div style={{fontWeight:700,color:"var(--color-positive)",fontSize:16,marginBottom:10}}>Saved successfully</div>
           {extracted?.warnings?.length>0&&(
-            <div style={{background:"#2a1f0a",border:"1px solid #78350f",borderRadius:6,padding:12,marginBottom:14,textAlign:"left"}}>
-              <div style={{fontSize:11,fontWeight:700,color:"#fbbf24",marginBottom:6}}>⚠ Flags to review:</div>
+            <div style={{background:"var(--color-attention-tint)",border:"1px solid var(--color-attention)",borderRadius:6,padding:12,marginBottom:14,textAlign:"left"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--color-attention)",marginBottom:6}}>⚠ Flags to review:</div>
               {(extracted.snChanges||[]).filter(c=>c.component==="engine").map((c,i)=>(
                 <EngineSNAction key={"eng"+i} change={c} prevEngines={extracted.prevEngines||[]} mergedAsset={extracted.mergedAsset} saveAsset={saveAsset} notify={notify}/>
               ))}
               {extracted.warnings.filter(w=>!/^⚠ Engine \d+ S\/N change:/.test(w)).map((w,i)=>(
-                <div key={i} style={{fontSize:12,color:"#fcd34d",marginBottom:4,lineHeight:1.5}}>{w}</div>
+                <div key={i} style={{fontSize:12,color:"var(--color-attention)",marginBottom:4,lineHeight:1.5}}>{w}</div>
               ))}
             </div>
           )}

@@ -43,16 +43,16 @@ function ProspectListView({assets,saveAsset,notify,userRole,onSelect,loadAssets}
     <div>
       <div className="flj" style={{marginBottom:14}}>
         <div>
-          <h1 style={{fontSize:20,color:"#C9A84C",fontWeight:700}}>Prospect Assets</h1>
-          <p style={{color:"#475569",fontSize:12}}>Ad hoc / deal-evaluation aircraft and engines — kept separate from the live fleet. Anyone can create and edit prospects.</p>
+          <h1 style={{fontSize:20,color:"var(--color-ochre)",fontWeight:700}}>Prospect Assets</h1>
+          <p style={{color:"var(--color-graphite)",fontSize:12}}>Ad hoc / deal-evaluation aircraft and engines — kept separate from the live fleet. Anyone can create and edit prospects.</p>
         </div>
         <button className="btn btn-gold" onClick={()=>setShowNew(true)}>+ New Prospect</button>
       </div>
       {showNew&&(
         <div className="card" style={{padding:20,marginBottom:16}}>
           <div className="flab g8" style={{marginBottom:14}}>
-            <button type="button" onClick={()=>setKind("aircraft")} className="btn" style={{fontSize:12,padding:"6px 14px",background:kind==="aircraft"?"#C9A84C":"transparent",color:kind==="aircraft"?"#0a1520":"#94a3b8",border:"1px solid #C9A84C",fontWeight:700}}>✈ Whole Aircraft</button>
-            <button type="button" onClick={()=>setKind("engine")} className="btn" style={{fontSize:12,padding:"6px 14px",background:kind==="engine"?"#C9A84C":"transparent",color:kind==="engine"?"#0a1520":"#94a3b8",border:"1px solid #C9A84C",fontWeight:700}}>⚙ Standalone Engine</button>
+            <button type="button" onClick={()=>setKind("aircraft")} className="btn" style={{fontSize:12,padding:"6px 14px",background:kind==="aircraft"?"var(--color-ochre)":"transparent",color:kind==="aircraft"?"var(--color-carbon)":"var(--color-graphite)",border:"1px solid var(--color-ochre)",fontWeight:700}}>✈ Whole Aircraft</button>
+            <button type="button" onClick={()=>setKind("engine")} className="btn" style={{fontSize:12,padding:"6px 14px",background:kind==="engine"?"var(--color-ochre)":"transparent",color:kind==="engine"?"var(--color-carbon)":"var(--color-graphite)",border:"1px solid var(--color-ochre)",fontWeight:700}}>⚙ Standalone Engine</button>
           </div>
           {kind==="aircraft"?(
             <>
@@ -67,7 +67,7 @@ function ProspectListView({assets,saveAsset,notify,userRole,onSelect,loadAssets}
           ):(
             <>
               <div className="section-title">New Prospect Engine</div>
-              <p style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>For evaluating a bare spare engine deal — no airframe attached. Produces a standalone engine tech spec.</p>
+              <p style={{fontSize:11,color:"var(--color-graphite)",marginBottom:10}}>For evaluating a bare spare engine deal — no airframe attached. Produces a standalone engine tech spec.</p>
               <div className="grid3" style={{gap:10,marginBottom:12}}>
                 <div><label className="form-label">ESN *</label><input value={newE.esn} onChange={e=>setNewE({...newE,esn:e.target.value})} className={!newE.esn?"amber":""}/></div>
                 <div><label className="form-label">Engine Type</label><input value={newE.engineType} onChange={e=>setNewE({...newE,engineType:e.target.value})}/></div>
@@ -80,7 +80,7 @@ function ProspectListView({assets,saveAsset,notify,userRole,onSelect,loadAssets}
       )}
       <div className="grid3" style={{gap:14}}>
         {assets.length===0&&!showNew&&(
-          <div style={{gridColumn:"1/-1",textAlign:"center",padding:60,color:"#475569"}}>
+          <div style={{gridColumn:"1/-1",textAlign:"center",padding:60,color:"var(--color-graphite)"}}>
             <div style={{fontSize:40,marginBottom:12}}>📋</div>
             <p style={{fontSize:14,fontWeight:600}}>No prospect assets yet</p>
             <p style={{fontSize:12,marginTop:6}}>Create one to evaluate a deal — generate an indicative tech spec without touching the live fleet.</p>
@@ -91,18 +91,18 @@ function ProspectListView({assets,saveAsset,notify,userRole,onSelect,loadAssets}
           return(
             <div key={a.id} className="card" style={{padding:16,cursor:"pointer"}} onClick={()=>onSelect(a.id)}>
               <div className="flj" style={{marginBottom:8}}>
-                <span style={{fontWeight:700,color:"#C9A84C",fontFamily:"monospace",fontSize:14}}>{isEngine?`⚙ ESN ${a.engines?.[0]?.sn||"—"}`:a.msn}</span>
+                <span style={{fontWeight:700,color:"var(--color-ochre)",fontFamily:"monospace",fontSize:14}}>{isEngine?`⚙ ESN ${a.engines?.[0]?.sn||"—"}`:a.msn}</span>
                 {canDelete&&<button className="btn-danger btn" style={{fontSize:10,padding:"3px 8px"}} onClick={e=>{e.stopPropagation();deleteProspect(a.id);}}>Delete</button>}
               </div>
               {isEngine?(
                 <>
-                  <div style={{fontSize:13,fontWeight:600,color:"#e2e8f0"}}>{a.engines?.[0]?.type||"Engine type not entered"}</div>
-                  <div style={{fontSize:12,color:"#94a3b8"}}>{a.engines?.[0]?.thrust||"—"} thrust</div>
+                  <div style={{fontSize:13,fontWeight:600,color:"var(--color-carbon)"}}>{a.engines?.[0]?.type||"Engine type not entered"}</div>
+                  <div style={{fontSize:12,color:"var(--color-graphite)"}}>{a.engines?.[0]?.thrust||"—"} thrust</div>
                 </>
               ):(
                 <>
-                  <div style={{fontSize:13,fontWeight:600,color:"#e2e8f0"}}>{a.registration||"No registration yet"}</div>
-                  <div style={{fontSize:12,color:"#94a3b8"}}>{a.model} · {a.operator||"—"}</div>
+                  <div style={{fontSize:13,fontWeight:600,color:"var(--color-carbon)"}}>{a.registration||"No registration yet"}</div>
+                  <div style={{fontSize:12,color:"var(--color-graphite)"}}>{a.model} · {a.operator||"—"}</div>
                 </>
               )}
               <div className="flab g8" style={{marginTop:12}}>
@@ -248,18 +248,18 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
     const parts=path.split(".");const val=parts.reduce((o,k)=>o?.[k],d);
     const isHidden=hiddenFields.includes(path);
     return(
-      <div className="flj" style={{padding:"6px 0",borderBottom:"1px solid #0f2030",opacity:isHidden?0.4:1,gap:10}}>
-        <span style={{fontSize:12,color:"#94a3b8",flexShrink:0,width:230}}>{label}</span>
+      <div className="flj" style={{padding:"6px 0",borderBottom:"1px solid var(--color-divider-inner)",opacity:isHidden?0.4:1,gap:10}}>
+        <span style={{fontSize:12,color:"var(--color-graphite)",flexShrink:0,width:230}}>{label}</span>
         {kind==="text"
           ?<input type="text" defaultValue={val||""} onBlur={e=>commit(path,e.target.value)} style={{flex:1,fontSize:12}}/>
-          :<button type="button" onClick={()=>toggle(path)} className="pill" style={{background:val?"#0d2818":"#2a0e0e",color:val?"#34d399":"#f87171",border:"none",cursor:"pointer",fontSize:11,flex:1,textAlign:"center"}}>{val?"Installed":"Not Installed"}</button>}
-        <button type="button" tabIndex={-1} onClick={()=>toggleHide(path)} title={isHidden?"Show in tech spec":"Hide from tech spec"} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:isHidden?"#475569":"#C9A84C",padding:"0 4px",flexShrink:0}}>{isHidden?"🚫":"👁"}</button>
+          :<button type="button" onClick={()=>toggle(path)} className="pill" style={{background:val?"var(--color-positive-tint)":"var(--color-critical-tint)",color:val?"var(--color-positive)":"var(--color-critical)",border:"none",cursor:"pointer",fontSize:11,flex:1,textAlign:"center"}}>{val?"Installed":"Not Installed"}</button>}
+        <button type="button" tabIndex={-1} onClick={()=>toggleHide(path)} title={isHidden?"Show in tech spec":"Hide from tech spec"} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:isHidden?"var(--color-graphite)":"var(--color-ochre)",padding:"0 4px",flexShrink:0}}>{isHidden?"🚫":"👁"}</button>
       </div>
     );
   };
   const weightRow=(label,kKg,kLb)=>(
     <tr key={kKg}>
-      <td style={{color:"#64748b"}}>{label}</td>
+      <td style={{color:"var(--color-graphite)"}}>{label}</td>
       <td><input type="number" defaultValue={d.weights?.[kKg]||""} onBlur={e=>{
         const kg=e.target.value===""?"":+e.target.value;
         const f=JSON.parse(JSON.stringify(assetsRef.current));
@@ -268,7 +268,7 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
         f.weights[kLb]=kg?Math.round(kg*2.20462):"";
         commitObject(f);
       }} style={{width:100}}/></td>
-      <td style={{color:"#475569"}}><input type="number" defaultValue={d.weights?.[kLb]||""} onBlur={e=>{
+      <td style={{color:"var(--color-graphite)"}}><input type="number" defaultValue={d.weights?.[kLb]||""} onBlur={e=>{
         const lb=e.target.value===""?"":+e.target.value;
         const f=JSON.parse(JSON.stringify(assetsRef.current));
         if(!f.weights)f.weights={};
@@ -289,13 +289,13 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
         <div style={{flex:1}}>
           {isEngineProspect?(
             <>
-              <h1 style={{fontSize:18,color:"#C9A84C",fontWeight:700}}>Prospect Engine — ESN {d.engines?.[0]?.sn||"—"}</h1>
-              <p style={{color:"#475569",fontSize:12}}>{d.engines?.[0]?.type||"Engine type not entered"} {saving&&<span style={{color:"#94a3b8"}}> · saving…</span>}</p>
+              <h1 style={{fontSize:18,color:"var(--color-ochre)",fontWeight:700}}>Prospect Engine — ESN {d.engines?.[0]?.sn||"—"}</h1>
+              <p style={{color:"var(--color-graphite)",fontSize:12}}>{d.engines?.[0]?.type||"Engine type not entered"} {saving&&<span style={{color:"var(--color-graphite)"}}> · saving…</span>}</p>
             </>
           ):(
             <>
-              <h1 style={{fontSize:18,color:"#C9A84C",fontWeight:700}}>Prospect MSN {d.msn} — {d.registration||"—"}</h1>
-              <p style={{color:"#475569",fontSize:12}}>{d.model} · {d.operator||"—"} {saving&&<span style={{color:"#94a3b8"}}> · saving…</span>}</p>
+              <h1 style={{fontSize:18,color:"var(--color-ochre)",fontWeight:700}}>Prospect MSN {d.msn} — {d.registration||"—"}</h1>
+              <p style={{color:"var(--color-graphite)",fontSize:12}}>{d.model} · {d.operator||"—"} {saving&&<span style={{color:"var(--color-graphite)"}}> · saving…</span>}</p>
             </>
           )}
         </div>
@@ -314,7 +314,7 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
               <div className="form-group">
                 <label className="form-label" style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
                   <span>{d.operatorLabel||"Current Operator"}</span>
-                  <button type="button" tabIndex={-1} onClick={()=>commit("operatorLabel",d.operatorLabel==="Previous Operator"?"Current Operator":"Previous Operator")} style={{fontSize:9,fontWeight:700,padding:"1px 7px",borderRadius:3,border:"1px solid #C9A84C",background:"none",color:"#C9A84C",cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",flexShrink:0}}>{"→ "+(d.operatorLabel==="Previous Operator"?"Current":"Previous")}</button>
+                  <button type="button" tabIndex={-1} onClick={()=>commit("operatorLabel",d.operatorLabel==="Previous Operator"?"Current Operator":"Previous Operator")} style={{fontSize:9,fontWeight:700,padding:"1px 7px",borderRadius:3,border:"1px solid var(--color-ochre)",background:"none",color:"var(--color-ochre)",cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",flexShrink:0}}>{"→ "+(d.operatorLabel==="Previous Operator"?"Current":"Previous")}</button>
                 </label>
                 <input type="text" defaultValue={d.operator||""} onBlur={e=>commit("operator",e.target.value)}/>
               </div>
@@ -322,8 +322,8 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
               <PField label="Manufacturer" val={d.manufacturer} onCommit={v=>commit("manufacturer",v)}/>
               <PField label="Date of Manufacture" val={d.dom} type="date" onCommit={v=>commit("dom",v)}/>
             </div>
-            <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #1e3048"}}>
-              <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:8}}>Current Airframe</div>
+            <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid var(--color-divider)"}}>
+              <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:8}}>Current Airframe</div>
               <div className="grid2" style={{gap:"0 16px"}}>
                 <PField label="Airframe TSN (HH:MM)" val={af.currentFH} onCommit={v=>commit("airframe.currentFH",parseHHMM(v))} placeholder="0:00"/>
                 <PField label="Airframe CSN" val={af.currentFC} type="number" onCommit={v=>commit("airframe.currentFC",v)}/>
@@ -343,10 +343,10 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
 
           <div className="card" style={{padding:18}}>
             <div className="section-title">Specifications</div>
-            <div style={{fontSize:10,color:"#475569",marginBottom:10}}>👁 fields appear in the generated tech spec; 🚫 fields are entered here but hidden from the output.</div>
+            <div style={{fontSize:10,color:"var(--color-graphite)",marginBottom:10}}>👁 fields appear in the generated tech spec; 🚫 fields are entered here but hidden from the output.</div>
             {SPEC_FIELDS.map(f=><SpecRow key={f.path} {...f}/>)}
             <div style={{marginTop:14}}>
-              <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Custom Fields</div>
+              <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Custom Fields</div>
               {[0,1,2,3,4].map(idx=>{
                 const cf=(d.specs?.custom||[])[idx]||{label:"",value:""};
                 return(
@@ -357,7 +357,7 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
                       while(f.specs.custom.length<5)f.specs.custom.push({});
                       f.specs.custom[idx]={...f.specs.custom[idx],label:e.target.value};
                       commitObject(f);
-                    }} style={{width:160,fontStyle:"italic",color:"#64748b"}}/>
+                    }} style={{width:160,fontStyle:"italic",color:"var(--color-graphite)"}}/>
                     <input placeholder="Value" defaultValue={cf.value||""} onBlur={e=>{
                       const f=JSON.parse(JSON.stringify(assetsRef.current));
                       if(!f.specs)f.specs={};if(!f.specs.custom)f.specs.custom=[{},{},{},{},{}];
@@ -388,14 +388,14 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
                   <PField label="TSN (HH:MM)" val={eng.currentFH} onCommit={v=>commit(`engines.${ei}.currentFH`,parseHHMM(v))} placeholder="0:00"/>
                   <PField label="CSN" val={eng.currentFC} type="number" onCommit={v=>commit(`engines.${ei}.currentFC`,v)}/>
                 </div>
-                <div style={{marginTop:10,fontSize:11,color:"#475569",fontStyle:"italic"}}>{eng.llps?.length?`${eng.llps.length} LLP line(s) recorded.`:"No LLP data yet."}</div>
+                <div style={{marginTop:10,fontSize:11,color:"var(--color-graphite)",fontStyle:"italic"}}>{eng.llps?.length?`${eng.llps.length} LLP line(s) recorded.`:"No LLP data yet."}</div>
               </div>
             );
           })}
 
           <div className="card" style={{padding:18}}>
             <div className="section-title">Engine LLP Extraction</div>
-            <p style={{fontSize:11,color:"#94a3b8"}}>{isEngineProspect?"Upload the Engine LLP Status Sheet (PDF) for this engine.":"Upload the Engine LLP Status Sheet (PDF) — it covers both engines. Extracted rows are matched to the engine slot by serial number where possible, otherwise applied in sheet order."}</p>
+            <p style={{fontSize:11,color:"var(--color-graphite)"}}>{isEngineProspect?"Upload the Engine LLP Status Sheet (PDF) for this engine.":"Upload the Engine LLP Status Sheet (PDF) — it covers both engines. Extracted rows are matched to the engine slot by serial number where possible, otherwise applied in sheet order."}</p>
             <LLPExtractor kind="llp" label="Engine LLP Sheet (PDF)" notify={notify} onApply={parsed=>{
               const f=JSON.parse(JSON.stringify(assetsRef.current));
               const engines=f.engines||[];
@@ -443,8 +443,8 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
                   }}/>
                   <PField label="Last OH FC" val={g.lastOverhaulFC} type="number" onCommit={v=>commit(`landingGear.${k}.lastOverhaulFC`,v)}/>
                 </div>
-                <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid #1e3048"}}>
-                  <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:8}}>Current Totals (Ground Truth)</div>
+                <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--color-divider)"}}>
+                  <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:8}}>Current Totals (Ground Truth)</div>
                   <div className="grid2" style={{gap:"0 16px"}}>
                     <PField label="Leg TSN (HH:MM)" val={g.currentFH} onCommit={v=>commit(`landingGear.${k}.currentFH`,parseHHMM(v))} placeholder="0:00"/>
                     <PField label="Leg CSN" val={g.currentFC} type="number" onCommit={v=>commit(`landingGear.${k}.currentFC`,v)}/>
@@ -463,7 +463,7 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
               <PField label="TSN (HH:MM)" val={d.apu?.currentFH} onCommit={v=>commit("apu.currentFH",parseHHMM(v))} placeholder="0:00"/>
               <PField label="CSN" val={d.apu?.currentFC} type="number" onCommit={v=>commit("apu.currentFC",v)}/>
             </div>
-            <div style={{marginTop:10,fontSize:11,color:"#475569",fontStyle:"italic"}}>{d.apu?.llps?.length?`${d.apu.llps.length} LLP line(s) recorded.`:"No LLP data yet."}</div>
+            <div style={{marginTop:10,fontSize:11,color:"var(--color-graphite)",fontStyle:"italic"}}>{d.apu?.llps?.length?`${d.apu.llps.length} LLP line(s) recorded.`:"No LLP data yet."}</div>
             <LLPExtractor kind="apu_llp" label="APU LLP Sheet (PDF)" notify={notify} onApply={parsed=>{
               const f=JSON.parse(JSON.stringify(assetsRef.current));
               let apu=f.apu||{};
@@ -481,12 +481,12 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
 
           <div className="card" style={{padding:18}}>
             <div className="section-title">Checks</div>
-            <p style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>A check with no dates entered is left off the tech spec entirely — it won't show up as a blank row.</p>
+            <p style={{fontSize:11,color:"var(--color-graphite)",marginBottom:10}}>A check with no dates entered is left off the tech spec entirely — it won't show up as a blank row.</p>
             {(d.checks||[]).map((c,ci)=>{
               const yrs=(()=>{const m=/(\d+)\s*Year/i.exec(c.name);return m?+m[1]:null;})();
               return(
-                <div key={ci} style={{marginBottom:12,paddingBottom:12,borderBottom:ci<d.checks.length-1?"1px solid #1e3048":"none"}}>
-                  <div style={{fontSize:12,fontWeight:600,color:"#94a3b8",marginBottom:6}}>{c.name}</div>
+                <div key={ci} style={{marginBottom:12,paddingBottom:12,borderBottom:ci<d.checks.length-1?"1px solid var(--color-divider)":"none"}}>
+                  <div style={{fontSize:12,fontWeight:600,color:"var(--color-graphite)",marginBottom:6}}>{c.name}</div>
                   <div className="grid2" style={{gap:"0 16px"}}>
                     <div className="form-group">
                       <label className="form-label">Last Date (auto-fills Next Due)</label>
@@ -509,10 +509,10 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
 
           <div className="card" style={{padding:18}}>
             <div className="section-title">Wheels &amp; Brakes</div>
-            <p style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>Leave a row blank to leave it off the tech spec — only rows with a P/N or manufacturer entered are shown.</p>
+            <p style={{fontSize:11,color:"var(--color-graphite)",marginBottom:10}}>Leave a row blank to leave it off the tech spec — only rows with a P/N or manufacturer entered are shown.</p>
             {[["mainWheels","Main Wheels"],["noseWheels","Nose Wheels"],["brakes","Brake Units"]].map(([key,wlabel])=>(
-              <div key={key} style={{marginBottom:12,paddingBottom:12,borderBottom:key!=="brakes"?"1px solid #1e3048":"none"}}>
-                <div style={{fontSize:12,fontWeight:600,color:"#94a3b8",marginBottom:6}}>{wlabel}</div>
+              <div key={key} style={{marginBottom:12,paddingBottom:12,borderBottom:key!=="brakes"?"1px solid var(--color-divider)":"none"}}>
+                <div style={{fontSize:12,fontWeight:600,color:"var(--color-graphite)",marginBottom:6}}>{wlabel}</div>
                 <div className="grid3" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"0 16px"}}>
                   <PField label="Qty" type="number" val={d.wheelsBrakes?.[key]?.qty} onCommit={v=>commit(`wheelsBrakes.${key}.qty`,v)}/>
                   <PField label="Part Number" val={d.wheelsBrakes?.[key]?.pn} onCommit={v=>commit(`wheelsBrakes.${key}.pn`,v)}/>
@@ -531,13 +531,13 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
 
           <div className="card" style={{padding:18}}>
             <div className="section-title">Photos</div>
-            <p style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>Airframe (cover photo), LOPA (with crop tool), Avionics, and any other reference photos — same categories as the live fleet.</p>
+            <p style={{fontSize:11,color:"var(--color-graphite)",marginBottom:10}}>Airframe (cover photo), LOPA (with crop tool), Avionics, and any other reference photos — same categories as the live fleet.</p>
             <PhotoManager asset={d} saveAsset={photoSaveAsset} notify={notify} label="photos" field="photos"/>
           </div>
 
-          <div className="card" style={{padding:20,background:"#0d1c2c",border:"1px solid #C9A84C"}}>
-            <div className="section-title" style={{color:"#C9A84C"}}>That's the full template</div>
-            <p style={{fontSize:12,color:"#94a3b8",marginBottom:14}}>Every field above feeds the preview on the right and autosaves as you go. When you're happy with it:</p>
+          <div className="card" style={{padding:20,background:"var(--color-technical-grey)",border:"1px solid var(--color-ochre)"}}>
+            <div className="section-title" style={{color:"var(--color-ochre)"}}>That's the full template</div>
+            <p style={{fontSize:12,color:"var(--color-graphite)",marginBottom:14}}>Every field above feeds the preview on the right and autosaves as you go. When you're happy with it:</p>
             <div className="flab g8" style={{flexWrap:"wrap"}}>
               <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>generateTechSpec(specAsset)}>📋 Generate Full Tech Spec</button>
               <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={onBack}>← Back to Prospects List</button>
@@ -548,11 +548,11 @@ function ProspectEditor({asset,saveAsset,notify,onBack}){
 
         <div style={{flex:"1 1 50%",minWidth:0,position:"sticky",top:88}}>
           <div className="card" style={{padding:0,overflow:"hidden",height:"calc(100vh - 160px)"}}>
-            <div className="flj" style={{padding:"10px 14px",borderBottom:"1px solid #1e3048",background:"#0d1c2c"}}>
-              <span style={{fontSize:12,fontWeight:700,color:"#C9A84C",letterSpacing:"0.04em",textTransform:"uppercase"}}>Live Tech Spec Preview</span>
-              <span style={{fontSize:11,color:"#475569"}}>Updates when you leave a field</span>
+            <div className="flj" style={{padding:"10px 14px",borderBottom:"1px solid var(--color-divider)",background:"var(--color-technical-grey)"}}>
+              <span style={{fontSize:12,fontWeight:700,color:"var(--color-ochre)",letterSpacing:"0.04em",textTransform:"uppercase"}}>Live Tech Spec Preview</span>
+              <span style={{fontSize:11,color:"var(--color-graphite)"}}>Updates when you leave a field</span>
             </div>
-            <iframe title="Tech spec preview" srcDoc={previewHtml} style={{width:"100%",height:"calc(100% - 38px)",border:"none",background:"#fff"}}/>
+            <iframe title="Tech spec preview" srcDoc={previewHtml} style={{width:"100%",height:"calc(100% - 38px)",border:"none",background:"var(--color-soft-white)"}}/>
           </div>
         </div>
       </div>
