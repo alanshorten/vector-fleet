@@ -10,7 +10,7 @@ import { getEndOfLeaseTermsDefaults } from '../lib/knowledgeBase';
 const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 function colorForCode(code) {
-  return FF_COLORS[(code || "").replace(/-/g, "")] || "#64748b";
+  return FF_COLORS[(code || "").replace(/-/g, "")] || "var(--color-graphite)";
 }
 
 // --- SV Cost Tracker (monthly-report-cost-tracker-handoff.md §2, TECH_DEBT.md 4.101) ---
@@ -279,7 +279,10 @@ function FFPotCard({ projection, color, anchored }) {
     eventPoints = projection.monthlySeries.map(m => eventLikelyByMonth[m.monthIndex] ?? null);
   }
 
-  // Post-lease balance line: muted colour, dashed
+  // Post-lease balance line: muted colour, dashed. Canvas-bound Chart.js
+  // colors — literal hex, matched to the design system (graphite for the
+  // frozen line, carbon for the event-cost marker so it stands out against
+  // the light card background instead of disappearing into it).
   const datasets = hasPostLease ? [
     {
       label: "Projected Balance",
@@ -294,7 +297,7 @@ function FFPotCard({ projection, color, anchored }) {
     {
       label: "Frozen balance (post-lease)",
       data: [...Array(leaseEndIdx + 1).fill(null), ...balanceData.slice(leaseEndIdx + 1)],
-      borderColor: "#475569",
+      borderColor: "#687078",
       backgroundColor: "transparent",
       fill: false,
       tension: 0,
@@ -305,15 +308,15 @@ function FFPotCard({ projection, color, anchored }) {
     {
       label: "Event Cost (likely)",
       data: eventPoints,
-      borderColor: "#e2e8f0",
-      backgroundColor: "#e2e8f0",
+      borderColor: "#151A1D",
+      backgroundColor: "#151A1D",
       pointRadius: 5,
       pointStyle: "rectRot",
       showLine: false
     }
   ] : [
     { label: "Projected Balance", data: balanceData, borderColor: color, backgroundColor: color + "22", fill: true, tension: 0.15, pointRadius: 0, borderWidth: 2 },
-    { label: "Event Cost (likely)", data: eventPoints, borderColor: "#e2e8f0", backgroundColor: "#e2e8f0", pointRadius: 5, pointStyle: "rectRot", showLine: false }
+    { label: "Event Cost (likely)", data: eventPoints, borderColor: "#151A1D", backgroundColor: "#151A1D", pointRadius: 5, pointStyle: "rectRot", showLine: false }
   ];
 
   const worstShortfallHigh = projection.events.length
@@ -326,15 +329,15 @@ function FFPotCard({ projection, color, anchored }) {
     <div className="card" style={{ padding: 16, marginBottom: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>{projection.code} — {projection.label}</div>
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)" }}>{projection.code} — {projection.label}</div>
+          <div style={{ fontSize: 11, color: "var(--color-graphite)", marginTop: 2 }}>
             {projection.events.length} projected event{projection.events.length===1?"":"s"} within lease
             {note ? ` · next event post-lease ${note.date.toISOString().slice(0,7)}` : ""}
           </div>
         </div>
-        {anchored && <span className="pill" style={{ background: "#0d2818", color: "#34d399" }}>📍 Anchored to real next-due date</span>}
-        {atRisk && !postLeaseShortfall && <span className="pill" style={{ background: "#2a0e0e", color: "#f87171" }}>⚠ Potential shortfall</span>}
-        {postLeaseShortfall && <span className="pill" style={{ background: "#1a1505", color: "#fbbf24" }}>⚠ Post-lease shortfall</span>}
+        {anchored && <span className="pill" style={{ background: "var(--color-positive-tint)", color: "var(--color-positive)" }}>📍 Anchored to real next-due date</span>}
+        {atRisk && !postLeaseShortfall && <span className="pill" style={{ background: "var(--color-critical-tint)", color: "var(--color-critical)" }}>⚠ Potential shortfall</span>}
+        {postLeaseShortfall && <span className="pill" style={{ background: "var(--color-attention-tint)", color: "var(--color-attention)" }}>⚠ Post-lease shortfall</span>}
       </div>
       <MiniLineChart labels={labels} datasets={datasets} leaseEndIdx={hasPostLease ? leaseEndIdx : undefined}/>
 
@@ -343,18 +346,18 @@ function FFPotCard({ projection, color, anchored }) {
         <div style={{ marginTop: 10, overflow: "auto" }}>
           <table style={{ fontSize: 11 }}>
             <thead><tr>
-              <th style={{ color: "#64748b", textAlign: "left" }}>Event Date</th>
-              <th style={{ color: "#64748b", textAlign: "right" }}>Cost Range</th>
-              <th style={{ color: "#64748b", textAlign: "right" }}>Balance at Event</th>
-              <th style={{ color: "#64748b", textAlign: "right" }}>Shortfall Band</th>
+              <th style={{ color: "var(--color-graphite)", textAlign: "left" }}>Event Date</th>
+              <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Cost Range</th>
+              <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Balance at Event</th>
+              <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Shortfall Band</th>
             </tr></thead>
             <tbody>
               {projection.events.map((e, i) => (
                 <tr key={i}>
-                  <td>{e.dateWindow ? `${e.dateWindow.start.toISOString().slice(0,7)} – ${e.dateWindow.end.toISOString().slice(0,7)}` : e.date.toISOString().slice(0, 7)}{e.costIncomplete && <span title="Limiting part has no Approved Life — cost estimate is incomplete" style={{ color: "#fbbf24", marginLeft: 4 }}>⚠</span>}</td>
+                  <td>{e.dateWindow ? `${e.dateWindow.start.toISOString().slice(0,7)} – ${e.dateWindow.end.toISOString().slice(0,7)}` : e.date.toISOString().slice(0, 7)}{e.costIncomplete && <span title="Limiting part has no Approved Life — cost estimate is incomplete" style={{ color: "var(--color-attention)", marginLeft: 4 }}>⚠</span>}</td>
                   <td style={{ textAlign: "right" }}>${Math.round(e.costLow).toLocaleString()} – ${Math.round(e.costHigh).toLocaleString()}</td>
                   <td style={{ textAlign: "right" }}>${Math.round(e.balanceAtEvent).toLocaleString()}</td>
-                  <td style={{ textAlign: "right", color: e.shortfallHigh > 0 ? "#f87171" : "#34d399" }}>
+                  <td style={{ textAlign: "right", color: e.shortfallHigh > 0 ? "var(--color-critical)" : "var(--color-positive)" }}>
                     ${Math.round(e.shortfallLow).toLocaleString()} – ${Math.round(e.shortfallHigh).toLocaleString()}
                   </td>
                 </tr>
@@ -369,13 +372,13 @@ function FFPotCard({ projection, color, anchored }) {
           For all other pots: full event row with cost and shortfall. */}
       {note && projection.events.length === 0 && (
         projection.leaseEndLimiter ? (
-          <div style={{ marginTop: 10, padding: "8px 10px", background: "#0d1e33", borderRadius: 6, fontSize: 11, color: "#94a3b8" }}>
+          <div style={{ marginTop: 10, padding: "8px 10px", background: "var(--color-technical-grey)", borderRadius: 6, fontSize: 11, color: "var(--color-graphite)" }}>
             <div style={{ marginBottom: 4 }}>
-              <span style={{ color: "#64748b", fontWeight: 700 }}>Balance at lease end: </span>
+              <span style={{ color: "var(--color-graphite)", fontWeight: 700 }}>Balance at lease end: </span>
               ${Math.round(note.balanceAtLeaseEnd).toLocaleString()}
             </div>
             <div>
-              <span style={{ color: "#64748b", fontWeight: 700 }}>Lowest limiter: </span>
+              <span style={{ color: "var(--color-graphite)", fontWeight: 700 }}>Lowest limiter: </span>
               {projection.leaseEndLimiter.desc} — {projection.leaseEndLimiter.remainingFC.toLocaleString()} FC remaining
             </div>
           </div>
@@ -383,26 +386,26 @@ function FFPotCard({ projection, color, anchored }) {
           <div style={{ marginTop: 10, overflow: "auto" }}>
             <table style={{ fontSize: 11 }}>
               <thead><tr>
-                <th style={{ color: "#64748b", textAlign: "left" }}>Event Date</th>
-                <th style={{ color: "#64748b", textAlign: "right" }}>Cost Range</th>
-                <th style={{ color: "#64748b", textAlign: "right" }}>Balance at Lease End</th>
-                <th style={{ color: "#64748b", textAlign: "right" }}>Shortfall Band</th>
+                <th style={{ color: "var(--color-graphite)", textAlign: "left" }}>Event Date</th>
+                <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Cost Range</th>
+                <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Balance at Lease End</th>
+                <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Shortfall Band</th>
               </tr></thead>
               <tbody>
                 <tr style={{ opacity: 0.75 }}>
                   <td>
-                    <span style={{ color: "#475569", marginRight: 6, fontSize: 10 }}>POST-LEASE</span>
+                    <span style={{ color: "var(--color-graphite)", marginRight: 6, fontSize: 10 }}>POST-LEASE</span>
                     {note.date.toISOString().slice(0, 7)}
                   </td>
                   <td style={{ textAlign: "right" }}>${Math.round(note.costLow).toLocaleString()} – ${Math.round(note.costHigh).toLocaleString()}</td>
                   <td style={{ textAlign: "right" }}>${Math.round(note.balanceAtLeaseEnd).toLocaleString()}</td>
-                  <td style={{ textAlign: "right", color: note.shortfallHigh > 0 ? "#fbbf24" : "#34d399" }}>
+                  <td style={{ textAlign: "right", color: note.shortfallHigh > 0 ? "var(--color-attention)" : "var(--color-positive)" }}>
                     ${Math.round(note.shortfallLow).toLocaleString()} – ${Math.round(note.shortfallHigh).toLocaleString()}
                   </td>
                 </tr>
               </tbody>
             </table>
-            <div style={{ fontSize: 10, color: "#475569", marginTop: 4 }}>
+            <div style={{ fontSize: 10, color: "var(--color-graphite)", marginTop: 4 }}>
               Pot balance frozen at lease end — accruals stop when this lessee's lease expires. Shortfall is the gap between the frozen balance and the next event cost.
             </div>
           </div>
@@ -410,7 +413,7 @@ function FFPotCard({ projection, color, anchored }) {
       )}
 
       {projection.warnings.map((w, i) => (
-        <div key={i} style={{ marginTop: 8, fontSize: 11, color: "#fbbf24", background: "#2a1f0a", padding: "6px 10px", borderRadius: 6 }}>{w}</div>
+        <div key={i} style={{ marginTop: 8, fontSize: 11, color: "var(--color-attention)", background: "var(--color-attention-tint)", padding: "6px 10px", borderRadius: 6 }}>{w}</div>
       ))}
     </div>
   );
@@ -435,7 +438,7 @@ function AssumptionsPanel({ engineFamily }) {
   }, []);
 
   if (kb === undefined || catalogue === null) {
-    return <div className="card" style={{ padding: 14, marginBottom: 16, color: "#64748b", fontSize: 12 }}>Loading assumptions…</div>;
+    return <div className="card" style={{ padding: 14, marginBottom: 16, color: "var(--color-graphite)", fontSize: 12 }}>Loading assumptions…</div>;
   }
 
   const bands = kb?.checkCostBands || {};
@@ -444,16 +447,16 @@ function AssumptionsPanel({ engineFamily }) {
 
   return (
     <div className="card" style={{ padding: 14, marginBottom: 16, fontSize: 12 }}>
-      <div style={{ fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Assumptions driving this projection</div>
-      <div style={{ color: "#94a3b8", lineHeight: 1.8 }}>
+      <div style={{ fontWeight: 700, color: "var(--color-carbon)", marginBottom: 8 }}>Assumptions driving this projection</div>
+      <div style={{ color: "var(--color-graphite)", lineHeight: 1.8 }}>
         {["AF-6Y", "AF-12Y", "LG-OH", "AP-OH"].map(code => bands[code] && (
           <div key={code}>{code}: ${bands[code].low?.toLocaleString()}–${bands[code].high?.toLocaleString()}</div>
         ))}
         {enPr && <div>EN-PR ({engineFamily}): ${enPr.costLow?.toLocaleString()}–${enPr.costHigh?.toLocaleString()} every {enPr.intervalFH?.toLocaleString()} FH</div>}
         <div>LLP catalogue: {partsInFamily.length} priced part{partsInFamily.length===1?"":"s"} on file for {engineFamily}, escalation {kb?.llpEscalationPctByFamily?.[engineFamily] ?? "—"}%/yr</div>
         {kb?.checkDurationWeeks && <div>Check durations: 2Y {kb.checkDurationWeeks["2Y"]}wk · 6Y {kb.checkDurationWeeks["6Y"]}wk · 12Y {kb.checkDurationWeeks["12Y"]}wk</div>}
-        {!kb && <div style={{ marginTop: 4, color: "#fbbf24" }}>⚠ No Knowledge Base defaults saved yet — figures above are code fallbacks. Set real values in Admin → Knowledge Base.</div>}
-        <div style={{ marginTop: 6, color: "#475569" }}>Read-only here — edit in Admin → Knowledge Base.</div>
+        {!kb && <div style={{ marginTop: 4, color: "var(--color-attention)" }}>⚠ No Knowledge Base defaults saved yet — figures above are code fallbacks. Set real values in Admin → Knowledge Base.</div>}
+        <div style={{ marginTop: 6, color: "var(--color-graphite)" }}>Read-only here — edit in Admin → Knowledge Base.</div>
       </div>
     </div>
   );
@@ -568,33 +571,33 @@ function buildEOLPhysicalInputs(asset, engines, projections, { rate, expiryDate 
 function EOLMoneyCard({ engineResults }) {
   return (
     <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>End of Lease Maintenance Payment Adjustment — Engine LLPs</div>
-      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>End of Lease Maintenance Payment Adjustment — Engine LLPs</div>
+      <div style={{ fontSize: 11, color: "var(--color-graphite)", marginBottom: 12 }}>
         The accumulated receivable owed at Expiry — this lease's own reserve-tail projection, reframed as "what's owed at handback." Always a projection to the Expiry Date, never a settled figure until redelivery.
       </div>
       {engineResults.length === 0 && (
-        <div style={{ fontSize: 12, color: "#64748b" }}>No engine LLP data on file for this asset yet.</div>
+        <div style={{ fontSize: 12, color: "var(--color-graphite)" }}>No engine LLP data on file for this asset yet.</div>
       )}
       {engineResults.map(r => (
-        <div key={r.position} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid #1e3048" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", marginBottom: 6 }}>Engine {r.position} — EN-LP</div>
+        <div key={r.position} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid var(--color-divider-inner)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 6 }}>Engine {r.position} — EN-LP</div>
           {r.uncomputable ? (
-            <div style={{ fontSize: 12, color: "#fbbf24" }}>
+            <div style={{ fontSize: 12, color: "var(--color-attention)" }}>
               ⚠ {r.message}
               {r.rows && r.rows.some(row => row.uncomputable) && (
                 <ul style={{ marginTop: 6, paddingLeft: 18 }}>
                   {r.rows.filter(row => row.uncomputable).map((row, i) => (
-                    <li key={i} style={{ marginTop: 4, color: "#94a3b8" }}>{row.desc || row.pn}: {row.reason}</li>
+                    <li key={i} style={{ marginTop: 4, color: "var(--color-graphite)" }}>{row.desc || row.pn}: {row.reason}</li>
                   ))}
                 </ul>
               )}
             </div>
           ) : (
             <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: r.netPayableByLessee > 0 ? "#f87171" : "#34d399" }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: r.netPayableByLessee > 0 ? "var(--color-critical)" : "var(--color-positive)" }}>
                 ${Math.round(r.netPayableByLessee).toLocaleString()}
               </div>
-              <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: "var(--color-graphite)", marginTop: 4 }}>
                 Gross adjustment ${Math.round(r.grossAdjustment).toLocaleString()} − pot balance at Expiry ${Math.round(r.potBalanceAtExpiry).toLocaleString()} ({r.direction === "one-way" ? "one-way — lessee pays lessor only, never reversed" : "two-way — can go negative, owed the other way"}).
               </div>
             </div>
@@ -608,27 +611,27 @@ function EOLMoneyCard({ engineResults }) {
 function EOLPhysicalCard({ physical }) {
   return (
     <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Physical Position — Redelivery Life Margins</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 12 }}>Physical Position — Redelivery Life Margins</div>
       {physical.checks.length === 0 && (
-        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>No physical margin data available yet for this asset.</div>
+        <div style={{ fontSize: 12, color: "var(--color-graphite)", marginBottom: 8 }}>No physical margin data available yet for this asset.</div>
       )}
       {physical.checks.map((c, i) => (
-        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "8px 0", borderTop: i > 0 ? "1px solid #1e3048" : "none", gap: 12, flexWrap: "wrap" }}>
+        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "8px 0", borderTop: i > 0 ? "1px solid var(--color-divider-inner)" : "none", gap: 12, flexWrap: "wrap" }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>{c.clause} — {c.component}</div>
-            <div style={{ fontSize: 11, color: "#64748b" }}>{c.requirement}</div>
-            {!c.solid && <div style={{ fontSize: 11, color: "#fbbf24", marginTop: 4, maxWidth: 420 }}>⚠ {c.caveat} This figure is additionally derived from a Performance Restoration projection used as a stand-in for "expected removal" — treat it as a rough indicator only, never as the answer to clause 6.3/6.4.</div>}
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-carbon)" }}>{c.clause} — {c.component}</div>
+            <div style={{ fontSize: 11, color: "var(--color-graphite)" }}>{c.requirement}</div>
+            {!c.solid && <div style={{ fontSize: 11, color: "var(--color-attention)", marginTop: 4, maxWidth: 420 }}>⚠ {c.caveat} This figure is additionally derived from a Performance Restoration projection used as a stand-in for "expected removal" — treat it as a rough indicator only, never as the answer to clause 6.3/6.4.</div>}
           </div>
           <div style={{ textAlign: "right", flexShrink: 0 }}>
-            <div style={{ fontSize: 12, color: "#e2e8f0" }}>{c.projectedValue}</div>
-            <div style={{ fontSize: 11, color: c.status === "ok" ? "#34d399" : "#f87171" }}>{c.gap || "Meets requirement"}</div>
+            <div style={{ fontSize: 12, color: "var(--color-carbon)" }}>{c.projectedValue}</div>
+            <div style={{ fontSize: 11, color: c.status === "ok" ? "var(--color-positive)" : "var(--color-critical)" }}>{c.gap || "Meets requirement"}</div>
           </div>
         </div>
       ))}
-      <div style={{ marginTop: 12, fontSize: 11, color: "#94a3b8" }}>{physical.outOfScopeNote}</div>
+      <div style={{ marginTop: 12, fontSize: 11, color: "var(--color-graphite)" }}>{physical.outOfScopeNote}</div>
       <div style={{ marginTop: 6 }}>
         {physical.outOfScopeItems.map((o, i) => (
-          <div key={i} style={{ fontSize: 11, color: "#475569" }}>{o.clause} — {o.component}: {o.reason}</div>
+          <div key={i} style={{ fontSize: 11, color: "var(--color-graphite)" }}>{o.clause} — {o.component}: {o.reason}</div>
         ))}
       </div>
     </div>
@@ -660,12 +663,12 @@ function EndOfLeasePositionView({ asset, lease, projections, rate, engineFamily,
   const physical = window.buildPhysicalPositionChecks(terms.margins, physicalInputs);
 
   return (
-    <div className="card" style={{ padding: 16, marginBottom: 16, border: "1px solid #C9A84C" }}>
+    <div className="card" style={{ padding: 16, marginBottom: 16, border: "1px solid var(--color-teal)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, flexWrap: "wrap", gap: 8 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "#e2e8f0" }}>End of Lease Position — MSN {asset.msn}</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-carbon)" }}>End of Lease Position — MSN {asset.msn}</div>
         <button className="btn btn-ghost" onClick={onClose}>Close ✕</button>
       </div>
-      <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>
+      <div style={{ fontSize: 12, color: "var(--color-graphite)", marginBottom: 16 }}>
         Everything below is projected to the Expiry Date ({expiryDate.toISOString().slice(0, 10)}) — not a measurement, and not a settled figure until redelivery.
       </div>
       <EOLMoneyCard engineResults={engineResults}/>
@@ -727,32 +730,32 @@ function ForwardExposureCard({ exposure, lease, inLeaseShortfallLow, inLeaseShor
   const leaseEndYear = lease?.leaseEnd?.slice(0, 7) || "lease end";
   return (
     <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Forward Exposure Summary</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 12 }}>Forward Exposure Summary</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
-        <div style={{ background: "#0d1e33", borderRadius: 8, padding: "12px 14px" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#64748b", marginBottom: 6 }}>Within This Lease</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: inLeaseShortfallHigh > 0 ? "#f87171" : "#34d399" }}>
+        <div style={{ background: "var(--color-technical-grey)", borderRadius: 8, padding: "12px 14px" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-graphite)", marginBottom: 6 }}>Within This Lease</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: inLeaseShortfallHigh > 0 ? "var(--color-critical)" : "var(--color-positive)" }}>
             {fmt(Math.max(0, inLeaseShortfallLow))} – {fmt(Math.max(0, inLeaseShortfallHigh))}
           </div>
-          <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Reserve pots projected short before {leaseEndYear}</div>
+          <div style={{ fontSize: 11, color: "var(--color-graphite)", marginTop: 4 }}>Reserve pots projected short before {leaseEndYear}</div>
         </div>
-        <div style={{ background: "#0d1e33", borderRadius: 8, padding: "12px 14px" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#64748b", marginBottom: 6 }}>Post-Lease Exposure</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: exposure.postLeaseHigh > 0 ? "#f87171" : "#34d399" }}>
+        <div style={{ background: "var(--color-technical-grey)", borderRadius: 8, padding: "12px 14px" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-graphite)", marginBottom: 6 }}>Post-Lease Exposure</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: exposure.postLeaseHigh > 0 ? "var(--color-critical)" : "var(--color-positive)" }}>
             {fmt(exposure.postLeaseLow)} – {fmt(exposure.postLeaseHigh)}
           </div>
-          <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Next events after {leaseEndYear}, assuming no new lease</div>
+          <div style={{ fontSize: 11, color: "var(--color-graphite)", marginTop: 4 }}>Next events after {leaseEndYear}, assuming no new lease</div>
         </div>
-        <div style={{ background: "#0d1e33", borderRadius: 8, padding: "12px 14px" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#64748b", marginBottom: 6 }}>Total Asset Exposure</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: exposure.totalHigh > 0 ? "#f87171" : "#34d399" }}>
+        <div style={{ background: "var(--color-technical-grey)", borderRadius: 8, padding: "12px 14px" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-graphite)", marginBottom: 6 }}>Total Asset Exposure</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: exposure.totalHigh > 0 ? "var(--color-critical)" : "var(--color-positive)" }}>
             {fmt(exposure.totalLow)} – {fmt(exposure.totalHigh)}
           </div>
-          <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Combined — see Fleet Exposure for full breakdown</div>
+          <div style={{ fontSize: 11, color: "var(--color-graphite)", marginTop: 4 }}>Combined — see Fleet Exposure for full breakdown</div>
         </div>
       </div>
-      <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.6, borderTop: "1px solid #1e3048", paddingTop: 10 }}>
-        <strong style={{ color: "#64748b" }}>Post-lease exposure</strong> assumes no new lease is in place after {leaseEndYear}. Reserve pots stop accruing at lease end — no further lessee contributions are received. The figure shown is the shortfall between each pot's projected balance at lease end and the cost of its next maintenance event, whenever that falls due.
+      <div style={{ fontSize: 11, color: "var(--color-graphite)", lineHeight: 1.6, borderTop: "1px solid var(--color-divider-inner)", paddingTop: 10 }}>
+        <strong style={{ color: "var(--color-carbon)" }}>Post-lease exposure</strong> assumes no new lease is in place after {leaseEndYear}. Reserve pots stop accruing at lease end — no further lessee contributions are received. The figure shown is the shortfall between each pot's projected balance at lease end and the cost of its next maintenance event, whenever that falls due.
       </div>
     </div>
   );
@@ -840,15 +843,15 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
   }, [loading, asset.id, lease?.id]);
 
   if (loading) {
-    return <div style={{ padding: 40, textAlign: "center", color: "#64748b" }}>Loading Fly-Forward projection for MSN {asset.msn}…</div>;
+    return <div style={{ padding: 40, textAlign: "center", color: "var(--color-graphite)" }}>Loading Fly-Forward projection for MSN {asset.msn}…</div>;
   }
 
   if (!asset.currentLeaseId) {
     return (
       <div style={{ animation: "fadeIn 0.2s ease" }}>
         <div className="card" style={{ padding: 24, textAlign: "center" }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>No active lease on this asset</div>
-          <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: canEnterLeaseData ? 16 : 0 }}>Fly-Forward needs a lease and reserve pot data to project against.{canEnterLeaseData ? "" : " Ask an Admin, Editor, or Data Entry user to set one up."}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 8 }}>No active lease on this asset</div>
+          <div style={{ fontSize: 12, color: "var(--color-graphite)", marginBottom: canEnterLeaseData ? 16 : 0 }}>Fly-Forward needs a lease and reserve pot data to project against.{canEnterLeaseData ? "" : " Ask an Admin, Editor, or Data Entry user to set one up."}</div>
           {canEnterLeaseData && <button className="btn btn-gold" style={{ fontSize: 12, padding: "8px 16px" }} onClick={() => setLeaseWizardOpen(true)}>📄 Set Up Lease</button>}
         </div>
         {leaseWizardOpen && <LeaseWizard asset={asset} saveAsset={saveAsset} notify={notify} onClose={() => setLeaseWizardOpen(false)}/>}
@@ -859,7 +862,7 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
   if (loadError || !lease) {
     return (
       <div style={{ animation: "fadeIn 0.2s ease" }}>
-        <div className="card" style={{ padding: 24, textAlign: "center", color: "#f87171" }}>Could not load lease data for this asset.</div>
+        <div className="card" style={{ padding: 24, textAlign: "center", color: "var(--color-critical)" }}>Could not load lease data for this asset.</div>
       </div>
     );
   }
@@ -872,7 +875,7 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
   if (projectionError) {
     return (
       <div style={{ animation: "fadeIn 0.2s ease" }}>
-        <div className="card" style={{ padding: 24, textAlign: "center", color: "#f87171" }}>
+        <div className="card" style={{ padding: 24, textAlign: "center", color: "var(--color-critical)" }}>
           Couldn't build the projection: {projectionError}
         </div>
       </div>
@@ -914,9 +917,9 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
         <EndOfLeasePositionView asset={asset} lease={lease} projections={projections} rate={rate} engineFamily={engineFamily} onClose={() => setShowEOLPosition(false)}/>
       )}
       <div style={headerGridStyle}>
-        <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: mb, gridArea: headerInGrid ? "desc" : undefined }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Fly-Forward — MSN {asset.msn}</div>
-          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+        <div style={{ background: "var(--color-teal-tint)", border: "1px solid var(--color-teal)", borderRadius: 10, padding: "12px 16px", marginBottom: mb, gridArea: headerInGrid ? "desc" : undefined }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)" }}>Fly-Forward — MSN {asset.msn}</div>
+          <div style={{ fontSize: 12, color: "var(--color-graphite)", marginTop: 2 }}>
             Lessee: {lease.lessee} · Lease end: {lease.leaseEnd} ({horizonMonths}-month horizon).{" "}
             {usingRealRate
               ? `Utilisation rate: ${Math.round(rate.fhPerMonth).toLocaleString()} FH/mo, ${Math.round(rate.fcPerMonth).toLocaleString()} FC/mo (from ${rate.monthsSpanned} months of this asset's own report history).`
@@ -925,23 +928,23 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
         </div>
 
         <div className="card" style={{ padding: 16, marginBottom: mb, gridArea: headerInGrid ? "summary" : undefined }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Portfolio Shortfall Summary</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: shortfallSummary.grandTotalHigh > 0 ? "#f87171" : "#34d399" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 8 }}>Portfolio Shortfall Summary</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: shortfallSummary.grandTotalHigh > 0 ? "var(--color-critical)" : "var(--color-positive)" }}>
             ${Math.round(shortfallSummary.grandTotalLow).toLocaleString()} – ${Math.round(shortfallSummary.grandTotalHigh).toLocaleString()}
           </div>
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: "var(--color-graphite)", marginTop: 4 }}>
             Total projected shortfall across {projections.length} reserve pot{projections.length===1?"":"s"} over the {horizonMonths}-month projection (positive events only — surplus in one pot doesn't offset a gap in another).
           </div>
         </div>
 
         {showMissing && (
-          <div style={{ background: "#2a220e", border: "1px solid #C9A84C", borderRadius: 10, padding: "12px 16px", marginBottom: mb, fontSize: 12, color: "#fbbf24", gridArea: headerInGrid ? "warn1" : undefined }}>
+          <div style={{ background: "var(--color-attention-tint)", border: "1px solid var(--color-attention)", borderRadius: 10, padding: "12px 16px", marginBottom: mb, fontSize: 12, color: "var(--color-attention)", gridArea: headerInGrid ? "warn1" : undefined }}>
             ⚠ Incomplete data — this projection excludes {missingCodes.join(", ")} (not yet confirmed in Lease / Reserve Setup). These pots are omitted from the totals below, not treated as zero.
           </div>
         )}
 
         {showMaintCal && (
-          <div style={{ background: "#2a220e", border: "1px solid #C9A84C", borderRadius: 10, padding: "12px 16px", marginBottom: mb, fontSize: 12, color: "#fbbf24", gridArea: headerInGrid ? "warn2" : undefined }}>
+          <div style={{ background: "var(--color-attention-tint)", border: "1px solid var(--color-attention)", borderRadius: 10, padding: "12px 16px", marginBottom: mb, fontSize: 12, color: "var(--color-attention)", gridArea: headerInGrid ? "warn2" : undefined }}>
             {maintenanceCal.dataCompleteness.map((gap, i) => (
               <div key={i} style={{ marginTop: i > 0 ? 6 : 0 }}>⚠ {gap.message}</div>
             ))}
@@ -950,11 +953,11 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
 
         {showRiskPeaks && (
           <div className="card" style={{ padding: 16, marginBottom: mb, gridArea: headerInGrid ? "riskpeaks" : undefined }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Risk Peaks (earliest first)</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 8 }}>Risk Peaks (earliest first)</div>
             {riskPeaks.map((r, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: i > 0 ? "1px solid #1e3048" : "none", fontSize: 12 }}>
-                <span style={{ color: "#e2e8f0" }}>{r.code} — {r.dateWindow ? `${r.dateWindow.start.toISOString().slice(0,7)} – ${r.dateWindow.end.toISOString().slice(0,7)}` : r.date.toISOString().slice(0, 7)}</span>
-                <span style={{ color: r.severity === "high" ? "#f87171" : "#fbbf24" }}>
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: i > 0 ? "1px solid var(--color-divider-inner)" : "none", fontSize: 12 }}>
+                <span style={{ color: "var(--color-carbon)" }}>{r.code} — {r.dateWindow ? `${r.dateWindow.start.toISOString().slice(0,7)} – ${r.dateWindow.end.toISOString().slice(0,7)}` : r.date.toISOString().slice(0, 7)}</span>
+                <span style={{ color: r.severity === "high" ? "var(--color-critical)" : "var(--color-attention)" }}>
                   {r.severity === "high" ? "High" : "Medium"} — ${Math.round(r.shortfallLow).toLocaleString()} to ${Math.round(r.shortfallHigh).toLocaleString()}
                 </span>
               </div>
@@ -1054,10 +1057,10 @@ function CostTrackerEntryForm({ asset, evt, onClose, onSaved, notify }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
       <div className="card" style={{ padding: 20, maxWidth: 520, width: "100%", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
         <div className="flj" style={{ marginBottom: 4 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#e2e8f0" }}>Record Completed Event</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-carbon)" }}>Record Completed Event</div>
           <button className="btn btn-ghost" onClick={onClose}>✕</button>
         </div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>
+        <div style={{ fontSize: 12, color: "var(--color-graphite)", marginBottom: 14 }}>
           {evt.code} — {evt.label} · Projected {evt.date.toISOString().slice(0, 10)}
           {evt.cost && ` · $${Math.round(evt.cost.projectedCostLow).toLocaleString()}–$${Math.round(evt.cost.projectedCostHigh).toLocaleString()}`}
         </div>
@@ -1079,7 +1082,7 @@ function CostTrackerEntryForm({ asset, evt, onClose, onSaved, notify }) {
         <button className="btn btn-ghost" style={{ fontSize: 12, marginBottom: 10 }} onClick={() => setShowMore(s => !s)}>{showMore ? "Hide" : "+ Add"} more details (optional)</button>
 
         {showMore && (
-          <div style={{ background: "#0d1925", borderRadius: 8, padding: 12, marginBottom: 12, border: "1px solid #1e3048" }}>
+          <div style={{ background: "var(--color-technical-grey)", borderRadius: 8, padding: 12, marginBottom: 12, border: "1px solid var(--color-divider)" }}>
             <div className="grid2" style={{ gap: 10, marginBottom: 10 }}>
               <div className="form-group"><label className="form-label">MRO Name</label><input value={mroName} onChange={e => setMroName(e.target.value)}/></div>
               <div className="form-group"><label className="form-label">Turnaround (weeks)</label><input type="number" value={turnaroundWeeks} onChange={e => setTurnaroundWeeks(e.target.value)}/></div>
@@ -1092,7 +1095,7 @@ function CostTrackerEntryForm({ asset, evt, onClose, onSaved, notify }) {
               <div className="form-group"><label className="form-label">Non-Routine/Findings Cost ($)</label><input type="number" value={nonRoutineCost} onChange={e => setNonRoutineCost(e.target.value)}/></div>
             </div>
 
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Workscope Lines</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-graphite)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Workscope Lines</div>
             {workscopeLines.length > 0 && (
               <table style={{ marginBottom: 8 }}><thead><tr><th>Type</th><th>Cost</th><th>Planned/Finding</th><th></th></tr></thead>
                 <tbody>{workscopeLines.map((l, i) => (
@@ -1158,16 +1161,16 @@ function PendingCompletionsPanel({ asset, pending, onCompleted, notify, canEnter
   if (!pending.length) return null;
 
   return (
-    <div style={{ background: "#2a1f0e", border: "1px solid #C9A84C", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: "#C9A84C", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+    <div style={{ background: "var(--color-attention-tint)", border: "1px solid var(--color-attention)", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-attention)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>
         Pending Completion — {pending.length} event{pending.length > 1 ? "s" : ""} past projected date
       </div>
       {pending.map(evt => {
         const key = `${evt.code}_${evt.dueCycle}`;
         const daysPast = Math.floor((Date.now() - evt.date.getTime()) / 86400000);
         return (
-          <div key={key} className="flj" style={{ padding: "6px 0", borderTop: "1px solid #3a2f1a", flexWrap: "wrap", gap: 8 }}>
-            <div style={{ fontSize: 12, color: "#e2e8f0" }}>
+          <div key={key} className="flj" style={{ padding: "6px 0", borderTop: "1px solid var(--color-attention-tint)", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ fontSize: 12, color: "var(--color-carbon)" }}>
               <span style={{ fontWeight: 700 }}>{evt.code}</span> — {evt.label} · projected {evt.date.toISOString().slice(0, 10)} ({daysPast}d ago)
             </div>
             {canEnterCosts && (
@@ -1217,12 +1220,12 @@ function CompletedEventsHistory({ asset, completedEvents, reserveDocs, canEnterC
   return (
     <div className="card" style={{ padding: 16 }}>
       <div className="flj" style={{ marginBottom: 10 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Completed Events — Cost History</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)" }}>Completed Events — Cost History</div>
         {canEnterCosts && <button className="btn btn-ghost" style={{ fontSize: 11, padding: "3px 8px" }} onClick={() => setPickerOpen(o => !o)}>{pickerOpen ? "Cancel" : "+ Log Completed Event"}</button>}
       </div>
 
       {pickerOpen && (
-        <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 14, flexWrap: "wrap", background: "#0d1925", border: "1px solid #1e3048", borderRadius: 8, padding: 10 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 14, flexWrap: "wrap", background: "var(--color-technical-grey)", border: "1px solid var(--color-divider)", borderRadius: 8, padding: 10 }}>
           <div>
             <label className="form-label">Event Type</label>
             <select value={pickCode} onChange={e => setPickCode(e.target.value)}>
@@ -1235,18 +1238,18 @@ function CompletedEventsHistory({ asset, completedEvents, reserveDocs, canEnterC
         </div>
       )}
 
-      {sorted.length === 0 && <div style={{ color: "#64748b", fontSize: 12, fontStyle: "italic" }}>No completed events recorded yet.</div>}
+      {sorted.length === 0 && <div style={{ color: "var(--color-graphite)", fontSize: 12, fontStyle: "italic" }}>No completed events recorded yet.</div>}
       {sorted.map(ev => (
-        <div key={ev.id} className="flj" style={{ padding: "7px 0", borderTop: "1px solid #1e3048", flexWrap: "wrap", gap: 6 }}>
-          <div style={{ fontSize: 12, color: "#e2e8f0" }}>
+        <div key={ev.id} className="flj" style={{ padding: "7px 0", borderTop: "1px solid var(--color-divider-inner)", flexWrap: "wrap", gap: 6 }}>
+          <div style={{ fontSize: 12, color: "var(--color-carbon)" }}>
             <span style={{ fontWeight: 700 }}>{ev.code}</span> — {ev.label || ev.code} · {ev.eventDateProjected || "—"}
-            {ev.noCostData && <span className="pill" style={{ marginLeft: 6, background: "#2a1f0e", color: "#fbbf24", fontSize: 10 }}>No cost data</span>}
-            {ev.mroRegion && <span style={{ marginLeft: 6, color: "#64748b" }}>· {ev.mroRegion}</span>}
+            {ev.noCostData && <span className="pill" style={{ marginLeft: 6, background: "var(--color-attention-tint)", color: "var(--color-attention)", fontSize: 10 }}>No cost data</span>}
+            {ev.mroRegion && <span style={{ marginLeft: 6, color: "var(--color-graphite)" }}>· {ev.mroRegion}</span>}
           </div>
-          <div style={{ fontSize: 12, color: "#94a3b8" }}>
+          <div style={{ fontSize: 12, color: "var(--color-graphite)" }}>
             {ev.totalCost != null ? `$${Math.round(ev.totalCost).toLocaleString()}` : "—"}
             {ev.costDelta != null && (
-              <span style={{ marginLeft: 8, color: ev.costDelta > 0 ? "#f87171" : "#34d399" }}>
+              <span style={{ marginLeft: 8, color: ev.costDelta > 0 ? "var(--color-critical)" : "var(--color-positive)" }}>
                 {ev.costDelta > 0 ? "+" : ""}${Math.round(ev.costDelta).toLocaleString()} vs projected
               </span>
             )}
@@ -1307,13 +1310,13 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
   }, [reload]);
 
   if (loading) {
-    return <div style={{ padding: 40, textAlign: "center", color: "#64748b" }}>Loading maintenance calendar for MSN {asset.msn}…</div>;
+    return <div style={{ padding: 40, textAlign: "center", color: "var(--color-graphite)" }}>Loading maintenance calendar for MSN {asset.msn}…</div>;
   }
 
   if (loadError) {
     return (
       <div style={{ animation: "fadeIn 0.2s ease" }}>
-        <div className="card" style={{ padding: 24, textAlign: "center", color: "#f87171" }}>Could not load maintenance calendar data.</div>
+        <div className="card" style={{ padding: 24, textAlign: "center", color: "var(--color-critical)" }}>Could not load maintenance calendar data.</div>
       </div>
     );
   }
@@ -1331,7 +1334,7 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
   if (projectionError || !maintenanceCal) {
     return (
       <div style={{ animation: "fadeIn 0.2s ease" }}>
-        <div className="card" style={{ padding: 24, textAlign: "center", color: "#f87171" }}>Couldn't build the calendar: {projectionError}</div>
+        <div className="card" style={{ padding: 24, textAlign: "center", color: "var(--color-critical)" }}>Couldn't build the calendar: {projectionError}</div>
       </div>
     );
   }
@@ -1382,10 +1385,14 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
     setBusy(null);
   };
 
+  // Legend swatches for event-date provenance — light tints from the
+  // design system palette. Teal for "categorical, non-severity" (seasonality
+  // is a data source, not a status), positive for a confirmed/airline-stated
+  // date, graphite as the neutral default (derived = no special provenance).
   const sourceStyle = {
-    derived: { background: "#111c2e", color: "#64748b", label: "Derived" },
-    seasonality: { background: "#1a2a10", color: "#a3e635", label: "Seasonality" },
-    "airline-stated": { background: "#0d2818", color: "#34d399", label: "Airline-stated" }
+    derived: { background: "var(--color-carbon-tint-06)", color: "var(--color-graphite)", label: "Derived" },
+    seasonality: { background: "var(--color-teal-tint)", color: "var(--color-teal)", label: "Seasonality" },
+    "airline-stated": { background: "var(--color-positive-tint)", color: "var(--color-positive)", label: "Airline-stated" }
   };
 
   // Self-populating pending-completion list (TECH_DEBT.md 4.101) — an
@@ -1411,9 +1418,9 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
       {/* Completed Events + Calendar description — side by side on landscape */}
       <div style={inLandscape ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 16, marginBottom: 16, alignItems: "stretch" } : undefined}>
         <CompletedEventsHistory asset={asset} completedEvents={completedEvents} reserveDocs={reserveDocs} canEnterCosts={canEnterCosts} notify={notify} onSaved={reload}/>
-        <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: inLandscape ? 0 : 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Maintenance Calendar — MSN {asset.msn}</div>
-          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+        <div style={{ background: "var(--color-teal-tint)", border: "1px solid var(--color-teal)", borderRadius: 10, padding: "12px 16px", marginBottom: inLandscape ? 0 : 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)" }}>Maintenance Calendar — MSN {asset.msn}</div>
+          <div style={{ fontSize: 12, color: "var(--color-graphite)", marginTop: 2 }}>
             A financial-projection input, not a maintenance-tracking tool — dates are deliberately loose and self-correct against real utilisation reports over time. Accepting a seasonality suggestion or entering an airline-stated date is a suggestion you confirm here, never an automatic move.
           </div>
         </div>
@@ -1424,13 +1431,13 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
       )}
 
       {usedSyntheticPots && (
-        <div style={{ background: "#0d1e2e", border: "1px solid #1e3a52", borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: "#7dd3fc" }}>
+        <div style={{ background: "var(--color-teal-tint)", border: "1px solid var(--color-teal)", borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: "var(--color-teal)" }}>
           ℹ No lease/reserve setup on file for this asset — dates below are sourced directly from real component data (landing gear next-due, engine LLP remaining life). Engine Performance Restoration and APU Overhaul aren't shown, since there's no real anchor date to derive either from; nothing here is an estimate.
         </div>
       )}
 
       {maintenanceCal.dataCompleteness.length > 0 && (
-        <div style={{ background: "#2a220e", border: "1px solid #C9A84C", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 12, color: "#fbbf24" }}>
+        <div style={{ background: "var(--color-attention-tint)", border: "1px solid var(--color-attention)", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 12, color: "var(--color-attention)" }}>
           {maintenanceCal.dataCompleteness.map((gap, i) => (
             <div key={i} style={{ marginTop: i > 0 ? 6 : 0 }}>⚠ {gap.message}</div>
           ))}
@@ -1453,11 +1460,11 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
                 <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: colorForCode(evt.code), flexShrink: 0 }}/>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-carbon)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {evt.code} — {evt.label}
-                      {evt.grounding && <span className="pill" style={{ marginLeft: 6, background: "#2a0e0e", color: "#f87171", fontSize: 10 }}>Grounds {evt.durationWeeks}wk</span>}
+                      {evt.grounding && <span className="pill" style={{ marginLeft: 6, background: "var(--color-critical-tint)", color: "var(--color-critical)", fontSize: 10 }}>Grounds {evt.durationWeeks}wk</span>}
                     </div>
-                    <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                    <div style={{ fontSize: 11, color: "var(--color-graphite)" }}>
                       {evt.date.toISOString().slice(0, 10)}{evt.beyondHorizon ? " (beyond horizon)" : ""}
                       {evt.cost && ` · $${Math.round(evt.cost.projectedCostLow).toLocaleString()}–$${Math.round(evt.cost.projectedCostHigh).toLocaleString()}`}
                     </div>
@@ -1473,22 +1480,22 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
               </div>
 
               {isExpanded && (
-                <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e3048" }}>
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--color-divider-inner)" }}>
                   {evt.mergedWithCodes.length > 0 && (
-                    <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>Absorbed with {evt.mergedWithCodes.map(c => c.code).join(", ")}</div>
+                    <div style={{ fontSize: 11, color: "var(--color-graphite)", marginBottom: 8 }}>Absorbed with {evt.mergedWithCodes.map(c => c.code).join(", ")}</div>
                   )}
                   {evt.seasonalitySuggestion && !override && (
-                    <div style={{ marginBottom: 10, padding: 10, background: "#0d1622", borderRadius: 6, fontSize: 11, color: "#a3e635" }}>
+                    <div style={{ marginBottom: 10, padding: 10, background: "var(--color-teal-tint)", borderRadius: 6, fontSize: 11, color: "var(--color-teal)" }}>
                       💡 Suggested: {evt.seasonalitySuggestion.suggestedDate.toISOString().slice(0, 10)} — {evt.seasonalitySuggestion.reason}
                     </div>
                   )}
                   <div style={{ display: "flex", gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
                     {evt.grounding && (
-                      <label style={{ fontSize: 10, color: "#94a3b8" }}>Duration (weeks)
+                      <label style={{ fontSize: 10, color: "var(--color-graphite)" }}>Duration (weeks)
                         <div><PotNumInput value={evt.durationWeeks} onCommit={v => saveDuration(evt, v)} width={70}/></div>
                       </label>
                     )}
-                    <label style={{ fontSize: 10, color: "#94a3b8" }}>Airline-stated date
+                    <label style={{ fontSize: 10, color: "var(--color-graphite)" }}>Airline-stated date
                       <div>
                         <input type="date" defaultValue={override?.source === "airline-stated" ? override.scheduledDate : ""}
                           onBlur={e => saveAirlineStated(evt, e.target.value)}
@@ -1507,7 +1514,7 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
       </div>
 
       {maintenanceCal.events.length === 0 && (
-        <div className="card" style={{ padding: 24, textAlign: "center", color: "#64748b" }}>No maintenance events projected within the current calendar horizon.</div>
+        <div className="card" style={{ padding: 24, textAlign: "center", color: "var(--color-graphite)" }}>No maintenance events projected within the current calendar horizon.</div>
       )}
     </div>
   );
@@ -1555,21 +1562,21 @@ function SeasonalityProfileEditor({ asset, profile, onSaved }) {
 
   return (
     <div className="card" style={{ padding: 14, marginBottom: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Seasonality Profile</div>
-      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>Seasonality Profile</div>
+      <div style={{ fontSize: 11, color: "var(--color-graphite)", marginBottom: 10 }}>
         Monthly utilisation weightings (% of a typical month — 100 = average). Shapes automatic utilisation input and suggests, but never moves, off-season check placement. All 12 months are required or the profile is ignored entirely.
       </div>
-      <label style={{ fontSize: 10, color: "#94a3b8" }}>Active weeks / year
+      <label style={{ fontSize: 10, color: "var(--color-graphite)" }}>Active weeks / year
         <div><PotNumInput value={form.activeWeeksPerYear} onCommit={v => setForm(f => ({ ...f, activeWeeksPerYear: v }))} width={70}/></div>
       </label>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginTop: 12 }}>
         {MONTHS.map(m => (
-          <label key={m} style={{ fontSize: 10, color: "#94a3b8" }}>{m}
+          <label key={m} style={{ fontSize: 10, color: "var(--color-graphite)" }}>{m}
             <div><PotNumInput value={form.monthlyWeightings[m]} onCommit={v => setMonth(m, v)} width={60}/></div>
           </label>
         ))}
       </div>
-      {!complete && <div style={{ fontSize: 11, color: "#fbbf24", marginTop: 10 }}>⚠ Incomplete — all 12 months need a value before this profile takes effect.</div>}
+      {!complete && <div style={{ fontSize: 11, color: "var(--color-attention)", marginTop: 10 }}>⚠ Incomplete — all 12 months need a value before this profile takes effect.</div>}
       <button className="btn btn-gold" style={{ marginTop: 12, fontSize: 12, padding: "6px 14px" }} disabled={saving} onClick={save}>{saving ? "Saving…" : "Save Profile"}</button>
     </div>
   );

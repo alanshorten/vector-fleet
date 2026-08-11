@@ -299,10 +299,12 @@ function Scenarios({ asset }) {
   const labels = labelSource.map(m => m ? m.date.toISOString().slice(0, 7) : "");
   const chartDatasets = [
     // Chart.js draws straight to canvas — it can't resolve CSS custom
-    // properties, so these stay literal hex matched to the design system
-    // (graphite #687078, teal #315D68) rather than var(--color-*).
+    // properties, so these stay literal hex matched to the design system.
+    // Graphite vs teal (previous pairing) read as near-identical mid-tone
+    // blue-greys at a glance — swapped to graphite vs carbon (near-black)
+    // for a contrast a user can actually distinguish at a glance.
     { label: "Base Case", data: Array.from({ length: chartLength }, (_, i) => baseAgg[i] ? Math.round(baseAgg[i].balance) : null), borderColor: "#687078", backgroundColor: "#68707822", fill: true, tension: 0.15, pointRadius: 0, borderWidth: 2 },
-    { label: "Scenario", data: Array.from({ length: chartLength }, (_, i) => scenarioAgg[i] ? Math.round(scenarioAgg[i].balance) : null), borderColor: "#315D68", backgroundColor: "#315D6822", fill: true, tension: 0.15, pointRadius: 0, borderWidth: 2 }
+    { label: "Scenario", data: Array.from({ length: chartLength }, (_, i) => scenarioAgg[i] ? Math.round(scenarioAgg[i].balance) : null), borderColor: "#151A1D", backgroundColor: "#151A1D1f", fill: true, tension: 0.15, pointRadius: 0, borderWidth: 2 }
   ];
 
   const fmtPct = v => (v > 0 ? "+" : "") + v + "%";
@@ -410,15 +412,15 @@ function Scenarios({ asset }) {
                       </button>
                     )}
                   </td>
-                  <td style={{ textAlign: "right", color: shortfallColor(row.baseHigh) }}>
+                  <td style={{ textAlign: "right", color: row.baseHigh == null ? (row.baseTracked ? "var(--color-graphite)" : "var(--color-divider)") : shortfallColor(row.baseHigh) }}>
                     {row.baseHigh == null ? (row.baseTracked ? "Beyond horizon" : "—") : `$${Math.round(row.baseHigh).toLocaleString()}`}
-                    {row.baseDate && <div style={{ fontSize: 10, color: "var(--color-divider)" }}>{row.baseDate.toISOString().slice(0, 7)}</div>}
+                    {row.baseDate && <div style={{ fontSize: 10, color: "var(--color-graphite)" }}>{row.baseDate.toISOString().slice(0, 7)}</div>}
                   </td>
-                  <td style={{ textAlign: "right", color: scenarioActive ? deltaColor(row.baseHigh, row.scenarioHigh) : shortfallColor(row.scenarioHigh) }}>
+                  <td style={{ textAlign: "right", color: row.scenarioHigh == null ? (row.scenarioTracked ? "var(--color-graphite)" : "var(--color-divider)") : (scenarioActive ? deltaColor(row.baseHigh, row.scenarioHigh) : shortfallColor(row.scenarioHigh)) }}>
                     {row.scenarioHigh == null ? (row.scenarioTracked ? "Beyond horizon" : "—") : `$${Math.round(row.scenarioHigh).toLocaleString()}`}
-                    {row.scenarioDate && <div style={{ fontSize: 10, color: "var(--color-divider)" }}>{row.scenarioDate.toISOString().slice(0, 7)}</div>}
+                    {row.scenarioDate && <div style={{ fontSize: 10, color: "var(--color-graphite)" }}>{row.scenarioDate.toISOString().slice(0, 7)}</div>}
                   </td>
-                  <td style={{ textAlign: "right", fontSize: 11, color: row.shiftMonths == null ? "var(--color-divider)" : (row.shiftMonths < 0 ? "var(--color-critical)" : row.shiftMonths > 0 ? "var(--color-positive)" : "var(--color-graphite)") }}>
+                  <td style={{ textAlign: "right", fontSize: 11, color: row.shiftMonths == null ? ((row.scenarioDate || row.baseDate) ? "var(--color-graphite)" : "var(--color-divider)") : (row.shiftMonths < 0 ? "var(--color-critical)" : row.shiftMonths > 0 ? "var(--color-positive)" : "var(--color-graphite)") }}>
                     {row.shiftMonths != null
                       ? formatShift(row.shiftMonths)
                       : (row.scenarioDate && !row.baseDate ? "Now within horizon" : (row.baseDate && !row.scenarioDate ? "No longer within horizon" : "—"))}
@@ -509,7 +511,7 @@ function Scenarios({ asset }) {
               </span>
             </div>
           ))}
-          {scenarioActive && <div style={{ fontSize: 10, color: "var(--color-divider)", marginTop: 8 }}>Showing scenario risk peaks. Base case had {baseRiskPeaks.length} risk peak{baseRiskPeaks.length===1?"":"s"}.</div>}
+          {scenarioActive && <div style={{ fontSize: 10, color: "var(--color-graphite)", marginTop: 8 }}>Showing scenario risk peaks. Base case had {baseRiskPeaks.length} risk peak{baseRiskPeaks.length===1?"":"s"}.</div>}
         </div>
       </div>
     </div>
