@@ -123,18 +123,18 @@ function Dashboard({assets,onSelect,saveAsset,notify}){
             <thead><tr>
               <th style={{width:24}}></th>
               {[["MSN","msn"],["Reg","registration"],["Model","model"],["Operator","operator"]].map(([l,k])=>(
-                <th key={k}><button onClick={()=>toggleSort(k)} style={{background:"none",border:"none",color:sortCol===k?"var(--color-ochre)":"var(--color-graphite)",fontFamily:"inherit",fontSize:10,fontWeight:700,cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",whiteSpace:"nowrap"}}>{l}{sortCol===k?(sortDir==="asc"?" ↑":" ↓"):""}</button></th>
+                <th key={k}><button onClick={()=>toggleSort(k)} style={{background:"none",border:"none",color:sortCol===k?"var(--color-carbon)":"var(--color-graphite)",fontFamily:"inherit",fontSize:10,fontWeight:700,cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",whiteSpace:"nowrap"}}>{l}{sortCol===k?(sortDir==="asc"?" ↑":" ↓"):""}</button></th>
               ))}
               {[["AF TSN","afTSN"],["AF CSN","afCSN"],["Eng 1","eng1"],["Eng 2","eng2"],["APU","apu"],["NLG","nlg"],["LLG","llg"],["RLG","rlg"],["Last Report","lastReport"]].map(([l,k])=>(
-                <th key={k} style={["nlg","llg","rlg"].includes(k)?{textAlign:"center"}:null}><button onClick={()=>toggleSort(k)} style={{background:"none",border:"none",color:sortCol===k?"var(--color-ochre)":"var(--color-graphite)",fontFamily:"inherit",fontSize:10,fontWeight:700,cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",whiteSpace:"nowrap"}}>{l}{sortCol===k?(sortDir==="asc"?" ↑":" ↓"):""}</button></th>
+                <th key={k} style={["nlg","llg","rlg"].includes(k)?{textAlign:"center"}:null}><button onClick={()=>toggleSort(k)} style={{background:"none",border:"none",color:sortCol===k?"var(--color-carbon)":"var(--color-graphite)",fontFamily:"inherit",fontSize:10,fontWeight:700,cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",whiteSpace:"nowrap"}}>{l}{sortCol===k?(sortDir==="asc"?" ↑":" ↓"):""}</button></th>
               ))}
               <th style={{width:24}} title="Lease on file"></th>
             </tr></thead>
             <tbody>
               {sorted.map((a,i)=>{const st=assetStatus(a);const af=a.airframe||{};return(
                 <tr key={a.id} className="row-hover" onClick={()=>onSelect(a.id)} style={{background:i%2===0?"var(--color-soft-white)":"var(--color-technical-grey)",cursor:"pointer"}}>
-                  <td style={{textAlign:"center"}}><div style={{width:8,height:8,borderRadius:"50%",background:SC[st].dot,margin:"0 auto",boxShadow:st!=="ok"?`0 0 7px ${SC[st].dot},0 0 14px ${SC[st].dot}44`:"none"}}/></td>
-                  <td style={{fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{a.msn}</td>
+                  <td style={{textAlign:"center"}}><div style={{width:8,height:8,borderRadius:"50%",background:SC[st].dot,margin:"0 auto"}}/></td>
+                  <td style={{fontWeight:600}}>{a.msn}</td>
                   <td style={{fontWeight:600}}>{a.registration||"—"}</td>
                   <td><span style={{color:"var(--color-graphite)"}}>{a.model||"—"}</span>{isCFM(a)?<span className="tag" style={{background:"var(--color-teal-tint)",color:"var(--color-teal)",marginLeft:5}}>CFM</span>:<span className="tag" style={{background:"var(--color-divider-inner)",color:"var(--color-graphite)",marginLeft:5}}>V2500</span>}</td>
                   <td style={{color:"var(--color-graphite)"}}>{a.operator||"—"}</td>
@@ -158,14 +158,14 @@ function Dashboard({assets,onSelect,saveAsset,notify}){
               <div className="flj" style={{marginBottom:10}}>
                 <div>
                   <div className="flab g8">
-                    <span style={{fontWeight:700,fontSize:15,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>MSN {a.msn}</span>
+                    <span style={{fontWeight:600,fontSize:15,color:"var(--color-carbon)"}}>MSN {a.msn}</span>
                     {isCFM(a)?<span className="tag" style={{background:"var(--color-teal-tint)",color:"var(--color-teal)"}}>CFM</span>:<span className="tag" style={{background:"var(--color-divider-inner)",color:"var(--color-graphite)"}}>V2500</span>}
                     {a.currentLeaseId&&<span title="Lease on file" style={{fontSize:12}}>📄</span>}
                   </div>
                   <div style={{fontSize:14,fontWeight:600,color:"var(--color-carbon)",marginTop:2}}>{a.registration||"—"}</div>
                   <div style={{fontSize:11,color:"var(--color-graphite)"}}>{a.model} · {a.operator||"—"}</div>
                 </div>
-                <div style={{width:10,height:10,borderRadius:"50%",background:SC[st].dot,boxShadow:st!=="ok"?`0 0 8px ${SC[st].dot}`:"none"}}/>
+                <div style={{width:10,height:10,borderRadius:"50%",background:SC[st].dot}}/>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px",marginBottom:10}}>
                 {[["AF TSN",fmtHHMM(af.currentFH)],["AF CSN",af.currentFC?.toLocaleString()||"—"]].map(([l,v])=>(

@@ -146,7 +146,7 @@ function assetStatus(asset){
   return"ok";
 };
 
-const SC={critical:{dot:"#f87171",border:"#dc2626"},warn:{dot:"#fbbf24",border:"#d97706"},ok:{dot:"#34d399",border:"#1e3348"}};
+const SC={critical:{dot:"var(--color-critical)",border:"var(--color-critical)"},warn:{dot:"var(--color-attention)",border:"var(--color-attention)"},ok:{dot:"var(--color-positive)",border:"var(--color-divider)"}};
 
 
 const SHOP_VISIT_PROMPT=`Extract all shop visit events from this engine document. The document may be an operator on/off log, a removal/installation history, or a dedicated shop visit record — shop visits appear as rows where the engine went to an MRO facility for maintenance.

@@ -753,7 +753,7 @@ function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
                 {assets.length===0&&<tr><td colSpan={6} style={{textAlign:"center",padding:40,color:"var(--color-graphite)"}}>No assets yet.</td></tr>}
                 {assets.map(a=>(
                   <tr key={a.id}>
-                    <td style={{fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{a.msn}</td>
+                    <td style={{fontWeight:600}}>{a.msn}</td>
                     <td style={{fontWeight:600}}>{a.registration||"—"}</td>
                     <td style={{color:"var(--color-graphite)"}}>{a.model||"—"}</td>
                     <td style={{color:"var(--color-graphite)"}}>{a.operator||"—"}</td>
