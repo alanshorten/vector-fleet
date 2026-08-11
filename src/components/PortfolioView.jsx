@@ -862,7 +862,7 @@ function FleetCalendarView({ assets, onSelectAsset }) {
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)" }}>Calendar</div>
           <button
             onClick={() => setShowCompleted(s => !s)}
-            style={{ flexShrink: 0, background: showCompleted ? "var(--color-carbon)" : "transparent", border: "1px solid var(--color-divider)", borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 700, color: showCompleted ? "var(--color-carbon)" : "var(--color-graphite)", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s", whiteSpace: "nowrap" }}
+            style={{ flexShrink: 0, background: showCompleted ? "var(--color-carbon)" : "transparent", border: "1px solid var(--color-divider)", borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 700, color: showCompleted ? "var(--color-soft-white)" : "var(--color-graphite)", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s", whiteSpace: "nowrap" }}
           >
             {showCompleted ? "Hide completed events" : "View completed events"}
           </button>
