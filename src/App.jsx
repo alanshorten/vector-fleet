@@ -147,12 +147,12 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
             </>
           )}
 
-          {/* Group 2 — Tools. Upload is deliberately not listed here — it's
-              a permanently anchored control in the header itself on every
-              screen size, never buried in the menu (design system,
-              non-negotiable). */}
+          {/* Group 2 — Tools. Upload lives here on mobile/portrait (both
+              fleet and asset views, confirmed by Alan) — it's only anchored
+              as its own header row on desktop. */}
           <GroupLabel>Tools</GroupLabel>
           <Item value="prospects" label="Prospects"/>
+          {isMobile && canUpload && <Item value="upload" label="Upload"/>}
           {isAdmin && <Item value="iq" label="iQ"/>}
           <Divider/>
 
@@ -355,7 +355,10 @@ function AppInner(){
           <div className="app-header-right" style={{display:"flex",flexDirection:"column",gap:5,alignItems:"stretch",flexShrink:0}}>
 
             {isMobile && view==="asset" && selectedAsset ? (
-              /* Portrait + asset view — Portfolio+☰ row, then asset layer pill below */
+              /* Portrait + asset view — ☰ row, then asset layer pill below.
+                 Upload stays inside the hamburger's Tools group on mobile —
+                 not anchored as its own row here (matches the mobile/fleet
+                 branch below; confirmed by Alan). */
               <>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
                   <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
@@ -367,28 +370,14 @@ function AppInner(){
                     return <NavPill items={LAYERS} activeValue={assetLayer} onSelect={setAssetLayer} theme="light"/>;
                   })()}
                 </div>
-                {canUpload&&(
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <NavPill items={[["upload","Upload"]]} activeValue={view} onSelect={v=>{setView(v);setSelectedId(null);}} theme="light" width="100%"/>
-                  </div>
-                )}
               </>
             ) : isMobile ? (
-              /* Portrait + fleet view — ☰ only (logo is now Home/Portfolio),
-                 fleet nav lives in hamburger. Upload gets its own anchored
-                 row below — non-negotiable per design system, it used to be
-                 buried inside the hamburger's Tools group here and that was
-                 a miss against the locked spec. */
-              <>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
-                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
-                </div>
-                {canUpload&&(
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <NavPill items={[["upload","Upload"]]} activeValue={view} onSelect={v=>{setView(v);setSelectedId(null);}} theme="light" width="100%"/>
-                  </div>
-                )}
-              </>
+              /* Portrait + fleet view — ☰ only (logo is now Home/Portfolio).
+                 Upload stays inside the hamburger's Tools group on mobile —
+                 confirmed by Alan, not anchored as its own row here. */
+              <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
+                <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
+              </div>
             ) : view==="asset" && selectedAsset ? (
               /* Asset view — row 1: Fleet Portfolio + ☰ (same as fleet view)
                  row 2: asset layer pill + Share/TechSpec trailing block */
