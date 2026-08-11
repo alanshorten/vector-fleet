@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AdminView } from './components/AdminView';
-import { AssetView, NavPill, TRAILING_PILL_WIDTH } from './components/AssetView';
+import { AssetView, NavPill } from './components/AssetView';
 import { SetPasswordScreen, SignInScreen } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
 import { FleetCalendarView, FleetExposureView, FleetScenarioControls, PandemicScenarioView, PortfolioView, RouteMatcherView } from './components/PortfolioView';
@@ -349,9 +349,12 @@ function AppInner(){
             style={{height:44,maxWidth:"55vw",objectFit:"contain",objectPosition:"left center",borderRadius:0,cursor:"pointer"}}
             className="header-logo"/>
 
-          {/* Right side — two-row column (desktop) / single row (portrait).
-              Both fleet and asset pills render here — same DOM context = guaranteed
-              pixel-perfect alignment. Asset pills replace fleet pills when in asset view. */}
+          {/* Right side — single row (desktop): tabs + Upload + ☰ inline.
+              Portrait stays two-row (☰ row, then tabs below) since there
+              isn't width for everything on one line at that size.
+              Both fleet and asset pills render here — same DOM context =
+              guaranteed pixel-perfect alignment. Asset pills replace fleet
+              pills when in asset view. */}
           <div className="app-header-right" style={{display:"flex",flexDirection:"column",gap:5,alignItems:"stretch",flexShrink:0}}>
 
             {isMobile && view==="asset" && selectedAsset ? (
@@ -379,46 +382,39 @@ function AppInner(){
                 <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
               </div>
             ) : view==="asset" && selectedAsset ? (
-              /* Asset view — row 1: Fleet Portfolio + ☰ (same as fleet view)
-                 row 2: asset layer pill + Share/TechSpec trailing block */
-              <>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
+              /* Asset view (desktop) — single row: asset layer tabs +
+                 Upload + ☰, all inline, matching the mockup. */
+              <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:20,flexWrap:"nowrap"}}>
+                {(()=>{
+                  const canSeeAdv=!!userRole&&userRole!=='dataEntry';
+                  const LAYERS=[["details","Details"],...(canSeeAdv?[["calendar","Calendar"],["financials","Financials"],["scenarios","Scenarios"]]:[])];
+                  return <NavPill items={LAYERS} activeValue={assetLayer} onSelect={setAssetLayer} theme="light"/>;
+                })()}
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  {canUpload&&<button onClick={()=>{setView("upload");setSelectedId(null);}}
+                    style={{padding:"8px 16px",borderRadius:4,border:view==="upload"?"1px solid #151A1D":"1px solid #D9DCD8",background:view==="upload"?"#151A1D":"transparent",color:view==="upload"?"#FCFCF9":"#151A1D",fontFamily:"'Barlow',inherit",fontSize:13,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                    Upload
+                  </button>}
                   <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
                 </div>
-                <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"nowrap"}}>
-                  {(()=>{
-                    const canSeeAdv=!!userRole&&userRole!=='dataEntry';
-                    const LAYERS=[["details","Details"],...(canSeeAdv?[["calendar","Calendar"],["financials","Financials"],["scenarios","Scenarios"]]:[])];
-                    return <NavPill items={LAYERS} activeValue={assetLayer} onSelect={setAssetLayer} theme="light"/>;
-                  })()}
-                  {canUpload&&<NavPill
-                    items={[["upload","Upload"]]}
-                    activeValue={view}
-                    onSelect={v=>{setView(v);setSelectedId(null);}}
-                    theme="light"
-                    width={TRAILING_PILL_WIDTH}/>}
-                </div>
-              </>
+              </div>
             ) : (
-              /* Fleet view — row 1: Portfolio+☰, row 2: fleet NavPill + Upload */
-              <>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
+              /* Fleet view (desktop) — single row: fleet tabs + Upload + ☰,
+                 all inline, matching the mockup. */
+              <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:20,flexWrap:"nowrap"}}>
+                <NavPill
+                  items={[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]}
+                  activeValue={view}
+                  onSelect={v=>{setView(v);setSelectedId(null);}}
+                  theme="light"/>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  {canUpload&&<button onClick={()=>{setView("upload");setSelectedId(null);}}
+                    style={{padding:"8px 16px",borderRadius:4,border:view==="upload"?"1px solid #151A1D":"1px solid #D9DCD8",background:view==="upload"?"#151A1D":"transparent",color:view==="upload"?"#FCFCF9":"#151A1D",fontFamily:"'Barlow',inherit",fontSize:13,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                    Upload
+                  </button>}
                   <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
                 </div>
-                <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"nowrap"}}>
-                  <NavPill
-                    items={[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]}
-                    activeValue={view}
-                    onSelect={v=>{setView(v);setSelectedId(null);}}
-                    theme="light"/>
-                  {canUpload&&<NavPill
-                    items={[["upload","Upload"]]}
-                    activeValue={view}
-                    onSelect={v=>{setView(v);setSelectedId(null);}}
-                    theme="light"
-                    width={TRAILING_PILL_WIDTH}/>}
-                </div>
-              </>
+              </div>
             )}
           </div>
         </div>
