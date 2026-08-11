@@ -58,16 +58,16 @@ function LogoSettings({notify}) {
 
   return (
     <div>
-      <div style={{background:'#0d1925',borderRadius:8,border:'1px solid #1e3348',padding:'24px 16px',display:'flex',justifyContent:'center',marginBottom:14}}>
+      <div style={{background:'var(--color-technical-grey)',borderRadius:8,border:'1px solid var(--color-divider)',padding:'24px 16px',display:'flex',justifyContent:'center',marginBottom:14}}>
         <img src={logoUrl||TECH_SPEC_LOGO} alt="Tech spec logo preview" style={{width:width,maxWidth:'100%',borderRadius:0}}/>
       </div>
       <div style={{marginBottom:14}}>
         <label className="form-label" style={{display:'flex',justifyContent:'space-between'}}>
           <span>Logo size</span>
-          <span style={{color:'#C9A84C',fontFamily:'monospace'}}>{width}px{saving?' · saving…':''}</span>
+          <span style={{color:'var(--color-ochre)',fontFamily:'monospace'}}>{width}px{saving?' · saving…':''}</span>
         </label>
         <input type="range" min={80} max={320} step={10} value={width} onChange={e=>setWidth(+e.target.value)} onMouseUp={e=>commitWidth(+e.target.value)} onTouchEnd={e=>commitWidth(+e.target.value)} style={{width:'100%'}}/>
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'#475569'}}><span>80px</span><span>320px</span></div>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--color-graphite)'}}><span>80px</span><span>320px</span></div>
       </div>
       <div className="flab g8">
         <label style={{cursor:'pointer'}}>
@@ -78,7 +78,7 @@ function LogoSettings({notify}) {
         </label>
         {logoUrl&&<button className="btn btn-ghost" style={{fontSize:11,padding:'7px 14px'}} onClick={resetToDefault}>Revert to Default</button>}
       </div>
-      <p style={{fontSize:11,color:'#475569',marginTop:10}}>Applies to both the Full Aircraft and Engine tech spec cover pages.</p>
+      <p style={{fontSize:11,color:'var(--color-graphite)',marginTop:10}}>Applies to both the Full Aircraft and Engine tech spec cover pages.</p>
     </div>
   );
 };
@@ -112,9 +112,9 @@ function BrandingToggle({notify}) {
           disabled={saving}
           style={{
             padding:'8px 16px',fontSize:12,fontWeight:600,borderRadius:7,cursor:saving?'wait':'pointer',
-            background:hidden?'#16a34a':'transparent',
-            border:`1px solid ${hidden?'#16a34a':'#2a4060'}`,
-            color:hidden?'#ffffff':'#6a8aaa',
+            background:hidden?'var(--color-positive)':'transparent',
+            border:`1px solid ${hidden?'var(--color-positive)':'var(--color-divider)'}`,
+            color:hidden?'var(--color-soft-white)':'var(--color-graphite)',
             transition:'all 0.15s'
           }}
         >
@@ -122,7 +122,7 @@ function BrandingToggle({notify}) {
         </button>
         {hidden && <button className="btn btn-ghost" style={{fontSize:11,padding:'7px 14px'}} onClick={toggle}>Restore branding</button>}
       </div>
-      <p style={{fontSize:11,color:'#475569',marginTop:4}}>When enabled, the TailiQ header banner, footer, and preview bar label are removed from generated tech specs. Your company logo is unaffected.</p>
+      <p style={{fontSize:11,color:'var(--color-graphite)',marginTop:4}}>When enabled, the TailiQ header banner, footer, and preview bar label are removed from generated tech specs. Your company logo is unaffected.</p>
     </div>
   );
 };
@@ -157,10 +157,10 @@ function DisclaimerSettings({notify}) {
     <div>
       <textarea value={text} placeholder={DEFAULT_TEXT} onChange={e=>setText(e.target.value)} onBlur={e=>commit(e.target.value)} rows={3} style={{width:'100%',fontFamily:'inherit',fontSize:13,resize:'vertical'}}/>
       <div className="flab g8" style={{marginTop:10}}>
-        {saving&&<span style={{fontSize:11,color:'#475569'}}>Saving…</span>}
+        {saving&&<span style={{fontSize:11,color:'var(--color-graphite)'}}>Saving…</span>}
         {text&&<button className="btn btn-ghost" style={{fontSize:11,padding:'7px 14px'}} onClick={resetToDefault}>Revert to Default</button>}
       </div>
-      <p style={{fontSize:11,color:'#475569',marginTop:10}}>Applies to every tech spec by default, unless an individual asset has its own disclaimer set on its Specs tab.</p>
+      <p style={{fontSize:11,color:'var(--color-graphite)',marginTop:10}}>Applies to every tech spec by default, unless an individual asset has its own disclaimer set on its Specs tab.</p>
     </div>
   );
 };
@@ -203,13 +203,13 @@ function EnginePhotoSettings({notify}) {
   return (
     <div className="grid2" style={{gap:16}}>
       {ENGINE_PHOTO_TYPES.map(([type, label]) => (
-        <div key={type} style={{background:'#0d1925',borderRadius:8,overflow:'hidden',border:'1px solid #1e3348'}}>
+        <div key={type} style={{background:'var(--color-technical-grey)',borderRadius:8,overflow:'hidden',border:'1px solid var(--color-divider)'}}>
           {photos[type]
             ? <img src={photos[type]} alt={label} style={{width:'100%',height:140,objectFit:'cover',display:'block'}}/>
-            : <div style={{width:'100%',height:140,background:'#0a1620',display:'flex',alignItems:'center',justifyContent:'center',color:'#475569',fontSize:12}}>No photo</div>
+            : <div style={{width:'100%',height:140,background:'var(--color-technical-grey)',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--color-graphite)',fontSize:12}}>No photo</div>
           }
           <div style={{padding:'10px 12px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <span style={{fontSize:12,fontWeight:600,color:'#e2e8f0'}}>{label}</span>
+            <span style={{fontSize:12,fontWeight:600,color:'var(--color-carbon)'}}>{label}</span>
             <label style={{cursor:'pointer'}}>
               <input type="file" accept="image/*" onChange={e=>handleUpload(type,e.target.files?.[0])} style={{display:'none'}}/>
               <span className="btn btn-primary" style={{fontSize:11,padding:'5px 10px'}}>
@@ -260,13 +260,13 @@ function AirframePhotoSettings({notify}) {
   return (
     <div className="grid2" style={{gap:16}}>
       {AIRFRAME_PHOTO_TYPES.map(([type, label]) => (
-        <div key={type} style={{background:'#0d1925',borderRadius:8,overflow:'hidden',border:'1px solid #1e3348'}}>
+        <div key={type} style={{background:'var(--color-technical-grey)',borderRadius:8,overflow:'hidden',border:'1px solid var(--color-divider)'}}>
           {photos[type]
             ? <img src={photos[type]} alt={label} style={{width:'100%',height:140,objectFit:'cover',display:'block'}}/>
-            : <div style={{width:'100%',height:140,background:'#0a1620',display:'flex',alignItems:'center',justifyContent:'center',color:'#475569',fontSize:12}}>No photo</div>
+            : <div style={{width:'100%',height:140,background:'var(--color-technical-grey)',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--color-graphite)',fontSize:12}}>No photo</div>
           }
           <div style={{padding:'10px 12px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <span style={{fontSize:12,fontWeight:600,color:'#e2e8f0'}}>{label}</span>
+            <span style={{fontSize:12,fontWeight:600,color:'var(--color-carbon)'}}>{label}</span>
             <label style={{cursor:'pointer'}}>
               <input type="file" accept="image/*" onChange={e=>handleUpload(type,e.target.files?.[0])} style={{display:'none'}}/>
               <span className="btn btn-primary" style={{fontSize:11,padding:'5px 10px'}}>
@@ -345,19 +345,19 @@ function ForecastingDefaultsForm({notify}) {
     setSaving(false);
   };
 
-  if (!form) return <p style={{color:'#475569',fontSize:13}}>Loading…</p>;
+  if (!form) return <p style={{color:'var(--color-graphite)',fontSize:13}}>Loading…</p>;
 
   return (
     <div>
       <div className="grid2" style={{gap:16,marginBottom:16}}>
         {CHECK_BAND_FIELDS.map(([code,label]) => (
-          <div key={code} style={{background:'#0d1925',borderRadius:8,border:'1px solid #1e3348',padding:14}}>
-            <div style={{fontSize:12,fontWeight:700,color:'#e2e8f0',marginBottom:8}}>{label}</div>
+          <div key={code} style={{background:'var(--color-technical-grey)',borderRadius:8,border:'1px solid var(--color-divider)',padding:14}}>
+            <div style={{fontSize:12,fontWeight:700,color:'var(--color-carbon)',marginBottom:8}}>{label}</div>
             <div style={{display:'flex',gap:10}}>
-              <label style={{fontSize:10,color:'#94a3b8',flex:1}}>Low ($)
+              <label style={{fontSize:10,color:'var(--color-graphite)',flex:1}}>Low ($)
                 <input type="number" value={form.checkCostBands[code].low} onChange={e=>setBand(code,'low',+e.target.value)} style={{width:'100%'}}/>
               </label>
-              <label style={{fontSize:10,color:'#94a3b8',flex:1}}>High ($)
+              <label style={{fontSize:10,color:'var(--color-graphite)',flex:1}}>High ($)
                 <input type="number" value={form.checkCostBands[code].high} onChange={e=>setBand(code,'high',+e.target.value)} style={{width:'100%'}}/>
               </label>
             </div>
@@ -366,48 +366,48 @@ function ForecastingDefaultsForm({notify}) {
       </div>
       <div className="grid2" style={{gap:16,marginBottom:16}}>
         {ENGINE_FAMILIES.map(([fam,label]) => (
-          <div key={fam} style={{background:'#0d1925',borderRadius:8,border:'1px solid #1e3348',padding:14}}>
-            <div style={{fontSize:12,fontWeight:700,color:'#e2e8f0',marginBottom:8}}>{label} — Engine Restoration (EN-PR)</div>
+          <div key={fam} style={{background:'var(--color-technical-grey)',borderRadius:8,border:'1px solid var(--color-divider)',padding:14}}>
+            <div style={{fontSize:12,fontWeight:700,color:'var(--color-carbon)',marginBottom:8}}>{label} — Engine Restoration (EN-PR)</div>
             <div style={{display:'flex',gap:10,marginBottom:8}}>
-              <label style={{fontSize:10,color:'#94a3b8',flex:1}}>Low ($)
+              <label style={{fontSize:10,color:'var(--color-graphite)',flex:1}}>Low ($)
                 <input type="number" value={form.enPrBandsByFamily[fam].costLow} onChange={e=>setEnPr(fam,'costLow',+e.target.value)} style={{width:'100%'}}/>
               </label>
-              <label style={{fontSize:10,color:'#94a3b8',flex:1}}>High ($)
+              <label style={{fontSize:10,color:'var(--color-graphite)',flex:1}}>High ($)
                 <input type="number" value={form.enPrBandsByFamily[fam].costHigh} onChange={e=>setEnPr(fam,'costHigh',+e.target.value)} style={{width:'100%'}}/>
               </label>
             </div>
-            <label style={{fontSize:10,color:'#94a3b8',display:'block'}}>Interval (FH)
+            <label style={{fontSize:10,color:'var(--color-graphite)',display:'block'}}>Interval (FH)
               <input type="number" value={form.enPrBandsByFamily[fam].intervalFH} onChange={e=>setEnPr(fam,'intervalFH',+e.target.value)} style={{width:'100%'}}/>
             </label>
-            <label style={{fontSize:10,color:'#94a3b8',marginTop:8,display:'block'}}>LLP escalation (%/yr) — derived from catalogue history, overrideable
+            <label style={{fontSize:10,color:'var(--color-graphite)',marginTop:8,display:'block'}}>LLP escalation (%/yr) — derived from catalogue history, overrideable
               <input type="number" step="0.01" value={form.llpEscalationPctByFamily[fam]} onChange={e=>setEsc(fam,+e.target.value)} style={{width:'100%'}}/>
             </label>
-            <label style={{fontSize:10,color:'#94a3b8',marginTop:8,display:'block'}}>Blended LLP rate ($/FC) — used for the pot-entry sanity check
+            <label style={{fontSize:10,color:'var(--color-graphite)',marginTop:8,display:'block'}}>Blended LLP rate ($/FC) — used for the pot-entry sanity check
               <input type="number" step="0.01" value={form.llpBlendedRatePerFCByFamily[fam]} onChange={e=>setBlended(fam,+e.target.value)} style={{width:'100%'}}/>
             </label>
           </div>
         ))}
       </div>
-      <div style={{background:'#0d1925',borderRadius:8,border:'1px solid #1e3348',padding:14,marginBottom:16,maxWidth:420}}>
-        <div style={{fontSize:12,fontWeight:700,color:'#e2e8f0',marginBottom:8}}>Check Durations (grounding weeks)</div>
-        <div style={{fontSize:11,color:'#64748b',marginBottom:10}}>How long each C-check grounds the aircraft — feeds Brain 6's grounding calendar directly. Real per-occurrence overrides in the Calendar tab always take priority over these.</div>
+      <div style={{background:'var(--color-technical-grey)',borderRadius:8,border:'1px solid var(--color-divider)',padding:14,marginBottom:16,maxWidth:420}}>
+        <div style={{fontSize:12,fontWeight:700,color:'var(--color-carbon)',marginBottom:8}}>Check Durations (grounding weeks)</div>
+        <div style={{fontSize:11,color:'var(--color-graphite)',marginBottom:10}}>How long each C-check grounds the aircraft — feeds Brain 6's grounding calendar directly. Real per-occurrence overrides in the Calendar tab always take priority over these.</div>
         <div style={{display:'flex',gap:10}}>
-          <label style={{fontSize:10,color:'#94a3b8',flex:1}}>2 Year Check
+          <label style={{fontSize:10,color:'var(--color-graphite)',flex:1}}>2 Year Check
             <input type="number" value={form.checkDurationWeeks["2Y"]} onChange={e=>setDuration("2Y",+e.target.value)} style={{width:'100%'}}/>
           </label>
-          <label style={{fontSize:10,color:'#94a3b8',flex:1}}>6 Year Check
+          <label style={{fontSize:10,color:'var(--color-graphite)',flex:1}}>6 Year Check
             <input type="number" value={form.checkDurationWeeks["6Y"]} onChange={e=>setDuration("6Y",+e.target.value)} style={{width:'100%'}}/>
           </label>
-          <label style={{fontSize:10,color:'#94a3b8',flex:1}}>12 Year Check
+          <label style={{fontSize:10,color:'var(--color-graphite)',flex:1}}>12 Year Check
             <input type="number" value={form.checkDurationWeeks["12Y"]} onChange={e=>setDuration("12Y",+e.target.value)} style={{width:'100%'}}/>
           </label>
         </div>
       </div>
-      <label style={{fontSize:11,color:'#94a3b8',display:'block',marginBottom:14,maxWidth:280}}>Default outflow escalation (%/yr) — pre-fills new non-engine pots
+      <label style={{fontSize:11,color:'var(--color-graphite)',display:'block',marginBottom:14,maxWidth:280}}>Default outflow escalation (%/yr) — pre-fills new non-engine pots
         <input type="number" step="0.1" value={form.outflowEscalationPct} onChange={e=>setForm(f=>({...f,outflowEscalationPct:+e.target.value}))} style={{width:'100%'}}/>
       </label>
       <button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Forecasting Defaults'}</button>
-      <p style={{fontSize:11,color:'#475569',marginTop:10}}>Pre-fills NEW reserve pots only — existing confirmed pots are never retroactively changed, and any per-asset entry always takes priority over these company defaults.</p>
+      <p style={{fontSize:11,color:'var(--color-graphite)',marginTop:10}}>Pre-fills NEW reserve pots only — existing confirmed pots are never retroactively changed, and any per-asset entry always takes priority over these company defaults.</p>
     </div>
   );
 };
@@ -547,9 +547,9 @@ function LLPCatalogueEditor({assets, notify}) {
           <span className="btn btn-primary" style={{fontSize:11,padding:'7px 14px'}}>{parsing ? '⏳ Parsing…' : '⬆ Upload Catalogue (Excel/PDF)'}</span>
         </label>
       </div>
-      {parseError && <div style={{fontSize:12,color:'#f87171',marginBottom:12}}>⚠ {parseError}</div>}
-      {catalogue===null && <p style={{color:'#475569',fontSize:13}}>Scanning fleet LLP sheets…</p>}
-      {catalogue!==null && rows.length===0 && <p style={{color:'#475569',fontSize:13}}>No {family==='CFM'?'CFM56':'V2500'} LLP part numbers found across the fleet yet.</p>}
+      {parseError && <div style={{fontSize:12,color:'var(--color-critical)',marginBottom:12}}>⚠ {parseError}</div>}
+      {catalogue===null && <p style={{color:'var(--color-graphite)',fontSize:13}}>Scanning fleet LLP sheets…</p>}
+      {catalogue!==null && rows.length===0 && <p style={{color:'var(--color-graphite)',fontSize:13}}>No {family==='CFM'?'CFM56':'V2500'} LLP part numbers found across the fleet yet.</p>}
       {rows.length>0 && (
         <div style={{overflow:'auto',marginBottom:14}}>
           <table style={{width:'100%'}}>
@@ -564,14 +564,14 @@ function LLPCatalogueEditor({assets, notify}) {
                 const delta = r.storedPrice != null && r.unitPrice !== '' && +r.unitPrice !== r.storedPrice;
                 return (
                   <tr key={r.partNumber}>
-                    <td style={{fontFamily:'monospace',fontSize:12,color:'#C9A84C'}}>{r.partNumber}</td>
-                    <td style={{fontSize:12,color:'#94a3b8'}}>{r.desc||'—'}</td>
-                    <td style={{textAlign:'right',fontSize:12,color:'#64748b'}}>{r.storedPrice!=null?r.storedPrice.toLocaleString():'—'}</td>
+                    <td style={{fontFamily:'monospace',fontSize:12,color:'var(--color-ochre)'}}>{r.partNumber}</td>
+                    <td style={{fontSize:12,color:'var(--color-graphite)'}}>{r.desc||'—'}</td>
+                    <td style={{textAlign:'right',fontSize:12,color:'var(--color-graphite)'}}>{r.storedPrice!=null?r.storedPrice.toLocaleString():'—'}</td>
                     <td style={{textAlign:'right'}}>
                       <input type="number" value={r.unitPrice} onChange={e=>setPrice(r.partNumber,e.target.value)}
-                        style={{width:130,textAlign:'right',background: r.hasPrice?'transparent':'#2a1f0a'}}
+                        style={{width:130,textAlign:'right',background: r.hasPrice?'transparent':'var(--color-attention-tint)'}}
                         placeholder={r.hasPrice?'':'no price'}/>
-                      {delta && <div style={{fontSize:10,color:'#fbbf24',marginTop:2}}>changed from ${r.storedPrice.toLocaleString()}</div>}
+                      {delta && <div style={{fontSize:10,color:'var(--color-attention)',marginTop:2}}>changed from ${r.storedPrice.toLocaleString()}</div>}
                     </td>
                   </tr>
                 );
@@ -581,7 +581,7 @@ function LLPCatalogueEditor({assets, notify}) {
         </div>
       )}
       <button className="btn btn-gold" disabled={saving||!rows.length} onClick={save}>{saving?'Saving…':'Save Catalogue Prices'}</button>
-      <p style={{fontSize:11,color:'#475569',marginTop:10}}>Upload matches against this fleet's own part numbers only — it never adds parts the fleet doesn't have, and nothing is written to the Knowledge Base until you click Save. A PDF upload looks up each of the fleet's known part numbers within the document rather than reading the whole thing, so a full manufacturer catalogue of any length works fine. Part numbers with no price after upload or manual entry stay flagged amber.</p>
+      <p style={{fontSize:11,color:'var(--color-graphite)',marginTop:10}}>Upload matches against this fleet's own part numbers only — it never adds parts the fleet doesn't have, and nothing is written to the Knowledge Base until you click Save. A PDF upload looks up each of the fleet's known part numbers within the document rather than reading the whole thing, so a full manufacturer catalogue of any length works fine. Part numbers with no price after upload or manual entry stay flagged amber.</p>
     </div>
   );
 };
@@ -610,7 +610,7 @@ function KnowledgeBaseSettings({assets, notify}) {
 function LayoutModeSettingsControl() {
   const { rawMode, setMode, isWide } = useLayoutMode();
   if (!isWide) {
-    return <div style={{fontSize:12,color:"#64748b",fontStyle:"italic"}}>Landscape mode needs a wider window than this one currently has. Try this on a laptop or desktop-width browser window.</div>;
+    return <div style={{fontSize:12,color:"var(--color-graphite)",fontStyle:"italic"}}>Landscape mode needs a wider window than this one currently has. Try this on a laptop or desktop-width browser window.</div>;
   }
   return (
     <div className="flab g8">
@@ -652,8 +652,8 @@ function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
   const deleteAsset=async(id)=>{if(!confirm(`Delete asset MSN ${id}?`))return;const msn=assets.find(a=>String(a.id)===String(id))?.msn||id;await db.deleteAsset(id);await logAudit(id,msn,"Deleted asset");await loadAssets();notify("Asset deleted");};
   return(
     <div>
-      <h1 style={{fontSize:20,color:"#C9A84C",fontWeight:700,marginBottom:18}}>Settings</h1>
-      <div style={{display:"flex",borderBottom:"2px solid #1e3048",marginBottom:20,gap:2,flexWrap:"wrap"}}>
+      <h1 style={{fontSize:20,color:"var(--color-ochre)",fontWeight:700,marginBottom:18}}>Settings</h1>
+      <div style={{display:"flex",borderBottom:"2px solid var(--color-divider)",marginBottom:20,gap:2,flexWrap:"wrap"}}>
         {TABS.map(t=><button key={t.key} className={`tab-btn${tab===t.key?" active":""}`} onClick={()=>setTab(t.key)}>{t.label}</button>)}
       </div>
 
@@ -670,23 +670,23 @@ function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
           <div style={layoutMode==="landscape" ? { display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateAreas: canEditBranding ? '"display logo" "disclaimer logo"' : '"display display"', columnGap: 16, rowGap: 16 } : undefined}>
             <div className="card" style={{padding:20, gridArea: layoutMode==="landscape" ? "display" : undefined}}>
               <div className="section-title">Display</div>
-              <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Choose how TailiQ arranges cards on a wide screen. This is a personal preference — changing it doesn't affect what anyone else sees.</p>
+              <p style={{fontSize:12,color:"var(--color-graphite)",marginBottom:14}}>Choose how TailiQ arranges cards on a wide screen. This is a personal preference — changing it doesn't affect what anyone else sees.</p>
               <LayoutModeSettingsControl/>
             </div>
             {canEditBranding&&(
               <>
                 <div className="card" style={{padding:20, gridArea: layoutMode==="landscape" ? "logo" : undefined}}>
                   <div className="section-title">Tech Spec Logo</div>
-                  <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Resize or replace the logo shown on the tech spec cover pages.</p>
+                  <p style={{fontSize:12,color:"var(--color-graphite)",marginBottom:14}}>Resize or replace the logo shown on the tech spec cover pages.</p>
                   <LogoSettings notify={notify}/>
-                  <div style={{marginTop:20,paddingTop:16,borderTop:'1px solid #1e3348'}}>
+                  <div style={{marginTop:20,paddingTop:16,borderTop:'1px solid var(--color-divider)'}}>
                     <div className="section-title" style={{marginBottom:8}}>TailiQ Branding</div>
                     <BrandingToggle notify={notify}/>
                   </div>
                 </div>
                 <div className="card" style={{padding:20, gridArea: layoutMode==="landscape" ? "disclaimer" : undefined}}>
                   <div className="section-title">Disclaimer</div>
-                  <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Set the default disclaimer text shown at the bottom of every generated tech spec.</p>
+                  <p style={{fontSize:12,color:"var(--color-graphite)",marginBottom:14}}>Set the default disclaimer text shown at the bottom of every generated tech spec.</p>
                   <DisclaimerSettings notify={notify}/>
                 </div>
               </>
@@ -702,25 +702,25 @@ function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
               <div style={layoutMode==="landscape" ? {display:"grid",gridTemplateColumns:"1fr 1fr",columnGap:16} : undefined}>
                 <div className="card" style={{padding:20}}>
                   <div className="section-title">Engine Stock Photos</div>
-                  <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Upload default photos for each engine type. These appear on engine tech specs.</p>
+                  <p style={{fontSize:12,color:"var(--color-graphite)",marginBottom:14}}>Upload default photos for each engine type. These appear on engine tech specs.</p>
                   <EnginePhotoSettings notify={notify}/>
                 </div>
                 <div className="card" style={{padding:20}}>
                   <div className="section-title">Airframe Stock Photos</div>
-                  <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Upload default photos for each airframe type. Used on the tech spec cover whenever an asset has no per-asset "Airframe" photo uploaded (coarse match on model, e.g. any "737 MAX..." model uses the B737 MAX photo).</p>
+                  <p style={{fontSize:12,color:"var(--color-graphite)",marginBottom:14}}>Upload default photos for each airframe type. Used on the tech spec cover whenever an asset has no per-asset "Airframe" photo uploaded (coarse match on model, e.g. any "737 MAX..." model uses the B737 MAX photo).</p>
                   <AirframePhotoSettings notify={notify}/>
                 </div>
               </div>
             </>
           ):(
-            <div className="card" style={{padding:20,fontSize:12,color:"#64748b"}}>Tech spec logo, disclaimer, and stock photos can only be changed by an Editor or Admin.</div>
+            <div className="card" style={{padding:20,fontSize:12,color:"var(--color-graphite)"}}>Tech spec logo, disclaimer, and stock photos can only be changed by an Editor or Admin.</div>
           )}
         </div>
       )}
 
       {tab==="knowledgebase"&&canSeeKB&&(
         <div style={{maxWidth:900}}>
-          <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>House-view forecasting assumptions and LLP catalogue pricing that pre-fill new reserve pots and feed Brain 3's cost estimates. Per-asset entries always take priority over these company defaults, and existing confirmed pots are never retroactively changed.</p>
+          <p style={{fontSize:12,color:"var(--color-graphite)",marginBottom:14}}>House-view forecasting assumptions and LLP catalogue pricing that pre-fill new reserve pots and feed Brain 3's cost estimates. Per-asset entries always take priority over these company defaults, and existing confirmed pots are never retroactively changed.</p>
           <KnowledgeBaseSettings assets={assets} notify={notify}/>
         </div>
       )}
@@ -732,7 +732,7 @@ function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
           <div>
             <div className="section-title" style={{marginBottom:12}}>Assets</div>
             <div className="flj" style={{marginBottom:14}}>
-              <span style={{color:"#475569",fontSize:13}}>{assets.length} aircraft in system</span>
+              <span style={{color:"var(--color-graphite)",fontSize:13}}>{assets.length} aircraft in system</span>
               <button className="btn btn-gold" onClick={()=>setShowNew(true)}>+ New Asset</button>
             </div>
             {showNew&&(
@@ -750,14 +750,14 @@ function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
             <div className="card" style={{overflow:"hidden"}}>
               <table><thead><tr><th>MSN</th><th>Registration</th><th>Model</th><th>Operator</th><th>Engine S/Ns</th><th></th></tr></thead>
               <tbody>
-                {assets.length===0&&<tr><td colSpan={6} style={{textAlign:"center",padding:40,color:"#475569"}}>No assets yet.</td></tr>}
+                {assets.length===0&&<tr><td colSpan={6} style={{textAlign:"center",padding:40,color:"var(--color-graphite)"}}>No assets yet.</td></tr>}
                 {assets.map(a=>(
                   <tr key={a.id}>
-                    <td style={{fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{a.msn}</td>
+                    <td style={{fontWeight:700,color:"var(--color-ochre)",fontFamily:"monospace"}}>{a.msn}</td>
                     <td style={{fontWeight:600}}>{a.registration||"—"}</td>
-                    <td style={{color:"#94a3b8"}}>{a.model||"—"}</td>
-                    <td style={{color:"#94a3b8"}}>{a.operator||"—"}</td>
-                    <td style={{fontFamily:"monospace",fontSize:11,color:"#64748b"}}>{a.engines?.map(e=>e.sn||"TBD").join(" / ")||"—"}</td>
+                    <td style={{color:"var(--color-graphite)"}}>{a.model||"—"}</td>
+                    <td style={{color:"var(--color-graphite)"}}>{a.operator||"—"}</td>
+                    <td style={{fontFamily:"monospace",fontSize:11,color:"var(--color-graphite)"}}>{a.engines?.map(e=>e.sn||"TBD").join(" / ")||"—"}</td>
                     <td><button className="btn-danger btn" style={{fontSize:10,padding:"3px 8px"}} onClick={()=>deleteAsset(a.id)}>Delete</button></td>
                   </tr>
                 ))}
@@ -770,12 +770,12 @@ function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
             <div style={{display:"flex",flexDirection:"column",gap:16}}>
               <div className="card" style={{padding:20}}>
                 <div className="section-title">Invite User</div>
-                <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Create a new TailiQ account. They'll receive an email to set their own password.</p>
+                <p style={{fontSize:12,color:"var(--color-graphite)",marginBottom:14}}>Create a new TailiQ account. They'll receive an email to set their own password.</p>
                 <InviteUserCard notify={notify}/>
               </div>
               <div className="card" style={{padding:20}}>
                 <div className="section-title">Manage Users</div>
-                <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>View all users and change their roles. Admin role can only be set via server configuration.</p>
+                <p style={{fontSize:12,color:"var(--color-graphite)",marginBottom:14}}>View all users and change their roles. Admin role can only be set via server configuration.</p>
                 <UsersCard notify={notify}/>
               </div>
             </div>
@@ -821,7 +821,7 @@ function InviteUserCard({notify}){
     <div style={{display:"flex",flexDirection:"column",gap:10}}>
       <div style={{display:"flex",gap:8}}>
         <input type="email" placeholder="name@company.com" value={email} onChange={e=>setEmail(e.target.value)} style={{flex:1}}/>
-        <select value={role} onChange={e=>setRole(e.target.value)} style={{background:"#0d1c2c",color:"#e2e8f0",border:"1px solid #2d3f55",borderRadius:6,padding:"8px 12px",fontFamily:"inherit",fontSize:13,cursor:"pointer",width:120,flexShrink:0}}>
+        <select value={role} onChange={e=>setRole(e.target.value)} style={{background:"var(--color-technical-grey)",color:"var(--color-carbon)",border:"1px solid var(--color-divider)",borderRadius:6,padding:"8px 12px",fontFamily:"inherit",fontSize:13,cursor:"pointer",width:120,flexShrink:0}}>
           <option value="editor">Editor</option>
           <option value="viewer">Viewer</option>
           <option value="dataEntry">Data Entry</option>
@@ -829,12 +829,12 @@ function InviteUserCard({notify}){
         <button className="btn btn-gold" onClick={invite} disabled={busy}>{busy?"Sending…":"Send Invite"}</button>
       </div>
       {inviteLink&&(
-        <div style={{display:"flex",alignItems:"center",gap:8,background:"#0d1c2c",border:"1px solid #2d3f55",borderRadius:6,padding:"8px 12px"}}>
-          <span style={{fontSize:11,color:"#7a9ab5",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{inviteLink}</span>
-          <button onClick={copyLink} style={{background:"none",border:"1px solid #2d3f55",color:copied?"#3FA66B":"#94a3b8",borderRadius:4,padding:"4px 10px",fontSize:11,cursor:"pointer",flexShrink:0,transition:"color 0.2s"}}>{copied?"Copied ✓":"Copy link"}</button>
+        <div style={{display:"flex",alignItems:"center",gap:8,background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:6,padding:"8px 12px"}}>
+          <span style={{fontSize:11,color:"var(--color-graphite)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{inviteLink}</span>
+          <button onClick={copyLink} style={{background:"none",border:"1px solid var(--color-divider)",color:copied?"var(--color-positive)":"var(--color-graphite)",borderRadius:4,padding:"4px 10px",fontSize:11,cursor:"pointer",flexShrink:0,transition:"color 0.2s"}}>{copied?"Copied ✓":"Copy link"}</button>
         </div>
       )}
-      <p style={{fontSize:11,color:"#475569",margin:0}}>Editor — full access except user management. Viewer — sees everything including financials, edits nothing. Data Entry — uploads and lease/reserve entry only, no financial views.</p>
+      <p style={{fontSize:11,color:"var(--color-graphite)",margin:0}}>Editor — full access except user management. Viewer — sees everything including financials, edits nothing. Data Entry — uploads and lease/reserve entry only, no financial views.</p>
     </div>
   );
 };
@@ -915,9 +915,9 @@ function UsersCard({notify}){
     }catch(e){notify(e.message||"Could not remove user.","error");}
     setBusy(null);
   };
-  const roleColour={admin:"#C9A84C",editor:"#34d399",viewer:"#94a3b8",dataEntry:"#60a5fa"};
-  if(loading)return<p style={{color:"#475569",fontSize:13}}>Loading users…</p>;
-  if(!users.length)return<p style={{color:"#475569",fontSize:13}}>No users found.</p>;
+  const roleColour={admin:"var(--color-ochre)",editor:"var(--color-positive)",viewer:"var(--color-graphite)",dataEntry:"var(--color-teal)"};
+  if(loading)return<p style={{color:"var(--color-graphite)",fontSize:13}}>Loading users…</p>;
+  if(!users.length)return<p style={{color:"var(--color-graphite)",fontSize:13}}>No users found.</p>;
   return(
     <div style={{display:"flex",flexDirection:"column",gap:0}}>
       <table style={{width:"100%"}}>
@@ -926,46 +926,46 @@ function UsersCard({notify}){
           {users.map(u=>(
             <React.Fragment key={u.uid}>
               <tr>
-                <td style={{fontSize:13,color:"#e2e8f0",padding:"8px 0"}}>{u.email}</td>
-                <td><span style={{fontSize:11,fontWeight:700,color:roleColour[u.role]||"#94a3b8",textTransform:"uppercase",letterSpacing:"0.05em"}}>{u.role||"—"}</span></td>
+                <td style={{fontSize:13,color:"var(--color-carbon)",padding:"8px 0"}}>{u.email}</td>
+                <td><span style={{fontSize:11,fontWeight:700,color:roleColour[u.role]||"var(--color-graphite)",textTransform:"uppercase",letterSpacing:"0.05em"}}>{u.role||"—"}</span></td>
                 <td style={{textAlign:"right"}}>
                   {u.role!=="admin"&&(
                     <div style={{display:"flex",gap:6,justifyContent:"flex-end",alignItems:"center"}}>
                       <select value={u.role||""} onChange={e=>changeRole(u.uid,e.target.value)} disabled={!!busy}
-                        style={{background:"#0d1c2c",color:"#e2e8f0",border:"1px solid #2d3f55",borderRadius:6,padding:"5px 10px",fontFamily:"inherit",fontSize:12,cursor:"pointer"}}>
+                        style={{background:"var(--color-technical-grey)",color:"var(--color-carbon)",border:"1px solid var(--color-divider)",borderRadius:6,padding:"5px 10px",fontFamily:"inherit",fontSize:12,cursor:"pointer"}}>
                         <option value="editor">Editor</option>
                         <option value="viewer">Viewer</option>
                         <option value="dataEntry">Data Entry</option>
                       </select>
                       <button onClick={()=>resendInvite(u)} disabled={!!busy}
-                        style={{background:"none",border:"1px solid #2d3f55",color:"#94a3b8",borderRadius:4,padding:"5px 10px",fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>
+                        style={{background:"none",border:"1px solid var(--color-divider)",color:"var(--color-graphite)",borderRadius:4,padding:"5px 10px",fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>
                         {busy===u.uid?"…":"Resend invite"}
                       </button>
                       {confirmRemove===u.uid?(
                         <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                          <span style={{fontSize:11,color:"#f87171",whiteSpace:"nowrap"}}>Remove?</span>
+                          <span style={{fontSize:11,color:"var(--color-critical)",whiteSpace:"nowrap"}}>Remove?</span>
                           <button onClick={()=>removeUser(u)} disabled={!!busy}
-                            style={{background:"#7f1d1d",border:"1px solid #ef4444",color:"#fca5a5",borderRadius:4,padding:"5px 10px",fontSize:11,cursor:"pointer"}}>Yes</button>
+                            style={{background:"var(--color-critical-tint)",border:"1px solid var(--color-critical)",color:"var(--color-critical)",borderRadius:4,padding:"5px 10px",fontSize:11,cursor:"pointer"}}>Yes</button>
                           <button onClick={()=>setConfirmRemove(null)}
-                            style={{background:"none",border:"1px solid #2d3f55",color:"#94a3b8",borderRadius:4,padding:"5px 10px",fontSize:11,cursor:"pointer"}}>No</button>
+                            style={{background:"none",border:"1px solid var(--color-divider)",color:"var(--color-graphite)",borderRadius:4,padding:"5px 10px",fontSize:11,cursor:"pointer"}}>No</button>
                         </div>
                       ):(
                         <button onClick={()=>setConfirmRemove(u.uid)} disabled={!!busy}
-                          style={{background:"none",border:"1px solid #2d3f55",color:"#64748b",borderRadius:4,padding:"5px 10px",fontSize:11,cursor:"pointer"}}>
+                          style={{background:"none",border:"1px solid var(--color-divider)",color:"var(--color-graphite)",borderRadius:4,padding:"5px 10px",fontSize:11,cursor:"pointer"}}>
                           Remove
                         </button>
                       )}
                     </div>
                   )}
-                  {u.role==="admin"&&<span style={{fontSize:11,color:"#475569"}}>Protected</span>}
+                  {u.role==="admin"&&<span style={{fontSize:11,color:"var(--color-graphite)"}}>Protected</span>}
                 </td>
               </tr>
               {resendLink[u.email]&&(
                 <tr>
                   <td colSpan={3} style={{paddingBottom:8}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8,background:"#0d1c2c",border:"1px solid #2d3f55",borderRadius:6,padding:"7px 12px"}}>
-                      <span style={{fontSize:11,color:"#7a9ab5",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{resendLink[u.email]}</span>
-                      <button onClick={()=>copyResendLink(u.email)} style={{background:"none",border:"1px solid #2d3f55",color:resendCopied[u.email]?"#3FA66B":"#94a3b8",borderRadius:4,padding:"4px 10px",fontSize:11,cursor:"pointer",flexShrink:0,transition:"color 0.2s"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:6,padding:"7px 12px"}}>
+                      <span style={{fontSize:11,color:"var(--color-graphite)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{resendLink[u.email]}</span>
+                      <button onClick={()=>copyResendLink(u.email)} style={{background:"none",border:"1px solid var(--color-divider)",color:resendCopied[u.email]?"var(--color-positive)":"var(--color-graphite)",borderRadius:4,padding:"4px 10px",fontSize:11,cursor:"pointer",flexShrink:0,transition:"color 0.2s"}}>
                         {resendCopied[u.email]?"Copied ✓":"Copy link"}
                       </button>
                     </div>

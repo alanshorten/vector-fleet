@@ -36,21 +36,21 @@ function PortfolioView({assets, notify, onSelect}){
     if(!dates.length)return null;
     return dates.sort()[0];
   };
-  const llpCol=(v)=>v===null?"#94a3b8":v<1000?"#dc2626":v<3000?"#d97706":"#16a34a";
-  const llpBg=(v)=>v===null?"#f8fafc":v<1000?"#fef2f2":v<3000?"#fffbeb":"#f0fdf4";
-  const llpBorder=(v)=>v===null?"#e2e8f0":v<1000?"#fca5a5":v<3000?"#fcd34d":"#86efac";
-  const dateBg=(d)=>d===null?"#f8fafc":d<0?"#fef2f2":d<365?"#fffbeb":"#f8fafc";
-  const dateCol=(d)=>d===null?"#94a3b8":d<0?"#dc2626":d<365?"#d97706":"#334155";
-  const dateBorder=(d)=>d===null?"#e2e8f0":d<0?"#fca5a5":d<365?"#fcd34d":"#e2e8f0";
-  const statusLabel={critical:{text:"Critical",bg:"#fef2f2",color:"#dc2626",border:"#fca5a5"},warn:{text:"Attention",bg:"#fffbeb",color:"#d97706",border:"#fcd34d"},ok:{text:"All Clear",bg:"#f0fdf4",color:"#16a34a",border:"#86efac"}};
+  const llpCol=(v)=>v===null?"var(--color-graphite)":v<1000?"var(--color-critical)":v<3000?"var(--color-attention)":"var(--color-positive)";
+  const llpBg=(v)=>v===null?"var(--color-technical-grey)":v<1000?"var(--color-critical-tint)":v<3000?"var(--color-attention-tint)":"var(--color-positive-tint)";
+  const llpBorder=(v)=>v===null?"var(--color-divider)":v<1000?"var(--color-critical)":v<3000?"var(--color-attention)":"var(--color-positive)";
+  const dateBg=(d)=>d===null?"var(--color-technical-grey)":d<0?"var(--color-critical-tint)":d<365?"var(--color-attention-tint)":"var(--color-technical-grey)";
+  const dateCol=(d)=>d===null?"var(--color-graphite)":d<0?"var(--color-critical)":d<365?"var(--color-attention)":"var(--color-graphite)";
+  const dateBorder=(d)=>d===null?"var(--color-divider)":d<0?"var(--color-critical)":d<365?"var(--color-attention)":"var(--color-divider)";
+  const statusLabel={critical:{text:"Critical",bg:"var(--color-critical-tint)",color:"var(--color-critical)",border:"var(--color-critical)"},warn:{text:"Attention",bg:"var(--color-attention-tint)",color:"var(--color-attention)",border:"var(--color-attention)"},ok:{text:"All Clear",bg:"var(--color-positive-tint)",color:"var(--color-positive)",border:"var(--color-positive)"}};
 
   return(
-    <div style={{background:"#f1f5f9",minHeight:"100vh",margin:"-20px -22px",padding:"32px 28px",animation:"fadeIn 0.2s ease"}}>
+    <div style={{background:"var(--color-technical-grey)",minHeight:"100vh",margin:"-20px -22px",padding:"32px 28px",animation:"fadeIn 0.2s ease"}}>
       <div style={{maxWidth: layoutMode === "landscape" ? 1800 : 1400, margin:"0 auto"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:32}}>
           <div>
-            <h1 style={{fontSize:28,fontWeight:800,color:"#0f172a",letterSpacing:"-0.02em"}}>Fleet Portfolio</h1>
-            <p style={{color:"#64748b",fontSize:14,marginTop:4,fontWeight:500}}>{assets.length} aircraft · {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"})}</p>
+            <h1 style={{fontSize:28,fontWeight:800,color:"var(--color-carbon)",letterSpacing:"-0.02em"}}>Fleet Portfolio</h1>
+            <p style={{color:"var(--color-graphite)",fontSize:14,marginTop:4,fontWeight:500}}>{assets.length} aircraft · {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"})}</p>
           </div>
   
         </div>
@@ -70,7 +70,7 @@ function PortfolioView({assets, notify, onSelect}){
 
             return(
               <div key={a.id}
-                style={{background:"#ffffff",borderRadius:14,border:"1px solid #e2e8f0",
+                style={{background:"var(--color-soft-white)",borderRadius:14,border:"1px solid var(--color-divider)",
                   boxShadow:"0 4px 16px rgba(0,0,0,0.06)",cursor:"pointer",
                   transition:"all 0.2s",overflow:"hidden"}}
                 onClick={()=>onSelect(a.id)}
@@ -78,42 +78,42 @@ function PortfolioView({assets, notify, onSelect}){
                 onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,0.06)";}}
               >
                 {/* Status bar at top */}
-                <div style={{height:4,background:st==="critical"?"#dc2626":st==="warn"?"#d97706":"#16a34a"}}/>
+                <div style={{height:4,background:st==="critical"?"var(--color-critical)":st==="warn"?"var(--color-attention)":"var(--color-positive)"}}/>
 
                 <div style={{padding:22}}>
                   {/* Header */}
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:18}}>
                     <div>
                       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:3}}>
-                        <span style={{fontSize:24,fontWeight:800,color:"#0f172a",fontFamily:"monospace",letterSpacing:"0.02em"}}>{a.msn}</span>
-                        <span style={{fontSize:16,fontWeight:700,color:"#334155"}}>{a.registration||"—"}</span>
+                        <span style={{fontSize:24,fontWeight:800,color:"var(--color-carbon)",fontFamily:"monospace",letterSpacing:"0.02em"}}>{a.msn}</span>
+                        <span style={{fontSize:16,fontWeight:700,color:"var(--color-carbon)"}}>{a.registration||"—"}</span>
                         {a.currentLeaseId&&<span title="Lease on file" style={{fontSize:14}}>📄</span>}
                       </div>
-                      <div style={{fontSize:12,color:"#64748b",fontWeight:500}}>{a.model||"—"} · {a.operator||"—"}</div>
+                      <div style={{fontSize:12,color:"var(--color-graphite)",fontWeight:500}}>{a.model||"—"} · {a.operator||"—"}</div>
                     </div>
                     <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
                       <span style={{background:sl.bg,color:sl.color,border:`1px solid ${sl.border}`,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700}}>{sl.text}</span>
-                      {ageFromDOM(a.dom)!==null&&<span style={{fontSize:11,color:"#94a3b8",fontWeight:600}}>{ageFromDOM(a.dom)} yrs old</span>}
+                      {ageFromDOM(a.dom)!==null&&<span style={{fontSize:11,color:"var(--color-graphite)",fontWeight:600}}>{ageFromDOM(a.dom)} yrs old</span>}
                     </div>
                   </div>
 
                   {/* Airframe */}
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
                     {[["Airframe TSN",fmtHHMM(af.currentFH)],["Airframe CSN",(af.currentFC||0).toLocaleString()]].map(([l,v])=>(
-                      <div key={l} style={{background:"#f8fafc",borderRadius:8,padding:"10px 12px",border:"1px solid #e2e8f0"}}>
-                        <div style={{fontSize:9,color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3}}>{l}</div>
-                        <div style={{fontSize:18,fontWeight:800,color:"#0f172a",fontFamily:"monospace"}}>{v}</div>
+                      <div key={l} style={{background:"var(--color-technical-grey)",borderRadius:8,padding:"10px 12px",border:"1px solid var(--color-divider)"}}>
+                        <div style={{fontSize:9,color:"var(--color-graphite)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3}}>{l}</div>
+                        <div style={{fontSize:18,fontWeight:800,color:"var(--color-carbon)",fontFamily:"monospace"}}>{v}</div>
                       </div>
                     ))}
                   </div>
 
                   {/* LLP Section */}
                   <div style={{marginBottom:14}}>
-                    <div style={{fontSize:9,color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:7}}>Life Limited Parts — FC Remaining</div>
+                    <div style={{fontSize:9,color:"var(--color-graphite)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:7}}>Life Limited Parts — FC Remaining</div>
                     <div style={{display:"flex",flexDirection:"column",gap:4}}>
                       {[[`Eng 1${eng1?.sn?` · ${eng1.sn}`:""}`,ll1],[`Eng 2${eng2?.sn?` · ${eng2.sn}`:""}`,ll2],["APU",apuLL]].map(([label,val])=>(
                         <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:llpBg(val),borderRadius:6,padding:"7px 11px",border:`1px solid ${llpBorder(val)}`}}>
-                          <span style={{fontSize:11,color:"#475569",fontWeight:600}}>{label}</span>
+                          <span style={{fontSize:11,color:"var(--color-graphite)",fontWeight:600}}>{label}</span>
                           <span style={{fontSize:13,fontWeight:800,color:llpCol(val),fontFamily:"monospace"}}>{val!==null?val.toLocaleString()+" FC":"No data"}</span>
                         </div>
                       ))}
@@ -122,11 +122,11 @@ function PortfolioView({assets, notify, onSelect}){
 
                   {/* Dates */}
                   <div style={{marginBottom:18}}>
-                    <div style={{fontSize:9,color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:7}}>Key Events</div>
+                    <div style={{fontSize:9,color:"var(--color-graphite)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:7}}>Key Events</div>
                     <div style={{display:"flex",flexDirection:"column",gap:4}}>
                       {[["Next Gear Overhaul",gearDate,gearDays],["Next Major Check",checkDate,checkDays]].map(([label,date,days])=>(
                         <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:dateBg(days),borderRadius:6,padding:"7px 11px",border:`1px solid ${dateBorder(days)}`}}>
-                          <span style={{fontSize:11,color:"#475569",fontWeight:600}}>{label}</span>
+                          <span style={{fontSize:11,color:"var(--color-graphite)",fontWeight:600}}>{label}</span>
                           <div style={{textAlign:"right"}}>
                             <div style={{fontSize:12,fontWeight:700,color:dateCol(days)}}>{date?fmtDate(date):"Not entered"}</div>
                             {days!==null&&<div style={{fontSize:10,color:dateCol(days),opacity:0.8}}>{days<0?`${Math.abs(days)}d overdue`:days===0?"Today":`${days}d`}</div>}
@@ -137,16 +137,16 @@ function PortfolioView({assets, notify, onSelect}){
                   </div>
 
                   {/* Footer */}
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:14,borderTop:"1px solid #f1f5f9"}}>
-                    <span style={{fontSize:11,color:"#94a3b8",fontWeight:500}}>{a._lastPeriod||"No report"}</span>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:14,borderTop:"1px solid var(--color-divider)"}}>
+                    <span style={{fontSize:11,color:"var(--color-graphite)",fontWeight:500}}>{a._lastPeriod||"No report"}</span>
                     <div style={{display:"flex",gap:8}}>
-                      <button style={{background:"transparent",color:"#475569",border:"1px solid #e2e8f0",borderRadius:7,padding:"8px 14px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:"0.03em",transition:"all 0.15s"}}
+                      <button style={{background:"transparent",color:"var(--color-graphite)",border:"1px solid var(--color-divider)",borderRadius:7,padding:"8px 14px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:"0.03em",transition:"all 0.15s"}}
                         onClick={e=>{e.stopPropagation();setShareOpenId(a.id);}}>
                         🔗 Share
                       </button>
-                      <button style={{background:"#C9A84C",color:"#0a1520",border:"none",borderRadius:7,padding:"8px 16px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:"0.03em",transition:"all 0.15s"}}
-                        onMouseEnter={e=>e.currentTarget.style.background="#d4b060"}
-                        onMouseLeave={e=>e.currentTarget.style.background="#C9A84C"}
+                      <button style={{background:"var(--color-ochre)",color:"var(--color-carbon)",border:"none",borderRadius:7,padding:"8px 16px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:"0.03em",transition:"all 0.15s"}}
+                        onMouseEnter={e=>e.currentTarget.style.background="var(--color-ochre-hover)"}
+                        onMouseLeave={e=>e.currentTarget.style.background="var(--color-ochre)"}
                         onClick={async e=>{
                           e.stopPropagation();
                           const photoKey=assetEngineStockPhotoKey(a);
@@ -168,9 +168,9 @@ function PortfolioView({assets, notify, onSelect}){
             );
           })}
           {assets.length===0&&(
-            <div style={{gridColumn:"1/-1",textAlign:"center",padding:80,color:"#94a3b8"}}>
+            <div style={{gridColumn:"1/-1",textAlign:"center",padding:80,color:"var(--color-graphite)"}}>
               <div style={{fontSize:48,marginBottom:16}}>✈</div>
-              <p style={{fontSize:16,fontWeight:600,color:"#334155"}}>No assets in portfolio</p>
+              <p style={{fontSize:16,fontWeight:600,color:"var(--color-carbon)"}}>No assets in portfolio</p>
               <p style={{fontSize:13,marginTop:8}}>Go to Admin to add your first aircraft</p>
             </div>
           )}
@@ -201,9 +201,9 @@ function TimeAxisBarChart({ timeAxis, onBarClick, selectedMonthKey }) {
   const postLeaseShortfall = timeAxis.map(b => b.postLeaseShortfallHigh || 0);
 
   const datasets = [
-    { label: "Covered", data: covered, backgroundColor: "#34d399", stack: "s" },
-    { label: "Shortfall (within lease)", data: inLeaseShortfall, backgroundColor: "#f87171", stack: "s" },
-    { label: "Shortfall (post-lease)", data: postLeaseShortfall, backgroundColor: "#f8717166", stack: "s" }
+    { label: "Covered", data: covered, backgroundColor: "var(--color-positive)", stack: "s" },
+    { label: "Shortfall (within lease)", data: inLeaseShortfall, backgroundColor: "var(--color-critical)", stack: "s" },
+    { label: "Shortfall (post-lease)", data: postLeaseShortfall, backgroundColor: "var(--color-critical)66", stack: "s" }
   ];
 
   useEffect(() => {
@@ -221,7 +221,7 @@ function TimeAxisBarChart({ timeAxis, onBarClick, selectedMonthKey }) {
           onBarClick(timeAxis[idx].monthKey);
         },
         plugins: {
-          legend: { labels: { color: "#94a3b8", font: { size: 11 }, boxWidth: 12 } },
+          legend: { labels: { color: "var(--color-graphite)", font: { size: 11 }, boxWidth: 12 } },
           tooltip: {
             callbacks: {
               label: ctx => {
@@ -233,8 +233,8 @@ function TimeAxisBarChart({ timeAxis, onBarClick, selectedMonthKey }) {
           }
         },
         scales: {
-          x: { stacked: true, ticks: { color: "#64748b", font: { size: 10 }, maxTicksLimit: 12 }, grid: { color: "#1e3048" } },
-          y: { stacked: true, ticks: { color: "#64748b", font: { size: 10 }, callback: v => "$" + (v / 1000).toFixed(0) + "k" }, grid: { color: "#1e3048" } }
+          x: { stacked: true, ticks: { color: "var(--color-graphite)", font: { size: 10 }, maxTicksLimit: 12 }, grid: { color: "var(--color-divider)" } },
+          y: { stacked: true, ticks: { color: "var(--color-graphite)", font: { size: 10 }, callback: v => "$" + (v / 1000).toFixed(0) + "k" }, grid: { color: "var(--color-divider)" } }
         }
       }
     });
@@ -274,19 +274,19 @@ function FleetExposureView({ assets, onSelectAsset }) {
   }, [reload]);
 
   if (loading) {
-    return <div style={{ padding: 40, textAlign: "center", color: "#64748b" }}>Loading fleet exposure…</div>;
+    return <div style={{ padding: 40, textAlign: "center", color: "var(--color-graphite)" }}>Loading fleet exposure…</div>;
   }
 
   if (loadError || !data) {
     return (
-      <div className="card" style={{ padding: 24, textAlign: "center", color: "#f87171" }}>
+      <div className="card" style={{ padding: 24, textAlign: "center", color: "var(--color-critical)" }}>
         Couldn't build fleet exposure{loadError ? `: ${loadError}` : "."}
       </div>
     );
   }
 
   const { headline, timeAxis, assetAxis, excludedAssets } = data;
-  const statusColor = { green: "#34d399", amber: "#fbbf24", red: "#f87171" };
+  const statusColor = { green: "var(--color-positive)", amber: "var(--color-attention)", red: "var(--color-critical)" };
 
   // Sort mode is applied here, client-side, against the same assetAxis
   // data — no re-fetch needed to switch views (fleet-exposure-redesign-
@@ -324,32 +324,32 @@ function FleetExposureView({ assets, onSelectAsset }) {
           figure now includes post-lease shortfalls — asset exposure, not
           lease exposure (fleet-exposure-redesign-handoff.md §1). */}
       <div className="card" style={{ padding: 20, marginBottom: mb, gridArea: pairInGrid ? "headline" : undefined }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 6 }}>Fleet Exposure</div>
-        <div style={{ fontSize: 30, fontWeight: 700, color: headline.totalHighCaseGap > 0 ? "#f87171" : "#34d399" }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 6 }}>Fleet Exposure</div>
+        <div style={{ fontSize: 30, fontWeight: 700, color: headline.totalHighCaseGap > 0 ? "var(--color-critical)" : "var(--color-positive)" }}>
           ${Math.round(headline.totalHighCaseGap).toLocaleString()}
         </div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 6 }}>
+        <div style={{ fontSize: 12, color: "var(--color-graphite)", marginTop: 6 }}>
           High-case gap across {headline.assetsComputed} of {headline.totalAssets} asset{headline.totalAssets === 1 ? "" : "s"} — includes shortfalls landing after redelivery
           {headline.excludedCount > 0 && (
             <>
               {" — "}
-              <button onClick={() => setShowExcluded(s => !s)} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", textDecoration: "underline", font: "inherit", padding: 0 }}>
+              <button onClick={() => setShowExcluded(s => !s)} style={{ background: "none", border: "none", color: "var(--color-attention)", cursor: "pointer", textDecoration: "underline", font: "inherit", padding: 0 }}>
                 {headline.excludedCount} excluded
               </button>
             </>
           )}
         </div>
         <div className="flab g8" style={{ marginTop: 12 }}>
-          <span className="pill" style={{ background: "#0d2818", color: "#34d399" }}>{headline.statusCounts.green} green</span>
-          <span className="pill" style={{ background: "#2a220e", color: "#fbbf24" }}>{headline.statusCounts.amber} amber</span>
-          <span className="pill" style={{ background: "#2a0e0e", color: "#f87171" }}>{headline.statusCounts.red} red</span>
+          <span className="pill" style={{ background: "var(--color-positive-tint)", color: "var(--color-positive)" }}>{headline.statusCounts.green} green</span>
+          <span className="pill" style={{ background: "var(--color-attention-tint)", color: "var(--color-attention)" }}>{headline.statusCounts.amber} amber</span>
+          <span className="pill" style={{ background: "var(--color-critical-tint)", color: "var(--color-critical)" }}>{headline.statusCounts.red} red</span>
         </div>
         {showExcluded && (
-          <div style={{ marginTop: 14, borderTop: "1px solid #1e3048", paddingTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ marginTop: 14, borderTop: "1px solid var(--color-divider)", paddingTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
             {excludedAssets.map((e, i) => (
-              <div key={i} className="flj" style={{ fontSize: 12, color: "#94a3b8", cursor: onSelectAsset ? "pointer" : "default" }} onClick={() => onSelectAsset && onSelectAsset(e.assetId)}>
+              <div key={i} className="flj" style={{ fontSize: 12, color: "var(--color-graphite)", cursor: onSelectAsset ? "pointer" : "default" }} onClick={() => onSelectAsset && onSelectAsset(e.assetId)}>
                 <span>MSN {e.msn}</span>
-                <span style={{ color: e.reason === "COMPUTE_ERROR" ? "#f87171" : "#fbbf24" }}>{e.reason.replace(/_/g, " ")} — {e.message}</span>
+                <span style={{ color: e.reason === "COMPUTE_ERROR" ? "var(--color-critical)" : "var(--color-attention)" }}>{e.reason.replace(/_/g, " ")} — {e.message}</span>
               </div>
             ))}
           </div>
@@ -360,22 +360,22 @@ function FleetExposureView({ assets, onSelectAsset }) {
           One bar per month with events; empty months compressed out.
           Click a bar to drill into that month's events below. */}
       <div className="card" style={{ padding: 16, marginBottom: mb, gridArea: pairInGrid ? "timeaxis" : undefined }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 10 }}>
           Time Axis — to lease end, plus each pot's next event beyond it (however far out)
         </div>
         {timeAxis.length === 0 ? (
-          <div style={{ color: "#64748b", fontSize: 12 }}>No projected events across the fleet.</div>
+          <div style={{ color: "var(--color-graphite)", fontSize: 12 }}>No projected events across the fleet.</div>
         ) : (
           <>
             <TimeAxisBarChart timeAxis={timeAxis} selectedMonthKey={selectedMonthKey} onBarClick={mk => setSelectedMonthKey(mk === selectedMonthKey ? null : mk)}/>
             {selectedBucket ? (
-              <div style={{ marginTop: 16, borderTop: "1px solid #1e3048", paddingTop: 12 }}>
+              <div style={{ marginTop: 16, borderTop: "1px solid var(--color-divider)", paddingTop: 12 }}>
                 <div className="flj" style={{ marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>{selectedBucket.monthKey}</span>
-                  <button onClick={() => setSelectedMonthKey(null)} style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 11 }}>Close ✕</button>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-carbon)" }}>{selectedBucket.monthKey}</span>
+                  <button onClick={() => setSelectedMonthKey(null)} style={{ background: "none", border: "none", color: "var(--color-graphite)", cursor: "pointer", fontSize: 11 }}>Close ✕</button>
                 </div>
                 {selectedBucket.atoms.map((a, i) => (
-                  <div key={i} className="flj" style={{ fontSize: 11, padding: "4px 0", color: a.postLeaseEnd ? (statusColor[a.status] || "#e2e8f0") + "aa" : statusColor[a.status] || "#e2e8f0" }}>
+                  <div key={i} className="flj" style={{ fontSize: 11, padding: "4px 0", color: a.postLeaseEnd ? (statusColor[a.status] || "var(--color-carbon)") + "aa" : statusColor[a.status] || "var(--color-carbon)" }}>
                     <span style={{ cursor: onSelectAsset ? "pointer" : "default" }} onClick={() => onSelectAsset && onSelectAsset(a.assetId)}>
                       MSN {a.msn} — {a.code}{a.postLeaseEnd ? " (post-lease)" : ""}
                     </span>
@@ -384,7 +384,7 @@ function FleetExposureView({ assets, onSelectAsset }) {
                 ))}
               </div>
             ) : (
-              <div style={{ marginTop: 10, fontSize: 11, color: "#64748b" }}>Click a bar to see that month's events.</div>
+              <div style={{ marginTop: 10, fontSize: 11, color: "var(--color-graphite)" }}>Click a bar to see that month's events.</div>
             )}
           </>
         )}
@@ -395,35 +395,35 @@ function FleetExposureView({ assets, onSelectAsset }) {
           alongside the total regardless of sort mode. */}
       <div className="card" style={{ padding: 16, gridArea: pairInGrid ? "assets" : undefined }}>
         <div className="flj" style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Assets</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)" }}>Assets</div>
           <div className="flab g8">
             <button
               onClick={() => setSortMode("exposure")}
               className="btn"
-              style={{ fontSize: 11, padding: "4px 10px", background: sortMode === "exposure" ? "#C9A84C" : "transparent", color: sortMode === "exposure" ? "#0a1520" : "#94a3b8", border: "1px solid " + (sortMode === "exposure" ? "#C9A84C" : "#334155") }}>
+              style={{ fontSize: 11, padding: "4px 10px", background: sortMode === "exposure" ? "var(--color-ochre)" : "transparent", color: sortMode === "exposure" ? "var(--color-carbon)" : "var(--color-graphite)", border: "1px solid " + (sortMode === "exposure" ? "var(--color-ochre)" : "var(--color-divider)") }}>
               By exposure
             </button>
             <button
               onClick={() => setSortMode("date")}
               className="btn"
-              style={{ fontSize: 11, padding: "4px 10px", background: sortMode === "date" ? "#C9A84C" : "transparent", color: sortMode === "date" ? "#0a1520" : "#94a3b8", border: "1px solid " + (sortMode === "date" ? "#C9A84C" : "#334155") }}>
+              style={{ fontSize: 11, padding: "4px 10px", background: sortMode === "date" ? "var(--color-ochre)" : "transparent", color: sortMode === "date" ? "var(--color-carbon)" : "var(--color-graphite)", border: "1px solid " + (sortMode === "date" ? "var(--color-ochre)" : "var(--color-divider)") }}>
               By nearest date
             </button>
           </div>
         </div>
-        {sortedAssetAxis.length === 0 && <div style={{ color: "#64748b", fontSize: 12 }}>No assets computed.</div>}
+        {sortedAssetAxis.length === 0 && <div style={{ color: "var(--color-graphite)", fontSize: 12 }}>No assets computed.</div>}
         {sortedAssetAxis.map(a => (
-          <div key={a.assetId} className="flj" style={{ padding: "8px 0", borderTop: "1px solid #1e3048", cursor: onSelectAsset ? "pointer" : "default" }} onClick={() => onSelectAsset && onSelectAsset(a.assetId)}>
+          <div key={a.assetId} className="flj" style={{ padding: "8px 0", borderTop: "1px solid var(--color-divider)", cursor: onSelectAsset ? "pointer" : "default" }} onClick={() => onSelectAsset && onSelectAsset(a.assetId)}>
             <div>
-              <span style={{ fontSize: 12, color: "#e2e8f0" }}>MSN {a.msn}</span>
-              {a.hasPostLeaseEvent && <span className="pill" style={{ marginLeft: 8, fontSize: 9, background: "#1e293b", color: "#94a3b8" }}>includes post-lease</span>}
+              <span style={{ fontSize: 12, color: "var(--color-carbon)" }}>MSN {a.msn}</span>
+              {a.hasPostLeaseEvent && <span className="pill" style={{ marginLeft: 8, fontSize: 9, background: "var(--color-divider-inner)", color: "var(--color-graphite)" }}>includes post-lease</span>}
               {a.nearestEventDate && (
-                <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>
+                <div style={{ fontSize: 10, color: "var(--color-graphite)", marginTop: 2 }}>
                   Nearest event: {a.nearestEventDate.toISOString().slice(0, 7)}{a.nearestEventPostLease ? " (post-lease)" : ""}
                 </div>
               )}
             </div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: statusColor[a.worstStatus] || "#e2e8f0" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: statusColor[a.worstStatus] || "var(--color-carbon)" }}>
               ${Math.round(a.totalShortfallHigh).toLocaleString()}
             </span>
           </div>
@@ -504,41 +504,41 @@ function RouteMatcherView({ assets, onSelectAsset }) {
     setLoading(false);
   }, [assets, fhPerMonth, fcPerMonth, startDate, endDate]);
 
-  const financialColor = (v) => (v == null ? "#475569" : v > 0 ? "#f87171" : v < 0 ? "#34d399" : "#94a3b8");
-  const disruptionColor = (v) => (v > 0 ? "#f87171" : "#34d399");
+  const financialColor = (v) => (v == null ? "var(--color-graphite)" : v > 0 ? "var(--color-critical)" : v < 0 ? "var(--color-positive)" : "var(--color-graphite)");
+  const disruptionColor = (v) => (v > 0 ? "var(--color-critical)" : "var(--color-positive)");
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
       <div className="card" style={{ padding: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Route Suitability Matcher</div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)" }}>Route Suitability Matcher</div>
+        <div style={{ fontSize: 12, color: "var(--color-graphite)", marginTop: 2, marginBottom: 16 }}>
           Describe the route — a wet lease, a seasonal schedule, a reassignment — and every eligible asset is compared against it. Exploratory only; nothing here is saved.
         </div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>The route</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 12 }}>The route</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: "#94a3b8" }}>
+          <label style={{ fontSize: 11, color: "var(--color-graphite)" }}>
             FH / month
             <input type="number" min="0" step="1" value={fhPerMonth} onChange={e => setFhPerMonth(e.target.value)}
               style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
           </label>
-          <label style={{ fontSize: 11, color: "#94a3b8" }}>
+          <label style={{ fontSize: 11, color: "var(--color-graphite)" }}>
             FC / month
             <input type="number" min="0" step="1" value={fcPerMonth} onChange={e => setFcPerMonth(e.target.value)}
               style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
           </label>
-          <label style={{ fontSize: 11, color: "#94a3b8" }}>
+          <label style={{ fontSize: 11, color: "var(--color-graphite)" }}>
             Start date
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
               style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
           </label>
-          <label style={{ fontSize: 11, color: "#94a3b8" }}>
+          <label style={{ fontSize: 11, color: "var(--color-graphite)" }}>
             End date
             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
               style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
           </label>
         </div>
         {fhPerMonth > 0 && fcPerMonth > 0 && (
-          <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: "var(--color-graphite)", marginBottom: 12 }}>
             ≈ {(Number(fhPerMonth) / Number(fcPerMonth)).toFixed(1)} FH:FC average sector
           </div>
         )}
@@ -549,7 +549,7 @@ function RouteMatcherView({ assets, onSelectAsset }) {
             {loading ? "Matching…" : "Find best match"}
           </button>
         </div>
-        {loadError && <div style={{ marginTop: 10, fontSize: 12, color: "#f87171" }}>Couldn't run the match: {loadError}</div>}
+        {loadError && <div style={{ marginTop: 10, fontSize: 12, color: "var(--color-critical)" }}>Couldn't run the match: {loadError}</div>}
       </div>
 
       {data && (
@@ -557,17 +557,17 @@ function RouteMatcherView({ assets, onSelectAsset }) {
           {data.excludedAssets.length > 0 && (
             <div className="card" style={{ padding: 16, marginBottom: 16 }}>
               <div className="flj">
-                <span style={{ fontSize: 12, color: "#94a3b8" }}>{data.excludedAssets.length} asset{data.excludedAssets.length === 1 ? "" : "s"} not compared</span>
-                <button onClick={() => setShowExcluded(s => !s)} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", textDecoration: "underline", font: "inherit", padding: 0, fontSize: 12 }}>
+                <span style={{ fontSize: 12, color: "var(--color-graphite)" }}>{data.excludedAssets.length} asset{data.excludedAssets.length === 1 ? "" : "s"} not compared</span>
+                <button onClick={() => setShowExcluded(s => !s)} style={{ background: "none", border: "none", color: "var(--color-attention)", cursor: "pointer", textDecoration: "underline", font: "inherit", padding: 0, fontSize: 12 }}>
                   {showExcluded ? "Hide" : "Show"}
                 </button>
               </div>
               {showExcluded && (
-                <div style={{ marginTop: 10, borderTop: "1px solid #1e3048", paddingTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ marginTop: 10, borderTop: "1px solid var(--color-divider)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
                   {data.excludedAssets.map((e, i) => (
-                    <div key={i} className="flj" style={{ fontSize: 12, color: "#94a3b8", cursor: onSelectAsset ? "pointer" : "default" }} onClick={() => onSelectAsset && onSelectAsset(e.assetId)}>
+                    <div key={i} className="flj" style={{ fontSize: 12, color: "var(--color-graphite)", cursor: onSelectAsset ? "pointer" : "default" }} onClick={() => onSelectAsset && onSelectAsset(e.assetId)}>
                       <span>MSN {e.msn}</span>
-                      <span style={{ color: e.reason === "COMPUTE_ERROR" ? "#f87171" : "#fbbf24" }}>{e.reason.replace(/_/g, " ")} — {e.message}</span>
+                      <span style={{ color: e.reason === "COMPUTE_ERROR" ? "var(--color-critical)" : "var(--color-attention)" }}>{e.reason.replace(/_/g, " ")} — {e.message}</span>
                     </div>
                   ))}
                 </div>
@@ -576,59 +576,59 @@ function RouteMatcherView({ assets, onSelectAsset }) {
           )}
 
           <div className="card" style={{ padding: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Ranked — best operational fit first</div>
-            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>Ranked — best operational fit first</div>
+            <div style={{ fontSize: 11, color: "var(--color-graphite)", marginBottom: 12 }}>
               Financial impact is shown alongside, not folded into the ranking — the best fit and the cheapest option aren't always the same asset.
             </div>
-            {data.ranked.length === 0 && <div style={{ fontSize: 12, color: "#64748b" }}>No eligible assets to compare.</div>}
+            {data.ranked.length === 0 && <div style={{ fontSize: 12, color: "var(--color-graphite)" }}>No eligible assets to compare.</div>}
             {data.ranked.map((r, i) => {
               const expanded = expandedId === r.assetId;
               return (
-                <div key={r.assetId} style={{ borderTop: i > 0 ? "1px solid #1e3048" : "none", padding: "10px 0" }}>
+                <div key={r.assetId} style={{ borderTop: i > 0 ? "1px solid var(--color-divider)" : "none", padding: "10px 0" }}>
                   <div className="flj" style={{ cursor: "pointer" }} onClick={() => setExpandedId(expanded ? null : r.assetId)}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 11, color: "#475569", width: 18 }}>#{i + 1}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>MSN {r.msn}</span>
+                      <span style={{ fontSize: 11, color: "var(--color-graphite)", width: 18 }}>#{i + 1}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)" }}>MSN {r.msn}</span>
                     </div>
                     <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
                       {r.clashes.length > 0 && (
-                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6, background: "#2a0e0e", color: "#f87171", fontWeight: 700 }}>
+                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6, background: "var(--color-critical-tint)", color: "var(--color-critical)", fontWeight: 700 }}>
                           ⚠ {r.clashes.length} clash{r.clashes.length === 1 ? "" : "es"}
                         </span>
                       )}
-                      <span style={{ fontSize: 11, color: "#64748b" }}>
+                      <span style={{ fontSize: 11, color: "var(--color-graphite)" }}>
                         Disruption <span style={{ color: disruptionColor(r.disruptionMonths), fontWeight: 700 }}>{r.disruptionMonths} mo</span>
                       </span>
-                      <span style={{ fontSize: 11, color: "#64748b" }}>
+                      <span style={{ fontSize: 11, color: "var(--color-graphite)" }}>
                         Cost delta <span style={{ color: financialColor(r.financialDeltaHigh), fontWeight: 700 }}>
                           {r.financialDeltaHigh > 0 ? "+" : ""}${Math.round(r.financialDeltaHigh).toLocaleString()}
                         </span>
                       </span>
-                      <span style={{ fontSize: 11, color: "#475569" }}>{expanded ? "▲" : "▼"}</span>
+                      <span style={{ fontSize: 11, color: "var(--color-graphite)" }}>{expanded ? "▲" : "▼"}</span>
                     </div>
                   </div>
                   {expanded && (
                     <>
                       <table style={{ fontSize: 12, width: "100%", marginTop: 10 }}>
                         <thead><tr>
-                          <th style={{ color: "#64748b", textAlign: "left" }}>Pot</th>
-                          <th style={{ color: "#64748b", textAlign: "right" }}>Current profile</th>
-                          <th style={{ color: "#64748b", textAlign: "right" }}>On this route</th>
-                          <th style={{ color: "#64748b", textAlign: "right" }}>Shift</th>
+                          <th style={{ color: "var(--color-graphite)", textAlign: "left" }}>Pot</th>
+                          <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Current profile</th>
+                          <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>On this route</th>
+                          <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Shift</th>
                         </tr></thead>
                         <tbody>
                           {r.potDeltas.map(p => (
                             <tr key={p.code}>
-                              <td style={{ padding: "5px 0", color: "#e2e8f0" }}>{p.code} — {p.label}</td>
-                              <td style={{ textAlign: "right", color: "#94a3b8" }}>
+                              <td style={{ padding: "5px 0", color: "var(--color-carbon)" }}>{p.code} — {p.label}</td>
+                              <td style={{ textAlign: "right", color: "var(--color-graphite)" }}>
                                 {p.baseDate ? fmtMonthYear(p.baseDate) : "Beyond horizon"}
                                 {p.baseShortfallHigh != null && <div style={{ fontSize: 10, color: financialColor(p.baseShortfallHigh > 0 ? 1 : 0) }}>${Math.round(p.baseShortfallHigh).toLocaleString()}</div>}
                               </td>
-                              <td style={{ textAlign: "right", color: "#94a3b8" }}>
+                              <td style={{ textAlign: "right", color: "var(--color-graphite)" }}>
                                 {p.routeDate ? fmtMonthYear(p.routeDate) : "Beyond horizon"}
                                 {p.routeShortfallHigh != null && <div style={{ fontSize: 10, color: financialColor(p.routeShortfallHigh > 0 ? 1 : 0) }}>${Math.round(p.routeShortfallHigh).toLocaleString()}</div>}
                               </td>
-                              <td style={{ textAlign: "right", fontSize: 11, color: p.shiftMonths == null ? "#94a3b8" : (p.shiftMonths < 0 ? "#f87171" : p.shiftMonths > 0 ? "#34d399" : "#64748b") }}>
+                              <td style={{ textAlign: "right", fontSize: 11, color: p.shiftMonths == null ? "var(--color-graphite)" : (p.shiftMonths < 0 ? "var(--color-critical)" : p.shiftMonths > 0 ? "var(--color-positive)" : "var(--color-graphite)") }}>
                                 {formatShiftLabel(p)}
                               </td>
                             </tr>
@@ -636,10 +636,10 @@ function RouteMatcherView({ assets, onSelectAsset }) {
                         </tbody>
                       </table>
                       {r.clashes.length > 0 && (
-                        <div style={{ marginTop: 10, padding: 10, background: "#2a0e0e", borderRadius: 6 }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: "#f87171", marginBottom: 6 }}>Scheduling clashes on this route</div>
+                        <div style={{ marginTop: 10, padding: 10, background: "var(--color-critical-tint)", borderRadius: 6 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-critical)", marginBottom: 6 }}>Scheduling clashes on this route</div>
                           {r.clashes.map((c, i) => (
-                            <div key={i} style={{ fontSize: 11, color: "#fca5a5", padding: "3px 0" }}>
+                            <div key={i} style={{ fontSize: 11, color: "var(--color-critical)", padding: "3px 0" }}>
                               {c.code} ({fmtMonthYear(c.groundingStart)}–{fmtMonthYear(c.groundingEnd)}) overlaps MSN {c.withMsn}'s {c.withCode} ({fmtMonthYear(c.withGroundingStart)}–{fmtMonthYear(c.withGroundingEnd)})
                             </div>
                           ))}
@@ -649,7 +649,7 @@ function RouteMatcherView({ assets, onSelectAsset }) {
                   )}
                   {onSelectAsset && (
                     <div style={{ marginTop: 6 }}>
-                      <button onClick={() => onSelectAsset(r.assetId)} style={{ background: "none", border: "none", color: "#60a5fa", cursor: "pointer", fontSize: 11, padding: 0 }}>Open MSN {r.msn} →</button>
+                      <button onClick={() => onSelectAsset(r.assetId)} style={{ background: "none", border: "none", color: "var(--color-teal)", cursor: "pointer", fontSize: 11, padding: 0 }}>Open MSN {r.msn} →</button>
                     </div>
                   )}
                 </div>
@@ -706,8 +706,8 @@ function FleetCompletedEventsView({ assets, onSelectAsset }) {
   // Tracker stores (projectedCostLow/Likely/High), and High is what Fleet
   // Exposure uses throughout, so this is the most meaningful comparison.
   const deltaColor = (actual, projected) => {
-    if (actual == null || projected == null) return '#94a3b8';
-    return actual > projected ? '#f87171' : actual < projected ? '#34d399' : '#94a3b8';
+    if (actual == null || projected == null) return 'var(--color-graphite)';
+    return actual > projected ? 'var(--color-critical)' : actual < projected ? 'var(--color-positive)' : 'var(--color-graphite)';
   };
   const deltaLabel = (actual, projected) => {
     if (actual == null || projected == null) return null;
@@ -717,14 +717,14 @@ function FleetCompletedEventsView({ assets, onSelectAsset }) {
   };
 
   if (loading) {
-    return <div style={{ padding: '24px 0', textAlign: 'center', color: '#64748b', fontSize: 13 }}>Loading completed events…</div>;
+    return <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--color-graphite)', fontSize: 13 }}>Loading completed events…</div>;
   }
   if (loadError) {
-    return <div style={{ padding: 16, color: '#f87171', fontSize: 13 }}>Couldn't load completed events: {loadError}</div>;
+    return <div style={{ padding: 16, color: 'var(--color-critical)', fontSize: 13 }}>Couldn't load completed events: {loadError}</div>;
   }
   if (!events.length) {
     return (
-      <div style={{ padding: '28px 0', textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+      <div style={{ padding: '28px 0', textAlign: 'center', color: 'var(--color-graphite)', fontSize: 13 }}>
         No completed events logged yet — use the Cost Tracker on each asset's Calendar tab to log an event.
       </div>
     );
@@ -733,9 +733,9 @@ function FleetCompletedEventsView({ assets, onSelectAsset }) {
   return (
     <div style={{ marginTop: 4 }}>
       {/* Column headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px 110px 120px 150px', gap: 8, padding: '0 12px 8px', borderBottom: '1px solid #1e3048' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px 110px 120px 150px', gap: 8, padding: '0 12px 8px', borderBottom: '1px solid var(--color-divider)' }}>
         {['Asset', 'Event', 'Date logged', 'Actual cost', 'Projected (high)', 'Delta'].map(h => (
-          <div key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#475569' }}>{h}</div>
+          <div key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--color-graphite)' }}>{h}</div>
         ))}
       </div>
       {events.map((ev, i) => {
@@ -747,45 +747,45 @@ function FleetCompletedEventsView({ assets, onSelectAsset }) {
         return (
           <div
             key={ev.id || i}
-            style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px 110px 120px 150px', gap: 8, padding: '10px 12px', borderBottom: '1px solid #1a2a3a', alignItems: 'center', transition: 'background 0.1s' }}
-            onMouseEnter={e => e.currentTarget.style.background = '#0d1e33'}
+            style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px 110px 120px 150px', gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--color-divider)', alignItems: 'center', transition: 'background 0.1s' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--color-technical-grey)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
             {/* Asset — clickable, opens asset at Financials tab */}
             <div>
               <span
-                style={{ fontSize: 13, fontWeight: 700, color: onSelectAsset ? '#60a5fa' : '#e2e8f0', cursor: onSelectAsset ? 'pointer' : 'default' }}
+                style={{ fontSize: 13, fontWeight: 700, color: onSelectAsset ? 'var(--color-teal)' : 'var(--color-carbon)', cursor: onSelectAsset ? 'pointer' : 'default' }}
                 onClick={() => onSelectAsset && ev.assetId && onSelectAsset(ev.assetId)}
               >
                 {msn ? `MSN ${msn}` : ev.assetId || '—'}
               </span>
-              {ev.mroRegion && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{ev.mroRegion}</div>}
+              {ev.mroRegion && <div style={{ fontSize: 11, color: 'var(--color-graphite)', marginTop: 2 }}>{ev.mroRegion}</div>}
             </div>
             {/* Event code + label */}
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', fontFamily: 'monospace' }}>{ev.code || '—'}</div>
-              {ev.label && <div style={{ fontSize: 10, color: '#64748b', marginTop: 1 }}>{ev.label}</div>}
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-carbon)', fontFamily: 'monospace' }}>{ev.code || '—'}</div>
+              {ev.label && <div style={{ fontSize: 10, color: 'var(--color-graphite)', marginTop: 1 }}>{ev.label}</div>}
             </div>
             {/* Date logged (confirmedAt) */}
-            <div style={{ fontSize: 12, color: '#94a3b8' }}>{fmtDate(ev.confirmedAt)}</div>
+            <div style={{ fontSize: 12, color: 'var(--color-graphite)' }}>{fmtDate(ev.confirmedAt)}</div>
             {/* Actual cost — muted if no cost data was entered (Dismiss path) */}
-            <div style={{ fontSize: 13, fontWeight: 700, color: noCostData ? '#475569' : '#e2e8f0', fontFamily: 'monospace', fontStyle: noCostData ? 'italic' : 'normal' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: noCostData ? 'var(--color-graphite)' : 'var(--color-carbon)', fontFamily: 'monospace', fontStyle: noCostData ? 'italic' : 'normal' }}>
               {noCostData ? 'No data' : fmtCost(actual)}
             </div>
             {/* Projected cost high */}
-            <div style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>{fmtCost(projected)}</div>
+            <div style={{ fontSize: 12, color: 'var(--color-graphite)', fontFamily: 'monospace' }}>{fmtCost(projected)}</div>
             {/* Delta */}
             <div>
               {noCostData
-                ? <span style={{ fontSize: 11, color: '#475569', fontStyle: 'italic' }}>Dismissed</span>
+                ? <span style={{ fontSize: 11, color: 'var(--color-graphite)', fontStyle: 'italic' }}>Dismissed</span>
                 : deltaLabel(actual, projected)
                   ? <span style={{ fontSize: 12, color: dc, fontWeight: 600 }}>{deltaLabel(actual, projected)}</span>
-                  : <span style={{ fontSize: 12, color: '#475569' }}>No projection</span>}
+                  : <span style={{ fontSize: 12, color: 'var(--color-graphite)' }}>No projection</span>}
             </div>
           </div>
         );
       })}
-      <div style={{ padding: '10px 12px', borderTop: '1px solid #1e3048', fontSize: 11, color: '#475569' }}>
+      <div style={{ padding: '10px 12px', borderTop: '1px solid var(--color-divider)', fontSize: 11, color: 'var(--color-graphite)' }}>
         {events.length} event{events.length === 1 ? '' : 's'} logged
       </div>
     </div>
@@ -825,11 +825,11 @@ function FleetCalendarView({ assets, onSelectAsset }) {
   }, [assets]);
 
   if (loading) {
-    return <div style={{ padding: 40, textAlign: "center", color: "#64748b" }}>Loading fleet calendar…</div>;
+    return <div style={{ padding: 40, textAlign: "center", color: "var(--color-graphite)" }}>Loading fleet calendar…</div>;
   }
   if (loadError || !data) {
     return (
-      <div className="card" style={{ padding: 24, textAlign: "center", color: "#f87171" }}>
+      <div className="card" style={{ padding: 24, textAlign: "center", color: "var(--color-critical)" }}>
         Couldn't build the fleet calendar{loadError ? `: ${loadError}` : "."}
       </div>
     );
@@ -853,40 +853,40 @@ function FleetCalendarView({ assets, onSelectAsset }) {
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
-      <div style={{ background: "#0d1e33", border: "1px solid #1B3A6B", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
+      <div style={{ background: "var(--color-technical-grey)", border: "1px solid var(--color-carbon)", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>Calendar</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)" }}>Calendar</div>
           <button
             onClick={() => setShowCompleted(s => !s)}
-            style={{ flexShrink: 0, background: showCompleted ? "#1e4a7a" : "transparent", border: "1px solid #2a4060", borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 700, color: showCompleted ? "#e2e8f0" : "#6a8aaa", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s", whiteSpace: "nowrap" }}
+            style={{ flexShrink: 0, background: showCompleted ? "var(--color-carbon)" : "transparent", border: "1px solid var(--color-divider)", borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 700, color: showCompleted ? "var(--color-carbon)" : "var(--color-graphite)", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s", whiteSpace: "nowrap" }}
           >
             {showCompleted ? "Hide completed events" : "View completed events"}
           </button>
         </div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+        <div style={{ fontSize: 12, color: "var(--color-graphite)", marginTop: 2 }}>
           Event clustering across the fleet's maintenance calendar — scheduling only, no cost figures. See Financials for the money view. Every asset appears here regardless of lease status — a scheduled check happens whether or not there's a lease on file.
         </div>
         {noReserveSetup.length > 0 && (
-          <div style={{ marginTop: 8, fontSize: 12, color: "#94a3b8" }}>
+          <div style={{ marginTop: 8, fontSize: 12, color: "var(--color-graphite)" }}>
             ℹ {noReserveSetup.length} asset{noReserveSetup.length === 1 ? "" : "s"} with no lease/reserve setup on file — landing gear and engine LLP dates shown are real (from tracked component data). Engine PR and APU dates aren't shown for these assets — no real data to derive them from, so they're omitted rather than guessed at ({noReserveSetup.map(a => `MSN ${a.msn}`).join(", ")})
           </div>
         )}
         {partial.length > 0 && (
-          <div style={{ marginTop: 8, fontSize: 12, color: "#fbbf24" }}>
+          <div style={{ marginTop: 8, fontSize: 12, color: "var(--color-attention)" }}>
             ⚠ {partial.length} asset{partial.length === 1 ? "" : "s"} showing C-Check dates only — no utilisation history to project any engine/APU/landing-gear events ({partial.map(a => `MSN ${a.msn}`).join(", ")})
           </div>
         )}
         {excluded.length > 0 && (
           <div style={{ marginTop: 8 }}>
-            <button onClick={() => setShowExcluded(s => !s)} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", textDecoration: "underline", font: "inherit", padding: 0, fontSize: 12 }}>
+            <button onClick={() => setShowExcluded(s => !s)} style={{ background: "none", border: "none", color: "var(--color-attention)", cursor: "pointer", textDecoration: "underline", font: "inherit", padding: 0, fontSize: 12 }}>
               {excluded.length} asset{excluded.length === 1 ? "" : "s"} not shown
             </button>
             {showExcluded && (
               <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
                 {excluded.map((e, i) => (
-                  <div key={i} className="flj" style={{ fontSize: 12, color: "#94a3b8", cursor: onSelectAsset ? "pointer" : "default" }} onClick={() => onSelectAsset && onSelectAsset(e.assetId)}>
+                  <div key={i} className="flj" style={{ fontSize: 12, color: "var(--color-graphite)", cursor: onSelectAsset ? "pointer" : "default" }} onClick={() => onSelectAsset && onSelectAsset(e.assetId)}>
                     <span>MSN {e.msn}</span>
-                    <span style={{ color: "#f87171" }}>{e.excluded.code.replace(/_/g, " ")} — {e.excluded.message}</span>
+                    <span style={{ color: "var(--color-critical)" }}>{e.excluded.code.replace(/_/g, " ")} — {e.excluded.message}</span>
                   </div>
                 ))}
               </div>
@@ -896,13 +896,13 @@ function FleetCalendarView({ assets, onSelectAsset }) {
       </div>
 
       {events.length === 0
-        ? <div className="card" style={{ padding: 24, textAlign: "center", color: "#64748b" }}>No scheduled events across the fleet.</div>
+        ? <div className="card" style={{ padding: 24, textAlign: "center", color: "var(--color-graphite)" }}>No scheduled events across the fleet.</div>
         : <MaintenanceCalendarGrid events={events}/>}
 
       {/* Completed events panel — toggled via header button */}
       {showCompleted && (
         <div className="card" style={{ padding: 16, marginTop: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 12 }}>Completed Events — fleet log</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 12 }}>Completed Events — fleet log</div>
           <FleetCompletedEventsView assets={assets} onSelectAsset={onSelectAsset}/>
         </div>
       )}
@@ -947,12 +947,12 @@ function PandemicScenarioView({ assets }) {
 
   const reset = () => { setActive(false); setBase(null); setScenario(null); };
 
-  const deltaColor = (b, s) => (s > b ? "#f87171" : s < b ? "#34d399" : "#94a3b8");
+  const deltaColor = (b, s) => (s > b ? "var(--color-critical)" : s < b ? "var(--color-positive)" : "var(--color-graphite)");
 
   return (
     <div className="card" style={{ padding: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Pandemic Scenario</div>
-      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>Pandemic Scenario</div>
+      <div style={{ fontSize: 12, color: "var(--color-graphite)", marginBottom: 12 }}>
         Grounds the entire fleet from today for the selected period, combined with each asset's own real maintenance grounding — whichever grounds harder wins, downtime never stacks. Exploratory only; nothing here is saved.
       </div>
       <ScenarioSlider label="Grounding duration" value={months} onChange={setMonths} min={1} max={12} step={1} format={v => `${v} mo`}/>
@@ -962,15 +962,15 @@ function PandemicScenarioView({ assets }) {
           {loading ? "Running…" : "Run pandemic scenario"}
         </button>
       </div>
-      {error && <div style={{ fontSize: 12, color: "#f87171" }}>Couldn't run the scenario: {error}</div>}
+      {error && <div style={{ fontSize: 12, color: "var(--color-critical)" }}>Couldn't run the scenario: {error}</div>}
       {active && base && scenario && (
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
           <div className="card" style={{ padding: 16, flex: 1, minWidth: 220 }}>
-            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>Base Case — High-case gap</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0" }}>${Math.round(base.headline.totalHighCaseGap).toLocaleString()}</div>
+            <div style={{ fontSize: 11, color: "var(--color-graphite)", marginBottom: 6 }}>Base Case — High-case gap</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-carbon)" }}>${Math.round(base.headline.totalHighCaseGap).toLocaleString()}</div>
           </div>
           <div className="card" style={{ padding: 16, flex: 1, minWidth: 220 }}>
-            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>{months}-Month Grounding — High-case gap</div>
+            <div style={{ fontSize: 11, color: "var(--color-graphite)", marginBottom: 6 }}>{months}-Month Grounding — High-case gap</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: deltaColor(base.headline.totalHighCaseGap, scenario.headline.totalHighCaseGap) }}>
               ${Math.round(scenario.headline.totalHighCaseGap).toLocaleString()}
             </div>
@@ -999,15 +999,15 @@ function PandemicScenarioView({ assets }) {
 // Small shared comparison-card pair, since all four controls render the
 // same base-vs-scenario headline shape.
 function FleetScenarioComparison({ base, scenario, scenarioLabel }) {
-  const deltaColor = (b, s) => (s > b ? "#f87171" : s < b ? "#34d399" : "#94a3b8");
+  const deltaColor = (b, s) => (s > b ? "var(--color-critical)" : s < b ? "var(--color-positive)" : "var(--color-graphite)");
   return (
     <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
       <div className="card" style={{ padding: 16, flex: 1, minWidth: 220 }}>
-        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>Base Case — High-case gap</div>
-        <div style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0" }}>${Math.round(base.headline.totalHighCaseGap).toLocaleString()}</div>
+        <div style={{ fontSize: 11, color: "var(--color-graphite)", marginBottom: 6 }}>Base Case — High-case gap</div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-carbon)" }}>${Math.round(base.headline.totalHighCaseGap).toLocaleString()}</div>
       </div>
       <div className="card" style={{ padding: 16, flex: 1, minWidth: 220 }}>
-        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>{scenarioLabel} — High-case gap</div>
+        <div style={{ fontSize: 11, color: "var(--color-graphite)", marginBottom: 6 }}>{scenarioLabel} — High-case gap</div>
         <div style={{ fontSize: 20, fontWeight: 700, color: deltaColor(base.headline.totalHighCaseGap, scenario.headline.totalHighCaseGap) }}>
           ${Math.round(scenario.headline.totalHighCaseGap).toLocaleString()}
         </div>
@@ -1071,32 +1071,32 @@ function LesseeDefaultScenarioView({ assets }) {
   const reset = () => { setActive(false); setBase(null); setScenario(null); };
 
   if (loadingLessees) {
-    return <div className="card" style={{ padding: 16, marginTop: 16, color: "#64748b", fontSize: 12 }}>Loading lessees…</div>;
+    return <div className="card" style={{ padding: 16, marginTop: 16, color: "var(--color-graphite)", fontSize: 12 }}>Loading lessees…</div>;
   }
 
   if (!lessees.length) {
     return (
       <div className="card" style={{ padding: 16, marginTop: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Lessee Default</div>
-        <div style={{ fontSize: 12, color: "#64748b" }}>No leases on file across the fleet yet — nothing to model a default against.</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>Lessee Default</div>
+        <div style={{ fontSize: 12, color: "var(--color-graphite)" }}>No leases on file across the fleet yet — nothing to model a default against.</div>
       </div>
     );
   }
 
   return (
     <div className="card" style={{ padding: 16, marginTop: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Lessee Default</div>
-      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>Lessee Default</div>
+      <div style={{ fontSize: 12, color: "var(--color-graphite)", marginBottom: 12 }}>
         Suspends reserve accrual on every asset leased to the selected lessee, from today for the selected period — usage continues, only the payments stop. Exploratory only; nothing here is saved.
       </div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-        <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 180 }}>
+        <label style={{ fontSize: 11, color: "var(--color-graphite)", flex: 1, minWidth: 180 }}>
           Lessee
           <select value={lesseeId} onChange={e => setLesseeId(e.target.value)} style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}>
             {lessees.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         </label>
-        <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+        <label style={{ fontSize: 11, color: "var(--color-graphite)", flex: 1, minWidth: 140 }}>
           Duration (months)
           <input type="number" min="1" step="1" value={months} onChange={e => setMonths(Math.max(1, Number(e.target.value) || 1))}
             style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
@@ -1108,7 +1108,7 @@ function LesseeDefaultScenarioView({ assets }) {
           {loading ? "Running…" : "Run lessee default scenario"}
         </button>
       </div>
-      {error && <div style={{ fontSize: 12, color: "#f87171" }}>Couldn't run the scenario: {error}</div>}
+      {error && <div style={{ fontSize: 12, color: "var(--color-critical)" }}>Couldn't run the scenario: {error}</div>}
       {active && base && scenario && <FleetScenarioComparison base={base} scenario={scenario} scenarioLabel={`${lesseeId} defaults ${months} mo`}/>}
     </div>
   );
@@ -1146,8 +1146,8 @@ function FleetUtilisationScenarioView({ assets }) {
 
   return (
     <div className="card" style={{ padding: 16, marginTop: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Fleet-Wide Utilisation Change</div>
-      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>Fleet-Wide Utilisation Change</div>
+      <div style={{ fontSize: 12, color: "var(--color-graphite)", marginBottom: 12 }}>
         Applies the same utilisation % change to every asset in the fleet simultaneously. Exploratory only; nothing here is saved.
       </div>
       <ScenarioSlider label="Utilisation change" value={pct} onChange={setPct} min={-50} max={50} step={1} format={v => (v > 0 ? "+" : "") + v + "%"}/>
@@ -1157,7 +1157,7 @@ function FleetUtilisationScenarioView({ assets }) {
           {loading ? "Running…" : "Run utilisation scenario"}
         </button>
       </div>
-      {error && <div style={{ fontSize: 12, color: "#f87171" }}>Couldn't run the scenario: {error}</div>}
+      {error && <div style={{ fontSize: 12, color: "var(--color-critical)" }}>Couldn't run the scenario: {error}</div>}
       {active && base && scenario && <FleetScenarioComparison base={base} scenario={scenario} scenarioLabel={`${pct > 0 ? "+" : ""}${pct}% utilisation`}/>}
     </div>
   );
@@ -1196,19 +1196,19 @@ function EngineCostShockScenarioView({ assets }) {
 
   return (
     <div className="card" style={{ padding: 16, marginTop: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Engine-Type Cost Shock</div>
-      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>Engine-Type Cost Shock</div>
+      <div style={{ fontSize: 12, color: "var(--color-graphite)", marginBottom: 12 }}>
         Applies a cost multiplier to every projected shop visit for the selected engine family across the fleet. Exploratory only; nothing here is saved.
       </div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-        <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+        <label style={{ fontSize: 11, color: "var(--color-graphite)", flex: 1, minWidth: 140 }}>
           Engine family
           <select value={engineFamily} onChange={e => setEngineFamily(e.target.value)} style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}>
             <option value="CFM">CFM56</option>
             <option value="V2500">V2500</option>
           </select>
         </label>
-        <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+        <label style={{ fontSize: 11, color: "var(--color-graphite)", flex: 1, minWidth: 140 }}>
           Cost change (%)
           <input type="number" step="1" value={pct} onChange={e => setPct(Number(e.target.value) || 0)}
             style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
@@ -1220,7 +1220,7 @@ function EngineCostShockScenarioView({ assets }) {
           {loading ? "Running…" : "Run cost shock scenario"}
         </button>
       </div>
-      {error && <div style={{ fontSize: 12, color: "#f87171" }}>Couldn't run the scenario: {error}</div>}
+      {error && <div style={{ fontSize: 12, color: "var(--color-critical)" }}>Couldn't run the scenario: {error}</div>}
       {active && base && scenario && <FleetScenarioComparison base={base} scenario={scenario} scenarioLabel={`${engineFamily} ${pct > 0 ? "+" : ""}${pct}%`}/>}
     </div>
   );
@@ -1258,12 +1258,12 @@ function ExtendedMaintenanceScenarioView({ assets }) {
 
   return (
     <div className="card" style={{ padding: 16, marginTop: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Extended Maintenance Duration</div>
-      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>Extended Maintenance Duration</div>
+      <div style={{ fontSize: 12, color: "var(--color-graphite)", marginBottom: 12 }}>
         Adds extra downtime to every projected check of the selected type across the fleet, pushing availability and downstream events. Models MRO backlog or parts delays. Exploratory only; nothing here is saved.
       </div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-        <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+        <label style={{ fontSize: 11, color: "var(--color-graphite)", flex: 1, minWidth: 140 }}>
           Check type
           <select value={checkType} onChange={e => setCheckType(e.target.value)} style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}>
             <option value="2Y">2-Year Check</option>
@@ -1271,7 +1271,7 @@ function ExtendedMaintenanceScenarioView({ assets }) {
             <option value="12Y">12-Year Check</option>
           </select>
         </label>
-        <label style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 140 }}>
+        <label style={{ fontSize: 11, color: "var(--color-graphite)", flex: 1, minWidth: 140 }}>
           Extra duration (months)
           <input type="number" min="0" step="1" value={extraMonths} onChange={e => setExtraMonths(Math.max(0, Number(e.target.value) || 0))}
             style={{ display: "block", width: "100%", marginTop: 4, fontSize: 13, padding: "7px 9px" }}/>
@@ -1283,7 +1283,7 @@ function ExtendedMaintenanceScenarioView({ assets }) {
           {loading ? "Running…" : "Run duration scenario"}
         </button>
       </div>
-      {error && <div style={{ fontSize: 12, color: "#f87171" }}>Couldn't run the scenario: {error}</div>}
+      {error && <div style={{ fontSize: 12, color: "var(--color-critical)" }}>Couldn't run the scenario: {error}</div>}
       {active && base && scenario && <FleetScenarioComparison base={base} scenario={scenario} scenarioLabel={`${checkType} +${extraMonths} mo`}/>}
     </div>
   );
@@ -1297,8 +1297,8 @@ function FleetScenarioControls({ assets }) {
   const pairStyle = paired ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 16, alignItems: "stretch" } : undefined;
   return (
     <div style={{ marginTop: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Fleet Scenario Controls</div>
-      <div style={{ fontSize: 12, color: "#64748b" }}>Four independent structured controls — each runs its own base-vs-scenario comparison. Not combined with each other or with the pandemic slider above.</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>Fleet Scenario Controls</div>
+      <div style={{ fontSize: 12, color: "var(--color-graphite)" }}>Four independent structured controls — each runs its own base-vs-scenario comparison. Not combined with each other or with the pandemic slider above.</div>
       <div style={pairStyle}>
         <LesseeDefaultScenarioView assets={assets}/>
         <FleetUtilisationScenarioView assets={assets}/>
