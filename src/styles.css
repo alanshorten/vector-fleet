@@ -46,11 +46,11 @@ body{font-family:var(--font-interface);background:var(--color-technical-grey);co
    Scenarios' Run buttons) specifically, distinct from carbon (commit/save)
    and ochre (identity/nav accent only). Not a global swap of .btn-gold. */
 .btn-teal{background:var(--color-teal);color:var(--color-soft-white);padding:7px 14px;font-size:12px;font-weight:700}.btn-teal:hover{background:#274B54}
-.btn-primary{background:var(--color-carbon);color:var(--color-soft-white);padding:7px 14px;font-size:12px}.btn-primary:hover{background:var(--color-carbon-hover)}
+.btn-primary{background:var(--color-teal);color:var(--color-soft-white);padding:7px 14px;font-size:12px}.btn-primary:hover{background:#274B54}
 .btn-ghost{background:transparent;border:1px solid var(--color-divider);color:var(--color-graphite);padding:6px 12px;font-size:12px}.btn-ghost:hover{border-color:var(--color-carbon);color:var(--color-carbon)}
 .btn-danger{background:var(--color-critical-tint);color:var(--color-critical);border:1px solid var(--color-critical-border);padding:5px 10px;font-size:11px;cursor:pointer;border-radius:var(--radius-button);font-family:inherit;font-weight:600}.btn-danger:hover{background:var(--color-critical-hover)}
 .card{background:var(--color-soft-white);border:1px solid var(--color-divider);border-radius:var(--radius-panel)}
-.section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--color-ochre);border-bottom:1px solid var(--color-divider);padding-bottom:6px;margin-bottom:12px}
+.section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--color-carbon);border-bottom:1px solid var(--color-divider);padding-bottom:6px;margin-bottom:12px}
 input,select,textarea{background:var(--color-soft-white);border:1px solid var(--color-divider);color:var(--color-carbon);border-radius:var(--radius-button);padding:7px 10px;font-size:13px;font-family:inherit;outline:none;width:100%}
 input:focus,select:focus,textarea:focus{border-color:var(--color-ochre)}
 input.amber:not(:focus){background:var(--color-attention-tint);border-color:var(--color-attention)}
@@ -63,7 +63,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--color-carbon-ti
 .tag{padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.04em}
 .pill{padding:3px 9px;border-radius:4px;font-size:11px;font-weight:600}
 .tab-btn{padding:9px 14px;cursor:pointer;border:none;background:none;font-family:inherit;font-size:11px;font-weight:700;color:var(--color-graphite);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s;text-transform:uppercase;letter-spacing:0.06em}
-.tab-btn.active{color:var(--color-ochre);border-bottom-color:var(--color-ochre)}
+.tab-btn.active{color:var(--color-carbon);border-bottom-color:var(--color-ochre)}
 .subtab-scroll{scrollbar-width:none}
 .subtab-scroll::-webkit-scrollbar{display:none}
 .row-hover:hover{background:var(--color-carbon-tint-04)!important;cursor:pointer}

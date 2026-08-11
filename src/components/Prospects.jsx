@@ -43,7 +43,7 @@ function ProspectListView({assets,saveAsset,notify,userRole,onSelect,loadAssets}
     <div>
       <div className="flj" style={{marginBottom:14}}>
         <div>
-          <h1 style={{fontSize:20,color:"var(--color-ochre)",fontWeight:700}}>Prospect Assets</h1>
+          <h1 style={{fontSize:20,color:"var(--color-carbon)",fontWeight:700}}>Prospect Assets</h1>
           <p style={{color:"var(--color-graphite)",fontSize:12}}>Ad hoc / deal-evaluation aircraft and engines — kept separate from the live fleet. Anyone can create and edit prospects.</p>
         </div>
         <button className="btn btn-gold" onClick={()=>setShowNew(true)}>+ New Prospect</button>

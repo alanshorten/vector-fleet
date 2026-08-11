@@ -406,7 +406,7 @@ const extract=async()=>{
 
   return(
     <div style={{maxWidth:860,margin:"0 auto"}}>
-      <h1 style={{fontSize:20,color:"var(--color-ochre)",fontWeight:700,marginBottom:6}}>Upload</h1>
+      <h1 style={{fontSize:20,color:"var(--color-carbon)",fontWeight:700,marginBottom:6}}>Upload</h1>
       <p style={{color:"var(--color-graphite)",marginBottom:16,fontSize:13}}>Select report type, upload PDF or Excel, and TailiQ extracts the data for your review.</p>
       <div className="flab g8" style={{marginBottom:16}}>
         {[["util","📄 Utilisation Report",null],["llp","Engine LLP Sheet","engine"],["apu_llp","APU LLP Sheet","apu"],["tac","📄 TAC — Delivery Baseline","engine"],["lease","📑 Bulk Lease Import",null]].map(([v,l,icon])=>(

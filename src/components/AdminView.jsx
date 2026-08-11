@@ -652,7 +652,7 @@ function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
   const deleteAsset=async(id)=>{if(!confirm(`Delete asset MSN ${id}?`))return;const msn=assets.find(a=>String(a.id)===String(id))?.msn||id;await db.deleteAsset(id);await logAudit(id,msn,"Deleted asset");await loadAssets();notify("Asset deleted");};
   return(
     <div>
-      <h1 style={{fontSize:20,color:"var(--color-ochre)",fontWeight:700,marginBottom:18}}>Settings</h1>
+      <h1 style={{fontSize:20,color:"var(--color-carbon)",fontWeight:700,marginBottom:18}}>Settings</h1>
       <div style={{display:"flex",borderBottom:"2px solid var(--color-divider)",marginBottom:20,gap:2,flexWrap:"wrap"}}>
         {TABS.map(t=><button key={t.key} className={`tab-btn${tab===t.key?" active":""}`} onClick={()=>setTab(t.key)}>{t.label}</button>)}
       </div>
