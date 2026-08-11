@@ -135,14 +135,17 @@ function MiniLineChart({ labels, datasets, height, leaseEndIdx }) {
         // the label string, not the numeric index
         const xPx = x.getPixelForValue(labels[leaseEndIdx]);
 
-        // Muted grey shading over the post-lease region
+        // Muted shading over the post-lease region — carbon-tint-05,
+        // matched to the light "technical grey" theme (TAILIQ_UI_DESIGN_SYSTEM.md).
+        // Canvas fillStyle/strokeStyle can't resolve CSS custom properties,
+        // so these stay literal hex/rgba rather than var(--color-*).
         ctx.save();
-        ctx.fillStyle = "rgba(30,48,72,0.45)";
+        ctx.fillStyle = "rgba(21,26,29,0.05)";
         ctx.fillRect(xPx, top, chart.chartArea.right - xPx, bottom - top);
 
         // Vertical divider line
         ctx.beginPath();
-        ctx.strokeStyle = "#475569";
+        ctx.strokeStyle = "#687078";
         ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 3]);
         ctx.moveTo(xPx, top);
@@ -152,12 +155,12 @@ function MiniLineChart({ labels, datasets, height, leaseEndIdx }) {
 
         // Label — two lines: "Lease end" + "Accruals stop"
         ctx.font = "bold 9px sans-serif";
-        ctx.fillStyle = "#64748b";
+        ctx.fillStyle = "#687078";
         ctx.textAlign = "left";
         const labelX = xPx + 4;
         ctx.fillText("Lease end", labelX, top + 12);
         ctx.font = "9px sans-serif";
-        ctx.fillStyle = "#475569";
+        ctx.fillStyle = "#687078";
         ctx.fillText("Accruals stop", labelX, top + 23);
         ctx.restore();
       }
@@ -171,7 +174,7 @@ function MiniLineChart({ labels, datasets, height, leaseEndIdx }) {
         maintainAspectRatio: false,
         interaction: { mode: "index", intersect: false },
         plugins: {
-          legend: { labels: { color: "#94a3b8", font: { size: 11 }, boxWidth: 12 } },
+          legend: { labels: { color: "#687078", font: { size: 11 }, boxWidth: 12 } },
           tooltip: {
             callbacks: {
               label: ctx => {
@@ -183,10 +186,10 @@ function MiniLineChart({ labels, datasets, height, leaseEndIdx }) {
           }
         },
         scales: {
-          x: { ticks: { color: "#64748b", font: { size: 10 }, maxTicksLimit: 12 }, grid: { color: "#1e3048" } },
+          x: { ticks: { color: "#687078", font: { size: 10 }, maxTicksLimit: 12 }, grid: { color: "#E8E7E2" } },
           y: {
-            ticks: { color: "#64748b", font: { size: 10 }, callback: v => "$" + (v / 1000).toFixed(0) + "k" },
-            grid: { color: "#1e3048" }
+            ticks: { color: "#687078", font: { size: 10 }, callback: v => "$" + (v / 1000).toFixed(0) + "k" },
+            grid: { color: "#E8E7E2" }
           }
         }
       },
