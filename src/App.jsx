@@ -391,7 +391,7 @@ function AppInner(){
                 })()}
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   {canUpload&&<button onClick={()=>{setView("upload");setSelectedId(null);}}
-                    style={{padding:"8px 16px",borderRadius:"var(--radius-button)",border:view==="upload"?"1px solid var(--color-carbon)":"1px solid var(--color-divider)",background:view==="upload"?"var(--color-carbon)":"transparent",color:view==="upload"?"var(--color-soft-white)":"var(--color-carbon)",fontFamily:"var(--font-interface)",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                    style={{padding:"8px 16px",borderRadius:"var(--radius-button)",border:view==="upload"?"1px solid var(--color-teal)":"1px solid var(--color-divider)",background:view==="upload"?"var(--color-teal)":"transparent",color:view==="upload"?"var(--color-soft-white)":"var(--color-carbon)",fontFamily:"var(--font-interface)",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
                     Upload
                   </button>}
                   <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
@@ -408,7 +408,7 @@ function AppInner(){
                   theme="light"/>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   {canUpload&&<button onClick={()=>{setView("upload");setSelectedId(null);}}
-                    style={{padding:"8px 16px",borderRadius:"var(--radius-button)",border:view==="upload"?"1px solid var(--color-carbon)":"1px solid var(--color-divider)",background:view==="upload"?"var(--color-carbon)":"transparent",color:view==="upload"?"var(--color-soft-white)":"var(--color-carbon)",fontFamily:"var(--font-interface)",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                    style={{padding:"8px 16px",borderRadius:"var(--radius-button)",border:view==="upload"?"1px solid var(--color-teal)":"1px solid var(--color-divider)",background:view==="upload"?"var(--color-teal)":"transparent",color:view==="upload"?"var(--color-soft-white)":"var(--color-carbon)",fontFamily:"var(--font-interface)",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
                     Upload
                   </button>}
                   <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>

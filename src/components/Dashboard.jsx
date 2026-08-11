@@ -113,7 +113,7 @@ function Dashboard({assets,onSelect,saveAsset,notify}){
         </div>
         <div style={{display:"flex",gap:4,background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",padding:3,borderRadius:6,flexShrink:0}}>
           {[["list","☰"],["card","⊞"]].map(([m,l])=>(
-            <button key={m} className="btn" onClick={()=>setViewMode(m)} style={{padding:"5px 10px",fontSize:14,background:viewMode===m?"var(--color-carbon)":"transparent",color:viewMode===m?"var(--color-soft-white)":"var(--color-graphite)"}}>{l}</button>
+            <button key={m} className="btn" onClick={()=>setViewMode(m)} style={{padding:"5px 10px",fontSize:14,background:viewMode===m?"var(--color-teal)":"transparent",color:viewMode===m?"var(--color-soft-white)":"var(--color-graphite)"}}>{l}</button>
           ))}
         </div>
       </div>

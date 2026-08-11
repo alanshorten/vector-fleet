@@ -411,7 +411,7 @@ const extract=async()=>{
       <div className="flab g8" style={{marginBottom:16}}>
         {[["util","📄 Utilisation Report",null],["llp","Engine LLP Sheet","engine"],["apu_llp","APU LLP Sheet","apu"],["tac","📄 TAC — Delivery Baseline","engine"],["lease","📑 Bulk Lease Import",null]].map(([v,l,icon])=>(
           <button key={v} onClick={()=>{setUploadType(v);setFile(null);setExtracted(null);setError(null);setDone(false);setInstructions("");setShowInstructions(false);setSheetNames([]);setSelectedSheet(null);setXlsxWorkbook(null);setMatchedLease(null);}}
-            style={{padding:"8px 16px",background:uploadType===v?"var(--color-carbon)":"var(--color-technical-grey)",color:uploadType===v?"var(--color-ochre)":"var(--color-graphite)",border:`1px solid ${uploadType===v?"var(--color-carbon)":"var(--color-divider)"}`,borderRadius:6,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+            style={{padding:"8px 16px",background:uploadType===v?"var(--color-teal)":"var(--color-technical-grey)",color:uploadType===v?"var(--color-soft-white)":"var(--color-graphite)",border:`1px solid ${uploadType===v?"var(--color-teal)":"var(--color-divider)"}`,borderRadius:6,fontSize:13,fontWeight:600,cursor:"pointer"}}>
             {icon&&<TabIcon type={icon} color={uploadType===v?"var(--color-ochre)":"var(--color-graphite)"}/>}{l}
           </button>
         ))}

@@ -404,13 +404,13 @@ function FleetExposureView({ assets, onSelectAsset }) {
             <button
               onClick={() => setSortMode("exposure")}
               className="btn"
-              style={{ fontSize: 11, padding: "4px 10px", background: sortMode === "exposure" ? "var(--color-ochre)" : "transparent", color: sortMode === "exposure" ? "var(--color-carbon)" : "var(--color-graphite)", border: "1px solid " + (sortMode === "exposure" ? "var(--color-ochre)" : "var(--color-divider)") }}>
+              style={{ fontSize: 11, padding: "4px 10px", background: sortMode === "exposure" ? "var(--color-teal)" : "transparent", color: sortMode === "exposure" ? "var(--color-soft-white)" : "var(--color-graphite)", border: "1px solid " + (sortMode === "exposure" ? "var(--color-teal)" : "var(--color-divider)") }}>
               By exposure
             </button>
             <button
               onClick={() => setSortMode("date")}
               className="btn"
-              style={{ fontSize: 11, padding: "4px 10px", background: sortMode === "date" ? "var(--color-ochre)" : "transparent", color: sortMode === "date" ? "var(--color-carbon)" : "var(--color-graphite)", border: "1px solid " + (sortMode === "date" ? "var(--color-ochre)" : "var(--color-divider)") }}>
+              style={{ fontSize: 11, padding: "4px 10px", background: sortMode === "date" ? "var(--color-teal)" : "transparent", color: sortMode === "date" ? "var(--color-soft-white)" : "var(--color-graphite)", border: "1px solid " + (sortMode === "date" ? "var(--color-teal)" : "var(--color-divider)") }}>
               By nearest date
             </button>
           </div>
