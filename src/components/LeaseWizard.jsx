@@ -376,53 +376,53 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
     <div style={{position:"fixed",inset:0,background:"rgba(5,10,16,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}} onClick={onClose}>
       <div className="card" style={{width:step==="pots"?680:480,maxWidth:"94vw",maxHeight:"90vh",overflow:"auto",padding:24}} onClick={e=>e.stopPropagation()}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-          <h2 style={{fontSize:15,color:"#C9A84C",fontWeight:700}}>Lease / Reserve Setup — MSN {asset.msn}</h2>
+          <h2 style={{fontSize:15,color:"var(--color-carbon)",fontWeight:700}}>Lease / Reserve Setup — MSN {asset.msn}</h2>
           <button className="btn btn-ghost" style={{padding:"4px 10px"}} onClick={onClose}>✕</button>
         </div>
-        <div style={{fontSize:11,color:"#475569",marginBottom:18}}>
+        <div style={{fontSize:11,color:"var(--color-graphite)",marginBottom:18}}>
           {step==="loading"?"Loading current lease…":(stepMeta[step].num?`Step ${stepMeta[step].num} of 3 — ${stepMeta[step].label}`:stepMeta[step].label)}
         </div>
 
-        {step==="loading"&&<div style={{color:"#475569",fontSize:12}}>Loading…</div>}
+        {step==="loading"&&<div style={{color:"var(--color-graphite)",fontSize:12}}>Loading…</div>}
 
         {step==="tier"&&(
           <>
-            <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.6,marginBottom:16}}>
+            <div style={{fontSize:12,color:"var(--color-graphite)",lineHeight:1.6,marginBottom:16}}>
               Choose how you'd like to add this lease's details and reserve rates.
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
               <button className="btn btn-ghost" style={{padding:"12px 14px",textAlign:"left"}} onClick={()=>setStep("details")}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div style={{fontWeight:700,fontSize:13,color:"#e2e8f0"}}>✏ Manual Entry</div>
+                  <div style={{fontWeight:700,fontSize:13,color:"var(--color-carbon)"}}>✏ Manual Entry</div>
                   <span role="button" tabIndex={0} onClick={e=>{e.stopPropagation();setTierInfoOpen(tierInfoOpen==="manual"?null:"manual");}}
-                    style={{display:"flex",alignItems:"center",gap:3,color:"#60a5fa",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                    style={{display:"flex",alignItems:"center",gap:3,color:"var(--color-teal)",fontSize:11,fontWeight:600,cursor:"pointer"}}>
                     Details<span style={{display:"inline-block",transition:"transform 0.15s",transform:tierInfoOpen==="manual"?"rotate(180deg)":"rotate(0deg)",fontSize:9}}>▾</span>
                   </span>
                 </div>
-                <div style={{fontSize:11,color:"#64748b",marginTop:2}}>Type in lease details and reserve rates yourself.</div>
-                {tierInfoOpen==="manual"&&<div style={{fontSize:11,color:"#64748b",marginTop:6,paddingTop:6,borderTop:"1px solid #1e293b"}}>No automated extraction, no document upload — everything is entered by hand on the next screen.</div>}
+                <div style={{fontSize:11,color:"var(--color-graphite)",marginTop:2}}>Type in lease details and reserve rates yourself.</div>
+                {tierInfoOpen==="manual"&&<div style={{fontSize:11,color:"var(--color-graphite)",marginTop:6,paddingTop:6,borderTop:"1px solid var(--color-divider)"}}>No automated extraction, no document upload — everything is entered by hand on the next screen.</div>}
               </button>
               <button className="btn btn-ghost" style={{padding:"12px 14px",textAlign:"left"}} onClick={()=>{setAiError(null);setStep("privacy-upload");}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div style={{fontWeight:700,fontSize:13,color:"#e2e8f0"}}>🔒 Confidential Extract</div>
+                  <div style={{fontWeight:700,fontSize:13,color:"var(--color-carbon)"}}>🔒 Confidential Extract</div>
                   <span role="button" tabIndex={0} onClick={e=>{e.stopPropagation();setTierInfoOpen(tierInfoOpen==="privacy"?null:"privacy");}}
-                    style={{display:"flex",alignItems:"center",gap:3,color:"#60a5fa",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                    style={{display:"flex",alignItems:"center",gap:3,color:"var(--color-teal)",fontSize:11,fontWeight:600,cursor:"pointer"}}>
                     Details<span style={{display:"inline-block",transition:"transform 0.15s",transform:tierInfoOpen==="privacy"?"rotate(180deg)":"rotate(0deg)",fontSize:9}}>▾</span>
                   </span>
                 </div>
-                <div style={{fontSize:11,color:"#64748b",marginTop:2}}>Only the page or section you confirm is ever sent — the rest of your lease stays in your browser.</div>
-                {tierInfoOpen==="privacy"&&<div style={{fontSize:11,color:"#64748b",marginTop:6,paddingTop:6,borderTop:"1px solid #1e293b"}}>We never store your lease document. Because only that one confirmed piece is sent, it typically won't pick up the lessee name or lease dates — you'll fill those in on the next screen.</div>}
+                <div style={{fontSize:11,color:"var(--color-graphite)",marginTop:2}}>Only the page or section you confirm is ever sent — the rest of your lease stays in your browser.</div>
+                {tierInfoOpen==="privacy"&&<div style={{fontSize:11,color:"var(--color-graphite)",marginTop:6,paddingTop:6,borderTop:"1px solid var(--color-divider)"}}>We never store your lease document. Because only that one confirmed piece is sent, it typically won't pick up the lessee name or lease dates — you'll fill those in on the next screen.</div>}
               </button>
               <button className="btn btn-ghost" style={{padding:"12px 14px",textAlign:"left"}} onClick={()=>{setAiError(null);setStep("quick-upload");}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div style={{fontWeight:700,fontSize:13,color:"#e2e8f0"}}>⚡ Quick Extract</div>
+                  <div style={{fontWeight:700,fontSize:13,color:"var(--color-carbon)"}}>⚡ Quick Extract</div>
                   <span role="button" tabIndex={0} onClick={e=>{e.stopPropagation();setTierInfoOpen(tierInfoOpen==="quick"?null:"quick");}}
-                    style={{display:"flex",alignItems:"center",gap:3,color:"#60a5fa",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                    style={{display:"flex",alignItems:"center",gap:3,color:"var(--color-teal)",fontSize:11,fontWeight:600,cursor:"pointer"}}>
                     Details<span style={{display:"inline-block",transition:"transform 0.15s",transform:tierInfoOpen==="quick"?"rotate(180deg)":"rotate(0deg)",fontSize:9}}>▾</span>
                   </span>
                 </div>
-                <div style={{fontSize:11,color:"#64748b",marginTop:2}}>Upload the lease document — details and rates are extracted automatically in one pass.</div>
-                {tierInfoOpen==="quick"&&<div style={{fontSize:11,color:"#64748b",marginTop:6,paddingTop:6,borderTop:"1px solid #1e293b"}}>The fastest and most complete option: because the whole document is processed at once, it can find the lessee and lease dates as well as the rate schedule, which live on different pages of most leases.</div>}
+                <div style={{fontSize:11,color:"var(--color-graphite)",marginTop:2}}>Upload the lease document — details and rates are extracted automatically in one pass.</div>
+                {tierInfoOpen==="quick"&&<div style={{fontSize:11,color:"var(--color-graphite)",marginTop:6,paddingTop:6,borderTop:"1px solid var(--color-divider)"}}>The fastest and most complete option: because the whole document is processed at once, it can find the lessee and lease dates as well as the rate schedule, which live on different pages of most leases.</div>}
               </button>
             </div>
             <div style={{display:"flex",marginTop:14}}>
@@ -433,20 +433,20 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
 
         {step==="quick-upload"&&(
           <>
-            <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.6,marginBottom:14}}>
+            <div style={{fontSize:12,color:"var(--color-graphite)",lineHeight:1.6,marginBottom:14}}>
               Upload the lease document (PDF or Word). The whole document is processed to pull out lease details and reserve rates automatically — nothing is stored beyond standard short-term retention, and it's never used for training, but the full document (not just the rate schedule) does leave your browser to be processed.
             </div>
-            <div className="card" style={{padding:24,textAlign:"center",marginBottom:16,border:"2px dashed #1e3048"}}>
+            <div className="card" style={{padding:24,textAlign:"center",marginBottom:16,border:"2px dashed var(--color-divider)"}}>
               <div style={{fontSize:36,marginBottom:10}}>📁</div>
               <input type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 id="quick-upload-file" disabled={aiBusy} onChange={e=>setAiFile(e.target.files?.[0]||null)} style={{display:"none"}}/>
               <label htmlFor="quick-upload-file" style={{cursor:aiBusy?"default":"pointer"}}>
-                <div style={{fontWeight:600,color:aiFile?"#C9A84C":"#64748b",marginBottom:4}}>{aiFile?aiFile.name:"Click to select file"}</div>
-                <div style={{fontSize:12,color:"#475569"}}>PDF or Word (.docx)</div>
+                <div style={{fontWeight:600,color:aiFile?"var(--color-positive)":"var(--color-graphite)",marginBottom:4}}>{aiFile?aiFile.name:"Click to select file"}</div>
+                <div style={{fontSize:12,color:"var(--color-graphite)"}}>PDF or Word (.docx)</div>
               </label>
             </div>
-            {aiBusy&&<div style={{fontSize:12,color:"#94a3b8",marginTop:10}}>Extracting… this can take a few seconds.</div>}
-            {aiError&&<div style={{fontSize:12,color:"#f87171",marginTop:10}}>{aiError}</div>}
+            {aiBusy&&<div style={{fontSize:12,color:"var(--color-graphite)",marginTop:10}}>Extracting… this can take a few seconds.</div>}
+            {aiError&&<div style={{fontSize:12,color:"var(--color-critical)",marginTop:10}}>{aiError}</div>}
             <div style={{display:"flex",gap:10,marginTop:16}}>
               <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>{setAiFile(null);setStep("tier");}}>← Back</button>
               <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>setStep("details")}>Skip — Enter Manually</button>
@@ -457,20 +457,20 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
 
         {step==="privacy-upload"&&(
           <>
-            <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.6,marginBottom:14}}>
+            <div style={{fontSize:12,color:"var(--color-graphite)",lineHeight:1.6,marginBottom:14}}>
               Upload the lease document (PDF or Word). It's read entirely in your browser first — nothing is sent anywhere yet. You'll then confirm which page or section has the reserve rate schedule, and only that part is sent for extraction.
             </div>
-            <div className="card" style={{padding:24,textAlign:"center",marginBottom:16,border:"2px dashed #1e3048"}}>
+            <div className="card" style={{padding:24,textAlign:"center",marginBottom:16,border:"2px dashed var(--color-divider)"}}>
               <div style={{fontSize:36,marginBottom:10}}>📁</div>
               <input type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 id="privacy-upload-file" disabled={aiBusy} onChange={e=>setAiFile(e.target.files?.[0]||null)} style={{display:"none"}}/>
               <label htmlFor="privacy-upload-file" style={{cursor:aiBusy?"default":"pointer"}}>
-                <div style={{fontWeight:600,color:aiFile?"#C9A84C":"#64748b",marginBottom:4}}>{aiFile?aiFile.name:"Click to select file"}</div>
-                <div style={{fontSize:12,color:"#475569"}}>PDF or Word (.docx)</div>
+                <div style={{fontWeight:600,color:aiFile?"var(--color-positive)":"var(--color-graphite)",marginBottom:4}}>{aiFile?aiFile.name:"Click to select file"}</div>
+                <div style={{fontSize:12,color:"var(--color-graphite)"}}>PDF or Word (.docx)</div>
               </label>
             </div>
-            {aiBusy&&<div style={{fontSize:12,color:"#94a3b8",marginTop:10}}>Reading document…</div>}
-            {aiError&&<div style={{fontSize:12,color:"#f87171",marginTop:10}}>{aiError}</div>}
+            {aiBusy&&<div style={{fontSize:12,color:"var(--color-graphite)",marginTop:10}}>Reading document…</div>}
+            {aiError&&<div style={{fontSize:12,color:"var(--color-critical)",marginTop:10}}>{aiError}</div>}
             <div style={{display:"flex",gap:10,marginTop:16}}>
               <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>{setAiFile(null);setStep("tier");}}>← Back</button>
               <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>setStep("details")}>Skip — Enter Manually</button>
@@ -481,22 +481,22 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
 
         {step==="privacy-pages"&&aiCandidates&&(
           <>
-            <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.6,marginBottom:14}}>
+            <div style={{fontSize:12,color:"var(--color-graphite)",lineHeight:1.6,marginBottom:14}}>
               Confirm which page or section has the reserve rate schedule. Only that part's text will be sent — the rest of the document stays in your browser and is discarded once you're done.
             </div>
             {aiCandidates.filter(c=>c.score>0).length===0&&(
-              <div style={{fontSize:11,color:"#fbbf24",marginBottom:10}}>Nothing stood out automatically — showing everything below, please pick the right one.</div>
+              <div style={{fontSize:11,color:"var(--color-attention)",marginBottom:10}}>Nothing stood out automatically — showing everything below, please pick the right one.</div>
             )}
             <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:340,overflow:"auto"}}>
               {(aiCandidates.filter(c=>c.score>0).length?aiCandidates.filter(c=>c.score>0):aiCandidates).map(c=>(
                 <button key={c.id} className="btn btn-ghost" style={{padding:"10px 12px",textAlign:"left"}} disabled={aiBusy} onClick={()=>runPrivacyParse(c.id)}>
-                  <div style={{fontWeight:700,fontSize:12,color:"#e2e8f0"}}>{c.label}</div>
-                  <div style={{fontSize:11,color:"#64748b",marginTop:2}}>{c.snippet||"(no extractable text found here — likely scanned/image-only)"}</div>
+                  <div style={{fontWeight:700,fontSize:12,color:"var(--color-carbon)"}}>{c.label}</div>
+                  <div style={{fontSize:11,color:"var(--color-graphite)",marginTop:2}}>{c.snippet||"(no extractable text found here — likely scanned/image-only)"}</div>
                 </button>
               ))}
             </div>
-            {aiBusy&&<div style={{fontSize:12,color:"#94a3b8",marginTop:10}}>Extracting selected section…</div>}
-            {aiError&&<div style={{fontSize:12,color:"#f87171",marginTop:10}}>{aiError}</div>}
+            {aiBusy&&<div style={{fontSize:12,color:"var(--color-graphite)",marginTop:10}}>Extracting selected section…</div>}
+            {aiError&&<div style={{fontSize:12,color:"var(--color-critical)",marginTop:10}}>{aiError}</div>}
             <div style={{display:"flex",gap:10,marginTop:16}}>
               <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>setStep("privacy-upload")}>← Back</button>
               <button className="btn btn-ghost" style={{flex:1}} disabled={aiBusy} onClick={()=>setStep("details")}>Skip — Enter Manually</button>
@@ -506,26 +506,26 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
 
         {step==="ai-review"&&aiResult&&(
           <>
-            <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.6,marginBottom:14}}>
+            <div style={{fontSize:12,color:"var(--color-graphite)",lineHeight:1.6,marginBottom:14}}>
               Review what was parsed before it's used. Nothing is saved yet — you'll still confirm each reserve pot individually on the next screens, same as manual entry.
             </div>
-            <div className="card" style={{padding:12,background:"#0d1622",fontSize:12,color:"#e2e8f0",marginBottom:12}}>
+            <div className="card" style={{padding:12,background:"var(--color-technical-grey)",fontSize:12,color:"var(--color-carbon)",marginBottom:12}}>
               <label className="form-label" style={{fontSize:10}}>Lessee (editable — check this before continuing)</label>
               <input type="text" value={aiResult.lessee||""} placeholder="Not found — enter manually"
                 onChange={e=>setAiResult(prev=>({...prev,lessee:e.target.value}))} style={{marginBottom:8}}/>
-              <div><strong style={{color:"#94a3b8"}}>Lease term:</strong> {aiResult.leaseStart||"?"} → {aiResult.leaseEnd||"?"}</div>
+              <div><strong style={{color:"var(--color-graphite)"}}>Lease term:</strong> {aiResult.leaseStart||"?"} → {aiResult.leaseEnd||"?"}</div>
             </div>
-            <div style={{fontSize:11,color:"#94a3b8",fontWeight:700,marginBottom:6}}>RESERVE RATES FOUND</div>
+            <div style={{fontSize:11,color:"var(--color-graphite)",fontWeight:700,marginBottom:6}}>RESERVE RATES FOUND</div>
             <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
               {[["AF-6Y","Airframe 6-Year Check"],["AF-12Y","Airframe 12-Year Check"],["AP-OH","APU Overhaul"],["LG-OH","Landing Gear Overhaul"],["ENGINE_RESTORATION","Engine Restoration"],["ENGINE_LLP","Engine LLP"]].map(([code,label])=>(
-                <div key={code} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"6px 8px",background:"#0d1622",borderRadius:6}}>
-                  <span style={{color:"#94a3b8"}}>{label}</span>
-                  <span style={{color:aiResult.pots?.[code]?.accrualRate!=null?"#34d399":"#475569"}}>{aiResult.pots?.[code]?.accrualRate!=null?`$${aiResult.pots[code].accrualRate}`:"not found"}</span>
+                <div key={code} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"6px 8px",background:"var(--color-technical-grey)",borderRadius:6}}>
+                  <span style={{color:"var(--color-graphite)"}}>{label}</span>
+                  <span style={{color:aiResult.pots?.[code]?.accrualRate!=null?"var(--color-positive)":"var(--color-graphite)"}}>{aiResult.pots?.[code]?.accrualRate!=null?`$${aiResult.pots[code].accrualRate}`:"not found"}</span>
                 </div>
               ))}
             </div>
-            {aiResult.notes&&<div style={{fontSize:11,color:"#fbbf24",marginBottom:12}}>ℹ {aiResult.notes}</div>}
-            <div style={{fontSize:10,color:"#475569",marginBottom:14}}>
+            {aiResult.notes&&<div style={{fontSize:11,color:"var(--color-attention)",marginBottom:12}}>ℹ {aiResult.notes}</div>}
+            <div style={{fontSize:10,color:"var(--color-graphite)",marginBottom:14}}>
               These are a starting point, not final figures — you'll review and confirm every pot on the next screen exactly as you would with manual entry.
             </div>
             <div style={{display:"flex",gap:10}}>
@@ -537,20 +537,20 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
 
         {step==="overview"&&(
           <>
-            <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.6,marginBottom:16}}>
-              <div><strong style={{color:"#e2e8f0"}}>Lessee:</strong> {form.lessee}</div>
-              <div><strong style={{color:"#e2e8f0"}}>Lease term:</strong> {form.leaseStart} → {form.leaseEnd}</div>
-              <div><strong style={{color:"#e2e8f0"}}>Migration date:</strong> {form.migrationDate}</div>
+            <div style={{fontSize:12,color:"var(--color-graphite)",lineHeight:1.6,marginBottom:16}}>
+              <div><strong style={{color:"var(--color-carbon)"}}>Lessee:</strong> {form.lessee}</div>
+              <div><strong style={{color:"var(--color-carbon)"}}>Lease term:</strong> {form.leaseStart} → {form.leaseEnd}</div>
+              <div><strong style={{color:"var(--color-carbon)"}}>Migration date:</strong> {form.migrationDate}</div>
             </div>
             <div style={{display:"flex",gap:10,marginBottom:20,fontSize:11}}>
               {pots?(
                 <>
-                  <span className="pill" style={{background:"#0d2818",color:"#34d399"}}>{counts.green} Complete</span>
-                  <span className="pill" style={{background:"#2a220e",color:"#fbbf24"}}>{counts.amber} In progress / needs review</span>
-                  <span className="pill" style={{background:"#2a0e0e",color:"#f87171"}}>{counts.red} Outstanding</span>
+                  <span className="pill" style={{background:"var(--color-positive-tint)",color:"var(--color-positive)"}}>{counts.green} Complete</span>
+                  <span className="pill" style={{background:"var(--color-attention-tint)",color:"var(--color-attention)"}}>{counts.amber} In progress / needs review</span>
+                  <span className="pill" style={{background:"var(--color-critical-tint)",color:"var(--color-critical)"}}>{counts.red} Outstanding</span>
                 </>
               ):(
-                <span style={{color:"#475569"}}>Loading pot status…</span>
+                <span style={{color:"var(--color-graphite)"}}>Loading pot status…</span>
               )}
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -580,12 +580,12 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
                   <label className="form-label">Lease End</label>
                   <input type="date" value={form.leaseEnd} onChange={e=>set("leaseEnd",e.target.value)}/>
                 </div>
-                <div style={{gridColumn:"1/-1",fontSize:10,color:"#475569"}}>Optional for now — can be added later, before Confirm & Activate.</div>
+                <div style={{gridColumn:"1/-1",fontSize:10,color:"var(--color-graphite)"}}>Optional for now — can be added later, before Confirm & Activate.</div>
               </div>
               <div>
                 <label className="form-label">Migration Date</label>
                 <input type="date" value={form.migrationDate} onChange={e=>set("migrationDate",e.target.value)}/>
-                <div style={{fontSize:10,color:"#475569",marginTop:4}}>Defaults to today — the date TailiQ becomes this lease's system of record.</div>
+                <div style={{fontSize:10,color:"var(--color-graphite)",marginTop:4}}>Defaults to today — the date TailiQ becomes this lease's system of record.</div>
               </div>
             </div>
 
@@ -602,13 +602,13 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
 
         {step==="pots"&&(
           <>
-            {!pots&&<div style={{color:"#475569",fontSize:12}}>Loading pot checklist…</div>}
+            {!pots&&<div style={{color:"var(--color-graphite)",fontSize:12}}>Loading pot checklist…</div>}
             {pots&&(
               <>
                 <div style={{display:"flex",gap:10,marginBottom:14,fontSize:11}}>
-                  <span className="pill" style={{background:"#0d2818",color:"#34d399"}}>{counts.green} Complete</span>
-                  <span className="pill" style={{background:"#2a220e",color:"#fbbf24"}}>{counts.amber} In progress / needs review</span>
-                  <span className="pill" style={{background:"#2a0e0e",color:"#f87171"}}>{counts.red} Outstanding</span>
+                  <span className="pill" style={{background:"var(--color-positive-tint)",color:"var(--color-positive)"}}>{counts.green} Complete</span>
+                  <span className="pill" style={{background:"var(--color-attention-tint)",color:"var(--color-attention)"}}>{counts.amber} In progress / needs review</span>
+                  <span className="pill" style={{background:"var(--color-critical-tint)",color:"var(--color-critical)"}}>{counts.red} Outstanding</span>
                 </div>
                 {potList.map(p=>(
                   <PotRow key={p.code} pot={p}
@@ -616,15 +616,15 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
                     onSave={()=>savePot(p.code)}
                     onAcknowledge={val=>acknowledgePot(p.code,val)}/>
                 ))}
-                <div className="card" style={{padding:14,marginBottom:10,background:"#0d1622"}}>
-                  <div style={{fontSize:12,fontWeight:700,color:"#e2e8f0",marginBottom:8}}>+ Add Custom Pot</div>
+                <div className="card" style={{padding:14,marginBottom:10,background:"var(--color-technical-grey)"}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",marginBottom:8}}>+ Add Custom Pot</div>
                   <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
                     <input type="text" placeholder="Code (e.g. AVIONICS-OH)" value={customCode} onChange={e=>setCustomCode(e.target.value)} style={{fontSize:12,padding:"6px 8px",width:180}}/>
                     <input type="text" placeholder="Label" value={customLabel} onChange={e=>setCustomLabel(e.target.value)} style={{fontSize:12,padding:"6px 8px",flex:1,minWidth:160}}/>
                     <button className="btn btn-ghost" style={{fontSize:12}} onClick={addCustomPot}>+ Add</button>
                   </div>
                 </div>
-                <div style={{fontSize:10,color:"#475569",marginBottom:14}}>
+                <div style={{fontSize:10,color:"var(--color-graphite)",marginBottom:14}}>
                   Partial completion is fine — outstanding pots can be finished later, and Brain 3 will caveat any missing pots rather than treating them as zero.
                 </div>
               </>
@@ -638,13 +638,13 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
 
         {step==="eol"&&(
           <>
-            <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.6,marginBottom:10}}>
+            <div style={{fontSize:12,color:"var(--color-graphite)",lineHeight:1.6,marginBottom:10}}>
               These are read-once-per-lease terms from the lease schedule — pre-filled from your company's standard template, fully editable. Manual entry, not extraction: these figures carry real money and belong to prose clauses that shouldn't be auto-parsed.
             </div>
             <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 0",marginBottom:14,textDecoration:"underline",background:"none",border:"none"}} onClick={()=>setStep("confirm")}>
               Skip — use defaults for now →
             </button>
-            <label style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,fontSize:12,color:"#e2e8f0",cursor:"pointer"}}>
+            <label style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,fontSize:12,color:"var(--color-carbon)",cursor:"pointer"}}>
               <input type="checkbox" style={{width:"auto",flexShrink:0}} checked={!!form.endOfLeaseTerms?.applies} onChange={e=>setEol("applies",e.target.checked)}/>
               This lease has an End of Lease Maintenance Payment Adjustment
             </label>
@@ -653,12 +653,12 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
                   <div>
                     <label className="form-label">Components Covered</label>
-                    <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#94a3b8",marginTop:4,cursor:"pointer"}}>
+                    <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"var(--color-graphite)",marginTop:4,cursor:"pointer"}}>
                       <input type="checkbox" style={{width:"auto",flexShrink:0}} checked={(form.endOfLeaseTerms?.componentsCovered||[]).includes("ENGINE_LLP")}
                         onChange={e=>setEol("componentsCovered",e.target.checked?["ENGINE_LLP"]:[])}/>
                       Engine LLPs
                     </label>
-                    <div style={{fontSize:10,color:"#475569",marginTop:2}}>Only component currently computable end-to-end (Brain 2 + catalogue tables).</div>
+                    <div style={{fontSize:10,color:"var(--color-graphite)",marginTop:2}}>Only component currently computable end-to-end (Brain 2 + catalogue tables).</div>
                   </div>
                   <div>
                     <label className="form-label">Direction</label>
@@ -667,41 +667,41 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
                       <option value="two-way">Two-way mirror (lessor may owe lessee)</option>
                       <option value="zero-time">Zero-Time / Full-Life (different basis — review separately)</option>
                     </select>
-                    <div style={{fontSize:10,color:"#475569",marginTop:2}}>Don't assume one-way holds fleet-wide — read this lease's own clause.</div>
+                    <div style={{fontSize:10,color:"var(--color-graphite)",marginTop:2}}>Don't assume one-way holds fleet-wide — read this lease's own clause.</div>
                   </div>
                 </div>
                 <div style={{marginBottom:14}}>
                   <label className="form-label">B Denominator (% of Approved Life)</label>
                   <input type="number" step="0.1" min="0" max="100" value={form.endOfLeaseTerms?.bDenominatorPct??""} onChange={e=>setEol("bDenominatorPct",Number(e.target.value)||0)} style={{width:120}}/>
-                  <div style={{fontSize:10,color:"#475569",marginTop:2}}>Industry boilerplate is often ~90% — this lease's clause governs. Not the same figure as the EN-LP stub buffer.</div>
+                  <div style={{fontSize:10,color:"var(--color-graphite)",marginTop:2}}>Industry boilerplate is often ~90% — this lease's clause governs. Not the same figure as the EN-LP stub buffer.</div>
                 </div>
                 <div style={{marginBottom:14}}>
                   <div className="form-label" style={{marginBottom:6}}>Carve-Outs</div>
-                  <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"#94a3b8",marginBottom:6,cursor:"pointer"}}>
+                  <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--color-graphite)",marginBottom:6,cursor:"pointer"}}>
                     <input type="checkbox" style={{width:"auto",flexShrink:0}} checked={!!form.endOfLeaseTerms?.carveOuts?.firstLGOverhaulExcluded} onChange={e=>setEolCarveOut("firstLGOverhaulExcluded",e.target.checked)}/>
                     First Landing Gear Overhaul excluded from adjustment
                   </label>
-                  <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"#94a3b8",cursor:"pointer"}}>
+                  <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--color-graphite)",cursor:"pointer"}}>
                     <input type="checkbox" style={{width:"auto",flexShrink:0}} checked={!!form.endOfLeaseTerms?.carveOuts?.firstEngineLLPEventExcluded} onChange={e=>setEolCarveOut("firstEngineLLPEventExcluded",e.target.checked)}/>
                     First Engine LLP Event excluded from adjustment
                   </label>
-                  <div style={{fontSize:10,color:"#475569",marginTop:4}}>Displayed on the EOL Position screen — not yet netted out of the money figure automatically (tracked in TECH_DEBT.md).</div>
+                  <div style={{fontSize:10,color:"var(--color-graphite)",marginTop:4}}>Displayed on the EOL Position screen — not yet netted out of the money figure automatically (tracked in TECH_DEBT.md).</div>
                 </div>
                 <div style={{marginBottom:6}}>
                   <div className="form-label" style={{marginBottom:6}}>Redelivery Life Margins</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
                     <div>
-                      <label style={{fontSize:11,color:"#94a3b8"}}>Engine LLPs — min FC remaining <span style={{color:"#475569"}}>(clause 6.8)</span></label>
+                      <label style={{fontSize:11,color:"var(--color-graphite)"}}>Engine LLPs — min FC remaining <span style={{color:"var(--color-graphite)"}}>(clause 6.8)</span></label>
                       <input type="number" min="0" step="1" value={form.endOfLeaseTerms?.margins?.engineLLPMinFC??""} onChange={e=>setEolMargin("engineLLPMinFC",Number(e.target.value)||0)}/>
                     </div>
                     <div>
-                      <label style={{fontSize:11,color:"#94a3b8"}}>Landing Gear — min months <span style={{color:"#475569"}}>(clause 9.2)</span></label>
+                      <label style={{fontSize:11,color:"var(--color-graphite)"}}>Landing Gear — min months <span style={{color:"var(--color-graphite)"}}>(clause 9.2)</span></label>
                       <input type="number" min="0" step="1" value={form.endOfLeaseTerms?.margins?.landingGearMinMonths??""} onChange={e=>setEolMargin("landingGearMinMonths",Number(e.target.value)||0)}/>
                     </div>
                     <div style={{gridColumn:"1/-1"}}>
-                      <label style={{fontSize:11,color:"#94a3b8"}}>Engines on-wing — min FH to next expected removal <span style={{color:"#475569"}}>(clause 6.3/6.4)</span></label>
+                      <label style={{fontSize:11,color:"var(--color-graphite)"}}>Engines on-wing — min FH to next expected removal <span style={{color:"var(--color-graphite)"}}>(clause 6.3/6.4)</span></label>
                       <input type="number" min="0" step="1" value={form.endOfLeaseTerms?.margins?.engineOnWingMinFH??""} onChange={e=>setEolMargin("engineOnWingMinFH",Number(e.target.value)||0)}/>
-                      <div style={{fontSize:10,color:"#475569",marginTop:2}}>Caveated — expected removal is a Lessor judgment call (borescope, power assurance, trend monitoring), never presented as a settled answer.</div>
+                      <div style={{fontSize:10,color:"var(--color-graphite)",marginTop:2}}>Caveated — expected removal is a Lessor judgment call (borescope, power assurance, trend monitoring), never presented as a settled answer.</div>
                     </div>
                   </div>
                 </div>
@@ -716,19 +716,19 @@ function LeaseWizard({asset,saveAsset,notify,onClose}){
 
         {step==="confirm"&&(
           <>
-            <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.6,marginBottom:14}}>
-              <div><strong style={{color:"#e2e8f0"}}>Lessee:</strong> {form.lessee}</div>
-              <div><strong style={{color:"#e2e8f0"}}>Lease term:</strong> {form.leaseStart} → {form.leaseEnd}</div>
-              <div><strong style={{color:"#e2e8f0"}}>Migration date:</strong> {form.migrationDate}</div>
-              {leaseUnchanged&&<div style={{marginTop:6,fontSize:11,color:"#64748b"}}>No changes to lease details — activating will only save pot updates.</div>}
+            <div style={{fontSize:12,color:"var(--color-graphite)",lineHeight:1.6,marginBottom:14}}>
+              <div><strong style={{color:"var(--color-carbon)"}}>Lessee:</strong> {form.lessee}</div>
+              <div><strong style={{color:"var(--color-carbon)"}}>Lease term:</strong> {form.leaseStart} → {form.leaseEnd}</div>
+              <div><strong style={{color:"var(--color-carbon)"}}>Migration date:</strong> {form.migrationDate}</div>
+              {leaseUnchanged&&<div style={{marginTop:6,fontSize:11,color:"var(--color-graphite)"}}>No changes to lease details — activating will only save pot updates.</div>}
             </div>
             <div style={{display:"flex",gap:10,marginBottom:18,fontSize:11}}>
-              <span className="pill" style={{background:"#0d2818",color:"#34d399"}}>{counts.green} Complete</span>
-              <span className="pill" style={{background:"#2a220e",color:"#fbbf24"}}>{counts.amber} In progress / needs review</span>
-              <span className="pill" style={{background:"#2a0e0e",color:"#f87171"}}>{counts.red} Outstanding</span>
+              <span className="pill" style={{background:"var(--color-positive-tint)",color:"var(--color-positive)"}}>{counts.green} Complete</span>
+              <span className="pill" style={{background:"var(--color-attention-tint)",color:"var(--color-attention)"}}>{counts.amber} In progress / needs review</span>
+              <span className="pill" style={{background:"var(--color-critical-tint)",color:"var(--color-critical)"}}>{counts.red} Outstanding</span>
             </div>
             {(counts.amber>0||counts.red>0)&&(
-              <div style={{fontSize:11,color:"#94a3b8",marginBottom:14,padding:10,background:"#0d1622",borderRadius:6}}>
+              <div style={{fontSize:11,color:"var(--color-graphite)",marginBottom:14,padding:10,background:"var(--color-technical-grey)",borderRadius:6}}>
                 Some pots aren't complete yet — that's fine, this lease can still be activated. Outstanding pots will be flagged in Fly-Forward projections rather than treated as zero.
               </div>
             )}
