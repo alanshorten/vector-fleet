@@ -270,13 +270,13 @@ function PhotoManager({asset, saveAsset, notify, label="photos", field="photos"}
         </button>
       </div>
       {lopaToolOpen&&<LopaCropTool asset={asset} saveAsset={saveAsset} notify={notify} onClose={()=>setLopaToolOpen(false)}/>}
-      {photos.length === 0 && <div style={{color:'#475569',fontSize:12,fontStyle:'italic',padding:'8px 0'}}>No photos uploaded yet.</div>}
+      {photos.length === 0 && <div style={{color:'var(--color-graphite)',fontSize:12,fontStyle:'italic',padding:'8px 0'}}>No photos uploaded yet.</div>}
       <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
         {photos.map((p,i) => (
-          <div key={i} style={{background:'#0d1925',borderRadius:6,overflow:'hidden',border:'1px solid #1e3348',width:120}}>
+          <div key={i} style={{background:'var(--color-technical-grey)',borderRadius:6,overflow:'hidden',border:'1px solid var(--color-divider)',width:120}}>
             <img src={p.url} alt={p.label} style={{width:'100%',height:70,objectFit:'cover',display:'block'}}/>
             <div style={{padding:'5px 7px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <div style={{fontSize:10,color:'#94a3b8',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:70}}>{p.label}</div>
+              <div style={{fontSize:10,color:'var(--color-graphite)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:70}}>{p.label}</div>
               <button className="btn-danger btn" style={{fontSize:9,padding:'1px 5px'}} onClick={()=>deletePhoto(i)}>✕</button>
             </div>
           </div>
@@ -795,9 +795,9 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
       <div style={{flex:1}}>
         <label className="form-label">{label}</label>
         {editing&&isAdmin?<input type={type} defaultValue={val||""} onBlur={e=>set(path,e.target.value)} tabIndex={0} style={{opacity:isHidden?0.4:1}}/>
-        :<div style={{fontSize:13,fontWeight:500,color:isEmpty(val)?"#475569":"#e2e8f0"}}>{type==="date"?fmtDate(val):val||"Not entered"}</div>}
+        :<div style={{fontSize:13,fontWeight:500,color:isEmpty(val)?"var(--color-graphite)":"var(--color-carbon)"}}>{type==="date"?fmtDate(val):val||"Not entered"}</div>}
       </div>
-      {editing&&isAdmin&&<button onClick={()=>toggleHide(path)} title={isHidden?"Show in tech spec":"Hide from tech spec"} style={{marginTop:18,background:"none",border:"none",cursor:"pointer",fontSize:13,color:isHidden?"#475569":"#C9A84C",padding:"2px 4px",flexShrink:0}}>{isHidden?"🚫":"👁"}</button>}
+      {editing&&isAdmin&&<button onClick={()=>toggleHide(path)} title={isHidden?"Show in tech spec":"Hide from tech spec"} style={{marginTop:18,background:"none",border:"none",cursor:"pointer",fontSize:13,color:isHidden?"var(--color-graphite)":"var(--color-ochre)",padding:"2px 4px",flexShrink:0}}>{isHidden?"🚫":"👁"}</button>}
     </div>;
   };
   return(
@@ -813,9 +813,9 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
         <div className="section-title">Operating Weights</div>
         <table><thead><tr><th>Parameter</th><th>kg</th><th>lb</th></tr></thead><tbody>
           {[["MTOW","mtow","mtow_lb"],["Max Taxi","mtw","mtw_lb"],["MZFW","mzfw","mzfw_lb"],["MLW","mlw","mlw_lb"]].map(([l,k,klb])=>(
-            <tr key={k}><td style={{color:"#64748b"}}>{l}</td>
+            <tr key={k}><td style={{color:"var(--color-graphite)"}}>{l}</td>
             <td>{editing&&isAdmin?<input type="number" value={d.weights?.[k]||""} onChange={e=>{const kg=+e.target.value;const f=JSON.parse(JSON.stringify(form));if(!f.weights)f.weights={};f.weights[k]=kg;if(kg)f.weights[klb]=Math.round(kg*2.20462);else f.weights[klb]="";setForm(f);}} style={{width:100}}/>:d.weights?.[k]?.toLocaleString()||"—"}</td>
-            <td style={{color:"#475569"}}>{editing&&isAdmin?<input type="number" value={d.weights?.[klb]||""} onChange={e=>{const lb=+e.target.value;const f=JSON.parse(JSON.stringify(form));if(!f.weights)f.weights={};f.weights[klb]=lb;if(lb)f.weights[k]=Math.round(lb/2.20462);else f.weights[k]="";setForm(f);}} style={{width:100}}/>:d.weights?.[klb]?.toLocaleString()||"—"}</td></tr>
+            <td style={{color:"var(--color-graphite)"}}>{editing&&isAdmin?<input type="number" value={d.weights?.[klb]||""} onChange={e=>{const lb=+e.target.value;const f=JSON.parse(JSON.stringify(form));if(!f.weights)f.weights={};f.weights[klb]=lb;if(lb)f.weights[k]=Math.round(lb/2.20462);else f.weights[k]="";setForm(f);}} style={{width:100}}/>:d.weights?.[klb]?.toLocaleString()||"—"}</td></tr>
           ))}
         </tbody></table>
       </div>
@@ -835,38 +835,38 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
             .map((c, origIndex) => ({ c, origIndex }))
             .sort((a, b) => parseCheckInterval(a.c.name) - parseCheckInterval(b.c.name));
           return sorted.map(({ c, origIndex: i }, pos) => (
-          <div key={i} style={{marginTop:pos>0?14:0,paddingTop:pos>0?14:0,borderTop:pos>0?"1px solid #1e3048":"none"}}>
+          <div key={i} style={{marginTop:pos>0?14:0,paddingTop:pos>0?14:0,borderTop:pos>0?"1px solid var(--color-divider-inner)":"none"}}>
             <div className="flj" style={{marginBottom:6}}>
-              <span style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.04em"}}>{c.name}</span>
+              <span style={{fontSize:11,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",letterSpacing:"0.04em"}}>{c.name}</span>
               {editing&&isAdmin&&<button className="btn-danger btn" style={{fontSize:9,padding:"3px 7px"}} onClick={()=>{const f=JSON.parse(JSON.stringify(form));f.checks.splice(i,1);setForm(f);}}>✕</button>}
             </div>
             <div className="flj" style={{padding:"3px 0"}}>
-              <span style={{fontSize:12,color:"#64748b"}}>TSN</span>
-              {editing&&isAdmin?<input type="text" defaultValue={c.lastFH||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastFH=e.target.value?+e.target.value:null;setForm(f);}} style={{width:90,textAlign:"right"}}/>:<span style={{fontSize:12,fontFamily:"monospace",color:isEmpty(c.lastFH)?"#475569":"#e2e8f0"}}>{c.lastFH?.toLocaleString()||"—"}</span>}
+              <span style={{fontSize:12,color:"var(--color-graphite)"}}>TSN</span>
+              {editing&&isAdmin?<input type="text" defaultValue={c.lastFH||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastFH=e.target.value?+e.target.value:null;setForm(f);}} style={{width:90,textAlign:"right"}}/>:<span style={{fontSize:12,fontFamily:"var(--font-data)",color:isEmpty(c.lastFH)?"var(--color-graphite)":"var(--color-carbon)"}}>{c.lastFH?.toLocaleString()||"—"}</span>}
             </div>
             <div className="flj" style={{padding:"3px 0"}}>
-              <span style={{fontSize:12,color:"#64748b"}}>CSN</span>
-              {editing&&isAdmin?<input type="number" defaultValue={c.lastFC||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastFC=e.target.value?+e.target.value:null;setForm(f);}} style={{width:90,textAlign:"right"}}/>:<span style={{fontSize:12,fontFamily:"monospace",color:isEmpty(c.lastFC)?"#475569":"#e2e8f0"}}>{c.lastFC?.toLocaleString()||"—"}</span>}
+              <span style={{fontSize:12,color:"var(--color-graphite)"}}>CSN</span>
+              {editing&&isAdmin?<input type="number" defaultValue={c.lastFC||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastFC=e.target.value?+e.target.value:null;setForm(f);}} style={{width:90,textAlign:"right"}}/>:<span style={{fontSize:12,fontFamily:"var(--font-data)",color:isEmpty(c.lastFC)?"var(--color-graphite)":"var(--color-carbon)"}}>{c.lastFC?.toLocaleString()||"—"}</span>}
             </div>
             <div className="flj" style={{padding:"3px 0"}}>
-              <span style={{fontSize:12,color:"#64748b"}}>Last</span>
-              {editing&&isAdmin?<CheckDateInput val={c.lastDate} onCommit={(iso,next)=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastDate=iso;if(next)f.checks[i].nextDate=next;setForm(f);}} yrs={(()=>{const m=/(\d+)\s*Year/i.exec(c.name);return m?+m[1]:null;})()}/>:<span style={{fontSize:12,color:isEmpty(c.lastDate)?"#475569":"#e2e8f0"}}>{fmtDate(c.lastDate)||"—"}</span>}
+              <span style={{fontSize:12,color:"var(--color-graphite)"}}>Last</span>
+              {editing&&isAdmin?<CheckDateInput val={c.lastDate} onCommit={(iso,next)=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].lastDate=iso;if(next)f.checks[i].nextDate=next;setForm(f);}} yrs={(()=>{const m=/(\d+)\s*Year/i.exec(c.name);return m?+m[1]:null;})()}/>:<span style={{fontSize:12,color:isEmpty(c.lastDate)?"var(--color-graphite)":"var(--color-carbon)"}}>{fmtDate(c.lastDate)||"—"}</span>}
             </div>
             <div className="flj" style={{padding:"3px 0"}}>
-              <span style={{fontSize:12,color:"#64748b"}}>Next Due</span>
-              {editing&&isAdmin?<CheckDateInput val={c.nextDate} onCommit={(iso)=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].nextDate=iso;setForm(f);}} yrs={null}/>:<span style={{fontSize:12,fontWeight:700,color:daysFromNow(c.nextDate)<365?"#fbbf24":"#34d399"}}>{fmtDate(c.nextDate)||"—"}</span>}
+              <span style={{fontSize:12,color:"var(--color-graphite)"}}>Next Due</span>
+              {editing&&isAdmin?<CheckDateInput val={c.nextDate} onCommit={(iso)=>{const f=JSON.parse(JSON.stringify(form));f.checks[i].nextDate=iso;setForm(f);}} yrs={null}/>:<span style={{fontSize:12,fontWeight:700,color:daysFromNow(c.nextDate)<365?"var(--color-attention)":"var(--color-positive)"}}>{fmtDate(c.nextDate)||"—"}</span>}
             </div>
           </div>
           ));
-        })():<div style={{color:"#475569",fontStyle:"italic",fontSize:12}}>No check history recorded</div>}
+        })():<div style={{color:"var(--color-graphite)",fontStyle:"italic",fontSize:12}}>No check history recorded</div>}
         {editing&&isAdmin&&<div style={{marginTop:12}}><AddCheckRow existing={(form.checks||[]).map(c=>c.name)} onAdd={name=>{const f=JSON.parse(JSON.stringify(form));if(!f.checks)f.checks=[];f.checks.push({name,lastDate:"",lastFH:0,lastFC:0,nextDate:""});setForm(f);}}/></div>}
       </div>
       <div className="card" style={{padding:18}}>
         <div className="section-title">Tech Spec Disclaimer</div>
-        <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>Shown at the bottom of the generated tech spec document for this asset only. Leave blank to use the company-wide default set in Admin → Settings.</div>
+        <div style={{fontSize:11,color:"var(--color-graphite)",marginBottom:10}}>Shown at the bottom of the generated tech spec document for this asset only. Leave blank to use the company-wide default set in Admin → Settings.</div>
         {editing&&isAdmin
           ?<textarea defaultValue={d.disclaimer||""} onBlur={e=>set("disclaimer",e.target.value)} rows={3} style={{width:"100%",fontFamily:"inherit",fontSize:13,resize:"vertical"}}/>
-          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(d.disclaimer)?"#475569":"#e2e8f0"}}>{d.disclaimer||"Not entered — company-wide default will be used"}</div>}
+          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(d.disclaimer)?"var(--color-graphite)":"var(--color-carbon)"}}>{d.disclaimer||"Not entered — company-wide default will be used"}</div>}
       </div>
       </div>
       <div className="card" style={{padding:18}}>
@@ -877,25 +877,25 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
             const parts=p.split(".");const val=parts.reduce((o,k)=>o?.[k],d);
             const isHidden=hiddenFields.includes(p);
             if(!editing&&isHidden)return null;
-            return<div key={p} className="flj" style={{padding:"5px 0",borderBottom:"1px solid #0f2030",opacity:editing&&isHidden?0.4:1}}>
-              <span style={{fontSize:12,color:"#64748b"}}>{l}</span>
+            return<div key={p} className="flj" style={{padding:"5px 0",borderBottom:"1px solid var(--color-divider-inner)",opacity:editing&&isHidden?0.4:1}}>
+              <span style={{fontSize:12,color:"var(--color-graphite)"}}>{l}</span>
               <div className="flab g8">
                 {editing&&isAdmin
-                  ?<button onClick={()=>set(p,!val)} className="pill" style={{background:val?"#0d2818":"#2a0e0e",color:val?"#34d399":"#f87171",border:"none",cursor:"pointer",fontSize:11}}>{val?"Installed":"Not Installed"}</button>
-                  :<span className="pill" style={{background:val?"#0d2818":"#2a0e0e",color:val?"#34d399":"#f87171",fontSize:10}}>{val?"Installed":"Not Installed"}</span>}
-                {editing&&isAdmin&&<button onClick={()=>toggleHide(p)} title={isHidden?"Show":"Hide"} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:isHidden?"#475569":"#C9A84C",padding:"0 2px"}}>{isHidden?"🚫":"👁"}</button>}
+                  ?<button onClick={()=>set(p,!val)} className="pill" style={{background:val?"var(--color-positive-tint)":"var(--color-divider)",color:val?"var(--color-positive)":"var(--color-graphite)",border:"none",cursor:"pointer",fontSize:11}}>{val?"Installed":"Not Installed"}</button>
+                  :<span className="pill" style={{background:val?"var(--color-positive-tint)":"var(--color-divider)",color:val?"var(--color-positive)":"var(--color-graphite)",fontSize:10}}>{val?"Installed":"Not Installed"}</span>}
+                {editing&&isAdmin&&<button onClick={()=>toggleHide(p)} title={isHidden?"Show":"Hide"} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:isHidden?"var(--color-graphite)":"var(--color-ochre)",padding:"0 2px"}}>{isHidden?"🚫":"👁"}</button>}
               </div>
             </div>;
           })}
         </div>
         <div style={{marginTop:14}}>
-          <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Custom Fields</div>
+          <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Custom Fields</div>
           {[0,1,2,3,4].map(idx=>{
             const cf=(d.specs?.custom||[])[idx]||{label:"",value:""};
             return<div key={idx} className="flab g8" style={{marginBottom:6}}>
               {editing&&isAdmin
-                ?<><input placeholder="Field name" defaultValue={cf.label||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));if(!f.specs)f.specs={};if(!f.specs.custom)f.specs.custom=[{},{},{},{},{}];while(f.specs.custom.length<5)f.specs.custom.push({});f.specs.custom[idx]={...f.specs.custom[idx],label:e.target.value};setForm(f);}} style={{width:160,fontStyle:"italic",color:"#64748b"}}/><input placeholder="Value" defaultValue={cf.value||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));if(!f.specs)f.specs={};if(!f.specs.custom)f.specs.custom=[{},{},{},{},{}];while(f.specs.custom.length<5)f.specs.custom.push({});f.specs.custom[idx]={...f.specs.custom[idx],value:e.target.value};setForm(f);}} style={{flex:1}}/></>
-                :(cf.label&&cf.value)?<div className="flj" style={{width:"100%",padding:"3px 0",borderBottom:"1px solid #0f2030"}}><span style={{fontSize:12,color:"#64748b"}}>{cf.label}</span><span style={{fontSize:12,fontWeight:500,color:"#e2e8f0"}}>{cf.value}</span></div>:null}
+                ?<><input placeholder="Field name" defaultValue={cf.label||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));if(!f.specs)f.specs={};if(!f.specs.custom)f.specs.custom=[{},{},{},{},{}];while(f.specs.custom.length<5)f.specs.custom.push({});f.specs.custom[idx]={...f.specs.custom[idx],label:e.target.value};setForm(f);}} style={{width:160,fontStyle:"italic",color:"var(--color-graphite)"}}/><input placeholder="Value" defaultValue={cf.value||""} onBlur={e=>{const f=JSON.parse(JSON.stringify(form));if(!f.specs)f.specs={};if(!f.specs.custom)f.specs.custom=[{},{},{},{},{}];while(f.specs.custom.length<5)f.specs.custom.push({});f.specs.custom[idx]={...f.specs.custom[idx],value:e.target.value};setForm(f);}} style={{flex:1}}/></>
+                :(cf.label&&cf.value)?<div className="flj" style={{width:"100%",padding:"3px 0",borderBottom:"1px solid var(--color-divider-inner)"}}><span style={{fontSize:12,color:"var(--color-graphite)"}}>{cf.label}</span><span style={{fontSize:12,fontWeight:500,color:"var(--color-carbon)"}}>{cf.value}</span></div>:null}
             </div>;
           })}
         </div>

@@ -138,13 +138,15 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
         <div className="section-title">Status Summary</div>
         {componentBlocks.map(({label,idLabel,val,tsn,csn})=>{
           const col=val===null?"var(--color-graphite)":val<1000?"var(--color-critical)":val<3000?"var(--color-attention)":"var(--color-positive)";
-          const bg=val===null?"transparent":val<1000?"var(--color-critical-tint)":val<3000?"var(--color-attention-tint)":"var(--color-positive-tint)";
           return(
-            <div key={label} style={{marginBottom:14,paddingBottom:14,borderBottom:"1px solid var(--color-divider-inner)"}}>
+            <div key={label} style={{marginBottom:14}}>
               <div style={{fontSize:11,fontWeight:700,color:"var(--color-graphite)",marginBottom:6}}>{label} · {idLabel}</div>
               <div className="flj" style={{padding:"3px 0"}}>
                 <span style={{fontSize:12,color:"var(--color-graphite)"}}>Limiter</span>
-                <span className="pill" style={{background:bg,color:col,fontSize:11}}>{val!==null?`${val.toLocaleString()} FC`:"No data"}</span>
+                <span style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12,fontFamily:"var(--font-data)",fontWeight:700,color:col}}>
+                  <span style={{width:6,height:6,borderRadius:"50%",background:col,flexShrink:0}}/>
+                  {val!==null?`${val.toLocaleString()} FC`:"No data"}
+                </span>
               </div>
               <div className="flj" style={{padding:"3px 0"}}>
                 <span style={{fontSize:12,color:"var(--color-graphite)"}}>TSN</span>
@@ -163,14 +165,16 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
           {lgItems.map(([label,g])=>{
             const days=daysFromNow(g?.nextDue);
             const col=days===null?"var(--color-graphite)":days<0?"var(--color-critical)":days<365?"var(--color-attention)":"var(--color-positive)";
-            const bg=days===null?"transparent":days<0?"var(--color-critical-tint)":days<365?"var(--color-attention-tint)":"var(--color-positive-tint)";
-            return<div key={label} className="flj" style={{padding:"5px 0",borderBottom:"1px solid var(--color-divider-inner)"}}>
+            return<div key={label} className="flj" style={{padding:"5px 0"}}>
               <span style={{fontSize:12,color:"var(--color-graphite)"}}>{label}</span>
-              <span className="pill" style={{background:bg,color:col,fontSize:11}}>{g?.nextDue?`${fmtDate(g.nextDue)}${days!==null?` (${days<0?Math.abs(days)+"d overdue":days+"d"})`:""}`:"Not entered"}</span>
+              <span style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12,fontFamily:"var(--font-data)",fontWeight:700,color:col}}>
+                <span style={{width:6,height:6,borderRadius:"50%",background:col,flexShrink:0}}/>
+                {g?.nextDue?`${fmtDate(g.nextDue)}${days!==null?` (${days<0?Math.abs(days)+"d overdue":days+"d"})`:""}`:"Not entered"}
+              </span>
             </div>;
           })}
         </div>
-        <div style={{marginTop:10,paddingTop:8,borderTop:"1px solid var(--color-divider-inner)"}}>
+        <div style={{marginTop:10,paddingTop:8,borderTop:"1px solid var(--color-divider)"}}>
           <div className="flj"><span style={{fontSize:11,color:"var(--color-graphite)"}}>Last Report</span><span style={{fontSize:11,fontWeight:600,color:asset._lastPeriod?"var(--color-carbon)":"var(--color-critical)"}}>{asset._lastPeriod||"None"}</span></div>
         </div>
       </div>
@@ -725,13 +729,16 @@ function GearCard({title,gkey,asset,form,editing,isAdmin,set,setForm,af}){
   return(
     <div className="card" style={{padding:18}}>
       <div className="section-title">{title}{g.atShop&&" 🔧"}</div>
-      {[["mfr","Manufacturer"],["pn","Part Number"],["sn","Serial Number"]].map(([k,l])=>(
-        <div key={k} className="form-group">
-          <label className="form-label">{l}</label>
-          {editing&&isAdmin?<input value={g[k]||""} onChange={e=>set("landingGear."+gkey+"."+k,e.target.value)}/>
-          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g[k])?"var(--color-graphite)":"var(--color-carbon)"}}>{g[k]||"Not entered"}</div>}
-        </div>
-      ))}
+
+      <div className="grid3" style={{gap:8,marginBottom:12}}>
+        {[["mfr","Manufacturer"],["pn","Part Number"],["sn","Serial Number"]].map(([k,l])=>(
+          <div key={k} className="form-group" style={{marginBottom:0}}>
+            <label className="form-label">{l}</label>
+            {editing&&isAdmin?<input value={g[k]||""} onChange={e=>set("landingGear."+gkey+"."+k,e.target.value)}/>
+            :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g[k])?"var(--color-graphite)":"var(--color-carbon)"}}>{g[k]||"Not entered"}</div>}
+          </div>
+        ))}
+      </div>
 
       {editing&&isAdmin&&(
       <>
@@ -756,13 +763,12 @@ function GearCard({title,gkey,asset,form,editing,isAdmin,set,setForm,af}){
 
       <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6}}>Last Overhaul Record</div>
       {editing&&isAdmin&&<div style={{fontSize:10,color:"var(--color-graphite)",marginBottom:6,fontStyle:"italic"}}>The actual overhaul — drives Next Overhaul Due below. Must be the genuine overhaul event, not just any reading.</div>}
-      <div className="grid2" style={{gap:6,marginBottom:6}}>
+      <div className="grid3" style={{gap:8,marginBottom:12}}>
         <div><label className="form-label">Date (DDMMYYYY)</label>
           {editing&&isAdmin
             ?<input type="text" placeholder="DDMMYYYY" value={lastDateVal} onChange={e=>handleLastDateChange(e.target.value)} onBlur={e=>handleLastDateBlur(e.target.value)}/>
             :<div style={{fontSize:13,fontWeight:500,color:isEmpty(activeDateStr)?"var(--color-graphite)":"var(--color-carbon)"}}>{activeDateStr||"Not entered"}</div>}
         </div>
-        <div/>
         <div><label className="form-label">Leg TSN at Overhaul</label>
           {editing&&isAdmin?<input type="number" value={g.lastOverhaulFH??""} onChange={e=>set("landingGear."+gkey+".lastOverhaulFH",e.target.value===""?null:+e.target.value)}/>
           :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.lastOverhaulFH)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.lastOverhaulFH!=null?fmtHHMM(g.lastOverhaulFH):"Not entered"}</div>}
@@ -772,6 +778,15 @@ function GearCard({title,gkey,asset,form,editing,isAdmin,set,setForm,af}){
           :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.lastOverhaulFC)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.lastOverhaulFC!=null?g.lastOverhaulFC.toLocaleString():"Not entered"}</div>}
         </div>
       </div>
+
+      {(sinceFH!=null||sinceFC!=null||activeDateStr)&&<div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px",marginBottom:10}}>
+        <div style={{fontSize:9,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:4}}>Since Last Overhaul</div>
+        <div className="grid3" style={{gap:4}}>
+          <div><div style={{fontSize:9,color:"var(--color-graphite)"}}>Days</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{daysSince!==null?daysSince.toLocaleString():"—"}</div></div>
+          <div><div style={{fontSize:9,color:"var(--color-graphite)"}}>FH</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFH!=null?fmtHHMM(sinceFH):"—"}</div></div>
+          <div><div style={{fontSize:9,color:"var(--color-graphite)"}}>FC</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFC!=null?Math.round(sinceFC).toLocaleString():"—"}</div></div>
+        </div>
+      </div>}
 
       <div style={{background:overallStatus?statusBg[overallStatus]:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px",marginBottom:10}}>
         <div style={{fontSize:9,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:4,textAlign:"center"}}>Next Overhaul Due — Lowest Wins</div>
@@ -790,15 +805,6 @@ function GearCard({title,gkey,asset,form,editing,isAdmin,set,setForm,af}){
           </div>
         </div>
       </div>
-
-      {(sinceFH!=null||sinceFC!=null||activeDateStr)&&<div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px",marginBottom:10}}>
-        <div style={{fontSize:9,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:4}}>Since Last Overhaul</div>
-        <div className="grid3" style={{gap:4}}>
-          <div><div style={{fontSize:9,color:"var(--color-graphite)"}}>Days</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{daysSince!==null?daysSince.toLocaleString():"—"}</div></div>
-          <div><div style={{fontSize:9,color:"var(--color-graphite)"}}>FH</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFH!=null?fmtHHMM(sinceFH):"—"}</div></div>
-          <div><div style={{fontSize:9,color:"var(--color-graphite)"}}>FC</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFC!=null?Math.round(sinceFC).toLocaleString():"—"}</div></div>
-        </div>
-      </div>}
 
       <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6}}>Current Totals (Since New){current&&<span style={{marginLeft:6,fontSize:9,fontWeight:600,color:current.source==="Ground Truth"?"var(--color-positive)":"var(--color-teal)",textTransform:"none"}}>{current.source}</span>}</div>
       {current?(
@@ -910,9 +916,9 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
         {isAdmin&&!editing&&<button className="btn btn-ghost" onClick={startEdit}>Edit</button>}
         {isAdmin&&editing&&<div className="flab g8"><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save</button></div>}
       </div>
-      <div className="card" style={{padding:14,marginBottom:14}}>
+      <div className="card" style={{padding:14,marginBottom:14,maxWidth:560}}>
         <div className="section-title" style={{fontSize:12,margin:0,marginBottom:10}}>APU — S/N {apu.sn||"TBD"}</div>
-        <div className="grid4" style={{marginBottom:14}}>
+        <div className="grid3" style={{gap:8}}>
         {[["Manufacturer","mfr"],["P/N","pn"],["S/N","sn"]].map(([l,k])=>(
           <div key={k} style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
             <div style={{fontSize:9,color:"var(--color-graphite)"}}>{l}</div>
@@ -928,13 +934,14 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
           <div style={{fontSize:9,color:"var(--color-graphite)"}}>CSN</div>
           <div style={{fontSize:14,fontWeight:700,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{(apu.currentFC||0).toLocaleString()}</div>
         </div>
-        </div>
-        <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px",display:"inline-block"}}>
+        <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
           <div style={{fontSize:9,color:"var(--color-graphite)"}}>Lowest LLP Limiter</div>
           <div style={{fontSize:14,fontWeight:700,color:ll===null?"var(--color-graphite)":ll<1000?"var(--color-critical)":ll<3000?"var(--color-attention)":"var(--color-positive)",fontFamily:"var(--font-data)"}}>{ll!==null?ll.toLocaleString()+" FC":"No data"}</div>
         </div>
+        </div>
       </div>
-      <div style={{marginBottom:16}}>
+      <div className="grid2" style={{alignItems:"start",gap:16}}>
+      <div className="card" style={{padding:16}}>
         <div className="flj" style={{marginBottom:8}}>
           <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",letterSpacing:"0.05em"}}>Life Limited Parts</div>
           {isAdmin&&<div className="flab g8">{apu.llps?.length>0&&<button className="btn btn-danger" style={{fontSize:11,padding:"4px 10px"}} onClick={async()=>{if(!confirm("Delete all APU LLPs?"))return;await saveAsset({...asset,apu:{...apu,llps:[]}});notify("All APU LLPs deleted");}}>Clear All LLPs</button>}<button className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setAddLLP(true)}>+ Add LLP</button></div>}
@@ -960,12 +967,13 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
           </div>
         )}
       </div>
-      <div>
+      <div className="card" style={{padding:16}}>
         <div className="flj" style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>
           <div>Most Recent Shop Visit{apu.shopVisits?.length>1?` (${apu.shopVisits.length} on file)`:""}</div>
           {isAdmin&&<button className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setAddSV(true)}>+ Add Visit</button>}
         </div>
         {(()=>{const svs=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});if(!svs.length)return null;const last=svs[svs.length-1];const sinceFH=apu.currentFH&&last.fh?apu.currentFH-last.fh:null;const sinceFC=apu.currentFC&&last.fc?apu.currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;return(<div style={{background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:6,padding:"10px 12px",marginBottom:10}}><div style={{fontSize:9,color:"var(--color-graphite)",fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Since Last Shop Visit</div><div className="grid3" style={{gap:8}}><div><div style={{fontSize:9,color:"var(--color-graphite)"}}>Days</div><div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceDays!==null?sinceDays.toLocaleString():"—"}</div></div><div><div style={{fontSize:9,color:"var(--color-graphite)"}}>FH</div><div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFH!==null?fmtHHMM(sinceFH):"—"}</div></div><div><div style={{fontSize:9,color:"var(--color-graphite)"}}>FC</div><div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFC!==null?sinceFC.toLocaleString():"—"}</div></div></div></div>);})()}
+        <div style={{overflowX:"auto"}}>
         <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th><th>Category</th>{isAdmin&&<th></th>}</tr></thead>
         <tbody>{(()=>{const svs=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});if(!svs.length)return<tr><td colSpan={isAdmin?7:6} style={{color:"var(--color-graphite)",fontStyle:"italic"}}>No shop visits recorded</td></tr>;const si=svs.length-1;const sv=svs[si];return editSVIdx===si?(
             <tr style={{background:"var(--color-technical-grey)"}}>
@@ -989,6 +997,7 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
               </div></td>}
             </tr>
           );})()}</tbody></table>
+        </div>
         {addSV&&(
           <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:12,marginTop:8,border:"1px solid var(--color-divider)"}}>
             <div className="grid3" style={{gap:6,marginBottom:8}}>
@@ -1001,6 +1010,7 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
             <div className="flab g8"><button className="btn btn-ghost" onClick={()=>setAddSV(false)}>Cancel</button><button className="btn btn-gold" onClick={doAddSV}>Add Visit</button></div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
