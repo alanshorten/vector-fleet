@@ -889,7 +889,7 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
           })}
         </div>
         <div style={{marginTop:14}}>
-          <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Custom Fields</div>
+          <div style={{fontSize:10,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:8}}>Custom Fields</div>
           {[0,1,2,3,4].map(idx=>{
             const cf=(d.specs?.custom||[])[idx]||{label:"",value:""};
             return<div key={idx} className="flab g8" style={{marginBottom:6}}>
