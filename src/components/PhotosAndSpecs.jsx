@@ -480,13 +480,13 @@ function SpecsQuickImport({asset,saveAsset,notify,open}){
   return(
     <div className="card" style={{padding:16,marginBottom:16,gridColumn:"1/-1"}}>
       <div>
-        <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>Upload a tech spec PDF, Excel sheet, or screenshot. TailiQ will extract Date of Manufacture, Operator, Weights, Check History, Specifications, Engine/APU Shop Visits, and Landing Gear Overhaul dates for review before saving.</div>
-        <div className="card" style={{padding:20,textAlign:"center",marginBottom:10,border:"2px dashed #1e3048"}}>
+        <div style={{fontSize:11,color:"var(--color-graphite)",marginBottom:10}}>Upload a tech spec PDF, Excel sheet, or screenshot. TailiQ will extract Date of Manufacture, Operator, Weights, Check History, Specifications, Engine/APU Shop Visits, and Landing Gear Overhaul dates for review before saving.</div>
+        <div className="card" style={{padding:20,textAlign:"center",marginBottom:10,border:"2px dashed var(--color-divider)"}}>
           <div style={{fontSize:28,marginBottom:8}}>📁</div>
           <input type="file" accept=".pdf,.xlsx,.xls,image/*" id="specsQuickImportFile" onChange={handleFile} style={{display:"none"}}/>
           <label htmlFor="specsQuickImportFile" style={{cursor:"pointer"}}>
-            <div style={{fontWeight:600,color:file?"#C9A84C":"#64748b",marginBottom:4,fontSize:13}}>{file?file.name:"Click to select file"}</div>
-            <div style={{fontSize:11,color:"#475569"}}>PDF, Excel, or screenshot</div>
+            <div style={{fontWeight:600,color:file?"var(--color-carbon)":"var(--color-graphite)",marginBottom:4,fontSize:13}}>{file?file.name:"Click to select file"}</div>
+            <div style={{fontSize:11,color:"var(--color-graphite)"}}>PDF, Excel, or screenshot</div>
           </label>
           {file&&(
             <div style={{marginTop:12}}>
@@ -494,7 +494,7 @@ function SpecsQuickImport({asset,saveAsset,notify,open}){
             </div>
           )}
         </div>
-        {error&&<div style={{color:"#f87171",fontSize:12,marginBottom:10}}>{error}</div>}
+        {error&&<div style={{color:"var(--color-critical)",fontSize:12,marginBottom:10}}>{error}</div>}
         {extracted&&(()=>{
           const w=extracted.weights||{};
           const hasWeights=["mtow","mtw","mzfw","mlw"].some(k=>w[k]!=null||w[k+"_lb"]!=null);
@@ -515,48 +515,48 @@ function SpecsQuickImport({asset,saveAsset,notify,open}){
           const hasAPUSV=extracted.apu?.shopVisits?.length>0;
           const nothingFound=!overviewRows.length&&!hasWeights&&!checks.length&&!specRows.length&&!hasEngSV&&!hasLDG&&!hasAPUSV;
           return(
-            <div style={{background:"#0d1925",borderRadius:6,padding:12}}>
-              <div style={{fontSize:11,fontWeight:700,color:"#C9A84C",textTransform:"uppercase",marginBottom:10}}>Detected Fields — Review Before Saving</div>
-              {nothingFound?<div style={{color:"#475569",fontStyle:"italic",fontSize:12}}>No recognisable fields found in this file.</div>:(
+            <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:12}}>
+              <div style={{fontSize:11,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:10}}>Detected Fields — Review Before Saving</div>
+              {nothingFound?<div style={{color:"var(--color-graphite)",fontStyle:"italic",fontSize:12}}>No recognisable fields found in this file.</div>:(
               <div className="grid2" style={{gap:12}}>
                 {overviewRows.length>0&&<div className="card" style={{padding:12,gridColumn:"1/-1"}}>
                   <div className="section-title">Overview</div>
-                  <table><tbody>{overviewRows.map(([l,v],i)=>(<tr key={i}><td style={{color:"#64748b"}}>{l}</td><td style={{fontWeight:600}}>{v}</td></tr>))}</tbody></table>
+                  <table><tbody>{overviewRows.map(([l,v],i)=>(<tr key={i}><td style={{color:"var(--color-graphite)"}}>{l}</td><td style={{fontWeight:600}}>{v}</td></tr>))}</tbody></table>
                 </div>}
                 {hasWeights&&<div className="card" style={{padding:12}}>
                   <div className="section-title">Operating Weights</div>
                   <table><thead><tr><th>Parameter</th><th>kg</th><th>lb</th></tr></thead><tbody>
                     {[["MTOW","mtow","mtow_lb"],["Max Taxi","mtw","mtw_lb"],["MZFW","mzfw","mzfw_lb"],["MLW","mlw","mlw_lb"]].map(([l,k,klb])=>(
-                      (w[k]!=null||w[klb]!=null)?<tr key={k}><td style={{color:"#64748b"}}>{l}</td><td>{w[k]!=null?w[k].toLocaleString():"—"}</td><td style={{color:"#475569"}}>{w[klb]!=null?w[klb].toLocaleString():"—"}</td></tr>:null
+                      (w[k]!=null||w[klb]!=null)?<tr key={k}><td style={{color:"var(--color-graphite)"}}>{l}</td><td>{w[k]!=null?w[k].toLocaleString():"—"}</td><td style={{color:"var(--color-graphite)"}}>{w[klb]!=null?w[klb].toLocaleString():"—"}</td></tr>:null
                     ))}
                   </tbody></table>
                 </div>}
                 {specRows.length>0&&<div className="card" style={{padding:12}}>
                   <div className="section-title">Specifications</div>
-                  <table><tbody>{specRows.map(([l,v],i)=>(<tr key={i}><td style={{color:"#64748b"}}>{l}</td><td style={{fontWeight:600}}>{v}</td></tr>))}</tbody></table>
+                  <table><tbody>{specRows.map(([l,v],i)=>(<tr key={i}><td style={{color:"var(--color-graphite)"}}>{l}</td><td style={{fontWeight:600}}>{v}</td></tr>))}</tbody></table>
                 </div>}
                 {checks.length>0&&<div className="card" style={{padding:12,gridColumn:"1/-1"}}>
                   <div className="section-title">Check History</div>
                   <table><thead><tr><th>Check</th><th>Last Date</th><th>Last TSN</th><th>Last CSN</th><th>Next Due</th></tr></thead><tbody>
-                    {checks.map((c,i)=>(<tr key={i}><td style={{fontWeight:600,color:"#94a3b8"}}>{c.name}</td><td>{c.lastDate||"—"}</td><td style={{fontFamily:"monospace"}}>{c.lastFH!=null?c.lastFH.toLocaleString():"—"}</td><td style={{fontFamily:"monospace"}}>{c.lastFC!=null?c.lastFC.toLocaleString():"—"}</td><td style={{fontWeight:700,color:"#34d399"}}>{c.nextDate||"—"}</td></tr>))}
+                    {checks.map((c,i)=>(<tr key={i}><td style={{fontWeight:600,color:"var(--color-graphite)"}}>{c.name}</td><td>{c.lastDate||"—"}</td><td style={{fontFamily:"var(--font-data)"}}>{c.lastFH!=null?c.lastFH.toLocaleString():"—"}</td><td style={{fontFamily:"var(--font-data)"}}>{c.lastFC!=null?c.lastFC.toLocaleString():"—"}</td><td style={{fontWeight:700,color:"var(--color-positive)"}}>{c.nextDate||"—"}</td></tr>))}
                   </tbody></table>
                 </div>}
                 {(extracted.engines||[]).filter(e=>e.shopVisits?.length).length>0&&<div className="card" style={{padding:12,gridColumn:"1/-1"}}>
                   <div className="section-title">Engine Shop Visits</div>
                   {(extracted.engines||[]).filter(e=>e.shopVisits?.length).map((e,i)=>(
                     <div key={i} style={{marginBottom:8}}>
-                      <div style={{fontSize:11,fontWeight:700,color:"#C9A84C",marginBottom:4}}>Engine {e.position||i+1}{e.sn?` — ESN ${e.sn}`:""}</div>
+                      <div style={{fontSize:11,fontWeight:700,color:"var(--color-carbon)",marginBottom:4}}>Engine {e.position||i+1}{e.sn?` — ESN ${e.sn}`:""}</div>
                       <table style={{fontSize:11}}><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th></tr></thead>
-                      <tbody>{e.shopVisits.map((sv,si)=><tr key={si}><td>{sv.details||"—"}</td><td>{sv.date||"—"}</td><td style={{fontFamily:"monospace"}}>{sv.fh||"—"}</td><td style={{fontFamily:"monospace"}}>{sv.fc!=null?sv.fc:"—"}</td><td style={{color:"#94a3b8"}}>{sv.mro||"—"}</td></tr>)}</tbody>
+                      <tbody>{e.shopVisits.map((sv,si)=><tr key={si}><td>{sv.details||"—"}</td><td>{sv.date||"—"}</td><td style={{fontFamily:"var(--font-data)"}}>{sv.fh||"—"}</td><td style={{fontFamily:"var(--font-data)"}}>{sv.fc!=null?sv.fc:"—"}</td><td style={{color:"var(--color-graphite)"}}>{sv.mro||"—"}</td></tr>)}</tbody>
                       </table>
                     </div>
                   ))}
                 </div>}
-                {(()=>{const lg=extracted.landingGear||{};const legs=[["Nose",lg.nose],["LH Main",lg.left],["RH Main",lg.right]].filter(([,g])=>g&&(g.lastOverhaulDate||g.lastOverhaulFC!=null||g.nextDue));if(!legs.length)return null;return<div className="card" style={{padding:12,gridColumn:"1/-1"}}><div className="section-title">Landing Gear Overhauls</div><table><thead><tr><th>Leg</th><th>Last Overhaul</th><th>Leg TSN</th><th>Leg CSN</th><th>Next Due</th></tr></thead><tbody>{legs.map(([label,g])=><tr key={label}><td style={{fontWeight:600,color:"#94a3b8"}}>{label}</td><td>{g.lastOverhaulDate||"—"}</td><td style={{fontFamily:"monospace"}}>{g.lastOverhaulFH!=null?g.lastOverhaulFH:"—"}</td><td style={{fontFamily:"monospace"}}>{g.lastOverhaulFC!=null?g.lastOverhaulFC:"—"}</td><td style={{fontWeight:700,color:"#34d399"}}>{g.nextDue||"—"}</td></tr>)}</tbody></table></div>;})()}
+                {(()=>{const lg=extracted.landingGear||{};const legs=[["Nose",lg.nose],["LH Main",lg.left],["RH Main",lg.right]].filter(([,g])=>g&&(g.lastOverhaulDate||g.lastOverhaulFC!=null||g.nextDue));if(!legs.length)return null;return<div className="card" style={{padding:12,gridColumn:"1/-1"}}><div className="section-title">Landing Gear Overhauls</div><table><thead><tr><th>Leg</th><th>Last Overhaul</th><th>Leg TSN</th><th>Leg CSN</th><th>Next Due</th></tr></thead><tbody>{legs.map(([label,g])=><tr key={label}><td style={{fontWeight:600,color:"var(--color-graphite)"}}>{label}</td><td>{g.lastOverhaulDate||"—"}</td><td style={{fontFamily:"var(--font-data)"}}>{g.lastOverhaulFH!=null?g.lastOverhaulFH:"—"}</td><td style={{fontFamily:"var(--font-data)"}}>{g.lastOverhaulFC!=null?g.lastOverhaulFC:"—"}</td><td style={{fontWeight:700,color:"var(--color-positive)"}}>{g.nextDue||"—"}</td></tr>)}</tbody></table></div>;})()}
                 {extracted.apu?.shopVisits?.length>0&&<div className="card" style={{padding:12,gridColumn:"1/-1"}}>
                   <div className="section-title">APU Shop Visits{extracted.apu.sn?` — S/N ${extracted.apu.sn}`:""}</div>
                   <table style={{fontSize:11}}><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th></tr></thead>
-                  <tbody>{extracted.apu.shopVisits.map((sv,si)=><tr key={si}><td>{sv.details||"—"}</td><td>{sv.date||"—"}</td><td style={{fontFamily:"monospace"}}>{sv.fh||"—"}</td><td style={{fontFamily:"monospace"}}>{sv.fc!=null?sv.fc:"—"}</td><td style={{color:"#94a3b8"}}>{sv.mro||"—"}</td></tr>)}</tbody>
+                  <tbody>{extracted.apu.shopVisits.map((sv,si)=><tr key={si}><td>{sv.details||"—"}</td><td>{sv.date||"—"}</td><td style={{fontFamily:"var(--font-data)"}}>{sv.fh||"—"}</td><td style={{fontFamily:"var(--font-data)"}}>{sv.fc!=null?sv.fc:"—"}</td><td style={{color:"var(--color-graphite)"}}>{sv.mro||"—"}</td></tr>)}</tbody>
                   </table>
                 </div>}
               </div>
@@ -630,7 +630,7 @@ function AvionicsLRUUploader({onSaved,notify}){
   if(reviewRows){
     return(
       <div className="card" style={{padding:14,marginTop:10}}>
-        <div style={{fontSize:11,color:"#94a3b8",marginBottom:8}}>Review before saving — edit or remove any row, then confirm. This replaces the current Avionics LRU list for this asset.</div>
+        <div style={{fontSize:11,color:"var(--color-graphite)",marginBottom:8}}>Review before saving — edit or remove any row, then confirm. This replaces the current Avionics LRU list for this asset.</div>
         <table><thead><tr><th>Description</th><th>P/N</th><th>ATA Chapter</th><th></th></tr></thead>
         <tbody>{reviewRows.map(r=>(
           <AvionicsLRUReviewRow key={r.id} row={r} onChange={next=>updateRow(r.id,next)} onDelete={()=>deleteRow(r.id)}/>
@@ -644,14 +644,14 @@ function AvionicsLRUUploader({onSaved,notify}){
   }
   return(
     <div className="card" style={{padding:14,marginTop:10}}>
-      <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6}}>Upload Avionics Listing (PDF)</div>
-      <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>Upload an avionics listing (PDF). TailiQ will extract LRU descriptions and part numbers, grouped by ATA chapter, for review before saving.</div>
-      <div className="card" style={{padding:20,textAlign:"center",border:"2px dashed #1e3048"}}>
+      <div style={{fontSize:10,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6}}>Upload Avionics Listing (PDF)</div>
+      <div style={{fontSize:11,color:"var(--color-graphite)",marginBottom:10}}>Upload an avionics listing (PDF). TailiQ will extract LRU descriptions and part numbers, grouped by ATA chapter, for review before saving.</div>
+      <div className="card" style={{padding:20,textAlign:"center",border:"2px dashed var(--color-divider)"}}>
         <div style={{fontSize:28,marginBottom:8}}>📁</div>
         <input type="file" accept="application/pdf" id="avionicsListingFile" onChange={e=>setFile(e.target.files?.[0]||null)} style={{display:"none"}}/>
         <label htmlFor="avionicsListingFile" style={{cursor:"pointer"}}>
-          <div style={{fontWeight:600,color:file?"#C9A84C":"#64748b",marginBottom:4,fontSize:13}}>{file?file.name:"Click to select file"}</div>
-          <div style={{fontSize:11,color:"#475569"}}>PDF</div>
+          <div style={{fontWeight:600,color:file?"var(--color-carbon)":"var(--color-graphite)",marginBottom:4,fontSize:13}}>{file?file.name:"Click to select file"}</div>
+          <div style={{fontSize:11,color:"var(--color-graphite)"}}>PDF</div>
         </label>
         {file&&(
           <div style={{marginTop:12}}>
@@ -659,7 +659,7 @@ function AvionicsLRUUploader({onSaved,notify}){
           </div>
         )}
       </div>
-      {error&&<div style={{color:"#f87171",fontSize:11,marginTop:6}}>{error}</div>}
+      {error&&<div style={{color:"var(--color-critical)",fontSize:11,marginTop:6}}>{error}</div>}
     </div>
   );
 };
@@ -708,19 +708,19 @@ function AvionicsTab({asset,isAdmin,saveAsset,notify,defaultUploaderOpen=false})
         <div className="flj" style={{marginBottom:6}}>
           <div className="section-title" style={{fontSize:12,margin:0}}>{chapterKey||"Ungrouped"}</div>
           {editing&&isAdmin&&chapterKey&&
-            <button onClick={()=>toggleChapterHidden(chapterKey)} title={chapterHidden?"Show chapter in tech spec":"Hide entire chapter from tech spec"} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:chapterHidden?"#475569":"#C9A84C"}}>{chapterHidden?"🚫 Chapter":"👁 Chapter"}</button>}
+            <button onClick={()=>toggleChapterHidden(chapterKey)} title={chapterHidden?"Show chapter in tech spec":"Hide entire chapter from tech spec"} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:chapterHidden?"var(--color-graphite)":"var(--color-ochre)"}}>{chapterHidden?"🚫 Chapter":"👁 Chapter"}</button>}
         </div>
         <table><thead><tr><th>Description</th><th>P/N</th>{editing&&isAdmin&&<th style={{width:60}}></th>}</tr></thead>
         <tbody>{visibleRows.map(r=>(
           <tr key={r.id} style={{opacity:editing&&r.hidden?0.4:1}}>
-            <td style={{fontWeight:600,color:"#94a3b8"}}>
+            <td style={{fontWeight:600,color:"var(--color-graphite)"}}>
               {editing&&isAdmin?<input defaultValue={r.description} onBlur={e=>setRowField(r.id,"description",e.target.value)} style={{width:180}}/>:r.description}
             </td>
-            <td style={{fontFamily:"monospace"}}>
+            <td style={{fontFamily:"var(--font-data)"}}>
               {editing&&isAdmin?<input defaultValue={r.partNumber} onBlur={e=>setRowField(r.id,"partNumber",e.target.value)} style={{width:140}}/>:r.partNumber}
             </td>
             {editing&&isAdmin&&<td style={{whiteSpace:"nowrap"}}>
-              <button onClick={()=>toggleRowHidden(r.id)} title={r.hidden?"Show in tech spec":"Hide from tech spec"} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:r.hidden?"#475569":"#C9A84C",padding:"0 3px"}}>{r.hidden?"🚫":"👁"}</button>
+              <button onClick={()=>toggleRowHidden(r.id)} title={r.hidden?"Show in tech spec":"Hide from tech spec"} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:r.hidden?"var(--color-graphite)":"var(--color-ochre)",padding:"0 3px"}}>{r.hidden?"🚫":"👁"}</button>
               <button className="btn-danger btn" style={{fontSize:9,padding:"3px 7px",marginLeft:2}} onClick={()=>deleteRow(r.id)}>✕</button>
             </td>}
           </tr>
@@ -739,7 +739,7 @@ function AvionicsTab({asset,isAdmin,saveAsset,notify,defaultUploaderOpen=false})
       {isAdmin&&uploaderOpen&&!editing&&<AvionicsLRUUploader onSaved={onUploaderSaved} notify={notify}/>}
       <div className="section-title" style={{marginBottom:14}}>Avionics LRU List</div>
       {!totalRows&&!editing?(
-        <div style={{fontSize:12,color:"#475569",padding:"20px 0",textAlign:"center"}}>No avionics LRU data yet — upload a spec sheet above to get started.</div>
+        <div style={{fontSize:12,color:"var(--color-graphite)",padding:"20px 0",textAlign:"center"}}>No avionics LRU data yet — upload a spec sheet above to get started.</div>
       ):(()=>{
         // If all rows are ungrouped (no ATA chapters) and there are enough
         // rows, split into two side-by-side halves — mirrors the tech spec
@@ -919,20 +919,20 @@ function HistoryTab({asset,isAdmin,notify}){
   const[loading,setLoading]=useState(true);
   useEffect(()=>{db.getUtilisation(asset.id).then(rows=>{setHistory(rows);setLoading(false);}).catch(()=>setLoading(false));},[asset.id]);
   const del=async(id)=>{if(!confirm("Delete?"))return;await db.deleteUtilisation(id);setHistory(h=>h.filter(r=>r.id!==id));notify("Deleted");};
-  if(loading)return<div style={{padding:20,color:"#475569"}}>Loading…</div>;
+  if(loading)return<div style={{padding:20,color:"var(--color-graphite)"}}>Loading…</div>;
   return(
     <div className="card" style={{padding:18}}>
       <div className="section-title">Utilisation History</div>
-      {history.length===0?<div style={{textAlign:"center",padding:48,color:"#475569"}}>No history yet.</div>:(
+      {history.length===0?<div style={{textAlign:"center",padding:48,color:"var(--color-graphite)"}}>No history yet.</div>:(
         <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
         <table><thead><tr><th>Period</th><th>AF TSN</th><th>AF CSN</th><th>Eng 1 CSN</th><th>Eng 2 CSN</th><th>APU CSN</th><th>Uploaded</th><th></th></tr></thead>
         <tbody>{history.map(r=>(
           <tr key={r.id}>
-            <td style={{fontWeight:600,color:"#C9A84C"}}>{r.period}</td>
-            <td style={{fontFamily:"monospace"}}>{r.data?.afFH||"—"}</td><td style={{fontFamily:"monospace"}}>{r.data?.afFC?.toLocaleString()||"—"}</td>
-            <td style={{fontFamily:"monospace"}}>{r.data?.eng1FC?.toLocaleString()||"—"}</td><td style={{fontFamily:"monospace"}}>{r.data?.eng2FC?.toLocaleString()||"—"}</td>
-            <td style={{fontFamily:"monospace"}}>{r.data?.apuFC?.toLocaleString()||"—"}</td>
-            <td style={{fontSize:11,color:"#475569"}}>{fmtDate(r.created_at)}</td>
+            <td style={{fontWeight:600,color:"var(--color-carbon)"}}>{r.period}</td>
+            <td style={{fontFamily:"var(--font-data)"}}>{r.data?.afFH||"—"}</td><td style={{fontFamily:"var(--font-data)"}}>{r.data?.afFC?.toLocaleString()||"—"}</td>
+            <td style={{fontFamily:"var(--font-data)"}}>{r.data?.eng1FC?.toLocaleString()||"—"}</td><td style={{fontFamily:"var(--font-data)"}}>{r.data?.eng2FC?.toLocaleString()||"—"}</td>
+            <td style={{fontFamily:"var(--font-data)"}}>{r.data?.apuFC?.toLocaleString()||"—"}</td>
+            <td style={{fontSize:11,color:"var(--color-graphite)"}}>{fmtDate(r.created_at)}</td>
             <td><button className="btn-danger btn" style={{fontSize:10,padding:"2px 7px"}} onClick={()=>del(r.id)}>Delete</button></td>
           </tr>
         ))}</tbody></table>
@@ -947,10 +947,10 @@ function DocumentsTab({asset}){
   return(
     <div className="card" style={{padding:18}}>
       <div className="section-title">Documents</div>
-      {(asset.documents||[]).length===0?<div style={{textAlign:"center",padding:48,color:"#475569"}}>No documents uploaded yet.</div>:(
+      {(asset.documents||[]).length===0?<div style={{textAlign:"center",padding:48,color:"var(--color-graphite)"}}>No documents uploaded yet.</div>:(
         <table><thead><tr><th>Label</th><th>Category</th><th>Date</th><th></th></tr></thead>
         <tbody>{(asset.documents||[]).map((d,i)=>(
-          <tr key={i}><td style={{fontWeight:500}}>{d.label}</td><td><span className="tag" style={{background:"#1e3348",color:"#94a3b8"}}>{d.category}</span></td><td>{fmtDate(d.date)}</td>
+          <tr key={i}><td style={{fontWeight:500}}>{d.label}</td><td><span className="tag" style={{background:"var(--color-technical-grey)",color:"var(--color-graphite)"}}>{d.category}</span></td><td>{fmtDate(d.date)}</td>
           <td><button className="btn btn-ghost" style={{fontSize:11,padding:"3px 8px"}} onClick={()=>view(d)}>View</button></td></tr>
         ))}</tbody></table>
       )}
