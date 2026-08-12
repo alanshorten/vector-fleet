@@ -414,16 +414,18 @@ ${(()=>{
   const lgCS='border:1px solid #D9DCD8;border-radius:8px;padding:11px 12px;vertical-align:top';
   const lgCol=(g,title)=>{
     const hasRefPair=g?.refLegFC!=null&&g?.refAirframeFC!=null;
-    let curFC=null;
-    if(g?.currentFC!=null){curFC=g.currentFC;}
-    else if(hasRefPair){curFC=g.refLegFC+((af.currentFC||0)-g.refAirframeFC);}
+    let curFC=null,curFH=null;
+    if(g?.currentFC!=null){curFC=g.currentFC;curFH=g.currentFH;}
+    else if(hasRefPair){curFC=g.refLegFC+((af.currentFC||0)-g.refAirframeFC);curFH=(g.refLegFH||0)+((af.currentFH||0)-(g.refAirframeFH||0));}
     const intervalCycles=g?.overhaulIntervalCycles||20000;
     const cycRem=(g?.lastOverhaulFC!=null&&curFC!=null)?(g.lastOverhaulFC+intervalCycles)-curFC:null;
+    const tsnCsn=curFC!=null?`<span style="font-family:IBM Plex Mono,monospace">${fmtHHMM(curFH)} FH &middot; ${Math.round(curFC).toLocaleString()} FC</span>`:"—";
     const lkv=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #E8E7E2;padding:4px 0;font-size:9.5px;color:#687078;font-weight:600;width:42%;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #E8E7E2;padding:4px 0;font-size:10px;color:#151A1D;font-weight:600;vertical-align:top;word-break:normal;overflow-wrap:anywhere">${v}</td></tr>`;
     const rows=g?`<table class="kv" width="100%" cellpadding="0" cellspacing="0">
       ${lkv("Part No.",g.pn||"—")}
       ${lkv("Serial No.",g.sn||"—")}
       ${lkv("Manufacturer",g.mfr||"—")}
+      ${lkv("TSN / CSN",tsnCsn)}
       ${lkv("Next OH Due",lgFmtDate(g.nextDue)||(cycRem!==null?Math.round(cycRem).toLocaleString()+" cyc rem":"—"))}
       ${lkv("Last OH Date",lgFmtDate(g.lastOverhaulDate)||"—")}
     </table>`:`<div style="color:#687078;font-size:10px">No data</div>`;
