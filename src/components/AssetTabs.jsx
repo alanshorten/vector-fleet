@@ -761,32 +761,48 @@ function GearCard({title,gkey,asset,form,editing,isAdmin,set,setForm,af}){
       </>
       )}
 
-      <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6}}>Last Overhaul Record</div>
-      {editing&&isAdmin&&<div style={{fontSize:10,color:"var(--color-graphite)",marginBottom:6,fontStyle:"italic"}}>The actual overhaul — drives Next Overhaul Due below. Must be the genuine overhaul event, not just any reading.</div>}
-      <div className="grid3" style={{gap:8,marginBottom:12}}>
-        <div><label className="form-label">Date (DDMMYYYY)</label>
-          {editing&&isAdmin
-            ?<input type="text" placeholder="DDMMYYYY" value={lastDateVal} onChange={e=>handleLastDateChange(e.target.value)} onBlur={e=>handleLastDateBlur(e.target.value)}/>
-            :<div style={{fontSize:14,fontWeight:isEmpty(activeDateStr)?500:700,color:isEmpty(activeDateStr)?"var(--color-graphite)":"var(--color-carbon)"}}>{activeDateStr||"Not entered"}</div>}
+      <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6}}>Current Totals (Since New){current&&<span style={{marginLeft:6,fontSize:9,fontWeight:600,color:current.source==="Ground Truth"?"var(--color-positive)":"var(--color-teal)",textTransform:"none"}}>{current.source}</span>}</div>
+      {current?(
+        <div className="grid2" style={{gap:8,marginBottom:14}}>
+          {[["TSN",current.fh!=null?fmtHHMM(current.fh):"—"],["CSN",current.fc!=null?Math.round(current.fc).toLocaleString():"—"]].map(([l,v])=>(
+            <div key={l}>
+              <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
+              <div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)",marginTop:2}}>{v}</div>
+            </div>
+          ))}
         </div>
-        <div><label className="form-label">Leg TSN at Overhaul</label>
-          {editing&&isAdmin?<input type="number" value={g.lastOverhaulFH??""} onChange={e=>set("landingGear."+gkey+".lastOverhaulFH",e.target.value===""?null:+e.target.value)}/>
-          :<div style={{fontSize:14,fontWeight:isEmpty(g.lastOverhaulFH)?500:700,color:isEmpty(g.lastOverhaulFH)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.lastOverhaulFH!=null?fmtHHMM(g.lastOverhaulFH):"Not entered"}</div>}
-        </div>
-        <div><label className="form-label">Leg CSN at Overhaul</label>
-          {editing&&isAdmin?<input type="number" value={g.lastOverhaulFC??""} onChange={e=>set("landingGear."+gkey+".lastOverhaulFC",e.target.value===""?null:+e.target.value)}/>
-          :<div style={{fontSize:14,fontWeight:isEmpty(g.lastOverhaulFC)?500:700,color:isEmpty(g.lastOverhaulFC)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.lastOverhaulFC!=null?g.lastOverhaulFC.toLocaleString():"Not entered"}</div>}
-        </div>
-      </div>
+      ):(
+        <div style={{fontSize:11,color:"var(--color-graphite)",fontStyle:"italic",marginBottom:14}}>Not entered — enter a Reference Reading (leg + airframe TSN/CSN at the same moment) above to start tracking.</div>
+      )}
 
-      {(sinceFH!=null||sinceFC!=null||activeDateStr)&&<div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px",marginBottom:10}}>
-        <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:4}}>Since Last Overhaul</div>
-        <div className="grid3" style={{gap:4}}>
-          <div><div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Days</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{daysSince!==null?daysSince.toLocaleString():"—"}</div></div>
-          <div><div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>FH</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFH!=null?fmtHHMM(sinceFH):"—"}</div></div>
-          <div><div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>FC</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFC!=null?Math.round(sinceFC).toLocaleString():"—"}</div></div>
+      <div style={{border:"1px solid var(--color-divider)",borderRadius:8,padding:12,marginBottom:10}}>
+        <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6}}>Last Overhaul Record</div>
+        {editing&&isAdmin&&<div style={{fontSize:10,color:"var(--color-graphite)",marginBottom:6,fontStyle:"italic"}}>The actual overhaul — drives Next Overhaul Due below. Must be the genuine overhaul event, not just any reading.</div>}
+        <div className="grid3" style={{gap:8,marginBottom:12}}>
+          <div><label className="form-label">Date (DDMMYYYY)</label>
+            {editing&&isAdmin
+              ?<input type="text" placeholder="DDMMYYYY" value={lastDateVal} onChange={e=>handleLastDateChange(e.target.value)} onBlur={e=>handleLastDateBlur(e.target.value)}/>
+              :<div style={{fontSize:14,fontWeight:isEmpty(activeDateStr)?500:700,color:isEmpty(activeDateStr)?"var(--color-graphite)":"var(--color-carbon)"}}>{activeDateStr||"Not entered"}</div>}
+          </div>
+          <div><label className="form-label">Leg TSN at Overhaul</label>
+            {editing&&isAdmin?<input type="number" value={g.lastOverhaulFH??""} onChange={e=>set("landingGear."+gkey+".lastOverhaulFH",e.target.value===""?null:+e.target.value)}/>
+            :<div style={{fontSize:14,fontWeight:isEmpty(g.lastOverhaulFH)?500:700,color:isEmpty(g.lastOverhaulFH)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.lastOverhaulFH!=null?fmtHHMM(g.lastOverhaulFH):"Not entered"}</div>}
+          </div>
+          <div><label className="form-label">Leg CSN at Overhaul</label>
+            {editing&&isAdmin?<input type="number" value={g.lastOverhaulFC??""} onChange={e=>set("landingGear."+gkey+".lastOverhaulFC",e.target.value===""?null:+e.target.value)}/>
+            :<div style={{fontSize:14,fontWeight:isEmpty(g.lastOverhaulFC)?500:700,color:isEmpty(g.lastOverhaulFC)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.lastOverhaulFC!=null?g.lastOverhaulFC.toLocaleString():"Not entered"}</div>}
+          </div>
         </div>
-      </div>}
+
+        {(sinceFH!=null||sinceFC!=null||activeDateStr)&&<div>
+          <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:4}}>Since Last Overhaul</div>
+          <div className="grid3" style={{gap:4}}>
+            <div><div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Days</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{daysSince!==null?daysSince.toLocaleString():"—"}</div></div>
+            <div><div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>FH</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFH!=null?fmtHHMM(sinceFH):"—"}</div></div>
+            <div><div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>FC</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFC!=null?Math.round(sinceFC).toLocaleString():"—"}</div></div>
+          </div>
+        </div>}
+      </div>
 
       <div style={{background:overallStatus?statusBg[overallStatus]:"var(--color-technical-grey)",borderRadius:6,padding:"10px 10px",marginBottom:10,border:overallStatus?`1px solid ${statusColor[overallStatus]}`:"1px solid var(--color-divider)"}}>
         <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6,textAlign:"center"}}>Next Overhaul Due — Lowest Wins</div>
@@ -806,32 +822,20 @@ function GearCard({title,gkey,asset,form,editing,isAdmin,set,setForm,af}){
         </div>
       </div>
 
-      <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6}}>Current Totals (Since New){current&&<span style={{marginLeft:6,fontSize:9,fontWeight:600,color:current.source==="Ground Truth"?"var(--color-positive)":"var(--color-teal)",textTransform:"none"}}>{current.source}</span>}</div>
-      {current?(
-        <div className="grid2" style={{gap:8}}>
-          {[["TSN",current.fh!=null?fmtHHMM(current.fh):"—"],["CSN",current.fc!=null?Math.round(current.fc).toLocaleString():"—"]].map(([l,v])=>(
-            <div key={l} style={{background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:8,padding:"8px 10px"}}>
-              <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
-              <div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)",marginTop:2}}>{v}</div>
-            </div>
-          ))}
-        </div>
-      ):(
-        <div style={{fontSize:11,color:"var(--color-graphite)",fontStyle:"italic"}}>Not entered — enter a Reference Reading (leg + airframe TSN/CSN at the same moment) above to start tracking.</div>
-      )}
-
+      {editing&&isAdmin&&(
+      <>
       <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6,marginTop:12}}>Ground Truth Override <span style={{fontWeight:400,fontSize:9,textTransform:"none"}}>(optional — from Gear Status Report)</span></div>
       <div className="grid2" style={{gap:6}}>
         <div><label className="form-label">Current TSN</label>
-          {editing&&isAdmin?<input type="number" value={g.currentFH??""} onChange={e=>set("landingGear."+gkey+".currentFH",e.target.value===""?null:+e.target.value)}/>
-          :<div style={{fontSize:14,fontWeight:isEmpty(g.currentFH)?500:700,color:isEmpty(g.currentFH)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.currentFH!=null?fmtHHMM(g.currentFH):"Not entered"}</div>}
+          <input type="number" value={g.currentFH??""} onChange={e=>set("landingGear."+gkey+".currentFH",e.target.value===""?null:+e.target.value)}/>
         </div>
         <div><label className="form-label">Current CSN</label>
-          {editing&&isAdmin?<input type="number" value={g.currentFC??""} onChange={e=>set("landingGear."+gkey+".currentFC",e.target.value===""?null:+e.target.value)}/>
-          :<div style={{fontSize:14,fontWeight:isEmpty(g.currentFC)?500:700,color:isEmpty(g.currentFC)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.currentFC!=null?g.currentFC.toLocaleString():"Not entered"}</div>}
+          <input type="number" value={g.currentFC??""} onChange={e=>set("landingGear."+gkey+".currentFC",e.target.value===""?null:+e.target.value)}/>
         </div>
       </div>
-      {editing&&isAdmin&&<div style={{fontSize:9,color:"var(--color-graphite)",marginTop:3}}>When set, this always overrides the calculated figure above — no tolerance check.</div>}
+      <div style={{fontSize:9,color:"var(--color-graphite)",marginTop:3}}>When set, this always overrides the calculated figure above — no tolerance check.</div>
+      </>
+      )}
     </div>
   );
 };
@@ -916,10 +920,11 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
         {isAdmin&&!editing&&<button className="btn btn-ghost" onClick={startEdit}>Edit</button>}
         {isAdmin&&editing&&<div className="flab g8"><button className="btn btn-ghost" onClick={cancel}>Cancel</button><button className="btn btn-gold" onClick={save}>Save</button></div>}
       </div>
-      <div className="grid3" style={{alignItems:"start",gap:16}}>
+      <div className="grid3" style={{gap:16}}>
       <div className="card" style={{padding:16}}>
         <div className="section-title" style={{fontSize:12,margin:0,marginBottom:10}}>APU — S/N {apu.sn||"TBD"}</div>
-        <div className="grid2" style={{gap:8}}>
+        <div style={{display:"flex",gap:8}}>
+        <div style={{flex:1,display:"flex",flexDirection:"column",gap:8}}>
         {[["Manufacturer","mfr"],["P/N","pn"],["S/N","sn"]].map(([l,k])=>(
           <div key={k} style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
             <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
@@ -927,6 +932,8 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
             :<div style={{fontSize:13,fontWeight:isEmpty(apu[k])?500:700,color:isEmpty(apu[k])?"var(--color-graphite)":"var(--color-carbon)",marginTop:3}}>{apu[k]||"—"}</div>}
           </div>
         ))}
+        </div>
+        <div style={{flex:1,display:"flex",flexDirection:"column",gap:8}}>
         <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
           <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>TSN</div>
           <div style={{fontSize:14,fontWeight:700,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{fmtHHMM(apu.currentFH)}</div>
@@ -938,6 +945,7 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
         <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
           <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Lowest LLP Limiter</div>
           <div style={{fontSize:14,fontWeight:700,color:ll===null?"var(--color-graphite)":ll<1000?"var(--color-critical)":ll<3000?"var(--color-attention)":"var(--color-positive)",fontFamily:"var(--font-data)"}}>{ll!==null?ll.toLocaleString()+" FC":"No data"}</div>
+        </div>
         </div>
         </div>
       </div>
