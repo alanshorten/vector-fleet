@@ -27,7 +27,7 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
   const af=asset.airframe||{};const lg=asset.landingGear||{};const apu=asset.apu||{};
   const engineOnly=asset._engineOnly;
   const enginePos=asset._enginePos||1;
-  const specCSS=`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+  const specCSS=`@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 /* .dt-cards must be declared here, BEFORE the @media(max-width:600px) block further
    down — CSS gives no specificity bonus to being inside a media query, so when two
    rules of equal specificity both match (which happens at narrow widths, since this
@@ -38,7 +38,7 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
    "header shows, content blank" bug. Keeping it up here, textually first, means the
    media query's rule is always the later (winning) declaration on mobile. */
 .dt-cards{display:none}
-@page{size:A4;margin:14mm 18mm}body{font-family:'Plus Jakarta Sans',Arial,sans-serif;color:#111;font-size:11px;line-height:1.45;margin:0;print-color-adjust:exact;-webkit-print-color-adjust:exact;color-adjust:exact}
+@page{size:A4;margin:14mm 18mm}body{font-family:'Barlow',Arial,sans-serif;color:#151A1D;background:#FCFCF9;font-size:11px;line-height:1.45;margin:0;print-color-adjust:exact;-webkit-print-color-adjust:exact;color-adjust:exact}
 .cover{text-align:left;page-break-after:always;padding:0;box-sizing:border-box}
 @media print{html,body{height:100%}.cover{display:table;width:100%;height:100%}.cover-top{display:table-row}.cover-top>div{display:table-cell;vertical-align:top}.cover-bottom{display:table-row}.cover-bottom>div{display:table-cell;vertical-align:bottom;padding:0 30px 0}}
 .cov-hdr{background:#ffffff;border-bottom:2px solid #C9A84C;padding:9px 30px;text-align:left}
@@ -56,11 +56,11 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 .sc-cell{width:25%;vertical-align:top;border:none;padding:0 5px}
 .sc-cell:first-child{padding-left:0}
 .sc-cell:last-child{padding-right:0}
-.sc-inner{border:1px solid #e2e8f0;border-left:3px solid #C9A84C;border-radius:12px;background:#ffffff;padding:16px 14px 16px;text-align:left;box-shadow:0 1px 4px rgba(15,23,42,0.06)}
+.sc-inner{border:1px solid #D9DCD8;border-radius:4px;background:#FCFCF9;padding:16px 14px 16px;text-align:left}
 .sc-icon{margin-bottom:10px}
-.sc-val{font-size:20px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.02em;margin-bottom:5px}
-.sc-val-sm{font-size:13px;font-weight:700;color:#0f172a;line-height:1.3;letter-spacing:-0.01em;margin-bottom:5px}
-.sc-lbl{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8}
+.sc-val{font-family:IBM Plex Mono,monospace;font-size:20px;font-weight:700;color:#151A1D;line-height:1;letter-spacing:-0.01em;margin-bottom:5px}
+.sc-val-sm{font-family:IBM Plex Mono,monospace;font-size:13px;font-weight:700;color:#151A1D;line-height:1.3;letter-spacing:-0.01em;margin-bottom:5px}
+.sc-lbl{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:#687078}
 @media screen and (max-width:600px){.sc-cards,.sc-cards tbody,.sc-cards tr{display:block;width:100%}.sc-cell{display:block;width:100%!important;padding:0 0 10px!important}.sc-cell:last-child{padding-bottom:0!important}.sc-inner{display:flex;align-items:center;gap:12px;padding:12px 14px;height:auto!important}.sc-icon{margin-bottom:0}.sc-val,.sc-val-sm{margin-bottom:0}.sc-lbl{margin-top:2px}
 /* lg3col: outer table stacks to one column. Cell-level rule scoped to >tbody>tr>td
    (direct children only) instead of a bare "td" descendant selector — a bare selector
@@ -86,7 +86,7 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
    gap in the middle (and, combined with the .col2 leak above, could push the value off
    the right edge of the screen entirely). Label and value now sit close together with a
    small fixed gap, wrapping only if either one is genuinely long. */
-.kv,.kv tbody{display:block;width:100%}.kv tr{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;width:100%;border-bottom:1px solid #f8fafc;padding:5px 0}.kv tr:last-child{border-bottom:none}.kv td{display:block;border:none!important;padding:0!important;width:auto!important;flex:0 1 auto}.kv td:first-child{flex-shrink:0;color:#64748b}.kv td:last-child{text-align:left;font-weight:700}
+.kv,.kv tbody{display:block;width:100%}.kv tr{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;width:100%;border-bottom:1px solid #E8E7E2;padding:5px 0}.kv tr:last-child{border-bottom:none}.kv td{display:block;border:none!important;padding:0!important;width:auto!important;flex:0 1 auto}.kv td:first-child{flex-shrink:0;color:#687078}.kv td:last-child{text-align:left;font-weight:700}
 /* .dt-table / .dt-cards: Shop Visit, LLP, Check History, Operator History, and Wheels
    & Brakes are genuinely multi-column data — no amount of CSS makes an HTML table with
    auto-sized columns (long "23 Feb 2025 / FTAIC Aviation Canada" text next to a narrow
@@ -96,13 +96,13 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
    is hidden. Desktop and the printed/downloaded PDF only ever see .dt-table; .dt-cards
    is display:none there, so nothing duplicates on paper. */
 .dt-table{display:none}.dt-cards{display:block}
-.dt-card{border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;margin-bottom:9px;background:#fff}
+.dt-card{border:1px solid #D9DCD8;border-radius:4px;padding:9px 12px;margin-bottom:9px;background:#FCFCF9}
 .dt-card:last-child{margin-bottom:0}
-.dt-card.dt-summary{background:#f1f5f9}
-.dt-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;padding:3px 0;border-bottom:1px solid #f8fafc}
+.dt-card.dt-summary{background:#E8E7E2}
+.dt-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;padding:3px 0;border-bottom:1px solid #E8E7E2}
 .dt-row:last-child{border-bottom:none}
-.dt-l{color:#64748b;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;flex-shrink:0}
-.dt-v{font-weight:700;color:#0f172a;font-size:11px}
+.dt-l{color:#687078;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;flex-shrink:0}
+.dt-v{font-family:IBM Plex Mono,monospace;font-weight:700;color:#151A1D;font-size:11px}
 /* .scroll-tbl: LLP stays a real table on every screen (Alan: cards don't work for
    this one), just contained so a long descriptor/part-number row scrolls inside its
    own card instead of forcing the whole page wider than the viewport. */
@@ -110,40 +110,40 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 /* Avionics LRU list: same .dt-table/.dt-cards swap, but .dt-cards holds a 2-column grid
    of small parts instead of one-per-row — the "we have the space" complaint. */
 .av-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
-.av-card{border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px}
+.av-card{border:1px solid #D9DCD8;border-radius:4px;padding:8px 10px}
 .av-card .dt-l{display:block;margin-bottom:2px}
 .av-card .dt-v{font-size:10.5px;word-break:break-word}
-.av-chapter{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#C9A84C;margin:12px 0 6px}
+.av-chapter{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#687078;margin:12px 0 6px}
 .av-chapter:first-child{margin-top:0}
 }
-.cov-disc{font-size:9px;color:#6b7280;margin:26px 10px 0;line-height:1.6}
-.cov-date{margin-top:8px;font-size:11px;color:#374151;margin-left:10px}
-h3{background:#1e293b;color:#FFFFFF;font-size:11.5px;padding:5px 10px;border-radius:4px;margin:18px 0 7px;letter-spacing:0.04em}
+.cov-disc{font-size:9px;color:#687078;margin:26px 10px 0;line-height:1.6}
+.cov-date{margin-top:8px;font-size:11px;color:#151A1D;margin-left:10px}
+h3{background:transparent;color:#151A1D;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;padding:6px 0;margin:18px 0 7px;border-bottom:1px solid #D9DCD8}
 table{width:100%;border-collapse:collapse;margin-bottom:9px;font-size:10.5px}
-th{background:#f1f5f9;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0}
-td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
-.kv td:first-child{color:#6b7280;font-weight:600;width:130px}
+th{background:#E8E7E2;color:#687078;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #D9DCD8}
+td{padding:5px 8px;border:1px solid #D9DCD8;vertical-align:top}
+.kv td:first-child{color:#687078;font-weight:600;width:130px}
 .specs-grid{width:100%;border-collapse:collapse;border:none}
 .specs-grid>tr>td.specs-col{border:none;padding:0;vertical-align:top;width:50%}
 .specs-grid .kv{margin-bottom:0}
 .specs-col:first-child{padding-right:7px}
 .specs-col:last-child{padding-left:7px}
 .pb{page-break-before:always;height:0;margin:0;padding:0}
-.pgfooter{text-align:center;font-size:8px;color:#9ca3af;letter-spacing:0.05em;text-transform:uppercase;margin-top:24px;border-top:1px solid #e2e8f0;padding-top:7px}
-.footer{text-align:center;font-size:8px;color:#aaa;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:7px}
-.card{border:1px solid #e2e8f0;border-radius:10px;padding:14px 17px;margin-bottom:13px}
-.card-lbl{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#C9A84C;margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid #f1f5f9;display:block}
-.mini-t{border:1px solid #e2e8f0;border-radius:8px;padding:10px 11px}
-.mini-l{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;margin-bottom:3px}
-.mini-v{font-size:14px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.01em}
-.mini-s{font-size:8px;color:#94a3b8;margin-top:2px}`;
-  const PAGE_FOOTER=hideBranding?'':'<div class="pgfooter"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#dc2626;margin-right:3px;vertical-align:middle"></span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#16a34a;margin-right:6px;vertical-align:middle"></span>Powered by <span style="text-transform:none">TailiQ</span> Fleet Intelligence</div>';
+.pgfooter{text-align:center;font-size:8px;color:#687078;letter-spacing:0.05em;text-transform:uppercase;margin-top:24px;border-top:1px solid #D9DCD8;padding-top:7px}
+.footer{text-align:center;font-size:8px;color:#687078;margin-top:20px;border-top:1px solid #D9DCD8;padding-top:7px}
+.card{border:1px solid #D9DCD8;border-radius:4px;padding:14px 17px;margin-bottom:13px}
+.card-lbl{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#687078;margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid #E8E7E2;display:block}
+.mini-t{border:1px solid #D9DCD8;border-radius:4px;padding:10px 11px}
+.mini-l{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#687078;margin-bottom:3px}
+.mini-v{font-family:IBM Plex Mono,monospace;font-size:14px;font-weight:700;color:#151A1D;line-height:1;letter-spacing:-0.01em}
+.mini-s{font-size:8px;color:#687078;margin-top:2px}`;
+  const PAGE_FOOTER=hideBranding?'':'<div class="pgfooter"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#B54848;margin-right:3px;vertical-align:middle"></span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#25745A;margin-right:6px;vertical-align:middle"></span>Powered by <span style="text-transform:none">TailiQ</span> Fleet Intelligence</div>';
   // QR pill disabled for internal use — QR_TAILIQ constant retained for future reactivation.
   // To re-enable: restore the original COVER_PILL definition from git history (commit before this change).
   const COVER_PILL='';
-    const llpRows=(llps,csn)=>!llps?.length?'<tr><td colspan="4" style="color:#aaa;font-style:italic">No LLP data entered</td></tr>':llps.map(l=>{const r=calcLLPRem(l,csn);return`<tr><td>${l.desc||""}</td><td style="font-family:monospace">${l.pn||""}</td><td style="font-family:monospace">${l.sn||""}</td><td style="font-weight:700;color:${r<1000?"#dc2626":r<3000?"#d97706":"#111"}">${r.toLocaleString()}</td></tr>`;}).join("");
-  const svRows=(visits,currentFH,currentFC)=>{if(!visits||!visits.length)return'<tr><td colspan="4" style="color:#aaa;font-style:italic">No shop visits recorded</td></tr>';const mroLine=(mro)=>mro?'<br/><span style="font-size:9px;color:#6b7280">'+mro+'</span>':"";const rows=visits.map(sv=>'<tr><td>'+(sv.details||"")+'</td><td>'+fmtDate(sv.date)+mroLine(sv.mro)+'</td><td style="font-family:monospace">'+(fmtHHMM(sv.fh)||"")+'</td><td style="font-family:monospace">'+(sv.fc?sv.fc.toLocaleString():"")+'</td></tr>').join("");const last=visits[visits.length-1];const sinceFH=currentFH&&last.fh?currentFH-last.fh:null;const sinceFC=currentFC&&last.fc?currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;const sinceRow='<tr style="background:#f1f5f9"><td colspan="2" style="color:#323F42;font-weight:700">Since Last Shop Visit</td><td style="font-family:monospace">'+(sinceFH!==null?fmtHHMM(sinceFH):"—")+'</td><td style="font-family:monospace">'+(sinceFC!==null?sinceFC.toLocaleString():"—")+'</td></tr><tr style="background:#f1f5f9"><td colspan="4" style="color:#6b7280;font-size:9px">Days since last shop visit: '+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td></tr>';return rows+sinceRow;};
-  const operatorHistoryRows=(rows)=>{if(!rows?.length)return'<tr><td colspan="7" style="color:#aaa;font-style:italic">No operator history recorded</td></tr>';const sorted=[...rows].sort((a,b)=>{if(!a.installDate)return 1;if(!b.installDate)return -1;return new Date(a.installDate)-new Date(b.installDate);});const mostRecent=sorted[sorted.length-1];return sorted.map(r=>'<tr'+(r._gapFlag?' style="background:#fef3cd"':'')+'><td>'+(r.operator||"—")+'</td><td style="font-family:monospace">'+(r.aircraft||"—")+'</td><td>'+fmtDate(r.installDate)+'</td><td>'+(r.removalDate?fmtDate(r.removalDate):(r===mostRecent?('No removal recorded'+(r.asOfDate?' (as of '+fmtDate(r.asOfDate)+')':'')):'Unknown'))+'</td><td style="font-family:monospace">'+(r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—")+'</td><td style="font-family:monospace">'+(r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—")+'</td><td>'+(r.reason||"—")+'</td></tr>').join("");};
+    const llpRows=(llps,csn)=>!llps?.length?'<tr><td colspan="4" style="color:#687078;font-style:italic">No LLP data entered</td></tr>':llps.map(l=>{const r=calcLLPRem(l,csn);return`<tr><td>${l.desc||""}</td><td style="font-family:IBM Plex Mono,monospace">${l.pn||""}</td><td style="font-family:IBM Plex Mono,monospace">${l.sn||""}</td><td style="font-weight:700;color:${r<1000?"#B54848":r<3000?"#B7791F":"#151A1D"}">${r.toLocaleString()}</td></tr>`;}).join("");
+  const svRows=(visits,currentFH,currentFC)=>{if(!visits||!visits.length)return'<tr><td colspan="4" style="color:#687078;font-style:italic">No shop visits recorded</td></tr>';const mroLine=(mro)=>mro?'<br/><span style="font-size:9px;color:#687078">'+mro+'</span>':"";const rows=visits.map(sv=>'<tr><td>'+(sv.details||"")+'</td><td>'+fmtDate(sv.date)+mroLine(sv.mro)+'</td><td style="font-family:IBM Plex Mono,monospace">'+(fmtHHMM(sv.fh)||"")+'</td><td style="font-family:IBM Plex Mono,monospace">'+(sv.fc?sv.fc.toLocaleString():"")+'</td></tr>').join("");const last=visits[visits.length-1];const sinceFH=currentFH&&last.fh?currentFH-last.fh:null;const sinceFC=currentFC&&last.fc?currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;const sinceRow='<tr style="background:#E8E7E2"><td colspan="2" style="color:#151A1D;font-weight:700">Since Last Shop Visit</td><td style="font-family:IBM Plex Mono,monospace">'+(sinceFH!==null?fmtHHMM(sinceFH):"—")+'</td><td style="font-family:IBM Plex Mono,monospace">'+(sinceFC!==null?sinceFC.toLocaleString():"—")+'</td></tr><tr style="background:#E8E7E2"><td colspan="4" style="color:#687078;font-size:9px">Days since last shop visit: '+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td></tr>';return rows+sinceRow;};
+  const operatorHistoryRows=(rows)=>{if(!rows?.length)return'<tr><td colspan="7" style="color:#687078;font-style:italic">No operator history recorded</td></tr>';const sorted=[...rows].sort((a,b)=>{if(!a.installDate)return 1;if(!b.installDate)return -1;return new Date(a.installDate)-new Date(b.installDate);});const mostRecent=sorted[sorted.length-1];return sorted.map(r=>'<tr'+(r._gapFlag?' style="background:#fef3cd"':'')+'><td>'+(r.operator||"—")+'</td><td style="font-family:IBM Plex Mono,monospace">'+(r.aircraft||"—")+'</td><td>'+fmtDate(r.installDate)+'</td><td>'+(r.removalDate?fmtDate(r.removalDate):(r===mostRecent?('No removal recorded'+(r.asOfDate?' (as of '+fmtDate(r.asOfDate)+')':'')):'Unknown'))+'</td><td style="font-family:IBM Plex Mono,monospace">'+(r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—")+'</td><td style="font-family:IBM Plex Mono,monospace">'+(r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—")+'</td><td>'+(r.reason||"—")+'</td></tr>').join("");};
   // --- Mobile card variants of the three row-generators above. Same data, same
   // formatting (fmtDate/fmtHHMM/toLocaleString calls match their table counterparts
   // exactly), just laid out as .dt-card/.dt-row divs instead of <tr>/<td>. See
@@ -158,28 +158,28 @@ td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top}
   // approach tried earlier that broke row/column structure.
   const tblScroll=(tableHtml)=>`<div class="scroll-tbl">${tableHtml}</div>`;
   const llpCards=(llps,csn)=>{
-    if(!llps?.length)return'<div class="dt-card" style="color:#aaa;font-style:italic">No LLP data entered</div>';
+    if(!llps?.length)return'<div class="dt-card" style="color:#687078;font-style:italic">No LLP data entered</div>';
     return llps.map(l=>{
       const r=calcLLPRem(l,csn);
-      const col=r<1000?"#dc2626":r<3000?"#d97706":"#111";
-      return `<div class="dt-card">${dtRow("Descriptor",l.desc||"—")}${dtRow("P/N",l.pn||"—","font-family:monospace")}${dtRow("S/N",l.sn||"—","font-family:monospace")}${dtRow("FC Remaining",r.toLocaleString(),`color:${col};font-weight:800`)}</div>`;
+      const col=r<1000?"#B54848":r<3000?"#B7791F":"#151A1D";
+      return `<div class="dt-card">${dtRow("Descriptor",l.desc||"—")}${dtRow("P/N",l.pn||"—","font-family:IBM Plex Mono,monospace")}${dtRow("S/N",l.sn||"—","font-family:IBM Plex Mono,monospace")}${dtRow("FC Remaining",r.toLocaleString(),`color:${col};font-weight:800`)}</div>`;
     }).join("");
   };
   const svCards=(visits,currentFH,currentFC)=>{
-    if(!visits||!visits.length)return'<div class="dt-card" style="color:#aaa;font-style:italic">No shop visits recorded</div>';
-    const cards=visits.map(sv=>`<div class="dt-card">${dtRow("Details",sv.details||"—")}${dtRow("Date",fmtDate(sv.date))}${dtRow("MRO",sv.mro)}${dtRow("TSN",fmtHHMM(sv.fh)||"—","font-family:monospace")}${dtRow("CSN",sv.fc?sv.fc.toLocaleString():"—","font-family:monospace")}</div>`).join("");
+    if(!visits||!visits.length)return'<div class="dt-card" style="color:#687078;font-style:italic">No shop visits recorded</div>';
+    const cards=visits.map(sv=>`<div class="dt-card">${dtRow("Details",sv.details||"—")}${dtRow("Date",fmtDate(sv.date))}${dtRow("MRO",sv.mro)}${dtRow("TSN",fmtHHMM(sv.fh)||"—","font-family:IBM Plex Mono,monospace")}${dtRow("CSN",sv.fc?sv.fc.toLocaleString():"—","font-family:IBM Plex Mono,monospace")}</div>`).join("");
     const last=visits[visits.length-1];
     const sinceFH=currentFH&&last.fh?currentFH-last.fh:null;
     const sinceFC=currentFC&&last.fc?currentFC-last.fc:null;
     const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;
-    const sinceCard=`<div class="dt-card dt-summary"><div class="dt-l" style="margin-bottom:4px">Since Last Shop Visit</div>${dtRow("TSN",sinceFH!==null?fmtHHMM(sinceFH):"—","font-family:monospace")}${dtRow("CSN",sinceFC!==null?sinceFC.toLocaleString():"—","font-family:monospace")}${dtRow("Days Since",sinceDays!==null?sinceDays.toLocaleString():"—")}</div>`;
+    const sinceCard=`<div class="dt-card dt-summary"><div class="dt-l" style="margin-bottom:4px">Since Last Shop Visit</div>${dtRow("TSN",sinceFH!==null?fmtHHMM(sinceFH):"—","font-family:IBM Plex Mono,monospace")}${dtRow("CSN",sinceFC!==null?sinceFC.toLocaleString():"—","font-family:IBM Plex Mono,monospace")}${dtRow("Days Since",sinceDays!==null?sinceDays.toLocaleString():"—")}</div>`;
     return cards+sinceCard;
   };
   const opHistCards=(rows)=>{
-    if(!rows?.length)return'<div class="dt-card" style="color:#aaa;font-style:italic">No operator history recorded</div>';
+    if(!rows?.length)return'<div class="dt-card" style="color:#687078;font-style:italic">No operator history recorded</div>';
     const sorted=[...rows].sort((a,b)=>{if(!a.installDate)return 1;if(!b.installDate)return -1;return new Date(a.installDate)-new Date(b.installDate);});
     const mostRecent=sorted[sorted.length-1];
-    return sorted.map(r=>`<div class="dt-card"${r._gapFlag?' style="background:#fef3cd"':""}>${dtRow("Operator",r.operator||"—")}${dtRow("Aircraft",r.aircraft||"—","font-family:monospace")}${dtRow("Installed",fmtDate(r.installDate))}${dtRow("Removed",r.removalDate?fmtDate(r.removalDate):(r===mostRecent?("No removal recorded"+(r.asOfDate?" (as of "+fmtDate(r.asOfDate)+")":"")):"Unknown"))}${dtRow("TSN",r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—","font-family:monospace")}${dtRow("CSN",r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—","font-family:monospace")}${dtRow("Reason",r.reason||"—")}</div>`).join("");
+    return sorted.map(r=>`<div class="dt-card"${r._gapFlag?' style="background:#fef3cd"':""}>${dtRow("Operator",r.operator||"—")}${dtRow("Aircraft",r.aircraft||"—","font-family:IBM Plex Mono,monospace")}${dtRow("Installed",fmtDate(r.installDate))}${dtRow("Removed",r.removalDate?fmtDate(r.removalDate):(r===mostRecent?("No removal recorded"+(r.asOfDate?" (as of "+fmtDate(r.asOfDate)+")":"")):"Unknown"))}${dtRow("TSN",r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—","font-family:IBM Plex Mono,monospace")}${dtRow("CSN",r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—","font-family:IBM Plex Mono,monospace")}${dtRow("Reason",r.reason||"—")}</div>`).join("");
   };
   const engSec=(eng,pos,fullHistory=false)=>{if(!eng)return"";const ll=lowestLimiter(eng);const llDesc=lowestLLPDesc(eng);const svSorted=[...(eng.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});const svRecent=svSorted.slice(-1);const svAll=svSorted;return`
 ${pgH(`Engine #${pos} \u2014 ESN ${eng.sn||"\u2014"}`)}
@@ -191,7 +191,7 @@ ${col2(
       ${kvR("Flight Hours Since New",`${fmtHHMM(eng.currentFH)} FH`)}
       ${kvR("Flight Cycles Since New",`${(eng.currentFC||0).toLocaleString()} FC`)}
     </table>
-    ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
+    ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#687078;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
   </td>`,
   svRecent.length
     ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svRecent,eng.currentFH,eng.currentFC)}</tbody></table>`,svCards(svRecent,eng.currentFH,eng.currentFC))}</td>`
@@ -226,35 +226,35 @@ ${eng.operatorHistory?.length?`${cO("Operator History",svgList)}${tblScroll(`<ta
     const sinceFC=(curFC!=null&&g.lastOverhaulFC!=null)?curFC-g.lastOverhaulFC:null;
     const lastDateISO=lgFromDDMMYYYY(g.lastOverhaulDate);
     const sinceDays=lastDateISO?Math.floor((new Date()-new Date(lastDateISO))/86400000):null;
-    return'<table style="margin-bottom:14px"><thead><tr><th colspan="5" style="background:#323F42;color:#FFFFFF;font-size:11px">'+title+'</th></tr><tr><th>Part Number</th><th>Serial Number</th><th>Manufacturer</th><th>Totals Since New</th><th>Next Overhaul Due (Cal / Cyc)</th></tr></thead><tbody><tr><td>'+( g.pn||"—")+'</td><td>'+(g.sn||"—")+'</td><td>'+(g.mfr||"—")+'</td><td>'+totalsCell+'</td><td style="font-weight:700">'+ nextDueCell+'</td></tr></tbody></table>'+'<table style="margin-bottom:14px"><thead><tr><th>Last Overhaul Date</th><th>Leg FH at OH</th><th>Leg CSN at OH</th><th>Days Since</th><th>FH Since</th><th>CSN Since</th></tr></thead><tbody><tr><td>'+lgFmtDate(g.lastOverhaulDate)+'</td><td>'+(g.lastOverhaulFH!=null?fmtHHMM(g.lastOverhaulFH):"—")+'</td><td>'+(g.lastOverhaulFC!=null?g.lastOverhaulFC.toLocaleString():"—")+'</td><td>'+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td><td>'+(sinceFH!=null?fmtHHMM(sinceFH):"—")+'</td><td>'+(sinceFC!=null?Math.round(sinceFC).toLocaleString():"—")+'</td></tr></tbody></table>';
+    return'<table style="margin-bottom:14px"><thead><tr><th colspan="5" style="background:transparent;color:#151A1D;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid #151A1D">'+title+'</th></tr><tr><th>Part Number</th><th>Serial Number</th><th>Manufacturer</th><th>Totals Since New</th><th>Next Overhaul Due (Cal / Cyc)</th></tr></thead><tbody><tr><td>'+( g.pn||"—")+'</td><td>'+(g.sn||"—")+'</td><td>'+(g.mfr||"—")+'</td><td>'+totalsCell+'</td><td style="font-weight:700">'+ nextDueCell+'</td></tr></tbody></table>'+'<table style="margin-bottom:14px"><thead><tr><th>Last Overhaul Date</th><th>Leg FH at OH</th><th>Leg CSN at OH</th><th>Days Since</th><th>FH Since</th><th>CSN Since</th></tr></thead><tbody><tr><td>'+lgFmtDate(g.lastOverhaulDate)+'</td><td>'+(g.lastOverhaulFH!=null?fmtHHMM(g.lastOverhaulFH):"—")+'</td><td>'+(g.lastOverhaulFC!=null?g.lastOverhaulFC.toLocaleString():"—")+'</td><td>'+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td><td>'+(sinceFH!=null?fmtHHMM(sinceFH):"—")+'</td><td>'+(sinceFC!=null?Math.round(sinceFC).toLocaleString():"—")+'</td></tr></tbody></table>';
   };
   const lowestLLPDesc=(obj)=>{if(!obj?.llps?.length)return null;const csn=obj?.currentFC||0;let min=Infinity,desc=null;for(const l of (obj.llps||[])){const r=calcLLPRem(l,csn);if(r<min){min=r;desc=l.desc||null;}}return desc;};
-  const progBar=(rem,max=20000)=>{if(rem===null||rem===undefined||isNaN(rem))return'';const pct=Math.min(100,Math.max(0,(rem/max)*100));const col=rem>6000?'#16a34a':rem>3000?'#d97706':'#dc2626';return`<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:11px"><tr><td style="border:none;padding:0 0 4px 0;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#64748b">Lowest LLP Limiter</td><td align="right" style="border:none;padding:0 0 4px 0;font-size:11px;font-weight:800;color:${col}">${rem.toLocaleString()} FC Rem.</td></tr></table><div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden"><div style="height:6px;width:${pct.toFixed(1)}%;background:${col};border-radius:3px"></div></div>`;};
+  const progBar=(rem,max=20000)=>{if(rem===null||rem===undefined||isNaN(rem))return'';const pct=Math.min(100,Math.max(0,(rem/max)*100));const col=rem>6000?'#25745A':rem>3000?'#B7791F':'#B54848';return`<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:11px"><tr><td style="border:none;padding:0 0 4px 0;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#687078">Lowest LLP Limiter</td><td align="right" style="border:none;padding:0 0 4px 0;font-size:11px;font-weight:800;color:${col}">${rem.toLocaleString()} FC Rem.</td></tr></table><div style="height:6px;background:#D9DCD8;border-radius:3px;overflow:hidden"><div style="height:6px;width:${pct.toFixed(1)}%;background:${col};border-radius:3px"></div></div>`;};
   const identLine=`MSN ${asset.msn||"—"} · ${asset.registration||"—"} · ${asset.model||""}`;
-  const pgH=(t)=>`<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;padding-bottom:9px;border-bottom:2px solid #C9A84C"><tr><td style="border:none;padding:0 0 9px 0;vertical-align:bottom"><span style="font-size:19px;font-weight:800;color:#0f172a;letter-spacing:-0.02em">${t}</span></td><td align="right" style="border:none;padding:0 0 9px 0;vertical-align:bottom"><span style="font-size:8.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;font-weight:600">${identLine}</span></td></tr></table>`;
-  const IC=(svg)=>`<div style="width:28px;height:28px;border:1.5px solid #0f172a;border-radius:50%;background:#fff;display:inline-block;box-sizing:border-box;text-align:center;padding-top:5px;vertical-align:middle">${svg}</div>`;
-  const IH=(lbl,svg)=>`<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed #f2f2f7"><tr><td style="border:none;padding:0;width:36px;vertical-align:middle">${IC(svg)}</td><td style="border:none;padding:0 0 0 10px;vertical-align:middle"><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#0f172a">${lbl}</span></td></tr></table>`;
-  const secH=(lbl,svg)=>`<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:9px;padding-bottom:7px;border-bottom:1px dashed #f2f2f7"><tr><td style="border:none;padding:0;width:36px;vertical-align:middle">${IC(svg)}</td><td style="border:none;padding:0 0 0 10px;vertical-align:middle"><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#0f172a">${lbl}</span></td></tr></table>`;
+  const pgH=(t)=>`<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;padding-bottom:9px;border-bottom:2px solid #151A1D"><tr><td style="border:none;padding:0 0 9px 0;vertical-align:bottom"><span style="font-size:19px;font-weight:700;color:#151A1D;letter-spacing:-0.02em">${t}</span></td><td align="right" style="border:none;padding:0 0 9px 0;vertical-align:bottom"><span style="font-size:8.5px;color:#687078;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;font-family:IBM Plex Mono,monospace">${identLine}</span></td></tr></table>`;
+  const IC=(svg)=>`<div style="width:28px;height:28px;border:1.5px solid #151A1D;border-radius:50%;background:#FCFCF9;display:inline-block;box-sizing:border-box;text-align:center;padding-top:5px;vertical-align:middle">${svg}</div>`;
+  const IH=(lbl,svg)=>`<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed #E8E7E2"><tr><td style="border:none;padding:0;width:36px;vertical-align:middle">${IC(svg)}</td><td style="border:none;padding:0 0 0 10px;vertical-align:middle"><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#151A1D">${lbl}</span></td></tr></table>`;
+  const secH=(lbl,svg)=>`<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:9px;padding-bottom:7px;border-bottom:1px dashed #E8E7E2"><tr><td style="border:none;padding:0;width:36px;vertical-align:middle">${IC(svg)}</td><td style="border:none;padding:0 0 0 10px;vertical-align:middle"><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#151A1D">${lbl}</span></td></tr></table>`;
   const cO=(lbl,svg)=>`<div class="card">${svg?IH(lbl,svg):`<span class="card-lbl">${lbl}</span>`}`;
   const cNB=(lbl,svg)=>`<div style="margin-bottom:13px">${IH(lbl,svg)}`;
-  const CS='border:1px solid #e2e8f0;border-radius:10px;padding:14px 17px;vertical-align:top';
+  const CS='border:1px solid #D9DCD8;border-radius:4px;padding:14px 17px;vertical-align:top';
   const col2=(l,r)=>`<table class="col2" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin-bottom:13px"><colgroup><col width="49%"/><col width="2%"/><col width="49%"/></colgroup><tr>${l}<td style="border:none;padding:0"></td>${r}</tr></table>`;
   const col3=(a,b,c)=>`<table width="100%" cellpadding="0" cellspacing="0" class="lg3col" style="border-collapse:separate;margin-bottom:13px"><colgroup><col width="32%"/><col width="2%"/><col width="32%"/><col width="2%"/><col width="32%"/></colgroup><tr>${a}<td style="border:none;padding:0"></td>${b}<td style="border:none;padding:0"></td>${c}</tr></table>`;
   const cC=`</div>`;
-  const kvR=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10px;color:#64748b;font-weight:600;width:150px;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #f8fafc;padding:5px 0;font-size:10.5px;color:#0f172a;font-weight:600;vertical-align:top">${v}</td></tr>`;
+  const kvR=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #E8E7E2;padding:5px 0;font-size:10px;color:#687078;font-weight:600;width:150px;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #E8E7E2;padding:5px 0;font-size:10.5px;color:#151A1D;font-weight:600;vertical-align:top">${v}</td></tr>`;
   const mT=(lbl,val,sub)=>`<div class="mini-t"><div class="mini-l">${lbl}</div><div class="mini-v">${val}</div>${sub?`<div class="mini-s">${sub}</div>`:""}</div>`;
-  const TH='background:#f8fafc;color:#374151;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #e2e8f0';
-  const TD='padding:5px 8px;border:1px solid #e2e8f0;vertical-align:top';
-  const svgEngine=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8c3-2 13-2 15 0l4 4-4 4c-2 2-12 2-15 0l1-4-1-4zM7 8v8M18 9v6M14 8a12 12 0 010 8"/></svg>`;
-  const svgScale=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v17M12 5l-6 3M12 5l6 3M6 8v6M18 8v6M4 14h4M16 14h4M9 20h6"/></svg>`;
-  const svgWrench=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>`;
-  const svgClip=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="9" y="2" width="6" height="3" rx="1"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>`;
-  const svgCog=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`;
-  const svgList=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
-  const svgCal=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
-  const svgGearLeg=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="15"/><path d="M9 5l3 3 3-3M10 10h4M8 15h8M8 15v3M16 15v3"/><circle cx="8" cy="18" r="2.5"/><circle cx="16" cy="18" r="2.5"/></svg>`;
-  const svgBolt=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
-  const svgWheel=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="9"/><line x1="12" y1="15" x2="12" y2="21"/><line x1="3" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="21" y2="12"/></svg>`;
+  const TH='background:#E8E7E2;color:#687078;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #D9DCD8';
+  const TD='padding:5px 8px;border:1px solid #D9DCD8;vertical-align:top';
+  const svgEngine=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#151A1D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8c3-2 13-2 15 0l4 4-4 4c-2 2-12 2-15 0l1-4-1-4zM7 8v8M18 9v6M14 8a12 12 0 010 8"/></svg>`;
+  const svgScale=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#151A1D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v17M12 5l-6 3M12 5l6 3M6 8v6M18 8v6M4 14h4M16 14h4M9 20h6"/></svg>`;
+  const svgWrench=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#151A1D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>`;
+  const svgClip=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#151A1D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="9" y="2" width="6" height="3" rx="1"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>`;
+  const svgCog=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#151A1D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`;
+  const svgList=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#151A1D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
+  const svgCal=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#151A1D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+  const svgGearLeg=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#151A1D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="15"/><path d="M9 5l3 3 3-3M10 10h4M8 15h8M8 15v3M16 15v3"/><circle cx="8" cy="18" r="2.5"/><circle cx="16" cy="18" r="2.5"/></svg>`;
+  const svgBolt=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#151A1D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+  const svgWheel=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#151A1D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="9"/><line x1="12" y1="15" x2="12" y2="21"/><line x1="3" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="21" y2="12"/></svg>`;
   if(engineOnly){
     const eng=asset.engines?.[0];
     const ll=lowestLimiter(eng);
@@ -270,10 +270,10 @@ ${eng.operatorHistory?.length?`${cO("Operator History",svgList)}${tblScroll(`<ta
   </div>
   <div class="cov-lower">
     ${(()=>{
-    const iconFH=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12,6 12,12 16,14"/></svg>`;
-    const iconFC=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51,9a9,9,0,0,1,14.85-3.36L23,10M1,14l4.64,4.36A9,9,0,0,0,20.49,15"/></svg>`;
-    const iconType=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8c3-2 13-2 15 0l4 4-4 4c-2 2-12 2-15 0l1-4-1-4zM7 8v8M18 9v6M14 8a12 12 0 010 8"/></svg>`;
-    const iconThrust=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13,2L3,14h9l-1,8,10-12h-9l1-8z"/></svg>`;
+    const iconFH=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#687078" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12,6 12,12 16,14"/></svg>`;
+    const iconFC=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#687078" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51,9a9,9,0,0,1,14.85-3.36L23,10M1,14l4.64,4.36A9,9,0,0,0,20.49,15"/></svg>`;
+    const iconType=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#687078" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8c3-2 13-2 15 0l4 4-4 4c-2 2-12 2-15 0l1-4-1-4zM7 8v8M18 9v6M14 8a12 12 0 010 8"/></svg>`;
+    const iconThrust=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#687078" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13,2L3,14h9l-1,8,10-12h-9l1-8z"/></svg>`;
     return`<table width="100%" cellpadding="0" cellspacing="0" class="sc-cards" style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col width="25%"/><col width="25%"/><col width="25%"/><col width="25%"/></colgroup><tr>
       <td width="25%" class="sc-cell" style="width:25%;padding:0 4px 0 0;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFH}</div><div class="sc-val">${fmtHHMM(eng?.currentFH)}</div><div class="sc-lbl">Flight Hours</div></div></td>
       <td width="25%" class="sc-cell" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFC}</div><div class="sc-val">${(eng?.currentFC||0).toLocaleString()}</div><div class="sc-lbl">Flight Cycles</div></div></td>
@@ -301,10 +301,10 @@ ${PAGE_FOOTER}
   </div>
   <div class="cov-lower">
     ${(()=>{const d=asset.dom||"";let domDisp="—";if(/^\d{2}\/\d{4}$/.test(d)){const ms=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];const[mo,yr]=d.split("/");domDisp=ms[parseInt(mo)-1]+" "+yr;}else if(d){try{const dt=new Date(d);if(!isNaN(dt))domDisp=dt.toLocaleDateString("en-GB",{month:"short",year:"numeric"}).toUpperCase();}catch{domDisp=d;}}
-    const iconFH=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12,6 12,12 16,14"/></svg>`;
-    const iconFC=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51,9a9,9,0,0,1,14.85-3.36L23,10M1,14l4.64,4.36A9,9,0,0,0,20.49,15"/></svg>`;
-    const iconDOM=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
-    const iconOp=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20,21v-2a4,4,0,0,0-4-4H8a4,4,0,0,0-4,4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+    const iconFH=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#687078" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12,6 12,12 16,14"/></svg>`;
+    const iconFC=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#687078" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51,9a9,9,0,0,1,14.85-3.36L23,10M1,14l4.64,4.36A9,9,0,0,0,20.49,15"/></svg>`;
+    const iconDOM=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#687078" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+    const iconOp=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#687078" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20,21v-2a4,4,0,0,0-4-4H8a4,4,0,0,0-4,4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
     const opLabel=(asset.operatorLabel||"Current Operator").toUpperCase();
     const opVal=asset.operator||"—";
     return`<table width="100%" cellpadding="0" cellspacing="0" class="sc-cards" style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col width="25%"/><col width="25%"/><col width="25%"/><col width="25%"/></colgroup><tr>
@@ -334,8 +334,8 @@ ${col2(
     ${IH("Check History",svgWrench)}
     ${(()=>{
       const enteredChecks=(asset.checks||[]).filter(c=>c.lastDate||c.nextDate);
-      const tableRows=!enteredChecks.length?'<tr><td colspan="5" style="color:#aaa;font-style:italic">No check history entered</td></tr>':enteredChecks.map(c=>`<tr><td style="${TD}">${c.name}</td><td style="${TD}">${fmtDate(c.lastDate)}</td><td style="${TD}">${c.lastFH?.toLocaleString()||"—"}</td><td style="${TD}">${c.lastFC?.toLocaleString()||"—"}</td><td style="${TD};font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("");
-      const cards=!enteredChecks.length?'<div class="dt-card" style="color:#aaa;font-style:italic">No check history entered</div>':enteredChecks.map(c=>`<div class="dt-card">${dtRow("Check",c.name)}${dtRow("Last Date",fmtDate(c.lastDate))}${dtRow("FH",c.lastFH?.toLocaleString()||"—")}${dtRow("FC",c.lastFC?.toLocaleString()||"—")}${dtRow("Next Due",fmtDate(c.nextDate),"font-weight:800")}</div>`).join("");
+      const tableRows=!enteredChecks.length?'<tr><td colspan="5" style="color:#687078;font-style:italic">No check history entered</td></tr>':enteredChecks.map(c=>`<tr><td style="${TD}">${c.name}</td><td style="${TD}">${fmtDate(c.lastDate)}</td><td style="${TD}">${c.lastFH?.toLocaleString()||"—"}</td><td style="${TD}">${c.lastFC?.toLocaleString()||"—"}</td><td style="${TD};font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("");
+      const cards=!enteredChecks.length?'<div class="dt-card" style="color:#687078;font-style:italic">No check history entered</div>':enteredChecks.map(c=>`<div class="dt-card">${dtRow("Check",c.name)}${dtRow("Last Date",fmtDate(c.lastDate))}${dtRow("FH",c.lastFH?.toLocaleString()||"—")}${dtRow("FC",c.lastFC?.toLocaleString()||"—")}${dtRow("Next Due",fmtDate(c.nextDate),"font-weight:800")}</div>`).join("");
       const tableHtml=`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Check</th><th style="${TH}">Last Date</th><th style="${TH}">FH</th><th style="${TH}">FC</th><th style="${TH}">Next Due</th></tr></thead><tbody>${tableRows}</tbody></table>`;
       return dualRender(tableHtml,cards);
     })()}
@@ -394,7 +394,7 @@ ${col2(
       ${kvR("Flight Hours Since New",`${fmtHHMM(eng.currentFH)} FH`)}
       ${kvR("Flight Cycles Since New",`${(eng.currentFC||0).toLocaleString()} FC`)}
     </table>
-    ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
+    ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#687078;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
   </td>`,
   svList.length
     ? `<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,eng.currentFH,eng.currentFC)}</tbody></table>`,svCards(svList,eng.currentFH,eng.currentFC))}</td>`
@@ -411,7 +411,7 @@ ${cC}`;
 ${pgH("Landing Gear")}
 ${cO("Landing Gear Assembly",svgGearLeg)}
 ${(()=>{
-  const lgCS='border:1px solid #e2e8f0;border-radius:8px;padding:11px 12px;vertical-align:top';
+  const lgCS='border:1px solid #D9DCD8;border-radius:8px;padding:11px 12px;vertical-align:top';
   const lgCol=(g,title)=>{
     const hasRefPair=g?.refLegFC!=null&&g?.refAirframeFC!=null;
     let curFC=null;
@@ -419,15 +419,15 @@ ${(()=>{
     else if(hasRefPair){curFC=g.refLegFC+((af.currentFC||0)-g.refAirframeFC);}
     const intervalCycles=g?.overhaulIntervalCycles||20000;
     const cycRem=(g?.lastOverhaulFC!=null&&curFC!=null)?(g.lastOverhaulFC+intervalCycles)-curFC:null;
-    const lkv=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #f8fafc;padding:4px 0;font-size:9.5px;color:#64748b;font-weight:600;width:42%;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #f8fafc;padding:4px 0;font-size:10px;color:#0f172a;font-weight:600;vertical-align:top;word-break:normal;overflow-wrap:anywhere">${v}</td></tr>`;
+    const lkv=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #E8E7E2;padding:4px 0;font-size:9.5px;color:#687078;font-weight:600;width:42%;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #E8E7E2;padding:4px 0;font-size:10px;color:#151A1D;font-weight:600;vertical-align:top;word-break:normal;overflow-wrap:anywhere">${v}</td></tr>`;
     const rows=g?`<table class="kv" width="100%" cellpadding="0" cellspacing="0">
       ${lkv("Part No.",g.pn||"—")}
       ${lkv("Serial No.",g.sn||"—")}
       ${lkv("Manufacturer",g.mfr||"—")}
       ${lkv("Next OH Due",lgFmtDate(g.nextDue)||(cycRem!==null?Math.round(cycRem).toLocaleString()+" cyc rem":"—"))}
       ${lkv("Last OH Date",lgFmtDate(g.lastOverhaulDate)||"—")}
-    </table>`:`<div style="color:#94a3b8;font-size:10px">No data</div>`;
-    return`<td style="${lgCS}"><div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#C9A84C;margin-bottom:8px">${title}</div>${rows}</td>`;
+    </table>`:`<div style="color:#687078;font-size:10px">No data</div>`;
+    return`<td style="${lgCS}"><div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#687078;margin-bottom:8px">${title}</div>${rows}</td>`;
   };
   return col3(lgCol(lg.nose,"Nose Gear"),lgCol(lg.left,"LH Main Gear"),lgCol(lg.right,"RH Main Gear"));
 })()}
@@ -437,7 +437,7 @@ ${(()=>{
   const rows=[["Main Wheels",wb.mainWheels],["Nose Wheels",wb.noseWheels],["Brake Unit",wb.brakes]].filter(([,item])=>item&&(item.pn||item.mfr));
   if(!rows.length)return"";
   const wbTable=`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Component</th><th style="${TH}">Qty</th><th style="${TH}">P/N</th><th style="${TH}">Manufacturer</th></tr></thead><tbody>${rows.map(([label,item])=>`<tr><td style="${TD}">${label}</td><td style="${TD}">${item.qty||"—"}</td><td style="${TD}">${item.pn||"—"}</td><td style="${TD}">${item.mfr||"—"}</td></tr>`).join("")}</tbody></table>`;
-  const wbCards=rows.map(([label,item])=>`<div class="dt-card">${dtRow("Component",label)}${dtRow("Qty",item.qty||"—")}${dtRow("P/N",item.pn||"—","font-family:monospace")}${dtRow("Manufacturer",item.mfr||"—")}</div>`).join("");
+  const wbCards=rows.map(([label,item])=>`<div class="dt-card">${dtRow("Component",label)}${dtRow("Qty",item.qty||"—")}${dtRow("P/N",item.pn||"—","font-family:IBM Plex Mono,monospace")}${dtRow("Manufacturer",item.mfr||"—")}</div>`).join("");
   return`${cO("Wheels &amp; Brakes",svgWheel)}${dualRender(wbTable,wbCards)}${cC}`;
 })()}
 ${PAGE_FOOTER}<div class="pb"></div>
@@ -452,7 +452,7 @@ ${col2(
       ${kvR("Time Since New",fmtHHMM(apu.currentFH)+" FH")}
       ${kvR("Cycles Since New",(apu.currentFC||0).toLocaleString()+" FC")}
     </table>
-    ${(()=>{const ll=lowestLimiter(apu);const desc=lowestLLPDesc(apu);return ll!==null?progBar(ll)+(desc?`<div style="font-size:8.5px;color:#64748b;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${desc}</div>`:""):"";})()}
+    ${(()=>{const ll=lowestLimiter(apu);const desc=lowestLLPDesc(apu);return ll!==null?progBar(ll)+(desc?`<div style="font-size:8.5px;color:#687078;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${desc}</div>`:""):"";})()}
   </td>`,
   (()=>{const svList=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);}).slice(-1);return svList.length
     ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,apu.currentFH,apu.currentFC)}</tbody></table>`,svCards(svList,apu.currentFH,apu.currentFC))}</td>`
@@ -466,7 +466,7 @@ ${(()=>{
     return`${PAGE_FOOTER}<div class="pb"></div>
 <h3>LOPA — Layout of Passenger Accommodation</h3>
 <div style="text-align:center;margin-top:10px">
-  <img src="${lopaPhoto.url}" style="width:100%;max-height:680px;object-fit:contain;background:#fff;border-radius:4px;display:block;margin:0 auto"/>
+  <img src="${lopaPhoto.url}" style="width:100%;max-height:680px;object-fit:contain;background:#FCFCF9;border-radius:4px;display:block;margin:0 auto"/>
 </div>`;
   })()}
 ${(()=>{
@@ -488,7 +488,7 @@ ${(()=>{
     // 25, tuned against real generated specs per Alan's "eyeball it"
     // preference (same tuning approach as the stub-buffer tolerance band).
     const AVIONICS_LRU_SPLIT_THRESHOLD=25;
-    const rowHtml=(r)=>`<tr><td style="color:#6b7280;font-weight:600;width:55%">${r.description||""}</td><td>${r.partNumber||"—"}</td></tr>`;
+    const rowHtml=(r)=>`<tr><td style="color:#687078;font-weight:600;width:55%">${r.description||""}</td><td>${r.partNumber||"—"}</td></tr>`;
     const headerHtml=(key)=>key?`<thead><tr><th style="${TH}" colspan="2">${key}</th></tr></thead>`:"";
     const openTable=(key)=>`<table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:9px">${headerHtml(key)}<tbody>`;
     const closeTableTag=`</tbody></table>`;
@@ -532,7 +532,7 @@ ${(()=>{
       if(openInCol[2]!==UNSET)col2Body+=closeTableTag;
       twoColumnHtml=col2(`<td style="${CS}">${col1}</td>`,`<td style="${CS}">${col2Body}</td>`);
     }
-    const imgs=avionicsPhotos.map(p=>`<img src="${p.url}" style="width:100%;max-height:680px;object-fit:contain;background:#fff;border-radius:4px;display:block;margin:0 auto 10px"/>`).join("");
+    const imgs=avionicsPhotos.map(p=>`<img src="${p.url}" style="width:100%;max-height:680px;object-fit:contain;background:#FCFCF9;border-radius:4px;display:block;margin:0 auto 10px"/>`).join("");
     // Mobile card grid: independent of the desktop pagination-split logic above
     // (that split exists purely to balance a printed page, meaningless on an
     // infinitely-scrolling phone screen) — built straight from allChapters,
@@ -548,8 +548,8 @@ ${(()=>{
     if(!galleryPhotos.length)return"";
     const photoHtml=galleryPhotos.map(p=>`
       <div style="break-inside:avoid">
-        <img src="${p.url}" style="width:100%;height:160px;object-fit:contain;background:#fff;border-radius:4px;display:block"/>
-        <div style="text-align:center;font-size:10px;color:#6b7280;margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">${p.label||""}</div>
+        <img src="${p.url}" style="width:100%;height:160px;object-fit:contain;background:#FCFCF9;border-radius:4px;display:block"/>
+        <div style="text-align:center;font-size:10px;color:#687078;margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">${p.label||""}</div>
       </div>`).join("");
     return`${PAGE_FOOTER}<div class="pb"></div>
 <h3>Photo Gallery</h3>
