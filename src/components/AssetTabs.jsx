@@ -49,7 +49,7 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
     const parts=path.split(".");const val=parts.reduce((o,k)=>o?.[k],d);
     return<div className="form-group"><label className="form-label">{label}</label>
       {editing&&isAdmin?<input type="text" placeholder={type==="mmyyyy"?"MM/YYYY":""} defaultValue={type==="mmyyyy"?fmtMMYYYY(val):val||""} onInput={type==="mmyyyy"?handleMMYYYYInput:undefined} onBlur={e=>set(path,e.target.value)} className={isEmpty(val)?"amber":""}/>
-      :<div style={{fontSize:13,fontWeight:500,color:isEmpty(val)?"var(--color-graphite)":"var(--color-carbon)",fontStyle:isEmpty(val)?"italic":"normal"}}>{type==="mmyyyy"?fmtMMYYYY(val):val||"Not entered"}</div>}
+      :<div style={{fontSize:14,fontWeight:isEmpty(val)?500:700,color:isEmpty(val)?"var(--color-graphite)":"var(--color-carbon)",fontStyle:isEmpty(val)?"italic":"normal"}}>{type==="mmyyyy"?fmtMMYYYY(val):val||"Not entered"}</div>}
     </div>;
   };
   // Status calcs — grouped per-component (Engine #N / APU), each carrying its own limiter + TSN + CSN
@@ -91,17 +91,17 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
                 <span>{d.operatorLabel||"Current Operator"}</span>
                 {editing&&isAdmin&&<button type="button" onClick={()=>set("operatorLabel",d.operatorLabel==="Previous Operator"?"Current Operator":"Previous Operator")} style={{fontSize:9,fontWeight:700,padding:"1px 7px",borderRadius:3,border:"1px solid var(--color-divider)",background:"none",color:"var(--color-graphite)",cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",flexShrink:0}}>{"→ "+(d.operatorLabel==="Previous Operator"?"Current":"Previous")}</button>}
               </label>
-              {editing&&isAdmin?<input type="text" defaultValue={d.operator||""} onBlur={e=>set("operator",e.target.value)} className={isEmpty(d.operator)?"amber":""}/>:<div style={{fontSize:13,fontWeight:500,color:isEmpty(d.operator)?"var(--color-graphite)":"var(--color-carbon)",fontStyle:isEmpty(d.operator)?"italic":"normal"}}>{d.operator||"Not entered"}</div>}
+              {editing&&isAdmin?<input type="text" defaultValue={d.operator||""} onBlur={e=>set("operator",e.target.value)} className={isEmpty(d.operator)?"amber":""}/>:<div style={{fontSize:14,fontWeight:isEmpty(d.operator)?500:700,color:isEmpty(d.operator)?"var(--color-graphite)":"var(--color-carbon)",fontStyle:isEmpty(d.operator)?"italic":"normal"}}>{d.operator||"Not entered"}</div>}
             </div>
             <Field label="Model" path="model"/>
             <Field label="Manufacturer" path="manufacturer"/><Field label="Date of Manufacture (MM/YYYY)" path="dom" type="mmyyyy"/>
           </div>
           <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--color-divider-inner)"}}>
-            <div style={{fontSize:10,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:8}}>Current Airframe</div>
+            <div style={{fontSize:10,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:8}}>Current Airframe</div>
             <div className="grid2" style={{gap:8}}>
               {[["AIRFRAME TSN",fmtHHMM(af.currentFH)],["AIRFRAME CSN",af.currentFC?.toLocaleString()||"—"]].map(([l,v])=>(
                 <div key={l} style={{background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:8,padding:"12px 14px"}}>
-                  <div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
+                  <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
                   <div style={{fontSize:20,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)",marginTop:4}}>{v}</div>
                 </div>
               ))}
@@ -249,7 +249,7 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
   return(
     <div>
       <div className="flj" style={{marginBottom:8}}>
-        <div style={{fontSize:10,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>Shop Visit History</div>
+        <div style={{fontSize:10,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Shop Visit History</div>
         <div className="flab g8">
           <label style={{cursor:uploading?"default":"pointer"}}>
             <input type="file" accept="application/pdf" style={{display:"none"}} disabled={uploading} onChange={e=>{handleUpload(e.target.files?.[0]);e.target.value="";}}/>
@@ -259,7 +259,7 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
         </div>
       </div>
 
-      {(()=>{if(!svs.length)return null;const last=svs[svs.length-1];const sinceFH=eng.currentFH&&last.fh?eng.currentFH-last.fh:null;const sinceFC=eng.currentFC&&last.fc?eng.currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;return(<div style={{background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:6,padding:"10px 12px",marginBottom:10}}><div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6}}>Since Last Shop Visit</div><div className="grid3" style={{gap:8}}><div><div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>Days</div><div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceDays!==null?sinceDays.toLocaleString():"—"}</div></div><div><div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>FH</div><div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFH!==null?fmtHHMM(sinceFH):"—"}</div></div><div><div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>FC</div><div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFC!==null?sinceFC.toLocaleString():"—"}</div></div></div></div>);})()}
+      {(()=>{if(!svs.length)return null;const last=svs[svs.length-1];const sinceFH=eng.currentFH&&last.fh?eng.currentFH-last.fh:null;const sinceFC=eng.currentFC&&last.fc?eng.currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;return(<div style={{background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:6,padding:"10px 12px",marginBottom:10}}><div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6}}>Since Last Shop Visit</div><div className="grid3" style={{gap:8}}><div><div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Days</div><div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceDays!==null?sinceDays.toLocaleString():"—"}</div></div><div><div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>FH</div><div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFH!==null?fmtHHMM(sinceFH):"—"}</div></div><div><div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>FC</div><div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFC!==null?sinceFC.toLocaleString():"—"}</div></div></div></div>);})()}
 
       <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th><th>Category</th>{isAdmin&&<th></th>}</tr></thead>
       <tbody>{svs.length?svs.map((sv,si)=>{
@@ -418,7 +418,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
   return(
     <div>
       <div className="flj" style={{marginBottom:8}}>
-        <div style={{fontSize:10,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>Operator History</div>
+        <div style={{fontSize:10,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Operator History</div>
         {isAdmin&&<div className="flab g8">
           <label style={{cursor:uploading?"default":"pointer"}}>
             <input type="file" accept="application/pdf" style={{display:"none"}} disabled={uploading} onChange={e=>{handleUpload(e.target.files?.[0]);e.target.value="";}}/>
@@ -543,9 +543,9 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
             <div className="grid4" style={{marginBottom:14}}>
               {[["S/N","sn"],["Type","type"],["Thrust","thrust"],["Status","status"]].map(([l,k])=>(
                 <div key={k} style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
-                  <div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
+                  <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
                   {isEditing&&isAdmin?<input value={ed[k]||""} onChange={e=>setForm({...form,[k]:e.target.value})} style={{marginTop:3}}/>
-                  :<div style={{fontSize:12,fontWeight:600,color:isEmpty(eng[k])?"var(--color-graphite)":"var(--color-carbon)",marginTop:3}}>{eng[k]||"—"}</div>}
+                  :<div style={{fontSize:13,fontWeight:isEmpty(eng[k])?500:700,color:isEmpty(eng[k])?"var(--color-graphite)":"var(--color-carbon)",marginTop:3}}>{eng[k]||"—"}</div>}
                 </div>
               ))}
 
@@ -553,18 +553,18 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
             <div className="grid4" style={{marginBottom:14}}>
               {[["TSN",fmtHHMM(eng.currentFH)],["CSN",(eng.currentFC||0).toLocaleString()],["FH/FC",eng.currentFH&&eng.currentFC?(eng.currentFH/eng.currentFC).toFixed(2):"—"],["Lowest LLP",ll!==null?`${ll.toLocaleString()} FC`:"No data"]].map(([l,v])=>(
                 <div key={l} style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
-                  <div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
+                  <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
                   <div style={{fontSize:14,fontWeight:700,fontFamily:"var(--font-data)",color:l==="Lowest LLP"?(ll===null?"var(--color-graphite)":ll<1000?"var(--color-critical)":ll<3000?"var(--color-attention)":"var(--color-positive)"):"var(--color-carbon)"}}>{v}</div>
                 </div>
               ))}
             </div>
             {eng.atShop&&eng.titleEngine&&(
               <div style={{background:"var(--color-attention-tint)",border:"1px solid var(--color-attention)",borderRadius:6,padding:"10px 12px",marginBottom:16}}>
-                <div style={{fontSize:10,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-attention)",textTransform:"uppercase",marginBottom:8}}>🔧 Title Engine — Removed {fmtDate(eng.titleEngine.removedDate)}</div>
+                <div style={{fontSize:10,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-attention)",textTransform:"uppercase",marginBottom:8}}>🔧 Title Engine — Removed {fmtDate(eng.titleEngine.removedDate)}</div>
                 <div className="grid4" style={{gap:8}}>
                   {[["S/N",eng.titleEngine.sn],["Type",eng.titleEngine.type||"—"],["TSN at Removal",fmtHHMM(eng.titleEngine.currentFH)],["CSN at Removal",(eng.titleEngine.currentFC||0).toLocaleString()]].map(([l,v])=>(
                     <div key={l} style={{background:"var(--color-soft-white)",borderRadius:6,padding:"6px 8px"}}>
-                      <div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
+                      <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
                       <div style={{fontSize:12,fontWeight:600,color:"var(--color-carbon)"}}>{v}</div>
                     </div>
                   ))}
@@ -587,7 +587,7 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
             )}
             <div style={{marginBottom:16}}>
               <div className="flj" style={{marginBottom:8}}>
-                <div style={{fontSize:10,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>Life Limited Parts</div>
+                <div style={{fontSize:10,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Life Limited Parts</div>
                 {isAdmin&&<div className="flab g8">
   {eng.llps?.length>0&&<button className="btn btn-danger" style={{fontSize:11,padding:"4px 10px"}} onClick={async()=>{if(!confirm("Delete all LLPs for this engine?"))return;const engines=JSON.parse(JSON.stringify(asset.engines||[]));engines[ei].llps=[];await patchEngines(engines);notify("All LLPs deleted");}}>Clear All LLPs</button>}
   <button className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setAddLLPIdx(ei)}>+ Add LLP</button>
@@ -735,7 +735,7 @@ function GearCard({title,gkey,asset,form,editing,isAdmin,set,setForm,af}){
           <div key={k} className="form-group" style={{marginBottom:0}}>
             <label className="form-label">{l}</label>
             {editing&&isAdmin?<input value={g[k]||""} onChange={e=>set("landingGear."+gkey+"."+k,e.target.value)}/>
-            :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g[k])?"var(--color-graphite)":"var(--color-carbon)"}}>{g[k]||"Not entered"}</div>}
+            :<div style={{fontSize:14,fontWeight:isEmpty(g[k])?500:700,color:isEmpty(g[k])?"var(--color-graphite)":"var(--color-carbon)"}}>{g[k]||"Not entered"}</div>}
           </div>
         ))}
       </div>
@@ -767,40 +767,40 @@ function GearCard({title,gkey,asset,form,editing,isAdmin,set,setForm,af}){
         <div><label className="form-label">Date (DDMMYYYY)</label>
           {editing&&isAdmin
             ?<input type="text" placeholder="DDMMYYYY" value={lastDateVal} onChange={e=>handleLastDateChange(e.target.value)} onBlur={e=>handleLastDateBlur(e.target.value)}/>
-            :<div style={{fontSize:13,fontWeight:500,color:isEmpty(activeDateStr)?"var(--color-graphite)":"var(--color-carbon)"}}>{activeDateStr||"Not entered"}</div>}
+            :<div style={{fontSize:14,fontWeight:isEmpty(activeDateStr)?500:700,color:isEmpty(activeDateStr)?"var(--color-graphite)":"var(--color-carbon)"}}>{activeDateStr||"Not entered"}</div>}
         </div>
         <div><label className="form-label">Leg TSN at Overhaul</label>
           {editing&&isAdmin?<input type="number" value={g.lastOverhaulFH??""} onChange={e=>set("landingGear."+gkey+".lastOverhaulFH",e.target.value===""?null:+e.target.value)}/>
-          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.lastOverhaulFH)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.lastOverhaulFH!=null?fmtHHMM(g.lastOverhaulFH):"Not entered"}</div>}
+          :<div style={{fontSize:14,fontWeight:isEmpty(g.lastOverhaulFH)?500:700,color:isEmpty(g.lastOverhaulFH)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.lastOverhaulFH!=null?fmtHHMM(g.lastOverhaulFH):"Not entered"}</div>}
         </div>
         <div><label className="form-label">Leg CSN at Overhaul</label>
           {editing&&isAdmin?<input type="number" value={g.lastOverhaulFC??""} onChange={e=>set("landingGear."+gkey+".lastOverhaulFC",e.target.value===""?null:+e.target.value)}/>
-          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.lastOverhaulFC)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.lastOverhaulFC!=null?g.lastOverhaulFC.toLocaleString():"Not entered"}</div>}
+          :<div style={{fontSize:14,fontWeight:isEmpty(g.lastOverhaulFC)?500:700,color:isEmpty(g.lastOverhaulFC)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.lastOverhaulFC!=null?g.lastOverhaulFC.toLocaleString():"Not entered"}</div>}
         </div>
       </div>
 
       {(sinceFH!=null||sinceFC!=null||activeDateStr)&&<div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px",marginBottom:10}}>
-        <div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:4}}>Since Last Overhaul</div>
+        <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:4}}>Since Last Overhaul</div>
         <div className="grid3" style={{gap:4}}>
-          <div><div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>Days</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{daysSince!==null?daysSince.toLocaleString():"—"}</div></div>
-          <div><div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>FH</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFH!=null?fmtHHMM(sinceFH):"—"}</div></div>
-          <div><div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>FC</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFC!=null?Math.round(sinceFC).toLocaleString():"—"}</div></div>
+          <div><div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Days</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{daysSince!==null?daysSince.toLocaleString():"—"}</div></div>
+          <div><div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>FH</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFH!=null?fmtHHMM(sinceFH):"—"}</div></div>
+          <div><div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>FC</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFC!=null?Math.round(sinceFC).toLocaleString():"—"}</div></div>
         </div>
       </div>}
 
-      <div style={{background:overallStatus?statusBg[overallStatus]:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px",marginBottom:10}}>
-        <div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:4,textAlign:"center"}}>Next Overhaul Due — Lowest Wins</div>
+      <div style={{background:overallStatus?statusBg[overallStatus]:"var(--color-technical-grey)",borderRadius:6,padding:"10px 10px",marginBottom:10,border:overallStatus?`1px solid ${statusColor[overallStatus]}`:"1px solid var(--color-divider)"}}>
+        <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6,textAlign:"center"}}>Next Overhaul Due — Lowest Wins</div>
         <div className="grid2" style={{gap:6}}>
           <div style={{textAlign:"center"}}>
-            <div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>Calendar ({editing&&isAdmin?<input type="number" value={intervalYears} onChange={e=>handleIntervalYearsBlur(e.target.value)} style={{width:32,fontSize:9,padding:"1px 2px"}}/>:intervalYears}yr)</div>
+            <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Calendar ({editing&&isAdmin?<input type="number" value={intervalYears} onChange={e=>handleIntervalYearsBlur(e.target.value)} style={{width:32,fontSize:9,padding:"1px 2px"}}/>:intervalYears}yr)</div>
             {editing&&isAdmin
-              ?<input type="text" placeholder="DDMMYYYY" value={nextDueVal} onChange={e=>handleNextDueChange(e.target.value)} onBlur={e=>handleNextDueBlur(e.target.value)} style={{textAlign:"center",fontWeight:700,fontSize:13,width:"100%"}}/>
-              :<div style={{fontSize:13,fontWeight:700,color:calStatus?statusColor[calStatus]:"var(--color-graphite)"}}>{activeNextDue||"Not entered"}</div>}
+              ?<input type="text" placeholder="DDMMYYYY" value={nextDueVal} onChange={e=>handleNextDueChange(e.target.value)} onBlur={e=>handleNextDueBlur(e.target.value)} style={{textAlign:"center",fontWeight:700,fontSize:17,width:"100%"}}/>
+              :<div style={{fontSize:17,fontWeight:700,fontFamily:"var(--font-data)",color:calStatus?statusColor[calStatus]:"var(--color-graphite)",marginTop:2}}>{activeNextDue||"Not entered"}</div>}
             {calDays!==null&&<div style={{fontSize:9,color:"var(--color-graphite)"}}>{calDays<0?Math.abs(calDays)+"d overdue":calDays+"d remaining"}</div>}
           </div>
           <div style={{textAlign:"center"}}>
-            <div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>Cycles ({editing&&isAdmin?<input type="number" value={intervalCycles} onChange={e=>set("landingGear."+gkey+".overhaulIntervalCycles",e.target.value===""?20000:+e.target.value)} style={{width:48,fontSize:9,padding:"1px 2px"}}/>:intervalCycles.toLocaleString()})</div>
-            <div style={{fontSize:13,fontWeight:700,color:cycStatus?statusColor[cycStatus]:"var(--color-graphite)"}}>{cyclesRemaining!==null?Math.round(cyclesRemaining).toLocaleString():"No data"}</div>
+            <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Cycles ({editing&&isAdmin?<input type="number" value={intervalCycles} onChange={e=>set("landingGear."+gkey+".overhaulIntervalCycles",e.target.value===""?20000:+e.target.value)} style={{width:48,fontSize:9,padding:"1px 2px"}}/>:intervalCycles.toLocaleString()})</div>
+            <div style={{fontSize:17,fontWeight:700,fontFamily:"var(--font-data)",color:cycStatus?statusColor[cycStatus]:"var(--color-graphite)",marginTop:2}}>{cyclesRemaining!==null?Math.round(cyclesRemaining).toLocaleString():"No data"}</div>
             {cyclesRemaining!==null&&<div style={{fontSize:9,color:"var(--color-graphite)"}}>cycles remaining</div>}
           </div>
         </div>
@@ -810,9 +810,9 @@ function GearCard({title,gkey,asset,form,editing,isAdmin,set,setForm,af}){
       {current?(
         <div className="grid2" style={{gap:8}}>
           {[["TSN",current.fh!=null?fmtHHMM(current.fh):"—"],["CSN",current.fc!=null?Math.round(current.fc).toLocaleString():"—"]].map(([l,v])=>(
-            <div key={l} style={{background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:8,padding:"12px 14px"}}>
-              <div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
-              <div style={{fontSize:20,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)",marginTop:4}}>{v}</div>
+            <div key={l} style={{background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:8,padding:"8px 10px"}}>
+              <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
+              <div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)",marginTop:2}}>{v}</div>
             </div>
           ))}
         </div>
@@ -824,11 +824,11 @@ function GearCard({title,gkey,asset,form,editing,isAdmin,set,setForm,af}){
       <div className="grid2" style={{gap:6}}>
         <div><label className="form-label">Current TSN</label>
           {editing&&isAdmin?<input type="number" value={g.currentFH??""} onChange={e=>set("landingGear."+gkey+".currentFH",e.target.value===""?null:+e.target.value)}/>
-          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.currentFH)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.currentFH!=null?fmtHHMM(g.currentFH):"Not entered"}</div>}
+          :<div style={{fontSize:14,fontWeight:isEmpty(g.currentFH)?500:700,color:isEmpty(g.currentFH)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.currentFH!=null?fmtHHMM(g.currentFH):"Not entered"}</div>}
         </div>
         <div><label className="form-label">Current CSN</label>
           {editing&&isAdmin?<input type="number" value={g.currentFC??""} onChange={e=>set("landingGear."+gkey+".currentFC",e.target.value===""?null:+e.target.value)}/>
-          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.currentFC)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.currentFC!=null?g.currentFC.toLocaleString():"Not entered"}</div>}
+          :<div style={{fontSize:14,fontWeight:isEmpty(g.currentFC)?500:700,color:isEmpty(g.currentFC)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.currentFC!=null?g.currentFC.toLocaleString():"Not entered"}</div>}
         </div>
       </div>
       {editing&&isAdmin&&<div style={{fontSize:9,color:"var(--color-graphite)",marginTop:3}}>When set, this always overrides the calculated figure above — no tolerance check.</div>}
@@ -922,28 +922,28 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
         <div className="grid2" style={{gap:8}}>
         {[["Manufacturer","mfr"],["P/N","pn"],["S/N","sn"]].map(([l,k])=>(
           <div key={k} style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
-            <div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
+            <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
             {editing&&isAdmin?<input value={ed[k]||""} onChange={e=>set("apu."+k,e.target.value)} style={{marginTop:3}}/>
-            :<div style={{fontSize:12,fontWeight:600,color:isEmpty(apu[k])?"var(--color-graphite)":"var(--color-carbon)",marginTop:3}}>{apu[k]||"—"}</div>}
+            :<div style={{fontSize:13,fontWeight:isEmpty(apu[k])?500:700,color:isEmpty(apu[k])?"var(--color-graphite)":"var(--color-carbon)",marginTop:3}}>{apu[k]||"—"}</div>}
           </div>
         ))}
         <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
-          <div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>TSN</div>
+          <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>TSN</div>
           <div style={{fontSize:14,fontWeight:700,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{fmtHHMM(apu.currentFH)}</div>
         </div>
         <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
-          <div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>CSN</div>
+          <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>CSN</div>
           <div style={{fontSize:14,fontWeight:700,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{(apu.currentFC||0).toLocaleString()}</div>
         </div>
         <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
-          <div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>Lowest LLP Limiter</div>
+          <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Lowest LLP Limiter</div>
           <div style={{fontSize:14,fontWeight:700,color:ll===null?"var(--color-graphite)":ll<1000?"var(--color-critical)":ll<3000?"var(--color-attention)":"var(--color-positive)",fontFamily:"var(--font-data)"}}>{ll!==null?ll.toLocaleString()+" FC":"No data"}</div>
         </div>
         </div>
       </div>
       <div className="card" style={{padding:16}}>
         <div className="flj" style={{marginBottom:8}}>
-          <div style={{fontSize:10,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>Life Limited Parts</div>
+          <div style={{fontSize:10,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Life Limited Parts</div>
           {isAdmin&&<div className="flab g8">{apu.llps?.length>0&&<button className="btn btn-danger" style={{fontSize:11,padding:"4px 10px"}} onClick={async()=>{if(!confirm("Delete all APU LLPs?"))return;await saveAsset({...asset,apu:{...apu,llps:[]}});notify("All APU LLPs deleted");}}>Clear All LLPs</button>}<button className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setAddLLP(true)}>+ Add LLP</button></div>}
         </div>
         <div style={{overflowX:"auto"}}>
@@ -970,11 +970,11 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
         )}
       </div>
       <div className="card" style={{padding:16}}>
-        <div className="flj" style={{fontSize:10,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:8,flexWrap:"wrap",gap:6}}>
+        <div className="flj" style={{fontSize:10,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:8,flexWrap:"wrap",gap:6}}>
           <div>Most Recent Shop Visit{apu.shopVisits?.length>1?` (${apu.shopVisits.length} on file)`:""}</div>
           {isAdmin&&<button className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setAddSV(true)}>+ Add Visit</button>}
         </div>
-        {(()=>{const svs=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});if(!svs.length)return null;const last=svs[svs.length-1];const sinceFH=apu.currentFH&&last.fh?apu.currentFH-last.fh:null;const sinceFC=apu.currentFC&&last.fc?apu.currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;return(<div style={{background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:6,padding:"10px 12px",marginBottom:10}}><div style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6}}>Since Last Shop Visit</div><div style={{display:"flex",flexDirection:"column",gap:6}}><div className="flj"><span style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>Days</span><span style={{fontSize:13,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceDays!==null?sinceDays.toLocaleString():"—"}</span></div><div className="flj"><span style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>FH</span><span style={{fontSize:13,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFH!==null?fmtHHMM(sinceFH):"—"}</span></div><div className="flj"><span style={{fontSize:9,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase"}}>FC</span><span style={{fontSize:13,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFC!==null?sinceFC.toLocaleString():"—"}</span></div></div></div>);})()}
+        {(()=>{const svs=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});if(!svs.length)return null;const last=svs[svs.length-1];const sinceFH=apu.currentFH&&last.fh?apu.currentFH-last.fh:null;const sinceFC=apu.currentFC&&last.fc?apu.currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;return(<div style={{background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:6,padding:"10px 12px",marginBottom:10}}><div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6}}>Since Last Shop Visit</div><div style={{display:"flex",flexDirection:"column",gap:6}}><div className="flj"><span style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Days</span><span style={{fontSize:13,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceDays!==null?sinceDays.toLocaleString():"—"}</span></div><div className="flj"><span style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>FH</span><span style={{fontSize:13,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFH!==null?fmtHHMM(sinceFH):"—"}</span></div><div className="flj"><span style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>FC</span><span style={{fontSize:13,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFC!==null?sinceFC.toLocaleString():"—"}</span></div></div></div>);})()}
         <div style={{overflowX:"auto"}}>
         <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th><th>Category</th>{isAdmin&&<th></th>}</tr></thead>
         <tbody>{(()=>{const svs=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});if(!svs.length)return<tr><td colSpan={isAdmin?7:6} style={{color:"var(--color-graphite)",fontStyle:"italic"}}>No shop visits recorded</td></tr>;const si=svs.length-1;const sv=svs[si];return editSVIdx===si?(

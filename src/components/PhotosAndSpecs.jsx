@@ -795,7 +795,7 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
       <div style={{flex:1}}>
         <label className="form-label">{label}</label>
         {editing&&isAdmin?<input type={type} defaultValue={val||""} onBlur={e=>set(path,e.target.value)} tabIndex={0} style={{opacity:isHidden?0.4:1}}/>
-        :<div style={{fontSize:13,fontWeight:500,color:isEmpty(val)?"var(--color-graphite)":"var(--color-carbon)"}}>{type==="date"?fmtDate(val):val||"Not entered"}</div>}
+        :<div style={{fontSize:14,fontWeight:isEmpty(val)?500:700,color:isEmpty(val)?"var(--color-graphite)":"var(--color-carbon)"}}>{type==="date"?fmtDate(val):val||"Not entered"}</div>}
       </div>
       {editing&&isAdmin&&<button onClick={()=>toggleHide(path)} title={isHidden?"Show in tech spec":"Hide from tech spec"} style={{marginTop:18,background:"none",border:"none",cursor:"pointer",fontSize:13,color:isHidden?"var(--color-graphite)":"var(--color-ochre)",padding:"2px 4px",flexShrink:0}}>{isHidden?"🚫":"👁"}</button>}
     </div>;
@@ -866,7 +866,7 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
         <div style={{fontSize:11,color:"var(--color-graphite)",marginBottom:10}}>Shown at the bottom of the generated tech spec document for this asset only. Leave blank to use the company-wide default set in Admin → Settings.</div>
         {editing&&isAdmin
           ?<textarea defaultValue={d.disclaimer||""} onBlur={e=>set("disclaimer",e.target.value)} rows={3} style={{width:"100%",fontFamily:"inherit",fontSize:13,resize:"vertical"}}/>
-          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(d.disclaimer)?"var(--color-graphite)":"var(--color-carbon)"}}>{d.disclaimer||"Not entered — company-wide default will be used"}</div>}
+          :<div style={{fontSize:14,fontWeight:isEmpty(d.disclaimer)?500:700,color:isEmpty(d.disclaimer)?"var(--color-graphite)":"var(--color-carbon)"}}>{d.disclaimer||"Not entered — company-wide default will be used"}</div>}
       </div>
       </div>
       <div className="card" style={{padding:18}}>
@@ -889,7 +889,7 @@ function SpecsTab({asset,isAdmin,saveAsset,notify}){
           })}
         </div>
         <div style={{marginTop:14}}>
-          <div style={{fontSize:10,fontWeight:500,letterSpacing:"1.5px",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:8}}>Custom Fields</div>
+          <div style={{fontSize:10,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:8}}>Custom Fields</div>
           {[0,1,2,3,4].map(idx=>{
             const cf=(d.specs?.custom||[])[idx]||{label:"",value:""};
             return<div key={idx} className="flab g8" style={{marginBottom:6}}>
