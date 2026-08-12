@@ -25,7 +25,7 @@ function CategorySelect({value,onChange,style}){
   );
 }
 function CategoryBadge({value}){
-  return value?<span style={{color:"#94a3b8"}}>{value}</span>:<span style={{color:"#475569",fontStyle:"italic"}}>Uncategorised</span>;
+  return value?<span style={{color:"var(--color-graphite)"}}>{value}</span>:<span style={{color:"var(--color-graphite)",fontStyle:"italic"}}>Uncategorised</span>;
 }
 
 function OverviewTab({asset,isAdmin,saveAsset,notify}){
@@ -49,7 +49,7 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
     const parts=path.split(".");const val=parts.reduce((o,k)=>o?.[k],d);
     return<div className="form-group"><label className="form-label">{label}</label>
       {editing&&isAdmin?<input type="text" placeholder={type==="mmyyyy"?"MM/YYYY":""} defaultValue={type==="mmyyyy"?fmtMMYYYY(val):val||""} onInput={type==="mmyyyy"?handleMMYYYYInput:undefined} onBlur={e=>set(path,e.target.value)} className={isEmpty(val)?"amber":""}/>
-      :<div style={{fontSize:13,fontWeight:500,color:isEmpty(val)?"#475569":"#e2e8f0",fontStyle:isEmpty(val)?"italic":"normal"}}>{type==="mmyyyy"?fmtMMYYYY(val):val||"Not entered"}</div>}
+      :<div style={{fontSize:13,fontWeight:500,color:isEmpty(val)?"var(--color-graphite)":"var(--color-carbon)",fontStyle:isEmpty(val)?"italic":"normal"}}>{type==="mmyyyy"?fmtMMYYYY(val):val||"Not entered"}</div>}
     </div>;
   };
   // Status calcs — grouped per-component (Engine #N / APU), each carrying its own limiter + TSN + CSN
@@ -89,20 +89,20 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
             <div className="form-group">
               <label className="form-label" style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
                 <span>{d.operatorLabel||"Current Operator"}</span>
-                {editing&&isAdmin&&<button type="button" onClick={()=>set("operatorLabel",d.operatorLabel==="Previous Operator"?"Current Operator":"Previous Operator")} style={{fontSize:9,fontWeight:700,padding:"1px 7px",borderRadius:3,border:"1px solid #C9A84C",background:"none",color:"#C9A84C",cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",flexShrink:0}}>{"→ "+(d.operatorLabel==="Previous Operator"?"Current":"Previous")}</button>}
+                {editing&&isAdmin&&<button type="button" onClick={()=>set("operatorLabel",d.operatorLabel==="Previous Operator"?"Current Operator":"Previous Operator")} style={{fontSize:9,fontWeight:700,padding:"1px 7px",borderRadius:3,border:"1px solid var(--color-divider)",background:"none",color:"var(--color-graphite)",cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",flexShrink:0}}>{"→ "+(d.operatorLabel==="Previous Operator"?"Current":"Previous")}</button>}
               </label>
-              {editing&&isAdmin?<input type="text" defaultValue={d.operator||""} onBlur={e=>set("operator",e.target.value)} className={isEmpty(d.operator)?"amber":""}/>:<div style={{fontSize:13,fontWeight:500,color:isEmpty(d.operator)?"#475569":"#e2e8f0",fontStyle:isEmpty(d.operator)?"italic":"normal"}}>{d.operator||"Not entered"}</div>}
+              {editing&&isAdmin?<input type="text" defaultValue={d.operator||""} onBlur={e=>set("operator",e.target.value)} className={isEmpty(d.operator)?"amber":""}/>:<div style={{fontSize:13,fontWeight:500,color:isEmpty(d.operator)?"var(--color-graphite)":"var(--color-carbon)",fontStyle:isEmpty(d.operator)?"italic":"normal"}}>{d.operator||"Not entered"}</div>}
             </div>
             <Field label="Model" path="model"/>
             <Field label="Manufacturer" path="manufacturer"/><Field label="Date of Manufacture (MM/YYYY)" path="dom" type="mmyyyy"/>
           </div>
-          <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid #1e3048"}}>
-            <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Current Airframe</div>
+          <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--color-divider-inner)"}}>
+            <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Current Airframe</div>
             <div className="grid2" style={{gap:8}}>
               {[["AIRFRAME TSN",fmtHHMM(af.currentFH)],["AIRFRAME CSN",af.currentFC?.toLocaleString()||"—"]].map(([l,v])=>(
-                <div key={l} style={{background:"#070f18",border:"1px solid #1B3A6B",borderRadius:8,padding:"12px 14px"}}>
-                  <div style={{fontSize:9,color:"#475569",fontWeight:700,letterSpacing:"0.08em"}}>{l}</div>
-                  <div style={{fontSize:20,fontWeight:700,color:"#C9A84C",fontFamily:"monospace",marginTop:4}}>{v}</div>
+                <div key={l} style={{background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:8,padding:"12px 14px"}}>
+                  <div style={{fontSize:9,color:"var(--color-graphite)",fontWeight:700,letterSpacing:"0.08em"}}>{l}</div>
+                  <div style={{fontSize:20,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)",marginTop:4}}>{v}</div>
                 </div>
               ))}
             </div>
@@ -111,67 +111,67 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
         <div className="card" style={{padding:18}}>
           <div className="section-title">Check History</div>
           {sortedChecks.map((c,i)=>(
-            <div key={i} style={{marginTop:i>0?14:0,paddingTop:i>0?14:0,borderTop:i>0?"1px solid #1e3048":"none"}}>
-              <div style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>{c.name}</div>
+            <div key={i} style={{marginTop:i>0?14:0,paddingTop:i>0?14:0,borderTop:i>0?"1px solid var(--color-divider-inner)":"none"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>{c.name}</div>
               <div className="flj" style={{padding:"3px 0"}}>
-                <span style={{fontSize:12,color:"#64748b"}}>TSN</span>
-                <span style={{fontSize:12,fontFamily:"monospace",color:isEmpty(c.lastFH)?"#475569":"#e2e8f0"}}>{c.lastFH?.toLocaleString()||"—"}</span>
+                <span style={{fontSize:12,color:"var(--color-graphite)"}}>TSN</span>
+                <span style={{fontSize:12,fontFamily:"var(--font-data)",color:isEmpty(c.lastFH)?"var(--color-divider)":"var(--color-carbon)"}}>{c.lastFH?.toLocaleString()||"—"}</span>
               </div>
               <div className="flj" style={{padding:"3px 0"}}>
-                <span style={{fontSize:12,color:"#64748b"}}>CSN</span>
-                <span style={{fontSize:12,fontFamily:"monospace",color:isEmpty(c.lastFC)?"#475569":"#e2e8f0"}}>{c.lastFC?.toLocaleString()||"—"}</span>
+                <span style={{fontSize:12,color:"var(--color-graphite)"}}>CSN</span>
+                <span style={{fontSize:12,fontFamily:"var(--font-data)",color:isEmpty(c.lastFC)?"var(--color-divider)":"var(--color-carbon)"}}>{c.lastFC?.toLocaleString()||"—"}</span>
               </div>
               <div className="flj" style={{padding:"3px 0"}}>
-                <span style={{fontSize:12,color:"#64748b"}}>Last</span>
-                <span style={{fontSize:12,color:isEmpty(c.lastDate)?"#475569":"#e2e8f0"}}>{fmtDate(c.lastDate)||"—"}</span>
+                <span style={{fontSize:12,color:"var(--color-graphite)"}}>Last</span>
+                <span style={{fontSize:12,color:isEmpty(c.lastDate)?"var(--color-divider)":"var(--color-carbon)"}}>{fmtDate(c.lastDate)||"—"}</span>
               </div>
               <div className="flj" style={{padding:"3px 0"}}>
-                <span style={{fontSize:12,color:"#64748b"}}>Next Due</span>
-                <span style={{fontSize:12,fontWeight:700,color:daysFromNow(c.nextDate)<365?"#fbbf24":"#34d399"}}>{fmtDate(c.nextDate)||"—"}</span>
+                <span style={{fontSize:12,color:"var(--color-graphite)"}}>Next Due</span>
+                <span style={{fontSize:12,fontWeight:700,color:daysFromNow(c.nextDate)<365?"var(--color-attention)":"var(--color-positive)"}}>{fmtDate(c.nextDate)||"—"}</span>
               </div>
             </div>
           ))}
-          {(asset.checks||[]).length===0&&<div style={{fontSize:12,color:"#475569",fontStyle:"italic"}}>No check history recorded</div>}
+          {(asset.checks||[]).length===0&&<div style={{fontSize:12,color:"var(--color-graphite)",fontStyle:"italic"}}>No check history recorded</div>}
         </div>
       </div>
       <div className="card" style={{padding:18}}>
         <div className="section-title">Status Summary</div>
         {componentBlocks.map(({label,idLabel,val,tsn,csn})=>{
-          const col=val===null?"#475569":val<1000?"#f87171":val<3000?"#fbbf24":"#34d399";
-          const bg=val===null?"transparent":val<1000?"#2a0e0e":val<3000?"#2a1f0a":"#0d2818";
+          const col=val===null?"var(--color-graphite)":val<1000?"var(--color-critical)":val<3000?"var(--color-attention)":"var(--color-positive)";
+          const bg=val===null?"transparent":val<1000?"var(--color-critical-tint)":val<3000?"var(--color-attention-tint)":"var(--color-positive-tint)";
           return(
-            <div key={label} style={{marginBottom:14,paddingBottom:14,borderBottom:"1px solid #1e3048"}}>
-              <div style={{fontSize:11,fontWeight:700,color:"#94a3b8",marginBottom:6}}>{label} · {idLabel}</div>
+            <div key={label} style={{marginBottom:14,paddingBottom:14,borderBottom:"1px solid var(--color-divider-inner)"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--color-graphite)",marginBottom:6}}>{label} · {idLabel}</div>
               <div className="flj" style={{padding:"3px 0"}}>
-                <span style={{fontSize:12,color:"#64748b"}}>Limiter</span>
+                <span style={{fontSize:12,color:"var(--color-graphite)"}}>Limiter</span>
                 <span className="pill" style={{background:bg,color:col,fontSize:11}}>{val!==null?`${val.toLocaleString()} FC`:"No data"}</span>
               </div>
               <div className="flj" style={{padding:"3px 0"}}>
-                <span style={{fontSize:12,color:"#64748b"}}>TSN</span>
-                <span style={{fontSize:12,fontFamily:"monospace",color:"#e2e8f0"}}>{fmtHHMM(tsn)}</span>
+                <span style={{fontSize:12,color:"var(--color-graphite)"}}>TSN</span>
+                <span style={{fontSize:12,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{fmtHHMM(tsn)}</span>
               </div>
               <div className="flj" style={{padding:"3px 0"}}>
-                <span style={{fontSize:12,color:"#64748b"}}>CSN</span>
-                <span style={{fontSize:12,fontFamily:"monospace",color:"#e2e8f0"}}>{csn!=null?csn.toLocaleString():"—"}</span>
+                <span style={{fontSize:12,color:"var(--color-graphite)"}}>CSN</span>
+                <span style={{fontSize:12,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{csn!=null?csn.toLocaleString():"—"}</span>
               </div>
             </div>
           );
         })}
-        {componentBlocks.length===0&&<div style={{fontSize:12,color:"#475569",fontStyle:"italic",marginBottom:14}}>No engine/APU data</div>}
+        {componentBlocks.length===0&&<div style={{fontSize:12,color:"var(--color-graphite)",fontStyle:"italic",marginBottom:14}}>No engine/APU data</div>}
         <div>
-          <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6}}>Landing Gear Overhauls</div>
+          <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6}}>Landing Gear Overhauls</div>
           {lgItems.map(([label,g])=>{
             const days=daysFromNow(g?.nextDue);
-            const col=days===null?"#475569":days<0?"#f87171":days<365?"#fbbf24":"#34d399";
-            const bg=days===null?"transparent":days<0?"#2a0e0e":days<365?"#2a1f0a":"#0a1a0a";
-            return<div key={label} className="flj" style={{padding:"5px 0",borderBottom:"1px solid #0f2030"}}>
-              <span style={{fontSize:12,color:"#94a3b8"}}>{label}</span>
+            const col=days===null?"var(--color-graphite)":days<0?"var(--color-critical)":days<365?"var(--color-attention)":"var(--color-positive)";
+            const bg=days===null?"transparent":days<0?"var(--color-critical-tint)":days<365?"var(--color-attention-tint)":"var(--color-positive-tint)";
+            return<div key={label} className="flj" style={{padding:"5px 0",borderBottom:"1px solid var(--color-divider-inner)"}}>
+              <span style={{fontSize:12,color:"var(--color-graphite)"}}>{label}</span>
               <span className="pill" style={{background:bg,color:col,fontSize:11}}>{g?.nextDue?`${fmtDate(g.nextDue)}${days!==null?` (${days<0?Math.abs(days)+"d overdue":days+"d"})`:""}`:"Not entered"}</span>
             </div>;
           })}
         </div>
-        <div style={{marginTop:10,paddingTop:8,borderTop:"1px solid #1e3048"}}>
-          <div className="flj"><span style={{fontSize:11,color:"#475569"}}>Last Report</span><span style={{fontSize:11,fontWeight:600,color:asset._lastPeriod?"#e2e8f0":"#f87171"}}>{asset._lastPeriod||"None"}</span></div>
+        <div style={{marginTop:10,paddingTop:8,borderTop:"1px solid var(--color-divider-inner)"}}>
+          <div className="flj"><span style={{fontSize:11,color:"var(--color-graphite)"}}>Last Report</span><span style={{fontSize:11,fontWeight:600,color:asset._lastPeriod?"var(--color-carbon)":"var(--color-critical)"}}>{asset._lastPeriod||"None"}</span></div>
         </div>
       </div>
     </div>
@@ -245,7 +245,7 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
   return(
     <div>
       <div className="flj" style={{marginBottom:8}}>
-        <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em"}}>Shop Visit History</div>
+        <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",letterSpacing:"0.05em"}}>Shop Visit History</div>
         <div className="flab g8">
           <label style={{cursor:uploading?"default":"pointer"}}>
             <input type="file" accept="application/pdf" style={{display:"none"}} disabled={uploading} onChange={e=>{handleUpload(e.target.files?.[0]);e.target.value="";}}/>
@@ -255,7 +255,7 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
         </div>
       </div>
 
-      {(()=>{if(!svs.length)return null;const last=svs[svs.length-1];const sinceFH=eng.currentFH&&last.fh?eng.currentFH-last.fh:null;const sinceFC=eng.currentFC&&last.fc?eng.currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;return(<div style={{background:"#0a1a2a",border:"1px solid #1B3A6B",borderRadius:6,padding:"10px 12px",marginBottom:10}}><div style={{fontSize:9,color:"#C9A84C",fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Since Last Shop Visit</div><div className="grid3" style={{gap:8}}><div><div style={{fontSize:9,color:"#475569"}}>Days</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceDays!==null?sinceDays.toLocaleString():"—"}</div></div><div><div style={{fontSize:9,color:"#475569"}}>FH</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceFH!==null?fmtHHMM(sinceFH):"—"}</div></div><div><div style={{fontSize:9,color:"#475569"}}>FC</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceFC!==null?sinceFC.toLocaleString():"—"}</div></div></div></div>);})()}
+      {(()=>{if(!svs.length)return null;const last=svs[svs.length-1];const sinceFH=eng.currentFH&&last.fh?eng.currentFH-last.fh:null;const sinceFC=eng.currentFC&&last.fc?eng.currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;return(<div style={{background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:6,padding:"10px 12px",marginBottom:10}}><div style={{fontSize:9,color:"var(--color-graphite)",fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Since Last Shop Visit</div><div className="grid3" style={{gap:8}}><div><div style={{fontSize:9,color:"var(--color-graphite)"}}>Days</div><div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceDays!==null?sinceDays.toLocaleString():"—"}</div></div><div><div style={{fontSize:9,color:"var(--color-graphite)"}}>FH</div><div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFH!==null?fmtHHMM(sinceFH):"—"}</div></div><div><div style={{fontSize:9,color:"var(--color-graphite)"}}>FC</div><div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFC!==null?sinceFC.toLocaleString():"—"}</div></div></div></div>);})()}
 
       <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th><th>Category</th>{isAdmin&&<th></th>}</tr></thead>
       <tbody>{svs.length?svs.map((sv,si)=>{
@@ -275,17 +275,17 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
         return(
           <tr key={sv.id||si}>
             <td style={{fontWeight:500}}>{sv.details}</td><td>{fmtDate(sv.date)}</td>
-            <td style={{fontFamily:"monospace"}}>{sv.fh!=null?fmtHHMM(sv.fh):"—"}</td>
-            <td style={{fontFamily:"monospace"}}>{sv.fc!=null?sv.fc.toLocaleString():"—"}</td>
-            <td style={{color:"#94a3b8"}}>{sv.mro||"—"}</td>
+            <td style={{fontFamily:"var(--font-data)"}}>{sv.fh!=null?fmtHHMM(sv.fh):"—"}</td>
+            <td style={{fontFamily:"var(--font-data)"}}>{sv.fc!=null?sv.fc.toLocaleString():"—"}</td>
+            <td style={{color:"var(--color-graphite)"}}>{sv.mro||"—"}</td>
             <td><CategoryBadge value={sv.reasonCategory}/></td>
             {isAdmin&&<td><div className="flab g8"><button className="btn btn-ghost" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>{setEditIdx(si);setEditForm({...sv,fh:sv.fh!=null?fmtHHMM(sv.fh):"",fc:sv.fc!=null?sv.fc:""});}}>Edit</button><button className="btn-danger btn" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>delSV(si)}>✕</button></div></td>}
           </tr>
         );
-      }):<tr><td colSpan={isAdmin?7:6} style={{color:"#475569",fontStyle:"italic"}}>No shop visits recorded</td></tr>}</tbody></table>
+      }):<tr><td colSpan={isAdmin?7:6} style={{color:"var(--color-graphite)",fontStyle:"italic"}}>No shop visits recorded</td></tr>}</tbody></table>
 
       {adding&&(
-        <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #1e3048"}}>
+        <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:12,marginTop:8,border:"1px solid var(--color-divider)"}}>
           <div className="grid3" style={{gap:6,marginBottom:8}}>
             <div style={{gridColumn:"1/-1"}}><label className="form-label">Details / Description</label><input value={newSV.details} onChange={e=>setNewSV({...newSV,details:e.target.value})}/></div>
             {[["Date","date","date"],["TSN (HH:MM)","fh","text"],["CSN","fc","number"],["MRO Facility","mro","text"]].map(([l,k,t])=>(
@@ -298,8 +298,8 @@ function ShopVisitEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
       )}
 
       {reviewRows&&(
-        <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #C9A84C"}}>
-          <div style={{fontSize:11,color:"#C9A84C",fontWeight:700,marginBottom:8}}>Review extracted shop visits before saving — {reviewRows.length} event{reviewRows.length===1?"":"s"} found</div>
+        <div style={{background:"var(--color-technical-grey)",borderRadius:"0 6px 6px 0",padding:12,marginTop:8,borderLeft:"3px solid var(--color-ochre)"}}>
+          <div style={{fontSize:11,color:"var(--color-graphite)",fontWeight:700,marginBottom:8}}>Review extracted shop visits before saving — {reviewRows.length} event{reviewRows.length===1?"":"s"} found</div>
           <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th><th>Category</th></tr></thead>
           <tbody>{reviewRows.map((r,i)=>(
             <tr key={i}>
@@ -414,7 +414,7 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
   return(
     <div>
       <div className="flj" style={{marginBottom:8}}>
-        <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em"}}>Operator History</div>
+        <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",letterSpacing:"0.05em"}}>Operator History</div>
         {isAdmin&&<div className="flab g8">
           <label style={{cursor:uploading?"default":"pointer"}}>
             <input type="file" accept="application/pdf" style={{display:"none"}} disabled={uploading} onChange={e=>{handleUpload(e.target.files?.[0]);e.target.value="";}}/>
@@ -442,22 +442,22 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
             </tr>
           );
           return(
-            <tr key={r.id||i} style={r._gapFlag?{background:"#1a1306"}:undefined}>
+            <tr key={r.id||i} style={r._gapFlag?{background:"var(--color-attention-tint)"}:undefined}>
               <td style={{fontWeight:500}}>{r.operator||"—"}</td>
-              <td style={{fontFamily:"monospace"}}>{r.aircraft||"—"}</td>
+              <td style={{fontFamily:"var(--font-data)"}}>{r.aircraft||"—"}</td>
               <td>{fmtDate(r.installDate)}</td>
-              <td>{r.removalDate?fmtDate(r.removalDate):(r===mostRecentRow?<span style={{color:"#94a3b8"}}>No removal recorded{r.asOfDate?` (as of ${fmtDate(r.asOfDate)})`:""}</span>:<span style={{color:"#64748b",fontStyle:"italic"}}>Unknown</span>)}</td>
-              <td style={{fontFamily:"monospace"}}>{r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—"}</td>
-              <td style={{fontFamily:"monospace"}}>{r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—"}</td>
-              <td style={{color:"#94a3b8"}}>{r.reason||"—"}{r._gapFlag&&<span title="TSN/CSN doesn't line up with the previous stint — check this row" style={{color:"#fbbf24",marginLeft:6}}>⚠</span>}</td>
+              <td>{r.removalDate?fmtDate(r.removalDate):(r===mostRecentRow?<span style={{color:"var(--color-graphite)"}}>No removal recorded{r.asOfDate?` (as of ${fmtDate(r.asOfDate)})`:""}</span>:<span style={{color:"var(--color-graphite)",fontStyle:"italic"}}>Unknown</span>)}</td>
+              <td style={{fontFamily:"var(--font-data)"}}>{r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—"}</td>
+              <td style={{fontFamily:"var(--font-data)"}}>{r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—"}</td>
+              <td style={{color:"var(--color-graphite)"}}>{r.reason||"—"}{r._gapFlag&&<span title="TSN/CSN doesn't line up with the previous stint — check this row" style={{color:"var(--color-attention)",marginLeft:6}}>⚠</span>}</td>
               {isAdmin&&<td><div className="flab g8"><button className="btn btn-ghost" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>{setEditIdx(i);setEditForm({...r});}}>Edit</button><button className="btn-danger btn" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>deleteRow(i)}>✕</button></div></td>}
             </tr>
           );
         })}</tbody></table>
-      ):<div style={{color:"#475569",fontSize:12,fontStyle:"italic",padding:"6px 0"}}>No operator history recorded yet.</div>}
+      ):<div style={{color:"var(--color-graphite)",fontSize:12,fontStyle:"italic",padding:"6px 0"}}>No operator history recorded yet.</div>}
 
       {manualAdd&&(
-        <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #1e3048"}}>
+        <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:12,marginTop:8,border:"1px solid var(--color-divider)"}}>
           <div className="grid3" style={{gap:6,marginBottom:8}}>
             {[["Operator","operator","text"],["Aircraft","aircraft","text"],["Install Date","installDate","date"],["Removal Date (blank if not yet removed)","removalDate","date"],["TSN at Removal","tsnAtRemoval","number"],["CSN at Removal","csnAtRemoval","number"],["Reason","reason","text"]].map(([l,k,t])=>(
               <div key={k}><label className="form-label">{l}</label><input type={t} value={newRow[k]} onChange={e=>setNewRow({...newRow,[k]:e.target.value})}/></div>
@@ -468,8 +468,8 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
       )}
 
       {reviewRows&&(
-        <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #C9A84C"}}>
-          <div style={{fontSize:11,color:"#C9A84C",fontWeight:700,marginBottom:8}}>Review extracted rows before saving — {reviewRows.length} stint{reviewRows.length===1?"":"s"} found</div>
+        <div style={{background:"var(--color-technical-grey)",borderRadius:"0 6px 6px 0",padding:12,marginTop:8,borderLeft:"3px solid var(--color-ochre)"}}>
+          <div style={{fontSize:11,color:"var(--color-graphite)",fontWeight:700,marginBottom:8}}>Review extracted rows before saving — {reviewRows.length} stint{reviewRows.length===1?"":"s"} found</div>
           <table><thead><tr><th>Operator</th><th>Aircraft</th><th>Installed</th><th>Removed</th><th>TSN</th><th>CSN</th><th>Reason</th></tr></thead>
           <tbody>{reviewRows.map((r,i)=>(
             <tr key={i}>
@@ -519,7 +519,7 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
             <div className="flj" style={{marginBottom:14}}>
               <div className="flab" style={{gap:10}}>
                 <div className="section-title" style={{margin:0}}>Engine #{eng.position||ei+1} — ESN {eng.sn||"TBD"}</div>
-                {eng.atShop&&<span style={{fontSize:11,color:"#f87171"}}>🔧 At shop</span>}
+                {eng.atShop&&<span style={{fontSize:11,color:"var(--color-critical)"}}>🔧 At shop</span>}
               </div>
               <div className="flab g8">
                 <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>setShareIdx(ei)}>🔗 Share</button>
@@ -538,34 +538,34 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
             </div>
             <div className="grid4" style={{marginBottom:14}}>
               {[["S/N","sn"],["Type","type"],["Thrust","thrust"],["Status","status"]].map(([l,k])=>(
-                <div key={k} style={{background:"#0d1925",borderRadius:6,padding:"8px 10px"}}>
-                  <div style={{fontSize:9,color:"#475569"}}>{l}</div>
+                <div key={k} style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
+                  <div style={{fontSize:9,color:"var(--color-graphite)"}}>{l}</div>
                   {isEditing&&isAdmin?<input value={ed[k]||""} onChange={e=>setForm({...form,[k]:e.target.value})} style={{marginTop:3}}/>
-                  :<div style={{fontSize:12,fontWeight:600,color:isEmpty(eng[k])?"#475569":"#e2e8f0",marginTop:3}}>{eng[k]||"—"}</div>}
+                  :<div style={{fontSize:12,fontWeight:600,color:isEmpty(eng[k])?"var(--color-graphite)":"var(--color-carbon)",marginTop:3}}>{eng[k]||"—"}</div>}
                 </div>
               ))}
 
             </div>
             <div className="grid4" style={{marginBottom:14}}>
               {[["TSN",fmtHHMM(eng.currentFH)],["CSN",(eng.currentFC||0).toLocaleString()],["FH/FC",eng.currentFH&&eng.currentFC?(eng.currentFH/eng.currentFC).toFixed(2):"—"],["Lowest LLP",ll!==null?`${ll.toLocaleString()} FC`:"No data"]].map(([l,v])=>(
-                <div key={l} style={{background:"#0d1925",borderRadius:6,padding:"8px 10px"}}>
-                  <div style={{fontSize:9,color:"#475569"}}>{l}</div>
-                  <div style={{fontSize:14,fontWeight:700,fontFamily:"monospace",color:l==="Lowest LLP"?(ll===null?"#475569":ll<1000?"#f87171":ll<3000?"#fbbf24":"#34d399"):"#C9A84C"}}>{v}</div>
+                <div key={l} style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
+                  <div style={{fontSize:9,color:"var(--color-graphite)"}}>{l}</div>
+                  <div style={{fontSize:14,fontWeight:700,fontFamily:"var(--font-data)",color:l==="Lowest LLP"?(ll===null?"var(--color-graphite)":ll<1000?"var(--color-critical)":ll<3000?"var(--color-attention)":"var(--color-positive)"):"var(--color-carbon)"}}>{v}</div>
                 </div>
               ))}
             </div>
             {eng.atShop&&eng.titleEngine&&(
-              <div style={{background:"#1a1306",border:"1px solid #92660a",borderRadius:6,padding:"10px 12px",marginBottom:16}}>
-                <div style={{fontSize:10,fontWeight:700,color:"#fbbf24",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>🔧 Title Engine — Removed {fmtDate(eng.titleEngine.removedDate)}</div>
+              <div style={{background:"var(--color-attention-tint)",border:"1px solid var(--color-attention)",borderRadius:6,padding:"10px 12px",marginBottom:16}}>
+                <div style={{fontSize:10,fontWeight:700,color:"var(--color-attention)",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>🔧 Title Engine — Removed {fmtDate(eng.titleEngine.removedDate)}</div>
                 <div className="grid4" style={{gap:8}}>
                   {[["S/N",eng.titleEngine.sn],["Type",eng.titleEngine.type||"—"],["TSN at Removal",fmtHHMM(eng.titleEngine.currentFH)],["CSN at Removal",(eng.titleEngine.currentFC||0).toLocaleString()]].map(([l,v])=>(
-                    <div key={l} style={{background:"#0d1925",borderRadius:6,padding:"6px 8px"}}>
-                      <div style={{fontSize:9,color:"#475569"}}>{l}</div>
-                      <div style={{fontSize:12,fontWeight:600,color:"#e2e8f0"}}>{v}</div>
+                    <div key={l} style={{background:"var(--color-soft-white)",borderRadius:6,padding:"6px 8px"}}>
+                      <div style={{fontSize:9,color:"var(--color-graphite)"}}>{l}</div>
+                      <div style={{fontSize:12,fontWeight:600,color:"var(--color-carbon)"}}>{v}</div>
                     </div>
                   ))}
                 </div>
-                {eng.titleEngine.reason&&<div style={{fontSize:11,color:"#94a3b8",marginTop:8}}>Reason: {eng.titleEngine.reason}</div>}
+                {eng.titleEngine.reason&&<div style={{fontSize:11,color:"var(--color-graphite)",marginTop:8}}>Reason: {eng.titleEngine.reason}</div>}
                 {isAdmin&&<div className="flab g8" style={{marginTop:10}}>
                   <button className="btn btn-gold" style={{fontSize:11,padding:"4px 10px"}} onClick={async()=>{
                     const engines=JSON.parse(JSON.stringify(asset.engines));
@@ -583,27 +583,27 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
             )}
             <div style={{marginBottom:16}}>
               <div className="flj" style={{marginBottom:8}}>
-                <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em"}}>Life Limited Parts</div>
+                <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",letterSpacing:"0.05em"}}>Life Limited Parts</div>
                 {isAdmin&&<div className="flab g8">
   {eng.llps?.length>0&&<button className="btn btn-danger" style={{fontSize:11,padding:"4px 10px"}} onClick={async()=>{if(!confirm("Delete all LLPs for this engine?"))return;const engines=JSON.parse(JSON.stringify(asset.engines||[]));engines[ei].llps=[];await patchEngines(engines);notify("All LLPs deleted");}}>Clear All LLPs</button>}
   <button className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setAddLLPIdx(ei)}>+ Add LLP</button>
 </div>}
               </div>
               {ed.llps?.length?(
-                <table><thead><tr><th>Descriptor</th><th>P/N</th><th>S/N</th><th>FC Remaining{isEditing&&<span style={{fontSize:9,color:"#64748b",fontWeight:400,marginLeft:4}}>(editable)</span>}</th><th></th></tr></thead>
+                <table><thead><tr><th>Descriptor</th><th>P/N</th><th>S/N</th><th>FC Remaining{isEditing&&<span style={{fontSize:9,color:"var(--color-graphite)",fontWeight:400,marginLeft:4}}>(editable)</span>}</th><th></th></tr></thead>
                 <tbody>{ed.llps.map((llp,li)=>{const rem=calcLLPRem(llp,ed.currentFC);return(
-                  <tr key={li} style={{background:rem<1000?"#1a0a0a":rem<3000?"#1a150a":"transparent"}}>
-                    <td style={{fontWeight:500}}>{llp.desc}</td><td style={{fontFamily:"monospace",fontSize:11}}>{llp.pn}</td><td style={{fontFamily:"monospace",fontSize:11}}>{llp.sn}</td>
+                  <tr key={li} style={{background:rem<1000?"var(--color-critical-tint)":rem<3000?"var(--color-attention-tint)":"transparent"}}>
+                    <td style={{fontWeight:500}}>{llp.desc}</td><td style={{fontFamily:"var(--font-data)",fontSize:11}}>{llp.pn}</td><td style={{fontFamily:"var(--font-data)",fontSize:11}}>{llp.sn}</td>
                     <td>{isEditing&&isAdmin
                       ?<input type="number" defaultValue={rem} style={{width:90,padding:"3px 6px",fontSize:12}} onBlur={e=>{const newRem=+e.target.value;const curFC=ed.currentFC||0;const newStart=newRem+(curFC-llp.refFC);const updLLPs=JSON.parse(JSON.stringify(form.llps));updLLPs[li].startFCRem=newStart;setForm({...form,llps:updLLPs});}}/>
-                      :<span style={{fontWeight:700,color:rem<1000?"#f87171":rem<3000?"#fbbf24":"#34d399"}}>{rem.toLocaleString()}</span>
+                      :<span style={{fontWeight:700,color:rem<1000?"var(--color-critical)":rem<3000?"var(--color-attention)":"var(--color-positive)"}}>{rem.toLocaleString()}</span>
                     }</td>
                     {isAdmin&&<td><button className="btn-danger btn" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>delLLP(ei,li)}>✕</button></td>}
                   </tr>
                 );})}</tbody></table>
-              ):<div style={{color:"#475569",fontSize:12,fontStyle:"italic",padding:"6px 0"}}>No LLP data entered yet.</div>}
+              ):<div style={{color:"var(--color-graphite)",fontSize:12,fontStyle:"italic",padding:"6px 0"}}>No LLP data entered yet.</div>}
               {addLLPIdx===ei&&(
-                <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #1e3048"}}>
+                <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:12,marginTop:8,border:"1px solid var(--color-divider)"}}>
                   <div className="grid3" style={{gap:6,marginBottom:8}}>
                     {[["Descriptor","desc","text"],["P/N","pn","text"],["S/N","sn","text"],["Starting FC Rem","startFCRem","number"],["Reference FC","refFC","number"],["Approved Life","approvedLife","number"]].map(([l,k,t])=>(
                       <div key={k}><label className="form-label">{l}</label><input type={t} value={newLLP[k]} onChange={e=>setNewLLP({...newLLP,[k]:e.target.value})}/></div>
@@ -613,10 +613,10 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
                 </div>
               )}
             </div>
-            <div style={{marginTop:20,paddingTop:20,borderTop:"1px solid #1B3A6B"}}>
+            <div style={{marginTop:20,paddingTop:20,borderTop:"1px solid var(--color-divider)"}}>
               <ShopVisitEditor eng={eng} engIdx={ei} asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>
             </div>
-            <div style={{marginTop:20,paddingTop:20,borderTop:"1px solid #1B3A6B"}}>
+            <div style={{marginTop:20,paddingTop:20,borderTop:"1px solid var(--color-divider)"}}>
               <OperatorHistoryEditor eng={eng} engIdx={ei} asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>
             </div>
           </div>
@@ -719,8 +719,8 @@ function GearCard({title,gkey,asset,form,editing,isAdmin,set,setForm,af}){
   const sevRank={critical:0,warn:1,ok:2};
   const bothStatus=[calStatus,cycStatus].filter(Boolean);
   const overallStatus=bothStatus.length?bothStatus.sort((a,b)=>sevRank[a]-sevRank[b])[0]:null;
-  const statusColor={critical:"#f87171",warn:"#fbbf24",ok:"#34d399"};
-  const statusBg={critical:"#2a0e0e",warn:"#2a1f0a",ok:"#0a1520"};
+  const statusColor={critical:"var(--color-critical)",warn:"var(--color-attention)",ok:"var(--color-positive)"};
+  const statusBg={critical:"var(--color-critical-tint)",warn:"var(--color-attention-tint)",ok:"var(--color-positive-tint)"};
 
   return(
     <div className="card" style={{padding:18}}>
@@ -729,14 +729,14 @@ function GearCard({title,gkey,asset,form,editing,isAdmin,set,setForm,af}){
         <div key={k} className="form-group">
           <label className="form-label">{l}</label>
           {editing&&isAdmin?<input value={g[k]||""} onChange={e=>set("landingGear."+gkey+"."+k,e.target.value)}/>
-          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g[k])?"#475569":"#e2e8f0"}}>{g[k]||"Not entered"}</div>}
+          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g[k])?"var(--color-graphite)":"var(--color-carbon)"}}>{g[k]||"Not entered"}</div>}
         </div>
       ))}
 
       {editing&&isAdmin&&(
       <>
-      <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6,marginTop:4}}>Reference Reading</div>
-      <div style={{fontSize:10,color:"#64748b",marginBottom:6,fontStyle:"italic"}}>Any matched leg + airframe reading taken at the same moment — doesn't need to be from an overhaul. Used only to calculate current totals below.</div>
+      <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6,marginTop:4}}>Reference Reading</div>
+      <div style={{fontSize:10,color:"var(--color-graphite)",marginBottom:6,fontStyle:"italic"}}>Any matched leg + airframe reading taken at the same moment — doesn't need to be from an overhaul. Used only to calculate current totals below.</div>
       <div className="grid2" style={{gap:6,marginBottom:10}}>
         <div><label className="form-label">Leg TSN at Reference</label>
           <input type="number" value={g.refLegFH??""} onChange={e=>set("landingGear."+gkey+".refLegFH",e.target.value===""?null:+e.target.value)}/>
@@ -754,78 +754,78 @@ function GearCard({title,gkey,asset,form,editing,isAdmin,set,setForm,af}){
       </>
       )}
 
-      <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6}}>Last Overhaul Record</div>
-      {editing&&isAdmin&&<div style={{fontSize:10,color:"#64748b",marginBottom:6,fontStyle:"italic"}}>The actual overhaul — drives Next Overhaul Due below. Must be the genuine overhaul event, not just any reading.</div>}
+      <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6}}>Last Overhaul Record</div>
+      {editing&&isAdmin&&<div style={{fontSize:10,color:"var(--color-graphite)",marginBottom:6,fontStyle:"italic"}}>The actual overhaul — drives Next Overhaul Due below. Must be the genuine overhaul event, not just any reading.</div>}
       <div className="grid2" style={{gap:6,marginBottom:6}}>
         <div><label className="form-label">Date (DDMMYYYY)</label>
           {editing&&isAdmin
             ?<input type="text" placeholder="DDMMYYYY" value={lastDateVal} onChange={e=>handleLastDateChange(e.target.value)} onBlur={e=>handleLastDateBlur(e.target.value)}/>
-            :<div style={{fontSize:13,fontWeight:500,color:isEmpty(activeDateStr)?"#475569":"#e2e8f0"}}>{activeDateStr||"Not entered"}</div>}
+            :<div style={{fontSize:13,fontWeight:500,color:isEmpty(activeDateStr)?"var(--color-graphite)":"var(--color-carbon)"}}>{activeDateStr||"Not entered"}</div>}
         </div>
         <div/>
         <div><label className="form-label">Leg TSN at Overhaul</label>
           {editing&&isAdmin?<input type="number" value={g.lastOverhaulFH??""} onChange={e=>set("landingGear."+gkey+".lastOverhaulFH",e.target.value===""?null:+e.target.value)}/>
-          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.lastOverhaulFH)?"#475569":"#e2e8f0"}}>{g.lastOverhaulFH!=null?fmtHHMM(g.lastOverhaulFH):"Not entered"}</div>}
+          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.lastOverhaulFH)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.lastOverhaulFH!=null?fmtHHMM(g.lastOverhaulFH):"Not entered"}</div>}
         </div>
         <div><label className="form-label">Leg CSN at Overhaul</label>
           {editing&&isAdmin?<input type="number" value={g.lastOverhaulFC??""} onChange={e=>set("landingGear."+gkey+".lastOverhaulFC",e.target.value===""?null:+e.target.value)}/>
-          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.lastOverhaulFC)?"#475569":"#e2e8f0"}}>{g.lastOverhaulFC!=null?g.lastOverhaulFC.toLocaleString():"Not entered"}</div>}
+          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.lastOverhaulFC)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.lastOverhaulFC!=null?g.lastOverhaulFC.toLocaleString():"Not entered"}</div>}
         </div>
       </div>
 
-      <div style={{background:overallStatus?statusBg[overallStatus]:"#0a1520",borderRadius:6,padding:"8px 10px",marginBottom:10}}>
-        <div style={{fontSize:9,color:"#475569",textTransform:"uppercase",marginBottom:4,textAlign:"center"}}>Next Overhaul Due — Lowest Wins</div>
+      <div style={{background:overallStatus?statusBg[overallStatus]:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px",marginBottom:10}}>
+        <div style={{fontSize:9,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:4,textAlign:"center"}}>Next Overhaul Due — Lowest Wins</div>
         <div className="grid2" style={{gap:6}}>
           <div style={{textAlign:"center"}}>
-            <div style={{fontSize:9,color:"#475569"}}>Calendar ({editing&&isAdmin?<input type="number" value={intervalYears} onChange={e=>handleIntervalYearsBlur(e.target.value)} style={{width:32,fontSize:9,padding:"1px 2px"}}/>:intervalYears}yr)</div>
+            <div style={{fontSize:9,color:"var(--color-graphite)"}}>Calendar ({editing&&isAdmin?<input type="number" value={intervalYears} onChange={e=>handleIntervalYearsBlur(e.target.value)} style={{width:32,fontSize:9,padding:"1px 2px"}}/>:intervalYears}yr)</div>
             {editing&&isAdmin
               ?<input type="text" placeholder="DDMMYYYY" value={nextDueVal} onChange={e=>handleNextDueChange(e.target.value)} onBlur={e=>handleNextDueBlur(e.target.value)} style={{textAlign:"center",fontWeight:700,fontSize:13,width:"100%"}}/>
-              :<div style={{fontSize:13,fontWeight:700,color:calStatus?statusColor[calStatus]:"#475569"}}>{activeNextDue||"Not entered"}</div>}
-            {calDays!==null&&<div style={{fontSize:9,color:"#64748b"}}>{calDays<0?Math.abs(calDays)+"d overdue":calDays+"d remaining"}</div>}
+              :<div style={{fontSize:13,fontWeight:700,color:calStatus?statusColor[calStatus]:"var(--color-graphite)"}}>{activeNextDue||"Not entered"}</div>}
+            {calDays!==null&&<div style={{fontSize:9,color:"var(--color-graphite)"}}>{calDays<0?Math.abs(calDays)+"d overdue":calDays+"d remaining"}</div>}
           </div>
           <div style={{textAlign:"center"}}>
-            <div style={{fontSize:9,color:"#475569"}}>Cycles ({editing&&isAdmin?<input type="number" value={intervalCycles} onChange={e=>set("landingGear."+gkey+".overhaulIntervalCycles",e.target.value===""?20000:+e.target.value)} style={{width:48,fontSize:9,padding:"1px 2px"}}/>:intervalCycles.toLocaleString()})</div>
-            <div style={{fontSize:13,fontWeight:700,color:cycStatus?statusColor[cycStatus]:"#475569"}}>{cyclesRemaining!==null?Math.round(cyclesRemaining).toLocaleString():"No data"}</div>
-            {cyclesRemaining!==null&&<div style={{fontSize:9,color:"#64748b"}}>cycles remaining</div>}
+            <div style={{fontSize:9,color:"var(--color-graphite)"}}>Cycles ({editing&&isAdmin?<input type="number" value={intervalCycles} onChange={e=>set("landingGear."+gkey+".overhaulIntervalCycles",e.target.value===""?20000:+e.target.value)} style={{width:48,fontSize:9,padding:"1px 2px"}}/>:intervalCycles.toLocaleString()})</div>
+            <div style={{fontSize:13,fontWeight:700,color:cycStatus?statusColor[cycStatus]:"var(--color-graphite)"}}>{cyclesRemaining!==null?Math.round(cyclesRemaining).toLocaleString():"No data"}</div>
+            {cyclesRemaining!==null&&<div style={{fontSize:9,color:"var(--color-graphite)"}}>cycles remaining</div>}
           </div>
         </div>
       </div>
 
-      {(sinceFH!=null||sinceFC!=null||activeDateStr)&&<div style={{background:"#0d1925",borderRadius:6,padding:"8px 10px",marginBottom:10}}>
-        <div style={{fontSize:9,color:"#475569",textTransform:"uppercase",marginBottom:4}}>Since Last Overhaul</div>
+      {(sinceFH!=null||sinceFC!=null||activeDateStr)&&<div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px",marginBottom:10}}>
+        <div style={{fontSize:9,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:4}}>Since Last Overhaul</div>
         <div className="grid3" style={{gap:4}}>
-          <div><div style={{fontSize:9,color:"#475569"}}>Days</div><div style={{fontSize:12,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{daysSince!==null?daysSince.toLocaleString():"—"}</div></div>
-          <div><div style={{fontSize:9,color:"#475569"}}>FH</div><div style={{fontSize:12,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceFH!=null?fmtHHMM(sinceFH):"—"}</div></div>
-          <div><div style={{fontSize:9,color:"#475569"}}>FC</div><div style={{fontSize:12,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceFC!=null?Math.round(sinceFC).toLocaleString():"—"}</div></div>
+          <div><div style={{fontSize:9,color:"var(--color-graphite)"}}>Days</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{daysSince!==null?daysSince.toLocaleString():"—"}</div></div>
+          <div><div style={{fontSize:9,color:"var(--color-graphite)"}}>FH</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFH!=null?fmtHHMM(sinceFH):"—"}</div></div>
+          <div><div style={{fontSize:9,color:"var(--color-graphite)"}}>FC</div><div style={{fontSize:12,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFC!=null?Math.round(sinceFC).toLocaleString():"—"}</div></div>
         </div>
       </div>}
 
-      <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6}}>Current Totals (Since New){current&&<span style={{marginLeft:6,fontSize:9,fontWeight:600,color:current.source==="Ground Truth"?"#34d399":"#60a5fa",textTransform:"none"}}>{current.source}</span>}</div>
+      <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6}}>Current Totals (Since New){current&&<span style={{marginLeft:6,fontSize:9,fontWeight:600,color:current.source==="Ground Truth"?"var(--color-positive)":"var(--color-teal)",textTransform:"none"}}>{current.source}</span>}</div>
       {current?(
         <div className="grid2" style={{gap:8}}>
           {[["TSN",current.fh!=null?fmtHHMM(current.fh):"—"],["CSN",current.fc!=null?Math.round(current.fc).toLocaleString():"—"]].map(([l,v])=>(
-            <div key={l} style={{background:"#070f18",border:"1px solid #1B3A6B",borderRadius:8,padding:"12px 14px"}}>
-              <div style={{fontSize:9,color:"#475569",fontWeight:700,letterSpacing:"0.08em"}}>{l}</div>
-              <div style={{fontSize:20,fontWeight:700,color:"#C9A84C",fontFamily:"monospace",marginTop:4}}>{v}</div>
+            <div key={l} style={{background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:8,padding:"12px 14px"}}>
+              <div style={{fontSize:9,color:"var(--color-graphite)",fontWeight:700,letterSpacing:"0.08em"}}>{l}</div>
+              <div style={{fontSize:20,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)",marginTop:4}}>{v}</div>
             </div>
           ))}
         </div>
       ):(
-        <div style={{fontSize:11,color:"#475569",fontStyle:"italic"}}>Not entered — enter a Reference Reading (leg + airframe TSN/CSN at the same moment) above to start tracking.</div>
+        <div style={{fontSize:11,color:"var(--color-graphite)",fontStyle:"italic"}}>Not entered — enter a Reference Reading (leg + airframe TSN/CSN at the same moment) above to start tracking.</div>
       )}
 
-      <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",marginBottom:6,marginTop:12}}>Ground Truth Override <span style={{fontWeight:400,fontSize:9,textTransform:"none"}}>(optional — from Gear Status Report)</span></div>
+      <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:6,marginTop:12}}>Ground Truth Override <span style={{fontWeight:400,fontSize:9,textTransform:"none"}}>(optional — from Gear Status Report)</span></div>
       <div className="grid2" style={{gap:6}}>
         <div><label className="form-label">Current TSN</label>
           {editing&&isAdmin?<input type="number" value={g.currentFH??""} onChange={e=>set("landingGear."+gkey+".currentFH",e.target.value===""?null:+e.target.value)}/>
-          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.currentFH)?"#475569":"#e2e8f0"}}>{g.currentFH!=null?fmtHHMM(g.currentFH):"Not entered"}</div>}
+          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.currentFH)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.currentFH!=null?fmtHHMM(g.currentFH):"Not entered"}</div>}
         </div>
         <div><label className="form-label">Current CSN</label>
           {editing&&isAdmin?<input type="number" value={g.currentFC??""} onChange={e=>set("landingGear."+gkey+".currentFC",e.target.value===""?null:+e.target.value)}/>
-          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.currentFC)?"#475569":"#e2e8f0"}}>{g.currentFC!=null?g.currentFC.toLocaleString():"Not entered"}</div>}
+          :<div style={{fontSize:13,fontWeight:500,color:isEmpty(g.currentFC)?"var(--color-graphite)":"var(--color-carbon)"}}>{g.currentFC!=null?g.currentFC.toLocaleString():"Not entered"}</div>}
         </div>
       </div>
-      {editing&&isAdmin&&<div style={{fontSize:9,color:"#475569",marginTop:3}}>When set, this always overrides the calculated figure above — no tolerance check.</div>}
+      {editing&&isAdmin&&<div style={{fontSize:9,color:"var(--color-graphite)",marginTop:3}}>When set, this always overrides the calculated figure above — no tolerance check.</div>}
     </div>
   );
 };
@@ -842,15 +842,15 @@ function WheelsBrakesCard({asset,form,editing,isAdmin,set}){
           const item=wb[key]||{};
           return(
             <tr key={key}>
-              <td style={{fontWeight:600,color:"#94a3b8"}}>{label}</td>
-              <td style={{fontFamily:"monospace"}}>{editing&&isAdmin?<input type="number" defaultValue={item.qty||""} onBlur={e=>set("wheelsBrakes."+key+".qty",e.target.value?+e.target.value:null)} style={{width:60}}/>:item.qty??"—"}</td>
+              <td style={{fontWeight:600,color:"var(--color-graphite)"}}>{label}</td>
+              <td style={{fontFamily:"var(--font-data)"}}>{editing&&isAdmin?<input type="number" defaultValue={item.qty||""} onBlur={e=>set("wheelsBrakes."+key+".qty",e.target.value?+e.target.value:null)} style={{width:60}}/>:item.qty??"—"}</td>
               <td>{editing&&isAdmin?<input type="text" defaultValue={item.pn||""} onBlur={e=>set("wheelsBrakes."+key+".pn",e.target.value)} style={{width:140}}/>:item.pn||"—"}</td>
               <td>{editing&&isAdmin?<input type="text" defaultValue={item.mfr||""} onBlur={e=>set("wheelsBrakes."+key+".mfr",e.target.value)} style={{width:140}}/>:item.mfr||"—"}</td>
             </tr>
           );
         })}
       </tbody></table>
-      <p style={{fontSize:10,color:"#475569",marginTop:8}}>P/N and Manufacturer are optional — the tech spec only shows rows where at least one is entered.</p>
+      <p style={{fontSize:10,color:"var(--color-graphite)",marginTop:8}}>P/N and Manufacturer are optional — the tech spec only shows rows where at least one is entered.</p>
     </div>
   );
 };
@@ -914,43 +914,43 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
         <div className="section-title" style={{fontSize:12,margin:0,marginBottom:10}}>APU — S/N {apu.sn||"TBD"}</div>
         <div className="grid4" style={{marginBottom:14}}>
         {[["Manufacturer","mfr"],["P/N","pn"],["S/N","sn"]].map(([l,k])=>(
-          <div key={k} style={{background:"#0d1925",borderRadius:6,padding:"8px 10px"}}>
-            <div style={{fontSize:9,color:"#475569"}}>{l}</div>
+          <div key={k} style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
+            <div style={{fontSize:9,color:"var(--color-graphite)"}}>{l}</div>
             {editing&&isAdmin?<input value={ed[k]||""} onChange={e=>set("apu."+k,e.target.value)} style={{marginTop:3}}/>
-            :<div style={{fontSize:12,fontWeight:600,color:isEmpty(apu[k])?"#475569":"#e2e8f0",marginTop:3}}>{apu[k]||"—"}</div>}
+            :<div style={{fontSize:12,fontWeight:600,color:isEmpty(apu[k])?"var(--color-graphite)":"var(--color-carbon)",marginTop:3}}>{apu[k]||"—"}</div>}
           </div>
         ))}
-        <div style={{background:"#0d1925",borderRadius:6,padding:"8px 10px"}}>
-          <div style={{fontSize:9,color:"#475569"}}>TSN</div>
-          <div style={{fontSize:14,fontWeight:700,fontFamily:"monospace",color:"#C9A84C"}}>{fmtHHMM(apu.currentFH)}</div>
+        <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
+          <div style={{fontSize:9,color:"var(--color-graphite)"}}>TSN</div>
+          <div style={{fontSize:14,fontWeight:700,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{fmtHHMM(apu.currentFH)}</div>
         </div>
-        <div style={{background:"#0d1925",borderRadius:6,padding:"8px 10px"}}>
-          <div style={{fontSize:9,color:"#475569"}}>CSN</div>
-          <div style={{fontSize:14,fontWeight:700,fontFamily:"monospace",color:"#C9A84C"}}>{(apu.currentFC||0).toLocaleString()}</div>
+        <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
+          <div style={{fontSize:9,color:"var(--color-graphite)"}}>CSN</div>
+          <div style={{fontSize:14,fontWeight:700,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{(apu.currentFC||0).toLocaleString()}</div>
         </div>
         </div>
-        <div style={{background:"#0d1925",borderRadius:6,padding:"8px 10px",display:"inline-block"}}>
-          <div style={{fontSize:9,color:"#475569"}}>Lowest LLP Limiter</div>
-          <div style={{fontSize:14,fontWeight:700,color:ll===null?"#475569":ll<1000?"#f87171":ll<3000?"#fbbf24":"#34d399",fontFamily:"monospace"}}>{ll!==null?ll.toLocaleString()+" FC":"No data"}</div>
+        <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px",display:"inline-block"}}>
+          <div style={{fontSize:9,color:"var(--color-graphite)"}}>Lowest LLP Limiter</div>
+          <div style={{fontSize:14,fontWeight:700,color:ll===null?"var(--color-graphite)":ll<1000?"var(--color-critical)":ll<3000?"var(--color-attention)":"var(--color-positive)",fontFamily:"var(--font-data)"}}>{ll!==null?ll.toLocaleString()+" FC":"No data"}</div>
         </div>
       </div>
       <div style={{marginBottom:16}}>
         <div className="flj" style={{marginBottom:8}}>
-          <div style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em"}}>Life Limited Parts</div>
+          <div style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",letterSpacing:"0.05em"}}>Life Limited Parts</div>
           {isAdmin&&<div className="flab g8">{apu.llps?.length>0&&<button className="btn btn-danger" style={{fontSize:11,padding:"4px 10px"}} onClick={async()=>{if(!confirm("Delete all APU LLPs?"))return;await saveAsset({...asset,apu:{...apu,llps:[]}});notify("All APU LLPs deleted");}}>Clear All LLPs</button>}<button className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setAddLLP(true)}>+ Add LLP</button></div>}
         </div>
         {apu.llps?.length?(
           <table><thead><tr><th>Descriptor</th><th>P/N</th><th>S/N</th><th>FC Remaining</th><th></th></tr></thead>
           <tbody>{apu.llps.map((llp,li)=>{const rem=calcLLPRem(llp,apu.currentFC);return(
-            <tr key={li} style={{background:rem<1000?"#1a0a0a":rem<3000?"#1a150a":"transparent"}}>
-              <td style={{fontWeight:500}}>{llp.desc}</td><td style={{fontFamily:"monospace",fontSize:11}}>{llp.pn}</td><td style={{fontFamily:"monospace",fontSize:11}}>{llp.sn}</td>
-              <td style={{fontWeight:700,color:rem<1000?"#f87171":rem<3000?"#fbbf24":"#34d399"}}>{rem.toLocaleString()}</td>
+            <tr key={li} style={{background:rem<1000?"var(--color-critical-tint)":rem<3000?"var(--color-attention-tint)":"transparent"}}>
+              <td style={{fontWeight:500}}>{llp.desc}</td><td style={{fontFamily:"var(--font-data)",fontSize:11}}>{llp.pn}</td><td style={{fontFamily:"var(--font-data)",fontSize:11}}>{llp.sn}</td>
+              <td style={{fontWeight:700,color:rem<1000?"var(--color-critical)":rem<3000?"var(--color-attention)":"var(--color-positive)"}}>{rem.toLocaleString()}</td>
               {isAdmin&&<td><button className="btn-danger btn" onClick={()=>delLLP(li)}>✕</button></td>}
             </tr>
           );})}</tbody></table>
-        ):<div style={{color:"#475569",fontSize:12,fontStyle:"italic",padding:"6px 0"}}>No LLP data entered.</div>}
+        ):<div style={{color:"var(--color-graphite)",fontSize:12,fontStyle:"italic",padding:"6px 0"}}>No LLP data entered.</div>}
         {addLLP&&(
-          <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #1e3048"}}>
+          <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:12,marginTop:8,border:"1px solid var(--color-divider)"}}>
             <div className="grid3" style={{gap:6,marginBottom:8}}>
               {[["Descriptor","desc","text"],["P/N","pn","text"],["S/N","sn","text"],["Starting FC Rem","startFCRem","number"],["Reference FC","refFC","number"],["Approved Life","approvedLife","number"]].map(([l,k,t])=>(
                 <div key={k}><label className="form-label">{l}</label><input type={t} value={newLLP[k]} onChange={e=>setNewLLP({...newLLP,[k]:e.target.value})}/></div>
@@ -961,14 +961,14 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
         )}
       </div>
       <div>
-        <div className="flj" style={{fontSize:10,fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>
+        <div className="flj" style={{fontSize:10,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>
           <div>Most Recent Shop Visit{apu.shopVisits?.length>1?` (${apu.shopVisits.length} on file)`:""}</div>
           {isAdmin&&<button className="btn btn-primary" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setAddSV(true)}>+ Add Visit</button>}
         </div>
-        {(()=>{const svs=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});if(!svs.length)return null;const last=svs[svs.length-1];const sinceFH=apu.currentFH&&last.fh?apu.currentFH-last.fh:null;const sinceFC=apu.currentFC&&last.fc?apu.currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;return(<div style={{background:"#0a1a2a",border:"1px solid #1B3A6B",borderRadius:6,padding:"10px 12px",marginBottom:10}}><div style={{fontSize:9,color:"#C9A84C",fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Since Last Shop Visit</div><div className="grid3" style={{gap:8}}><div><div style={{fontSize:9,color:"#475569"}}>Days</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceDays!==null?sinceDays.toLocaleString():"—"}</div></div><div><div style={{fontSize:9,color:"#475569"}}>FH</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceFH!==null?fmtHHMM(sinceFH):"—"}</div></div><div><div style={{fontSize:9,color:"#475569"}}>FC</div><div style={{fontSize:14,fontWeight:700,color:"#C9A84C",fontFamily:"monospace"}}>{sinceFC!==null?sinceFC.toLocaleString():"—"}</div></div></div></div>);})()}
+        {(()=>{const svs=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});if(!svs.length)return null;const last=svs[svs.length-1];const sinceFH=apu.currentFH&&last.fh?apu.currentFH-last.fh:null;const sinceFC=apu.currentFC&&last.fc?apu.currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;return(<div style={{background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:6,padding:"10px 12px",marginBottom:10}}><div style={{fontSize:9,color:"var(--color-graphite)",fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Since Last Shop Visit</div><div className="grid3" style={{gap:8}}><div><div style={{fontSize:9,color:"var(--color-graphite)"}}>Days</div><div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceDays!==null?sinceDays.toLocaleString():"—"}</div></div><div><div style={{fontSize:9,color:"var(--color-graphite)"}}>FH</div><div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFH!==null?fmtHHMM(sinceFH):"—"}</div></div><div><div style={{fontSize:9,color:"var(--color-graphite)"}}>FC</div><div style={{fontSize:14,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{sinceFC!==null?sinceFC.toLocaleString():"—"}</div></div></div></div>);})()}
         <table><thead><tr><th>Details</th><th>Date</th><th>TSN</th><th>CSN</th><th>MRO</th><th>Category</th>{isAdmin&&<th></th>}</tr></thead>
-        <tbody>{(()=>{const svs=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});if(!svs.length)return<tr><td colSpan={isAdmin?7:6} style={{color:"#475569",fontStyle:"italic"}}>No shop visits recorded</td></tr>;const si=svs.length-1;const sv=svs[si];return editSVIdx===si?(
-            <tr style={{background:"#0d1925"}}>
+        <tbody>{(()=>{const svs=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});if(!svs.length)return<tr><td colSpan={isAdmin?7:6} style={{color:"var(--color-graphite)",fontStyle:"italic"}}>No shop visits recorded</td></tr>;const si=svs.length-1;const sv=svs[si];return editSVIdx===si?(
+            <tr style={{background:"var(--color-technical-grey)"}}>
               <td><input defaultValue={editSVForm.details} onBlur={e=>setEditSVForm({...editSVForm,details:e.target.value})} style={{width:"100%"}}/></td>
               <td><input type="date" defaultValue={editSVForm.date} onBlur={e=>setEditSVForm({...editSVForm,date:e.target.value})} style={{width:130}}/></td>
               <td><input defaultValue={editSVForm.fh||""} onBlur={e=>setEditSVForm({...editSVForm,fh:e.target.value})} style={{width:80}}/></td>
@@ -980,8 +980,8 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
           ):(
             <tr>
               <td style={{fontWeight:500}}>{sv.details}</td><td>{fmtDate(sv.date)}</td>
-              <td style={{fontFamily:"monospace"}}>{fmtHHMM(sv.fh)}</td><td style={{fontFamily:"monospace"}}>{sv.fc?.toLocaleString()}</td>
-              <td style={{color:"#94a3b8"}}>{sv.mro}</td>
+              <td style={{fontFamily:"var(--font-data)"}}>{fmtHHMM(sv.fh)}</td><td style={{fontFamily:"var(--font-data)"}}>{sv.fc?.toLocaleString()}</td>
+              <td style={{color:"var(--color-graphite)"}}>{sv.mro}</td>
               <td><CategoryBadge value={sv.reasonCategory}/></td>
               {isAdmin&&<td><div className="flab g8">
                 <button className="btn btn-primary" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>{setEditSVIdx(si);setEditSVForm({...sv,fh:fmtHHMM(sv.fh)});}}>Edit</button>
@@ -990,7 +990,7 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
             </tr>
           );})()}</tbody></table>
         {addSV&&(
-          <div style={{background:"#0d1925",borderRadius:6,padding:12,marginTop:8,border:"1px solid #1e3048"}}>
+          <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:12,marginTop:8,border:"1px solid var(--color-divider)"}}>
             <div className="grid3" style={{gap:6,marginBottom:8}}>
               <div style={{gridColumn:"1/-1"}}><label className="form-label">Details / Description</label><input value={newSV.details} onChange={e=>setNewSV({...newSV,details:e.target.value})}/></div>
               {[["Date","date","date"],["TSN (HH:MM)","fh","text"],["CSN","fc","number"],["MRO Facility","mro","text"]].map(([l,k,t])=>(
