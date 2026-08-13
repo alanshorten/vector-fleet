@@ -12,6 +12,17 @@ function worstShortfallHigh(projection) {
   return projection && projection.events.length ? Math.max(...projection.events.map(e => e.shortfallHigh)) : null;
 }
 
+// Display-only sign flip, matching the convention locked for FlyForward's
+// Reserve Position column: shows balance - cost instead of cost - balance,
+// so positive reads as surplus and negative reads as shortfall. The
+// underlying shortfallHigh values (and the color/delta comparisons that
+// use them) are untouched — only this text rendering changes.
+function formatPosition(v) {
+  if (v == null) return null;
+  const position = -v;
+  return (position >= 0 ? "+" : "-") + "$" + Math.round(Math.abs(position)).toLocaleString();
+}
+
 // The first (earliest) projected event for a pot, used to show WHEN a
 // scenario moves an event, not just what it costs — flagged as missing
 // from the base-vs-scenario comparison table (Alan, live test, MSN 4821:
@@ -391,7 +402,7 @@ function Scenarios({ asset }) {
 
         {/* Right column — per-pot table, full height */}
         <div className="card" style={{ padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>Per-Pot Worst-Case Shortfall — Base vs. Scenario</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>Per-Pot Reserve Position (Worst Case) — Base vs. Scenario</div>
           <div style={{ fontSize: 11, color: "var(--color-graphite)", marginBottom: 12 }}>Timing shift shows how many months the same projected event moves under this scenario — a pot showing "Beyond horizon" in base case had no event within the lease term until the scenario pulled it forward. Cost Overrun nudges that specific event's estimated cost up or down — default 0% on every row, only rows with a projected event get one.</div>
           <table style={{ fontSize: 12, width: "100%" }}>
             <thead><tr>
@@ -416,11 +427,11 @@ function Scenarios({ asset }) {
                     )}
                   </td>
                   <td style={{ textAlign: "right", color: row.baseHigh == null ? (row.baseTracked ? "var(--color-graphite)" : "var(--color-divider)") : shortfallColor(row.baseHigh) }}>
-                    {row.baseHigh == null ? (row.baseTracked ? "Beyond horizon" : "—") : `$${Math.round(row.baseHigh).toLocaleString()}`}
+                    {row.baseHigh == null ? (row.baseTracked ? "Beyond horizon" : "—") : formatPosition(row.baseHigh)}
                     {row.baseDate && <div style={{ fontSize: 10, color: "var(--color-graphite)" }}>{row.baseDate.toISOString().slice(0, 7)}</div>}
                   </td>
                   <td style={{ textAlign: "right", color: row.scenarioHigh == null ? (row.scenarioTracked ? "var(--color-graphite)" : "var(--color-divider)") : (scenarioActive ? deltaColor(row.baseHigh, row.scenarioHigh) : shortfallColor(row.scenarioHigh)) }}>
-                    {row.scenarioHigh == null ? (row.scenarioTracked ? "Beyond horizon" : "—") : `$${Math.round(row.scenarioHigh).toLocaleString()}`}
+                    {row.scenarioHigh == null ? (row.scenarioTracked ? "Beyond horizon" : "—") : formatPosition(row.scenarioHigh)}
                     {row.scenarioDate && <div style={{ fontSize: 10, color: "var(--color-graphite)" }}>{row.scenarioDate.toISOString().slice(0, 7)}</div>}
                   </td>
                   <td style={{ textAlign: "right", fontSize: 11, color: row.shiftMonths == null ? ((row.scenarioDate || row.baseDate) ? "var(--color-graphite)" : "var(--color-divider)") : (row.shiftMonths < 0 ? "var(--color-critical)" : row.shiftMonths > 0 ? "var(--color-positive)" : "var(--color-graphite)") }}>

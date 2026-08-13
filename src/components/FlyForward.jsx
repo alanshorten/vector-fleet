@@ -208,6 +208,25 @@ function addMonthsToDate(date, n) {
   return d;
 }
 
+// Display-only sign flip for the "Reserve Position" column. The
+// underlying shortfall figures (shortfallLow/High = cost - balance,
+// positive = funding gap) are unchanged everywhere in the calculation
+// layer — this just renders balance - cost instead, so a positive
+// number reads as "surplus" and a negative number reads as "shortfall",
+// matching an ordinary bank-balance convention. Handles the mixed case
+// (pot clears the low end of the cost range but not the high end) as
+// amber rather than forcing it into red or green.
+function formatReservePosition(shortfallLow, shortfallHigh) {
+  const positionLow = -shortfallHigh;   // worst case
+  const positionHigh = -shortfallLow;   // best case
+  const fmt = n => (n >= 0 ? "+" : "-") + "$" + Math.round(Math.abs(n)).toLocaleString();
+  let color;
+  if (positionHigh <= 0) color = "var(--color-critical)";       // short even in the best case
+  else if (positionLow >= 0) color = "var(--color-positive)";   // surplus even in the worst case
+  else color = "var(--color-attention)";                        // straddles zero
+  return { text: `${fmt(positionLow)} to ${fmt(positionHigh)}`, color };
+}
+
 function FFPotCard({ projection, color, anchored }) {
   const note = projection.partialFundedNote;
 
@@ -349,19 +368,22 @@ function FFPotCard({ projection, color, anchored }) {
               <th style={{ color: "var(--color-graphite)", textAlign: "left" }}>Event Date</th>
               <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Cost Range</th>
               <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Balance at Event</th>
-              <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Shortfall Band</th>
+              <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Reserve Position</th>
             </tr></thead>
             <tbody>
-              {projection.events.map((e, i) => (
+              {projection.events.map((e, i) => {
+                const pos = formatReservePosition(e.shortfallLow, e.shortfallHigh);
+                return (
                 <tr key={i}>
                   <td>{e.dateWindow ? `${e.dateWindow.start.toISOString().slice(0,7)} – ${e.dateWindow.end.toISOString().slice(0,7)}` : e.date.toISOString().slice(0, 7)}{e.costIncomplete && <span title="Limiting part has no Approved Life — cost estimate is incomplete" style={{ color: "var(--color-attention)", marginLeft: 4 }}>⚠</span>}</td>
                   <td style={{ textAlign: "right" }}>${Math.round(e.costLow).toLocaleString()} – ${Math.round(e.costHigh).toLocaleString()}</td>
                   <td style={{ textAlign: "right" }}>${Math.round(e.balanceAtEvent).toLocaleString()}</td>
-                  <td style={{ textAlign: "right", color: e.shortfallHigh > 0 ? "var(--color-critical)" : "var(--color-positive)" }}>
-                    ${Math.round(e.shortfallLow).toLocaleString()} – ${Math.round(e.shortfallHigh).toLocaleString()}
+                  <td style={{ textAlign: "right", color: pos.color }}>
+                    {pos.text}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -389,7 +411,7 @@ function FFPotCard({ projection, color, anchored }) {
                 <th style={{ color: "var(--color-graphite)", textAlign: "left" }}>Event Date</th>
                 <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Cost Range</th>
                 <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Balance at Lease End</th>
-                <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Shortfall Band</th>
+                <th style={{ color: "var(--color-graphite)", textAlign: "right" }}>Reserve Position</th>
               </tr></thead>
               <tbody>
                 <tr style={{ opacity: 0.75 }}>
@@ -399,14 +421,14 @@ function FFPotCard({ projection, color, anchored }) {
                   </td>
                   <td style={{ textAlign: "right" }}>${Math.round(note.costLow).toLocaleString()} – ${Math.round(note.costHigh).toLocaleString()}</td>
                   <td style={{ textAlign: "right" }}>${Math.round(note.balanceAtLeaseEnd).toLocaleString()}</td>
-                  <td style={{ textAlign: "right", color: note.shortfallHigh > 0 ? "var(--color-critical)" : "var(--color-positive)" }}>
-                    ${Math.round(note.shortfallLow).toLocaleString()} – ${Math.round(note.shortfallHigh).toLocaleString()}
+                  <td style={{ textAlign: "right", color: formatReservePosition(note.shortfallLow, note.shortfallHigh).color }}>
+                    {formatReservePosition(note.shortfallLow, note.shortfallHigh).text}
                   </td>
                 </tr>
               </tbody>
             </table>
             <div style={{ fontSize: 10, color: "var(--color-graphite)", marginTop: 4 }}>
-              Pot balance frozen at lease end — accruals stop when this lessee's lease expires. Shortfall is the gap between the frozen balance and the next event cost.
+              Pot balance frozen at lease end — accruals stop when this lessee's lease expires. A negative position is the gap between the frozen balance and the next event cost.
             </div>
           </div>
         )
