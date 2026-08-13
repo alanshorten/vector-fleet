@@ -52,5 +52,36 @@ function summarisePortfolioShortfall(potProjections) {
   return { pots, grandTotalLow, grandTotalHigh };
 }
 
+// Aggregates the informational "next event beyond lease end" note that
+// each pot's projection already carries (partialFundedNote) into a
+// single portfolio-level post-lease shortfall figure.
+//
+// Deliberately reads data that projectReservePot/projectEnLpPot already
+// computed as part of the same pot projections used for the FFPotCard
+// displays — no new database reads and no re-invocation of
+// buildFleetExposure's 180-month horizon pass. This is the cheap
+// alternative to the earlier Forward Exposure attempt, which crashed
+// (hung render, then OOM) by recomputing full fleet exposure
+// synchronously in FlyForward's render path.
+//
+// potProjections: array of projections, one per pot (each already
+//   carries `partialFundedNote` — null if no event falls beyond horizon)
+// Returns: { pots: [{ code, label, shortfallLow, shortfallHigh, eventDate }], grandTotalLow, grandTotalHigh }
+function summarisePortfolioPostLeaseShortfall(potProjections) {
+  const pots = potProjections
+    .filter(p => p.partialFundedNote)
+    .map(p => ({
+      code: p.code,
+      label: p.label,
+      shortfallLow: Math.max(0, p.partialFundedNote.shortfallLow),
+      shortfallHigh: Math.max(0, p.partialFundedNote.shortfallHigh),
+      eventDate: p.partialFundedNote.date
+    }));
+  const grandTotalLow = pots.reduce((s, p) => s + p.shortfallLow, 0);
+  const grandTotalHigh = pots.reduce((s, p) => s + p.shortfallHigh, 0);
+  return { pots, grandTotalLow, grandTotalHigh };
+}
+
 window.summarisePotShortfall = summarisePotShortfall;
 window.summarisePortfolioShortfall = summarisePortfolioShortfall;
+window.summarisePortfolioPostLeaseShortfall = summarisePortfolioPostLeaseShortfall;

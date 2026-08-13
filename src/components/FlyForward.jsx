@@ -883,26 +883,22 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
   }
 
   const shortfallSummary = window.summarisePortfolioShortfall(projections);
+  const postLeaseShortfallSummary = window.summarisePortfolioPostLeaseShortfall(projections);
   const riskPeaks = window.findPortfolioRiskPeaks(projections);
   const colorList = [FF_COLORS.AF6Y, FF_COLORS.AF12Y, FF_COLORS.LGOH, FF_COLORS.APOH, FF_COLORS.ENPR1, FF_COLORS.ENLP1, FF_COLORS.ENPR2, FF_COLORS.ENLP2];
   const eolTerms = lease.endOfLeaseTerms || getEndOfLeaseTermsDefaults();
-
-  // Synchronous single-asset 180-month pass — safe to call here since
-  // it only runs when the component has real data (past all early returns).
-  // The original OOM was caused by useState/useEffect re-render loop, not
-  // the computation itself. Plain sync call is fine.
-  const forwardExposure = null; // temporarily disabled pending performance review
 
   const showMissing = missingCodes.length > 0;
   const showMaintCal = maintenanceCal && maintenanceCal.dataCompleteness && maintenanceCal.dataCompleteness.length > 0;
   const showRiskPeaks = riskPeaks.length > 0;
   const headerInGrid = layoutMode === "landscape";
-  // 3-column grid: desc | summary | riskpeaks (if present), else 2-column.
-  // Warning banners span full width below. Portrait stays plain block flow.
-  const colCount = headerInGrid ? (showRiskPeaks ? 3 : 2) : 1;
-  const headerAreaRow = headerInGrid ? (showRiskPeaks ? '"desc summary riskpeaks"' : '"desc summary"') : null;
-  const warnSpan = headerInGrid ? (showRiskPeaks ? '"warn1 warn1 warn1"' : '"warn1 warn1"') : null;
-  const warn2Span = headerInGrid ? (showRiskPeaks ? '"warn2 warn2 warn2"' : '"warn2 warn2"') : null;
+  // 4-column grid: desc | summary | summary2 | riskpeaks (if present), else
+  // 3-column. Warning banners span full width below. Portrait stays plain
+  // block flow (summary cards simply stack).
+  const colCount = headerInGrid ? (showRiskPeaks ? 4 : 3) : 1;
+  const headerAreaRow = headerInGrid ? (showRiskPeaks ? '"desc summary summary2 riskpeaks"' : '"desc summary summary2"') : null;
+  const warnSpan = headerInGrid ? (showRiskPeaks ? '"warn1 warn1 warn1 warn1"' : '"warn1 warn1 warn1"') : null;
+  const warn2Span = headerInGrid ? (showRiskPeaks ? '"warn2 warn2 warn2 warn2"' : '"warn2 warn2 warn2"') : null;
   const headerAreaRows = [headerAreaRow, showMissing && warnSpan, showMaintCal && warn2Span].filter(Boolean);
   const headerGridStyle = headerInGrid
     ? { display: "grid", gridTemplateColumns: `repeat(${colCount}, 1fr)`, gridTemplateAreas: headerAreaRows.join(" "), columnGap: 16, rowGap: 16, marginBottom: 16, alignItems: "stretch" }
@@ -928,12 +924,22 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
         </div>
 
         <div className="card" style={{ padding: 16, marginBottom: mb, gridArea: headerInGrid ? "summary" : undefined }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 8 }}>Portfolio Shortfall Summary</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 8 }}>Lease Shortfall Summary</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: shortfallSummary.grandTotalHigh > 0 ? "var(--color-critical)" : "var(--color-positive)" }}>
             ${Math.round(shortfallSummary.grandTotalLow).toLocaleString()} – ${Math.round(shortfallSummary.grandTotalHigh).toLocaleString()}
           </div>
           <div style={{ fontSize: 11, color: "var(--color-graphite)", marginTop: 4 }}>
-            Total projected shortfall across {projections.length} reserve pot{projections.length===1?"":"s"} over the {horizonMonths}-month projection (positive events only — surplus in one pot doesn't offset a gap in another).
+            Total projected shortfall across {projections.length} reserve pot{projections.length===1?"":"s"} within this lease, to {lease.leaseEnd} (positive events only — surplus in one pot doesn't offset a gap in another).
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: 16, marginBottom: mb, gridArea: headerInGrid ? "summary2" : undefined }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 8 }}>Post-Lease Shortfall Summary</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: postLeaseShortfallSummary.grandTotalHigh > 0 ? "var(--color-critical)" : "var(--color-positive)" }}>
+            ${Math.round(postLeaseShortfallSummary.grandTotalLow).toLocaleString()} – ${Math.round(postLeaseShortfallSummary.grandTotalHigh).toLocaleString()}
+          </div>
+          <div style={{ fontSize: 11, color: "var(--color-graphite)", marginTop: 4 }}>
+            Next event after lease end across {postLeaseShortfallSummary.pots.length} pot{postLeaseShortfallSummary.pots.length===1?"":"s"}, assuming no new lease and no further accruals after {lease.leaseEnd}.
           </div>
         </div>
 
@@ -965,15 +971,6 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
           </div>
         )}
       </div>
-
-      {userRole !== "dataEntry" && (
-        <ForwardExposureCard
-          exposure={forwardExposure}
-          lease={lease}
-          inLeaseShortfallLow={shortfallSummary.grandTotalLow}
-          inLeaseShortfallHigh={shortfallSummary.grandTotalHigh}
-        />
-      )}
 
       <div style={layoutMode === "landscape" ? { display: "grid", gridTemplateColumns: `repeat(${layoutWidth >= 1700 ? 4 : layoutWidth >= 1300 ? 3 : 2}, 1fr)`, columnGap: 16 } : undefined}>
         {projections.map((p, i) => {
