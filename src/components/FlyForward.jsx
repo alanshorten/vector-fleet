@@ -399,7 +399,7 @@ function FFPotCard({ projection, color, anchored }) {
                   </td>
                   <td style={{ textAlign: "right" }}>${Math.round(note.costLow).toLocaleString()} – ${Math.round(note.costHigh).toLocaleString()}</td>
                   <td style={{ textAlign: "right" }}>${Math.round(note.balanceAtLeaseEnd).toLocaleString()}</td>
-                  <td style={{ textAlign: "right", color: note.shortfallHigh > 0 ? "var(--color-attention)" : "var(--color-positive)" }}>
+                  <td style={{ textAlign: "right", color: note.shortfallHigh > 0 ? "var(--color-critical)" : "var(--color-positive)" }}>
                     ${Math.round(note.shortfallLow).toLocaleString()} – ${Math.round(note.shortfallHigh).toLocaleString()}
                   </td>
                 </tr>
