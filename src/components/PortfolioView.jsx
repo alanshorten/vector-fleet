@@ -509,6 +509,17 @@ function RouteMatcherView({ assets, onSelectAsset }) {
   }, [assets, fhPerMonth, fcPerMonth, startDate, endDate]);
 
   const financialColor = (v) => (v == null ? "var(--color-graphite)" : v > 0 ? "var(--color-critical)" : v < 0 ? "var(--color-positive)" : "var(--color-graphite)");
+  // Display-only sign flip, matching the "Reserve Position" convention
+  // locked for FlyForward/Scenarios: shows balance - cost instead of
+  // cost - balance, so positive reads as surplus (green) and negative
+  // reads as shortfall (red). Pass the flipped value straight into
+  // financialColor above rather than the old boolean-cast trick, which
+  // was silently showing every surplus pot as graphite, not green.
+  const formatPosition = v => {
+    if (v == null) return null;
+    const position = -v;
+    return (position >= 0 ? "+" : "-") + "$" + Math.round(Math.abs(position)).toLocaleString();
+  };
   const disruptionColor = (v) => (v > 0 ? "var(--color-critical)" : "var(--color-positive)");
 
   return (
@@ -626,11 +637,11 @@ function RouteMatcherView({ assets, onSelectAsset }) {
                               <td style={{ padding: "5px 0", color: "var(--color-carbon)" }}>{p.code} — {p.label}</td>
                               <td style={{ textAlign: "right", color: "var(--color-graphite)" }}>
                                 {p.baseDate ? fmtMonthYear(p.baseDate) : "Beyond horizon"}
-                                {p.baseShortfallHigh != null && <div style={{ fontSize: 10, color: financialColor(p.baseShortfallHigh > 0 ? 1 : 0) }}>${Math.round(p.baseShortfallHigh).toLocaleString()}</div>}
+                                {p.baseShortfallHigh != null && <div style={{ fontSize: 10, color: financialColor(-p.baseShortfallHigh) }}>{formatPosition(p.baseShortfallHigh)}</div>}
                               </td>
                               <td style={{ textAlign: "right", color: "var(--color-graphite)" }}>
                                 {p.routeDate ? fmtMonthYear(p.routeDate) : "Beyond horizon"}
-                                {p.routeShortfallHigh != null && <div style={{ fontSize: 10, color: financialColor(p.routeShortfallHigh > 0 ? 1 : 0) }}>${Math.round(p.routeShortfallHigh).toLocaleString()}</div>}
+                                {p.routeShortfallHigh != null && <div style={{ fontSize: 10, color: financialColor(-p.routeShortfallHigh) }}>{formatPosition(p.routeShortfallHigh)}</div>}
                               </td>
                               <td style={{ textAlign: "right", fontSize: 11, color: p.shiftMonths == null ? "var(--color-graphite)" : (p.shiftMonths < 0 ? "var(--color-critical)" : p.shiftMonths > 0 ? "var(--color-positive)" : "var(--color-graphite)") }}>
                                 {formatShiftLabel(p)}
