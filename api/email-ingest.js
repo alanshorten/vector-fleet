@@ -71,6 +71,18 @@ const { callAnthropic } = require('./_lib/anthropicCall');
 
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // matches the 10MB limit on the manual Upload flow
 
+// Matches the TENANT_ID hardcoded in bootstrap-admin.js/set-role.js/
+// invite-user.js/the migrate-*-to-tenant.js files. HOTFIX (2026-08-14,
+// security-remediation-roadmap.md Phase 3 follow-up): this endpoint reads
+// and writes the Firestore Admin SDK directly, bypassing db.js, so it never
+// picked up the tenant-rooted assets path from Phase 3 Session 1. Since that
+// session deployed, this endpoint has been matching against and writing to
+// the orphaned flat `assets` collection instead of `tenants/{tenantId}/assets`
+// — meaning any auto-applied emailed utilisation report never actually
+// reached the live asset. This hardcodes the same single-tenant value used
+// everywhere else server-side until real multi-tenant resolution exists.
+const TENANT_ID = 'maverick';
+
 // ---- Firebase Admin (same pattern as api/share/[token].js) ----------------
 function getApp() {
   if (admin.apps.length) return admin.app();
@@ -326,7 +338,7 @@ module.exports = async (req, res) => {
   let previousAsset = null;
   try {
     const msn = parsed.msn ? parsed.msn.toString().replace(/^0+/, '') : '';
-    const snap = await fsdb.collection('assets').get();
+    const snap = await fsdb.collection('tenants').doc(TENANT_ID).collection('assets').get();
     const assets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     previousAsset = assets.find(a => a.msn?.toString().replace(/^0+/, '') === msn) || null;
   } catch (err) {
@@ -400,7 +412,7 @@ module.exports = async (req, res) => {
     }
 
     const { _dbId, _updatedAt, ...assetData } = result.mergedAsset;
-    await fsdb.collection('assets').doc(String(result.mergedAsset.id)).set({
+    await fsdb.collection('tenants').doc(TENANT_ID).collection('assets').doc(String(result.mergedAsset.id)).set({
       ...assetData,
       updatedAt: new Date().toISOString()
     });

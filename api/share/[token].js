@@ -18,6 +18,14 @@ const ALLOWED_ORIGINS = [
   'https://app.tailiq.app',
 ];
 
+// Matches the TENANT_ID hardcoded in bootstrap-admin.js/set-role.js/
+// invite-user.js/the migrate-*-to-tenant.js files. HOTFIX (2026-08-14,
+// security-remediation-roadmap.md Phase 3 follow-up): this endpoint reads
+// the Firestore Admin SDK directly, bypassing db.js, so it never picked up
+// the tenant-rooted assets path from Phase 3 Session 1 — every public share
+// link has been returning "Asset not found" since that session deployed.
+const TENANT_ID = 'maverick';
+
 function getApp() {
   if (admin.apps.length) return admin.app();
   return admin.initializeApp({
@@ -87,7 +95,7 @@ module.exports = async (req, res) => {
       return res.status(404).json({ error: 'Link not found' });
     }
 
-    const assetSnap = await fs.collection('assets').doc(String(tokenData.assetId)).get();
+    const assetSnap = await fs.collection('tenants').doc(TENANT_ID).collection('assets').doc(String(tokenData.assetId)).get();
     if (!assetSnap.exists) {
       return res.status(404).json({ error: 'Asset not found' });
     }
