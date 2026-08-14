@@ -72,15 +72,14 @@ const { callAnthropic } = require('./_lib/anthropicCall');
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // matches the 10MB limit on the manual Upload flow
 
 // Matches the TENANT_ID hardcoded in bootstrap-admin.js/set-role.js/
-// invite-user.js/the migrate-*-to-tenant.js files. HOTFIX (2026-08-14,
-// security-remediation-roadmap.md Phase 3 follow-up): this endpoint reads
-// and writes the Firestore Admin SDK directly, bypassing db.js, so it never
-// picked up the tenant-rooted assets path from Phase 3 Session 1. Since that
-// session deployed, this endpoint has been matching against and writing to
-// the orphaned flat `assets` collection instead of `tenants/{tenantId}/assets`
-// — meaning any auto-applied emailed utilisation report never actually
-// reached the live asset. This hardcodes the same single-tenant value used
-// everywhere else server-side until real multi-tenant resolution exists.
+// invite-user.js/the migrate-*-to-tenant.js files. This endpoint reads and
+// writes the Firestore Admin SDK directly, bypassing db.js, so it needs its
+// own tenant-rooted paths kept in sync by hand as each collection migrates.
+// assets was hotfixed 2026-08-14 after being missed when Phase 3 Session 1
+// shipped (any auto-applied emailed utilisation report silently never
+// reached the live asset until the fix). utilisation and pendingReports were
+// updated in the same session as db.js this time (Phase 3 Session 4), not
+// after the fact.
 const TENANT_ID = 'maverick';
 
 // ---- Firebase Admin (same pattern as api/share/[token].js) ----------------
@@ -380,7 +379,7 @@ module.exports = async (req, res) => {
       // Out-of-order / duplicate-period / unparseable-period upload — saved
       // to history only, live asset state is never touched. Mirrors
       // confirmSave's handling of result.historyOnly exactly.
-      await fsdb.collection('utilisation').add({
+      await fsdb.collection('tenants').doc(TENANT_ID).collection('utilisation').add({
         ...result.utilisationRecord,
         asset_id: String(result.utilisationRecord.asset_id),
         created_at: new Date().toISOString()
@@ -398,7 +397,7 @@ module.exports = async (req, res) => {
     // no re-parsing, no re-running Brain 1, no risk of a different result
     // between now and review.
     if (hasHighSeverityWarning(result.warnings)) {
-      await fsdb.collection('pendingReports').add({
+      await fsdb.collection('tenants').doc(TENANT_ID).collection('pendingReports').add({
         ...baseLog,
         status: 'pending_review',
         warnings: result.warnings,
@@ -416,7 +415,7 @@ module.exports = async (req, res) => {
       ...assetData,
       updatedAt: new Date().toISOString()
     });
-    await fsdb.collection('utilisation').add({
+    await fsdb.collection('tenants').doc(TENANT_ID).collection('utilisation').add({
       ...result.utilisationRecord,
       asset_id: String(result.utilisationRecord.asset_id),
       created_at: new Date().toISOString()

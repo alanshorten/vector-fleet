@@ -19,11 +19,12 @@ const ALLOWED_ORIGINS = [
 ];
 
 // Matches the TENANT_ID hardcoded in bootstrap-admin.js/set-role.js/
-// invite-user.js/the migrate-*-to-tenant.js files. HOTFIX (2026-08-14,
-// security-remediation-roadmap.md Phase 3 follow-up): this endpoint reads
-// the Firestore Admin SDK directly, bypassing db.js, so it never picked up
-// the tenant-rooted assets path from Phase 3 Session 1 — every public share
-// link has been returning "Asset not found" since that session deployed.
+// invite-user.js/the migrate-*-to-tenant.js files. This endpoint reads the
+// Firestore Admin SDK directly, bypassing db.js, so it needs its own
+// tenant-rooted paths kept in sync by hand as each collection migrates —
+// assets (Phase 3 Session 1, hotfixed 2026-08-14 after being missed at the
+// time) and shareTokens (Phase 3 Session 4, updated in the same session as
+// db.js this time, not after the fact).
 const TENANT_ID = 'maverick';
 
 function getApp() {
@@ -78,7 +79,7 @@ module.exports = async (req, res) => {
     const app = getApp();
     const fs = admin.firestore(app);
 
-    const tokenSnap = await fs.collection('shareTokens').doc(token).get();
+    const tokenSnap = await fs.collection('tenants').doc(TENANT_ID).collection('shareTokens').doc(token).get();
     if (!tokenSnap.exists) {
       return res.status(404).json({ error: 'Link not found' });
     }
