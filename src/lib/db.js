@@ -103,15 +103,15 @@ const db = {
   async deleteAsset(id) {
     const { db: fs, doc, collection, query, where, getDocs, writeBatch } = getFS();
     const assetId = String(id);
-    // Phase 3 tenant-isolation migration status as of Session 2: assets,
-    // leases, and reserves are tenant-rooted. utilisation, shareTokens,
-    // scheduledEvents, pendingReports, and seasonalityProfile are still on
-    // their old flat paths pending later sessions. When a collection
-    // migrates, move its entry from byAssetIdFlat to byAssetIdTenantRooted
-    // below — do NOT tenant-root a doc() call here without migrating that
-    // collection's rule and existing documents first (see
-    // security-remediation-roadmap.md Phase 3 and the phase3-session*
-    // delivery docs in this project for what's been done so far).
+    // Phase 3 tenant-isolation migration status as of Session 3: assets,
+    // leases, reserves, and scheduledEvents are tenant-rooted. utilisation,
+    // shareTokens, and pendingReports are still on their old flat paths
+    // pending later sessions. When a collection migrates, move its entry
+    // from byAssetIdFlat to byAssetIdTenantRooted below — do NOT tenant-root
+    // a doc() call here without migrating that collection's rule and
+    // existing documents first (see security-remediation-roadmap.md Phase 3
+    // and the phase3-session* delivery docs in this project for what's been
+    // done so far).
     const tenantId = await getTenantId();
 
     // Collections that reference the asset via an assetId/asset_id field —
@@ -120,11 +120,11 @@ const db = {
     const byAssetIdFlat = [
       { name: "utilisation", field: "asset_id" },
       { name: "shareTokens", field: "assetId" },
-      { name: "scheduledEvents", field: "assetId" },
     ];
     const byAssetIdTenantRooted = [
       { name: "leases", field: "assetId" },
       { name: "reserves", field: "assetId" },
+      { name: "scheduledEvents", field: "assetId" },
     ];
 
     const refsToDelete = [];
@@ -150,7 +150,8 @@ const db = {
     // seasonalityProfile is a single doc keyed directly by assetId (not a
     // query) — deleting a non-existent doc ref is a harmless no-op in
     // Firestore, so no existence check needed for assets that never had one.
-    refsToDelete.push(doc(fs, "seasonalityProfile", assetId));
+    // Tenant-rooted since Phase 3 Session 3.
+    refsToDelete.push(doc(fs, "tenants", tenantId, "seasonalityProfile", assetId));
 
     // The asset document itself, deleted last. Tenant-rooted (Phase 3
     // Session 1) — the flat assets/{id} doc this migrated from is left
@@ -355,14 +356,17 @@ const db = {
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
+  // Tenant-rooted since Phase 3 Session 3 (security-remediation-roadmap.md).
   async getScheduledEvents(assetId) {
     const { db: fs, collection, query, where, getDocs } = getFS();
-    const q = query(collection(fs, "scheduledEvents"), where("assetId", "==", String(assetId)));
+    const tenantId = await getTenantId();
+    const q = query(collection(fs, "tenants", tenantId, "scheduledEvents"), where("assetId", "==", String(assetId)));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
   async saveScheduledEventOverride(assetId, companyId, override) {
     const { db: fs, doc, setDoc } = getFS();
+    const tenantId = await getTenantId();
     const id = `${assetId}_${override.code}_${override.dueCycle}`.replace(/\s+/g, "_");
     const now = new Date().toISOString();
     const data = {
@@ -377,22 +381,25 @@ const db = {
       confirmedAt: now,
       updatedAt: now
     };
-    await setDoc(doc(fs, "scheduledEvents", id), data);
+    await setDoc(doc(fs, "tenants", tenantId, "scheduledEvents", id), data);
     return { id, ...data };
   },
   async deleteScheduledEventOverride(assetId, code, dueCycle) {
     const { db: fs, doc, deleteDoc } = getFS();
+    const tenantId = await getTenantId();
     const id = `${assetId}_${code}_${dueCycle}`.replace(/\s+/g, "_");
-    await deleteDoc(doc(fs, "scheduledEvents", id));
+    await deleteDoc(doc(fs, "tenants", tenantId, "scheduledEvents", id));
   },
   async getSeasonalityProfile(assetId) {
     const { db: fs, doc, getDoc } = getFS();
-    const snap = await getDoc(doc(fs, "seasonalityProfile", String(assetId)));
+    const tenantId = await getTenantId();
+    const snap = await getDoc(doc(fs, "tenants", tenantId, "seasonalityProfile", String(assetId)));
     return snap.exists() ? { id: snap.id, ...snap.data() } : null;
   },
   async saveSeasonalityProfile(assetId, companyId, profile) {
     const { db: fs, doc, setDoc, getDoc } = getFS();
-    const ref = doc(fs, "seasonalityProfile", String(assetId));
+    const tenantId = await getTenantId();
+    const ref = doc(fs, "tenants", tenantId, "seasonalityProfile", String(assetId));
     const existing = await getDoc(ref).catch(() => null);
     const now = new Date().toISOString();
     const data = {
