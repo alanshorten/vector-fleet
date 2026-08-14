@@ -103,13 +103,25 @@ module.exports = async (req, res) => {
   let decoded;
   try {
     // Confirms the caller is a signed-in TailiQ admin.
-    decoded = await admin.auth(app).verifyIdToken(idToken);
+    // security-remediation-roadmap.md Phase 3 Session 6 (3C / M-01, Layer 1):
+    // checkRevoked=true rejects a token invalidated by a prior
+    // revokeRefreshTokens() call, closing the up-to-an-hour stale-token gap.
+    decoded = await admin.auth(app).verifyIdToken(idToken, true);
   } catch (err) {
     return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
   }
 
   if (decoded.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required.' });
+  }
+
+  try {
+    const callerRecord = await admin.auth(app).getUser(decoded.uid);
+    if (callerRecord.disabled) {
+      return res.status(403).json({ error: 'Your account has been disabled. Contact an admin.' });
+    }
+  } catch (err) {
+    return res.status(401).json({ error: 'Your account could not be verified. Please sign in again.' });
   }
 
   const { email, role } = req.body || {};
@@ -166,6 +178,27 @@ module.exports = async (req, res) => {
     // endpoint changes an existing (non-admin) user's role, as an explicit
     // and visible part of the same admin action — not a hidden side effect.
     await auth.setCustomUserClaims(newUser.uid, { role, tenantId: TENANT_ID });
+
+    // Phase 3 Session 6 (3C / M-01, Layer 2, Decision 2): keep the
+    // tenantMembers membership doc in sync — what Firestore WRITE rules
+    // actually consult (see memberRole()/isActiveMember() in
+    // firestore.rules). Non-fatal on failure, same reasoning as set-role.js:
+    // the custom claim above is still the primary access-control mechanism.
+    try {
+      const fs = admin.firestore(app);
+      const ref = fs.collection('tenants').doc(TENANT_ID).collection('tenantMembers').doc(newUser.uid);
+      const snap = await ref.get();
+      const now = new Date().toISOString();
+      await ref.set({
+        role,
+        email: normalizedEmail,
+        status: 'active',
+        createdAt: snap.exists ? snap.data().createdAt : now,
+        updatedAt: now,
+      }, { merge: true });
+    } catch (memberErr) {
+      console.error('invite-user: tenantMembers sync failed', memberErr);
+    }
 
     const firebaseHostedLink = await auth.generatePasswordResetLink(normalizedEmail, {
       url: CONTINUE_URL,

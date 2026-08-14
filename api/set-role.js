@@ -52,7 +52,10 @@ module.exports = async (req, res) => {
 
   let decoded;
   try {
-    decoded = await admin.auth(app).verifyIdToken(idToken);
+    // security-remediation-roadmap.md Phase 3 Session 6 (3C / M-01, Layer 1):
+    // checkRevoked=true rejects a token invalidated by a prior
+    // revokeRefreshTokens() call, closing the up-to-an-hour stale-token gap.
+    decoded = await admin.auth(app).verifyIdToken(idToken, true);
   } catch (e) {
     return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
   }
@@ -60,6 +63,15 @@ module.exports = async (req, res) => {
   // Enforce admin-only access
   if (decoded.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required.' });
+  }
+
+  try {
+    const callerRecord = await admin.auth(app).getUser(decoded.uid);
+    if (callerRecord.disabled) {
+      return res.status(403).json({ error: 'Your account has been disabled. Contact an admin.' });
+    }
+  } catch (e) {
+    return res.status(401).json({ error: 'Your account could not be verified. Please sign in again.' });
   }
 
   const auth = admin.auth(app);
@@ -105,6 +117,35 @@ module.exports = async (req, res) => {
     // admin just changed. The client periodically force-refreshes its token
     // and detects/reacts to this revocation (see App.jsx).
     await auth.revokeRefreshTokens(uid);
+
+    // Phase 3 Session 6 (3C / M-01, Layer 2, Decision 2): keep the
+    // tenantMembers membership doc in sync with the role change. This is
+    // what Firestore WRITE rules actually consult (see the memberRole()/
+    // isActiveMember() helpers in firestore.rules) — an instant,
+    // rules-visible source of truth that doesn't wait on token refresh or
+    // expiry the way the custom claim above does.
+    try {
+      const targetUser = await auth.getUser(uid);
+      const fs = admin.firestore(app);
+      const ref = fs.collection('tenants').doc(TENANT_ID).collection('tenantMembers').doc(uid);
+      const snap = await ref.get();
+      const now = new Date().toISOString();
+      await ref.set({
+        role,
+        email: targetUser.email || null,
+        status: targetUser.disabled ? 'disabled' : 'active',
+        createdAt: snap.exists ? snap.data().createdAt : now,
+        updatedAt: now,
+      }, { merge: true });
+    } catch (memberErr) {
+      // Non-fatal — the custom claim (which just succeeded above) is still
+      // the primary access-control mechanism for reads and for every
+      // server endpoint. A membership-doc sync failure here means Firestore
+      // WRITE rules could lag behind this role change until it's retried,
+      // which is logged for visibility rather than failing the whole request.
+      console.error('set-role POST: tenantMembers sync failed', memberErr);
+    }
+
     return res.status(200).json({ ok: true });
   } catch (e) {
     console.error('set-role POST: setCustomUserClaims failed', e);

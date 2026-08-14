@@ -48,7 +48,10 @@ module.exports = async (req, res) => {
 
   let decoded;
   try {
-    decoded = await admin.auth(app).verifyIdToken(idToken);
+    // security-remediation-roadmap.md Phase 3 Session 6 (3C / M-01, Layer 1):
+    // checkRevoked=true rejects a token invalidated by a prior
+    // revokeRefreshTokens() call, closing the up-to-an-hour stale-token gap.
+    decoded = await admin.auth(app).verifyIdToken(idToken, true);
   } catch (e) {
     return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
   }
@@ -58,6 +61,14 @@ module.exports = async (req, res) => {
   }
   if (!['admin', 'editor'].includes(decoded.role)) {
     return res.status(403).json({ error: 'Admin or editor access required to revoke a share link.' });
+  }
+  try {
+    const callerRecord = await admin.auth(app).getUser(decoded.uid);
+    if (callerRecord.disabled) {
+      return res.status(403).json({ error: 'Your account has been disabled. Contact an admin.' });
+    }
+  } catch (e) {
+    return res.status(401).json({ error: 'Your account could not be verified. Please sign in again.' });
   }
 
   const { token } = req.body || {};

@@ -86,12 +86,24 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server configuration error.' });
   }
   try {
-    decoded = await admin.auth(app).verifyIdToken(idToken);
+    // security-remediation-roadmap.md Phase 3 Session 6 (3C / M-01, Layer 1):
+    // checkRevoked=true rejects a token that's been invalidated by
+    // set-role.js's revokeRefreshTokens() call, even if the token itself
+    // hasn't naturally expired yet (up to an hour otherwise).
+    decoded = await admin.auth(app).verifyIdToken(idToken, true);
   } catch (err) {
     return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
   }
   if (!VALID_ROLES.has(decoded.role)) {
     return res.status(403).json({ error: 'Your account is not authorised to use extraction.' });
+  }
+  try {
+    const callerRecord = await admin.auth(app).getUser(decoded.uid);
+    if (callerRecord.disabled) {
+      return res.status(403).json({ error: 'Your account has been disabled. Contact an admin.' });
+    }
+  } catch (err) {
+    return res.status(401).json({ error: 'Your account could not be verified. Please sign in again.' });
   }
 
   // ---- build a strict, allowlisted upstream request -----------------------

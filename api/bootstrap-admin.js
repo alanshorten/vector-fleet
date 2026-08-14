@@ -54,9 +54,45 @@ module.exports = async (req, res) => {
 
   let decoded;
   try {
-    decoded = await admin.auth(app).verifyIdToken(idToken);
+    // security-remediation-roadmap.md Phase 3 Session 6 (3C / M-01, Layer 1):
+    // checkRevoked=true rejects a token invalidated by a prior
+    // revokeRefreshTokens() call, closing the up-to-an-hour stale-token gap.
+    decoded = await admin.auth(app).verifyIdToken(idToken, true);
   } catch (e) {
     return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  try {
+    const callerRecord = await admin.auth(app).getUser(decoded.uid);
+    if (callerRecord.disabled) {
+      return res.status(403).json({ error: 'Your account has been disabled. Contact an admin.' });
+    }
+  } catch (e) {
+    return res.status(401).json({ error: 'Your account could not be verified. Please sign in again.' });
+  }
+
+  // Phase 3 Session 6 (3C / M-01, Layer 2, Decision 2): keeps the
+  // tenantMembers membership doc — what Firestore WRITE rules actually
+  // consult (see memberRole()/isActiveMember() in firestore.rules) — in
+  // sync whenever this endpoint stamps or confirms a role/tenantId. Kept
+  // small and local to this file rather than shared, matching how
+  // getApp() itself is duplicated per serverless function here.
+  async function upsertMember(uid, role, email) {
+    try {
+      const fs = admin.firestore(app);
+      const ref = fs.collection('tenants').doc(TENANT_ID).collection('tenantMembers').doc(uid);
+      const snap = await ref.get();
+      const now = new Date().toISOString();
+      await ref.set({
+        role,
+        email: email || null,
+        status: 'active',
+        createdAt: snap.exists ? snap.data().createdAt : now,
+        updatedAt: now,
+      }, { merge: true });
+    } catch (e) {
+      console.error('bootstrap-admin: tenantMembers sync failed', e);
+    }
   }
 
   // Already fully provisioned (role + tenantId) — nothing to do.
@@ -71,6 +107,7 @@ module.exports = async (req, res) => {
   if (decoded.role && !decoded.tenantId) {
     try {
       await admin.auth(app).setCustomUserClaims(decoded.uid, { role: decoded.role, tenantId: TENANT_ID });
+      await upsertMember(decoded.uid, decoded.role, decoded.email);
       return res.status(200).json({ ok: true, role: decoded.role, tenantId: TENANT_ID });
     } catch (e) {
       console.error('bootstrap-admin: tenantId backfill failed', e);
@@ -88,6 +125,7 @@ module.exports = async (req, res) => {
   // Email matches — promote to admin and stamp tenantId in the same call.
   try {
     await admin.auth(app).setCustomUserClaims(decoded.uid, { role: 'admin', tenantId: TENANT_ID });
+    await upsertMember(decoded.uid, 'admin', decoded.email);
     return res.status(200).json({ ok: true, role: 'admin', tenantId: TENANT_ID });
   } catch (e) {
     console.error('bootstrap-admin: setCustomUserClaims failed', e);

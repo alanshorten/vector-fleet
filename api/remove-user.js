@@ -5,6 +5,12 @@
 // via Firebase ID token custom claim. The admin account itself is protected
 // and cannot be removed via this endpoint.
 
+// security-remediation-roadmap.md Phase 3, Session 6 (3C / M-01, Decision 2):
+// matches the TENANT_ID hardcoded in bootstrap-admin.js/set-role.js/
+// invite-user.js — needed here now to clean up the removed user's
+// tenantMembers doc alongside their Auth account.
+const TENANT_ID = 'maverick';
+
 const admin = require('firebase-admin');
 
 const ALLOWED_ORIGINS = [
@@ -47,13 +53,25 @@ module.exports = async (req, res) => {
 
   let decoded;
   try {
-    decoded = await admin.auth(app).verifyIdToken(idToken);
+    // security-remediation-roadmap.md Phase 3 Session 6 (3C / M-01, Layer 1):
+    // checkRevoked=true rejects a token invalidated by a prior
+    // revokeRefreshTokens() call, closing the up-to-an-hour stale-token gap.
+    decoded = await admin.auth(app).verifyIdToken(idToken, true);
   } catch (err) {
     return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
   }
 
   if (decoded.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required.' });
+  }
+
+  try {
+    const callerRecord = await admin.auth(app).getUser(decoded.uid);
+    if (callerRecord.disabled) {
+      return res.status(403).json({ error: 'Your account has been disabled. Contact an admin.' });
+    }
+  } catch (err) {
+    return res.status(401).json({ error: 'Your account could not be verified. Please sign in again.' });
   }
 
   const { uid } = req.body || {};
@@ -77,6 +95,21 @@ module.exports = async (req, res) => {
 
     await auth.deleteUser(uid);
     console.log(`remove-user: deleted ${userRecord.email} (${uid}) by admin ${decoded.email}`);
+
+    // Phase 3 Session 6 (3C / M-01, Layer 2, Decision 2): remove the
+    // corresponding tenantMembers doc too — the account is gone entirely,
+    // so there's no "disabled" middle state to represent, unlike a role
+    // change. Non-fatal on failure: the Auth account is already deleted
+    // (the actual access-control action), a stray membership doc left
+    // behind just means future write rules would see status/role for a uid
+    // that can no longer authenticate anyway, since verifyIdToken would
+    // fail for it.
+    try {
+      await admin.firestore(app).collection('tenants').doc(TENANT_ID).collection('tenantMembers').doc(uid).delete();
+    } catch (memberErr) {
+      console.error('remove-user: tenantMembers cleanup failed', memberErr);
+    }
+
     return res.status(200).json({ ok: true });
   } catch (err) {
     if (err.code === 'auth/user-not-found') {
