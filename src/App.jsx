@@ -221,12 +221,21 @@ function AppInner(){
         let tokenResult=await window._auth.getIdTokenResult();
         if(!tokenResult)return; // not signed in yet
         let role=tokenResult.claims.role;
-        if(!role){
+        let tenantId=tokenResult.claims.tenantId;
+        // security-remediation-roadmap.md Phase 3, Session 1: also call
+        // bootstrap-admin when tenantId is missing, not just role — this is
+        // what lets an already-signed-in account (created before Phase 3
+        // shipped, already has a role claim) pick up tenantId just by
+        // reloading the app once, with no manual admin action needed.
+        // bootstrap-admin.js no-ops on role if one's already set and only
+        // backfills the missing tenantId in that case.
+        if(!role||!tenantId){
           const idToken=await window._auth.getIdToken();
           const resp=await fetch('/api/bootstrap-admin',{method:'POST',headers:{'Authorization':`Bearer ${idToken}`}});
           if(resp.ok){
             tokenResult=await window._auth.getIdTokenResult(true); // force refresh
             role=tokenResult?.claims?.role;
+            tenantId=tokenResult?.claims?.tenantId;
           }
         }
         setUserRole(role||'viewer');

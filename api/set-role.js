@@ -5,6 +5,13 @@
 // Caller must be a signed-in user with role=admin custom claim.
 // Role may only be set to 'editor', 'viewer', or 'dataEntry' via this
 // endpoint — admin role is bootstrap-only (see /api/bootstrap-admin).
+//
+// security-remediation-roadmap.md Phase 3, Session 1: setCustomUserClaims
+// REPLACES the whole claims object, it doesn't merge — so this must always
+// re-stamp tenantId alongside role, or a role change would silently wipe a
+// user's tenant access. TENANT_ID is hardcoded (see bootstrap-admin.js for
+// why — single-tenant today).
+const TENANT_ID = 'maverick';
 
 const admin = require('firebase-admin');
 
@@ -91,7 +98,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    await auth.setCustomUserClaims(uid, { role });
+    await auth.setCustomUserClaims(uid, { role, tenantId: TENANT_ID });
     // Revoke existing refresh tokens so the change takes effect promptly —
     // without this, a signed-in user's cached ID token (and the role claim
     // baked into it) stays valid for up to an hour regardless of what an

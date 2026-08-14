@@ -25,6 +25,11 @@ const CONTINUE_URL = 'https://app.tailiq.app/?view=set-password';
 
 const SENDER = 'TailiQ <invites@tailiq.app>';
 
+// security-remediation-roadmap.md Phase 3, Session 1: hardcoded — see
+// bootstrap-admin.js for why (single-tenant today). Stamped alongside role
+// below since setCustomUserClaims replaces the whole claims object.
+const TENANT_ID = 'maverick';
+
 function getApp() {
   if (admin.apps.length) return admin.app();
   return admin.initializeApp({
@@ -160,7 +165,7 @@ module.exports = async (req, res) => {
     // from first sign-in; for a resend, this is the one legitimate way this
     // endpoint changes an existing (non-admin) user's role, as an explicit
     // and visible part of the same admin action — not a hidden side effect.
-    await auth.setCustomUserClaims(newUser.uid, { role });
+    await auth.setCustomUserClaims(newUser.uid, { role, tenantId: TENANT_ID });
 
     const firebaseHostedLink = await auth.generatePasswordResetLink(normalizedEmail, {
       url: CONTINUE_URL,
