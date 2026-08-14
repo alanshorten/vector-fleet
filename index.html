@@ -60,7 +60,7 @@
      events that App.jsx listens for. -->
 <script type="module" id="firebase-init">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-  import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+  import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
   import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, confirmPasswordReset, verifyPasswordResetCode } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 
   // Firebase web config + Cloudinary cloud name/upload preset are not
@@ -83,7 +83,7 @@
     const app = initializeApp(cfg.firebase);
     const db = getFirestore(app);
     const auth = getAuth(app);
-    window._firestore = { db, collection, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, query, where, orderBy };
+    window._firestore = { db, collection, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, query, where, orderBy, writeBatch };
 
     // --- Minimal auth layer ---
     // Exposes a small bridge on window so the React app (App.jsx, SetPasswordScreen)

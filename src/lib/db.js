@@ -37,9 +37,70 @@ const db = {
     const { _dbId, _updatedAt, ...data } = asset;
     await setDoc(doc(fs, "assets", String(asset.id)), { ...data, updatedAt: new Date().toISOString() });
   },
+  // Cascade delete (follow-up from security-remediation-roadmap.md Phase 1
+  // session, 2026-08-14): this used to only remove the assets/{id} document,
+  // leaving every related record — utilisation history, pending review
+  // reports, lease/reserve financial data, calendar overrides, shop visit
+  // projections, share links, cost-tracker completions — orphaned in
+  // Firestore. Assets (and prospects) are always keyed by their own natural
+  // ID (MSN for aircraft, ESN for engine prospects — see makeBlankAsset /
+  // makeBlankEngineProspect in assetHelpers.js and the newMSN-as-id logic in
+  // calculations/utilisation.js), never a random Firestore ID, so deleting
+  // an asset and later creating a new one with the same MSN landed at the
+  // exact same document path — and all that orphaned data silently
+  // reattached. Confirmed with Alan (2026-08-14): cascade everything
+  // EXCEPT auditLog. auditLog is deliberately immutable/append-only
+  // everywhere else in this file and in firestore.rules, and stays that way
+  // here too — deleting an asset is itself an audited action (see the
+  // logAudit call at the call site in AdminView.jsx/Prospects.jsx) and the
+  // record of what happened to it should survive the asset itself.
   async deleteAsset(id) {
-    const { db: fs, doc, deleteDoc } = getFS();
-    await deleteDoc(doc(fs, "assets", String(id)));
+    const { db: fs, doc, collection, query, where, getDocs, writeBatch } = getFS();
+    const assetId = String(id);
+
+    // Collections that reference the asset via an assetId/asset_id field —
+    // queried and every matching doc queued for deletion.
+    const byAssetId = [
+      { name: "utilisation", field: "asset_id" },
+      { name: "shareTokens", field: "assetId" },
+      { name: "leases", field: "assetId" },
+      { name: "reserves", field: "assetId" },
+      { name: "scheduledEvents", field: "assetId" },
+      { name: "shopVisitProjections", field: "assetId" },
+      { name: "completedEvents", field: "assetId" },
+    ];
+
+    const refsToDelete = [];
+    for (const { name, field } of byAssetId) {
+      const q = query(collection(fs, name), where(field, "==", assetId));
+      const snap = await getDocs(q);
+      snap.docs.forEach(d => refsToDelete.push(doc(fs, name, d.id)));
+    }
+
+    // pendingReports has no assetId field — a pending report can exist for
+    // an MSN that doesn't have a live asset yet (isNewAsset case), so it's
+    // correlated by msn instead. Since asset IDs are always the MSN itself,
+    // assetId here IS the msn to match against.
+    const pendingQ = query(collection(fs, "pendingReports"), where("msn", "==", assetId));
+    const pendingSnap = await getDocs(pendingQ);
+    pendingSnap.docs.forEach(d => refsToDelete.push(doc(fs, "pendingReports", d.id)));
+
+    // seasonalityProfile is a single doc keyed directly by assetId (not a
+    // query) — deleting a non-existent doc ref is a harmless no-op in
+    // Firestore, so no existence check needed for assets that never had one.
+    refsToDelete.push(doc(fs, "seasonalityProfile", assetId));
+
+    // The asset document itself, deleted last.
+    refsToDelete.push(doc(fs, "assets", assetId));
+
+    // Firestore batches cap at 500 writes — chunk defensively even though a
+    // single asset is very unlikely to approach that at this scale.
+    const CHUNK = 450;
+    for (let i = 0; i < refsToDelete.length; i += CHUNK) {
+      const batch = writeBatch(fs);
+      refsToDelete.slice(i, i + CHUNK).forEach(ref => batch.delete(ref));
+      await batch.commit();
+    }
   },
   async getSetting(key) {
     try {
