@@ -22,14 +22,14 @@ function GuideView({userRole}){
     ]},
     {title:"Adding & Managing Assets",icon:"✈",content:[
       ["Create from Upload","Go to Upload → Utilisation Report → select PDF or Excel → Extract → review extracted data → Confirm & Save. If the MSN doesn't exist in the system, the asset is created automatically with all available data from the report."],
-      ["Create via Email","Send a utilisation report PDF to your organisation's email-ingestion address (ask an administrator). The system extracts it automatically and stages the result in the Dashboard review queue for a human to Apply or Discard."],
+      ["Create via Email","Send a utilisation report PDF to your organisation's email-ingestion address (ask an administrator). The system extracts and processes it automatically. Low-severity reports apply immediately; high-severity reports (S/N change, delta mismatch, gap) are held in the Dashboard review queue."],
       ["Create Manually","Go to Settings → Assets → New Asset. Enter MSN (required) and other details. Asset is created with blank data ready to populate."],
       ["Edit Asset Details","Open asset → Overview, Engines, Landing Gear, or APU tab → Edit button. For specs, weights, photos, and check history use the Specs tab → Edit All."],
       ["Delete Asset","Settings → Assets → Delete button beside the asset."],
     ]},
     {title:"Uploading Reports",icon:"📤",content:[
       ["Utilisation Report — Manual","Go to Upload → Utilisation Report. Select PDF or Excel. TailiQ extracts: airframe TSN/CSN/period FH/FC, engine model/S/N/TSN/CSN per position, APU S/N/TSN/CSN, landing gear P/N/S/N per position, and any titled component removals."],
-      ["Utilisation Report — Email","Send the PDF to your organisation's email-ingestion address (ask an administrator). Processing is automatic — the same AI extraction runs server-side, and every result — regardless of warnings — is staged in the Dashboard review queue for a human to Apply or Discard, never applied directly."],
+      ["Utilisation Report — Email","Send the PDF to your organisation's email-ingestion address (ask an administrator). Processing is automatic — the same AI extraction runs server-side and the result appears in the app within seconds. High-severity warnings route to the Dashboard review queue instead of applying immediately."],
       ["Review Panel","Before saving a manual upload, review extracted data. Engine and APU S/Ns highlight amber with ⚠ if changed from the previous month. Engine CSN deltas show in green/amber/red. A delta verification banner confirms whether the period FC matches the calculated airframe CSN difference."],
       ["Delta Verification","Green banner = period FC matches calculated delta. Red banner = mismatch — review the source document before saving."],
       ["S/N Change — Engine Action","After saving, if an engine S/N has changed, an interactive prompt appears: At Shop (captures the removed engine's snapshot — S/N, TSN/CSN, date — and marks it as title engine), Permanent (confirms the new engine as the permanent fitment), or Engine Returned (clears the at-shop state when the original engine comes back). This decision can also be made later from the Engines tab."],

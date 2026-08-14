@@ -14,12 +14,17 @@
 // secret in the URL (transmitted over HTTPS) is the standard mitigation for
 // this class of receiver.
 //
-// Every successful extraction that would touch live asset data is now
-// staged in `pendingReports` for human review rather than auto-applied —
-// see the write logic near the bottom of this file. This is a second,
-// independent layer of defense on top of the secret: even a valid, correctly
-// authenticated report can't silently change live fleet data without a
-// human clicking Apply in the Dashboard review queue.
+// High-severity warnings (S/N change, delta mismatch, gap detected) still
+// hold a report back in `pendingReports` for human review rather than
+// auto-applying — unchanged from before this fix. (An earlier draft of
+// this fix staged EVERY report regardless of warnings, as a second layer
+// of defense against a leaked secret — reverted after review: the
+// Dashboard review card doesn't show the actual extracted values, only
+// MSN/period/filename/warnings, so reviewing a report with no warnings
+// gave a human nothing to evaluate and was pure friction. The existing
+// warning-based gate already provides genuinely reviewable content for the
+// cases that matter; the shared secret above is what actually closes the
+// unauthenticated-access hole.)
 //
 // Single-company build (per roadmap: "build single-company first, extend
 // when second organisation onboards"). companyId/role multi-tenancy hasn't
@@ -197,6 +202,17 @@ async function writeNotification(fsdb, payload) {
   }
 }
 
+// ---- review-queue severity classification (Section 12a) -------------------
+// Brain 1's warning strings already encode severity via their leading
+// glyph — "⚠" (⚠) for things that should hold a report back pending
+// review (S/N change, delta mismatch, gap detected), vs "ℹ"/"🔧"
+// (ℹ/🔧) for informational notes (same-month merge, removal log) that are
+// fine to apply immediately. No Brain 1 changes needed — this just reads
+// the same warning text the manual Upload flow already shows.
+function hasHighSeverityWarning(warnings) {
+  return (warnings || []).some(function (w) { return w.indexOf('⚠') === 0; });
+}
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
 
@@ -361,29 +377,46 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, status: 'history_only' });
     }
 
-    // ---- Review queue gate (Phase 1A: every result, not just high-severity) -
-    // Previously, only high-severity warnings (S/N change, delta mismatch,
-    // gap detected) held a report back for review — everything else wrote
-    // straight to live asset data. Now that this endpoint is reachable by
-    // anyone who obtains the shared secret (not just SendGrid), a compromised
-    // or leaked secret should not translate into silent live-data writes.
-    // Every non-historyOnly result is staged in `pendingReports` regardless
-    // of severity, so Apply in the Dashboard review queue is always a human
-    // decision. The full merge result (already computed by Brain 1 above) is
-    // staged as-is, so Apply is just "write what we already calculated" — no
-    // re-parsing, no re-running Brain 1, no risk of a different result
+    // ---- Review queue gate (Section 12a) -----------------------------------
+    // High-severity warnings (S/N change, delta mismatch, gap detected) hold
+    // the report back from going live, same way out-of-order uploads already
+    // never touch live state. The full merge result (already computed by
+    // Brain 1 above) is staged in `pendingReports` rather than discarded, so
+    // Apply in the review queue is just "write what we already calculated" —
+    // no re-parsing, no re-running Brain 1, no risk of a different result
     // between now and review.
-    await fsdb.collection('pendingReports').add({
-      ...baseLog,
-      status: 'pending_review',
-      warnings: result.warnings,
-      isNewAsset: result.isNewAsset,
-      mergedAsset: result.mergedAsset,
-      utilisationRecord: result.utilisationRecord,
-      createdAt: new Date().toISOString()
+    if (hasHighSeverityWarning(result.warnings)) {
+      await fsdb.collection('pendingReports').add({
+        ...baseLog,
+        status: 'pending_review',
+        warnings: result.warnings,
+        isNewAsset: result.isNewAsset,
+        mergedAsset: result.mergedAsset,
+        utilisationRecord: result.utilisationRecord,
+        createdAt: new Date().toISOString()
+      });
+      await writeNotification(fsdb, { ...baseLog, status: 'pending_review', warnings: result.warnings });
+      return res.status(200).json({ ok: true, status: 'pending_review' });
+    }
+
+    const { _dbId, _updatedAt, ...assetData } = result.mergedAsset;
+    await fsdb.collection('assets').doc(String(result.mergedAsset.id)).set({
+      ...assetData,
+      updatedAt: new Date().toISOString()
     });
-    await writeNotification(fsdb, { ...baseLog, status: 'pending_review', warnings: result.warnings });
-    return res.status(200).json({ ok: true, status: 'pending_review' });
+    await fsdb.collection('utilisation').add({
+      ...result.utilisationRecord,
+      asset_id: String(result.utilisationRecord.asset_id),
+      created_at: new Date().toISOString()
+    });
+
+    await writeNotification(fsdb, {
+      ...baseLog,
+      status: result.isNewAsset ? 'created' : 'updated',
+      warnings: result.warnings
+    });
+
+    return res.status(200).json({ ok: true, status: result.isNewAsset ? 'created' : 'updated', msn: msnForLog });
   } catch (err) {
     console.error('email-ingest: Firestore write failed', err);
     await writeNotification(fsdb, { ...baseLog, status: 'error', warnings: ['Failed to save to Firestore: ' + (err.message || 'unknown error')] });
