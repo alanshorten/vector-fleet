@@ -203,26 +203,24 @@ const db = {
   // per-engine "Standalone Engine Spec" share on aircraft Prospects. null
   // for a normal whole-asset share (including standalone engine prospects,
   // which are already single-engine by nature and don't need this).
-  // Tenant-rooted since Phase 3 Session 4 — note api/share/[token].js reads
-  // this collection directly via the Admin SDK (public, unauthenticated share
-  // lookup) and has been updated in the same session to match this path.
+  //
+  // Server-side since Phase 3 Session 5 (3B / H-02, security-remediation-
+  // roadmap.md): creation and revocation now go through api/share/create.js
+  // and api/share/revoke.js rather than writing to Firestore directly —
+  // Firestore rules deny direct client writes to shareTokens outright now,
+  // so these two calls are the only way to create or revoke a token.
+  // Callers (ShareModal in AssetView.jsx) are unchanged — same function
+  // signatures and return shapes as before.
   async createShareToken(assetId, companyId = null, enginePos = null) {
-    const { db: fs, doc, setDoc } = getFS();
-    const tenantId = await getTenantId();
-    const token = (window.crypto?.randomUUID ? window.crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2)).replace(/-/g, "");
-    const now = new Date();
-    const expires = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7-day default
-    const data = {
-      assetId: String(assetId),
-      companyId,
-      enginePos: enginePos || null,
-      createdAt: now.toISOString(),
-      expiresAt: expires.toISOString(),
-      revoked: false,
-      createdBy: window._authUser?.email || window._authUser?.uid || null
-    };
-    await setDoc(doc(fs, "tenants", tenantId, "shareTokens", token), data);
-    return { token, ...data };
+    const idToken = await window._auth.getIdToken();
+    const resp = await fetch("/api/share/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ assetId, companyId, enginePos })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || "Failed to create share link");
+    return data;
   },
   async getShareTokensForAsset(assetId) {
     const { db: fs, collection, query, where, getDocs } = getFS();
@@ -232,12 +230,15 @@ const db = {
     return snap.docs.map(d => ({ token: d.id, ...d.data() }));
   },
   async revokeShareToken(token) {
-    const { db: fs, doc, setDoc, getDoc } = getFS();
-    const tenantId = await getTenantId();
-    const ref = doc(fs, "tenants", tenantId, "shareTokens", token);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return;
-    await setDoc(ref, { ...snap.data(), revoked: true });
+    const idToken = await window._auth.getIdToken();
+    const resp = await fetch("/api/share/revoke", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ token })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || "Failed to revoke share link");
+    return data;
   },
   // --- Lease / Reserve Setup (Section 8/9 of roadmap, TECH_DEBT 4.25) ---
   // Tenant-rooted since Phase 3 Session 2 (security-remediation-roadmap.md) —
