@@ -103,30 +103,40 @@ const db = {
   async deleteAsset(id) {
     const { db: fs, doc, collection, query, where, getDocs, writeBatch } = getFS();
     const assetId = String(id);
-    // Only the assets doc itself is tenant-rooted this session (Phase 3
-    // Session 1 scope — see getTenantId() above). Every other collection
-    // referenced below (utilisation, shareTokens, leases, reserves,
-    // scheduledEvents, pendingReports, seasonalityProfile) is still on its
-    // old flat path and stays that way until its own migration session —
-    // do not tenant-root those doc() calls without migrating them first.
+    // Phase 3 tenant-isolation migration status as of Session 2: assets,
+    // leases, and reserves are tenant-rooted. utilisation, shareTokens,
+    // scheduledEvents, pendingReports, and seasonalityProfile are still on
+    // their old flat paths pending later sessions. When a collection
+    // migrates, move its entry from byAssetIdFlat to byAssetIdTenantRooted
+    // below — do NOT tenant-root a doc() call here without migrating that
+    // collection's rule and existing documents first (see
+    // security-remediation-roadmap.md Phase 3 and the phase3-session*
+    // delivery docs in this project for what's been done so far).
     const tenantId = await getTenantId();
 
     // Collections that reference the asset via an assetId/asset_id field —
     // queried and every matching doc queued for deletion. shopVisitProjections
     // and completedEvents are deliberately NOT in this list — see comment above.
-    const byAssetId = [
+    const byAssetIdFlat = [
       { name: "utilisation", field: "asset_id" },
       { name: "shareTokens", field: "assetId" },
+      { name: "scheduledEvents", field: "assetId" },
+    ];
+    const byAssetIdTenantRooted = [
       { name: "leases", field: "assetId" },
       { name: "reserves", field: "assetId" },
-      { name: "scheduledEvents", field: "assetId" },
     ];
 
     const refsToDelete = [];
-    for (const { name, field } of byAssetId) {
+    for (const { name, field } of byAssetIdFlat) {
       const q = query(collection(fs, name), where(field, "==", assetId));
       const snap = await getDocs(q);
       snap.docs.forEach(d => refsToDelete.push(doc(fs, name, d.id)));
+    }
+    for (const { name, field } of byAssetIdTenantRooted) {
+      const q = query(collection(fs, "tenants", tenantId, name), where(field, "==", assetId));
+      const snap = await getDocs(q);
+      snap.docs.forEach(d => refsToDelete.push(doc(fs, "tenants", tenantId, name, d.id)));
     }
 
     // pendingReports has no assetId field — a pending report can exist for
@@ -219,8 +229,13 @@ const db = {
     await setDoc(ref, { ...snap.data(), revoked: true });
   },
   // --- Lease / Reserve Setup (Section 8/9 of roadmap, TECH_DEBT 4.25) ---
+  // Tenant-rooted since Phase 3 Session 2 (security-remediation-roadmap.md) —
+  // companyId here is the pre-existing, always-null legacy field, unrelated
+  // to the tenantId claim/path; left exactly as it was, only the collection
+  // path changed.
   async createLease(assetId, companyId, leaseData) {
     const { db: fs, collection, addDoc } = getFS();
+    const tenantId = await getTenantId();
     const now = new Date().toISOString();
     const data = {
       assetId: String(assetId),
@@ -243,24 +258,27 @@ const db = {
       confirmedAt: now,
       createdAt: now
     };
-    const ref = await addDoc(collection(fs, "leases"), data);
+    const ref = await addDoc(collection(fs, "tenants", tenantId, "leases"), data);
     return { id: ref.id, ...data };
   },
   async getLeasesForAsset(assetId) {
     const { db: fs, collection, query, where, getDocs } = getFS();
-    const q = query(collection(fs, "leases"), where("assetId", "==", String(assetId)));
+    const tenantId = await getTenantId();
+    const q = query(collection(fs, "tenants", tenantId, "leases"), where("assetId", "==", String(assetId)));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
   },
   async getLease(leaseId) {
     if (!leaseId) return null;
     const { db: fs, doc, getDoc } = getFS();
-    const snap = await getDoc(doc(fs, "leases", leaseId));
+    const tenantId = await getTenantId();
+    const snap = await getDoc(doc(fs, "tenants", tenantId, "leases", leaseId));
     return snap.exists() ? { id: snap.id, ...snap.data() } : null;
   },
   async deleteLease(leaseId) {
     const { db: fs, doc, deleteDoc } = getFS();
-    await deleteDoc(doc(fs, "leases", leaseId));
+    const tenantId = await getTenantId();
+    await deleteDoc(doc(fs, "tenants", tenantId, "leases", leaseId));
   },
   // TAC (Technical Acceptance Certificate) snapshot — end-of-lease-position-
   // handoff.md §4b / eol-position-session-handoff.md §4b. Deliberately a
@@ -272,6 +290,7 @@ const db = {
   // cleanly; the lease's own append-only fields are untouched either way.
   async saveTACSnapshot(leaseId, tacData) {
     const { db: fs, doc, setDoc } = getFS();
+    const tenantId = await getTenantId();
     const now = new Date().toISOString();
     const payload = {
       tacSnapshot: {
@@ -280,13 +299,14 @@ const db = {
         confirmedAt: now
       }
     };
-    await setDoc(doc(fs, "leases", leaseId), payload, { merge: true });
+    await setDoc(doc(fs, "tenants", tenantId, "leases", leaseId), payload, { merge: true });
     return payload.tacSnapshot;
   },
   async saveReservePot(assetId, companyId, pot) {
     const { db: fs, doc, setDoc, getDoc } = getFS();
+    const tenantId = await getTenantId();
     const id = `${assetId}_${pot.code}`.replace(/\s+/g, "_");
-    const ref = doc(fs, "reserves", id);
+    const ref = doc(fs, "tenants", tenantId, "reserves", id);
     const existing = await getDoc(ref).catch(() => null);
     const now = new Date().toISOString();
     const data = {
@@ -330,7 +350,8 @@ const db = {
   },
   async getReservePots(assetId) {
     const { db: fs, collection, query, where, getDocs } = getFS();
-    const q = query(collection(fs, "reserves"), where("assetId", "==", String(assetId)));
+    const tenantId = await getTenantId();
+    const q = query(collection(fs, "tenants", tenantId, "reserves"), where("assetId", "==", String(assetId)));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
