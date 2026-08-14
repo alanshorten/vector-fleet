@@ -1217,7 +1217,7 @@ function PendingCompletionsPanel({ asset, pending, onCompleted, notify, canEnter
 // completed event be logged manually even when it's not (or no longer)
 // sitting in the pending list — e.g. entering historical data, or an
 // event that was already Dismissed and needs its real costs added later.
-function CompletedEventsHistory({ asset, completedEvents, reserveDocs, canEnterCosts, notify, onSaved }) {
+function CompletedEventsHistory({ asset, completedEvents, eventTypeOptions, canEnterCosts, notify, onSaved }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickCode, setPickCode] = useState("");
   const [pickDate, setPickDate] = useState("");
@@ -1225,9 +1225,9 @@ function CompletedEventsHistory({ asset, completedEvents, reserveDocs, canEnterC
 
   const startManual = () => {
     if (!pickCode || !pickDate) { notify("Select an event type and date", "error"); return; }
-    const pot = reserveDocs.find(p => p.code === pickCode);
+    const opt = eventTypeOptions.find(o => o.code === pickCode);
     setManualEvt({
-      code: pickCode, label: pot?.label || pickCode,
+      code: pickCode, label: opt?.label || pickCode,
       date: new Date(pickDate), dueCycle: `manual-${Date.now()}`,
       cost: null, beyondHorizon: false
     });
@@ -1249,7 +1249,7 @@ function CompletedEventsHistory({ asset, completedEvents, reserveDocs, canEnterC
             <label className="form-label">Event Type</label>
             <select value={pickCode} onChange={e => setPickCode(e.target.value)}>
               <option value="">Select…</option>
-              {reserveDocs.map(p => <option key={p.code} value={p.code}>{p.code} — {p.label}</option>)}
+              {eventTypeOptions.map(o => <option key={o.code} value={o.code}>{o.code} — {o.label}</option>)}
             </select>
           </div>
           <div><label className="form-label">Event Date</label><input type="date" value={pickDate} onChange={e => setPickDate(e.target.value)}/></div>
@@ -1427,6 +1427,25 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
     return daysPast >= 30;
   });
 
+  // Event Type options for the manual "+ Log Completed Event" picker.
+  // Previously sourced from reserveDocs (raw Firestore reserve-pot docs),
+  // which are only written by the Lease Wizard's Reserve Setup step — so
+  // any asset with no active lease/reserve pots on file got an empty
+  // dropdown, even though the Maintenance Calendar itself (this same
+  // component) already shows real, dated events for that asset via
+  // buildAssetMaintenanceCalendar's synthetic-pot fallback (see
+  // flyForwardHelpers.js). maintenanceCal.events is that same leaseless-
+  // safe source — every check (AF-6Y/AF-12Y) and pot-driven event
+  // (LG-OH/EN-LP always real; EN-PR/AP-OH omitted entirely when
+  // synthesized rather than faked) already carries a real {code, label}
+  // regardless of lease status, so deriving the picker's options from it
+  // instead makes "Log Completed Event" work the same way on both leased
+  // and leaseless assets. Deduped by code since the calendar can list the
+  // same code multiple times (one entry per due cycle).
+  const eventTypeOptions = Array.from(
+    maintenanceCal.events.reduce((m, evt) => (m.has(evt.code) ? m : m.set(evt.code, evt.label)), new Map())
+  ).map(([code, label]) => ({ code, label }));
+
   const { mode: layoutMode } = useLayoutMode();
   const inLandscape = layoutMode === "landscape";
 
@@ -1436,7 +1455,7 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
 
       {/* Completed Events + Calendar description — side by side on landscape */}
       <div style={inLandscape ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 16, marginBottom: 16, alignItems: "stretch" } : undefined}>
-        <CompletedEventsHistory asset={asset} completedEvents={completedEvents} reserveDocs={reserveDocs} canEnterCosts={canEnterCosts} notify={notify} onSaved={reload}/>
+        <CompletedEventsHistory asset={asset} completedEvents={completedEvents} eventTypeOptions={eventTypeOptions} canEnterCosts={canEnterCosts} notify={notify} onSaved={reload}/>
         <div style={{ background: "var(--color-teal-tint)", border: "1px solid var(--color-teal)", borderRadius: 10, padding: "12px 16px", marginBottom: inLandscape ? 0 : 16 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)" }}>Maintenance Calendar — MSN {asset.msn}</div>
           <div style={{ fontSize: 12, color: "var(--color-graphite)", marginTop: 2 }}>
