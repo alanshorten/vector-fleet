@@ -103,28 +103,27 @@ const db = {
   async deleteAsset(id) {
     const { db: fs, doc, collection, query, where, getDocs, writeBatch } = getFS();
     const assetId = String(id);
-    // Phase 3 tenant-isolation migration status as of Session 3: assets,
-    // leases, reserves, and scheduledEvents are tenant-rooted. utilisation,
-    // shareTokens, and pendingReports are still on their old flat paths
-    // pending later sessions. When a collection migrates, move its entry
-    // from byAssetIdFlat to byAssetIdTenantRooted below — do NOT tenant-root
-    // a doc() call here without migrating that collection's rule and
-    // existing documents first (see security-remediation-roadmap.md Phase 3
-    // and the phase3-session* delivery docs in this project for what's been
-    // done so far).
+    // Phase 3 tenant-isolation migration status as of Session 4: assets,
+    // leases, reserves, scheduledEvents, utilisation, and shareTokens are
+    // all tenant-rooted. Nothing remains in byAssetIdFlat as of this
+    // session — kept as an empty list (rather than removed) so the pattern
+    // and comment stay in place for any future collection that needs it.
+    // Do NOT tenant-root a doc() call here without migrating that
+    // collection's rule and existing documents first (see
+    // security-remediation-roadmap.md Phase 3 and the phase3-session*
+    // delivery docs in this project for what's been done so far).
     const tenantId = await getTenantId();
 
     // Collections that reference the asset via an assetId/asset_id field —
     // queried and every matching doc queued for deletion. shopVisitProjections
     // and completedEvents are deliberately NOT in this list — see comment above.
-    const byAssetIdFlat = [
-      { name: "utilisation", field: "asset_id" },
-      { name: "shareTokens", field: "assetId" },
-    ];
+    const byAssetIdFlat = [];
     const byAssetIdTenantRooted = [
       { name: "leases", field: "assetId" },
       { name: "reserves", field: "assetId" },
       { name: "scheduledEvents", field: "assetId" },
+      { name: "utilisation", field: "asset_id" },
+      { name: "shareTokens", field: "assetId" },
     ];
 
     const refsToDelete = [];
@@ -142,10 +141,11 @@ const db = {
     // pendingReports has no assetId field — a pending report can exist for
     // an MSN that doesn't have a live asset yet (isNewAsset case), so it's
     // correlated by msn instead. Since asset IDs are always the MSN itself,
-    // assetId here IS the msn to match against.
-    const pendingQ = query(collection(fs, "pendingReports"), where("msn", "==", assetId));
+    // assetId here IS the msn to match against. Tenant-rooted since Phase 3
+    // Session 4.
+    const pendingQ = query(collection(fs, "tenants", tenantId, "pendingReports"), where("msn", "==", assetId));
     const pendingSnap = await getDocs(pendingQ);
-    pendingSnap.docs.forEach(d => refsToDelete.push(doc(fs, "pendingReports", d.id)));
+    pendingSnap.docs.forEach(d => refsToDelete.push(doc(fs, "tenants", tenantId, "pendingReports", d.id)));
 
     // seasonalityProfile is a single doc keyed directly by assetId (not a
     // query) — deleting a non-existent doc ref is a harmless no-op in
@@ -179,19 +179,23 @@ const db = {
     const { db: fs, doc, setDoc } = getFS();
     await setDoc(doc(fs, "settings", key), { value });
   },
+  // Tenant-rooted since Phase 3 Session 4 (security-remediation-roadmap.md).
   async getUtilisation(asset_id) {
     const { db: fs, collection, query, where, getDocs } = getFS();
-    const q = query(collection(fs, "utilisation"), where("asset_id", "==", String(asset_id)));
+    const tenantId = await getTenantId();
+    const q = query(collection(fs, "tenants", tenantId, "utilisation"), where("asset_id", "==", String(asset_id)));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
   },
   async saveUtilisation(data) {
     const { db: fs, collection, addDoc } = getFS();
-    await addDoc(collection(fs, "utilisation"), { ...data, asset_id: String(data.asset_id), created_at: new Date().toISOString() });
+    const tenantId = await getTenantId();
+    await addDoc(collection(fs, "tenants", tenantId, "utilisation"), { ...data, asset_id: String(data.asset_id), created_at: new Date().toISOString() });
   },
   async deleteUtilisation(id) {
     const { db: fs, doc, deleteDoc } = getFS();
-    await deleteDoc(doc(fs, "utilisation", id));
+    const tenantId = await getTenantId();
+    await deleteDoc(doc(fs, "tenants", tenantId, "utilisation", id));
   },
   // --- Share tokens (V1 gate item, Section 12 of roadmap) ---
   // enginePos: when set, this token shares just one engine (position 1 or 2)
@@ -199,8 +203,12 @@ const db = {
   // per-engine "Standalone Engine Spec" share on aircraft Prospects. null
   // for a normal whole-asset share (including standalone engine prospects,
   // which are already single-engine by nature and don't need this).
+  // Tenant-rooted since Phase 3 Session 4 — note api/share/[token].js reads
+  // this collection directly via the Admin SDK (public, unauthenticated share
+  // lookup) and has been updated in the same session to match this path.
   async createShareToken(assetId, companyId = null, enginePos = null) {
     const { db: fs, doc, setDoc } = getFS();
+    const tenantId = await getTenantId();
     const token = (window.crypto?.randomUUID ? window.crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2)).replace(/-/g, "");
     const now = new Date();
     const expires = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7-day default
@@ -213,18 +221,20 @@ const db = {
       revoked: false,
       createdBy: window._authUser?.email || window._authUser?.uid || null
     };
-    await setDoc(doc(fs, "shareTokens", token), data);
+    await setDoc(doc(fs, "tenants", tenantId, "shareTokens", token), data);
     return { token, ...data };
   },
   async getShareTokensForAsset(assetId) {
     const { db: fs, collection, query, where, getDocs } = getFS();
-    const q = query(collection(fs, "shareTokens"), where("assetId", "==", String(assetId)));
+    const tenantId = await getTenantId();
+    const q = query(collection(fs, "tenants", tenantId, "shareTokens"), where("assetId", "==", String(assetId)));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ token: d.id, ...d.data() }));
   },
   async revokeShareToken(token) {
     const { db: fs, doc, setDoc, getDoc } = getFS();
-    const ref = doc(fs, "shareTokens", token);
+    const tenantId = await getTenantId();
+    const ref = doc(fs, "tenants", tenantId, "shareTokens", token);
     const snap = await getDoc(ref);
     if (!snap.exists()) return;
     await setDoc(ref, { ...snap.data(), revoked: true });
@@ -583,14 +593,19 @@ const db = {
     await deleteDoc(doc(fs, "completedEvents", id));
   },
   // --- Email review queue (Section 12a) ---
+  // Tenant-rooted since Phase 3 Session 4 — note api/email-ingest.js writes
+  // new pending reports directly via the Admin SDK and has been updated in
+  // the same session to match this path.
   async getPendingReports() {
     const { db: fs, collection, getDocs } = getFS();
-    const snap = await getDocs(collection(fs, "pendingReports"));
+    const tenantId = await getTenantId();
+    const snap = await getDocs(collection(fs, "tenants", tenantId, "pendingReports"));
     return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
   },
   async deletePendingReport(id) {
     const { db: fs, doc, deleteDoc } = getFS();
-    await deleteDoc(doc(fs, "pendingReports", id));
+    const tenantId = await getTenantId();
+    await deleteDoc(doc(fs, "tenants", tenantId, "pendingReports", id));
   }
 };
 
