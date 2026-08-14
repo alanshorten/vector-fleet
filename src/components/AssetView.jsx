@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import QRCode from 'qrcode';
 import { APUTab, EnginesTab, LandingGearTab, OverviewTab } from './AssetTabs';
 import { FlyForward, MaintenanceCalendarView } from './FlyForward';
 import { Scenarios } from './Scenarios';
@@ -190,6 +191,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
 function ShareModal({asset,enginePos,notify,onClose}){
   const[tokens,setTokens]=useState(null);
   const[busy,setBusy]=useState(false);
+  const[qrCodes,setQrCodes]=useState({});
 
   const scopedEngine=enginePos?asset.engines?.[enginePos-1]:null;
 
@@ -206,6 +208,29 @@ function ShareModal({asset,enginePos,notify,onClose}){
   useEffect(()=>{load();},[]);
 
   const shareUrl=(token)=>`https://app.tailiq.app/share/${token}`;
+
+  // Generate QR codes locally in the browser rather than sending the bearer
+  // share URL (including the token) to a third-party image service — M-02
+  // fix. Runs whenever the active token list changes; skips tokens whose
+  // QR code has already been rendered, and drops codes for tokens no
+  // longer active (revoked) so the map doesn't grow unbounded.
+  useEffect(()=>{
+    if(!tokens)return;
+    const activeTokenSet=new Set(tokens.map(t=>t.token));
+    setQrCodes(prev=>{
+      const next={};
+      for(const token of Object.keys(prev)){
+        if(activeTokenSet.has(token))next[token]=prev[token];
+      }
+      return next;
+    });
+    tokens.forEach(t=>{
+      if(qrCodes[t.token])return;
+      QRCode.toDataURL(shareUrl(t.token),{width:180,margin:1})
+        .then(dataUrl=>setQrCodes(prev=>({...prev,[t.token]:dataUrl})))
+        .catch(()=>{});
+    });
+  },[tokens]);
 
   const generate=async()=>{
     setBusy(true);
@@ -254,12 +279,14 @@ function ShareModal({asset,enginePos,notify,onClose}){
         )}
         {tokens&&tokens.map(t=>(
           <div key={t.token} style={{marginBottom:16,paddingBottom:16,borderBottom:"1px solid var(--color-divider)"}}>
-            <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
-              <img
-                alt="QR code"
-                style={{background:"var(--color-soft-white)",borderRadius:6,padding:6}}
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareUrl(t.token))}`}
-              />
+            <div style={{display:"flex",justifyContent:"center",alignItems:"center",marginBottom:12,minHeight:192}}>
+              {qrCodes[t.token]
+                ? <img
+                    alt="QR code"
+                    style={{background:"var(--color-soft-white)",borderRadius:6,padding:6}}
+                    src={qrCodes[t.token]}
+                  />
+                : <div style={{fontSize:11,color:"var(--color-graphite)"}}>Generating QR code…</div>}
             </div>
             <div style={{fontSize:11,color:"var(--color-graphite)",wordBreak:"break-all",marginBottom:10,textAlign:"center"}}>{shareUrl(t.token)}</div>
             <div style={{fontSize:10,color:"var(--color-graphite)",textAlign:"center",marginBottom:12}}>Expires {fmtDate(t.expiresAt)}</div>
