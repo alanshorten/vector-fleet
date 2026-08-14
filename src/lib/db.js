@@ -7,6 +7,35 @@ const getFS = () => {
   throw new Error("Firebase not ready");
 };
 
+// security-remediation-roadmap.md Phase 3 (tenant isolation), Session 1.
+// Resolves the signed-in user's tenantId from their own ID token claims —
+// never from client input, matching the roadmap's server-side rule applied
+// here too. getIdTokenResult() (no force-refresh) reads the SDK's already-
+// cached token, so this is cheap to call per-operation; it only goes stale
+// if a user's tenantId claim changed since their last token refresh, which
+// App.jsx's existing 45s poll (and the bootstrap-admin call on every sign-in
+// / reload) already handles for the tenantId-backfill case.
+// Session 1 scope: only assets/{id} moves to /tenants/{tenantId}/assets/{id}
+// below. Every other collection (utilisation, leases, reserves, shareTokens,
+// scheduledEvents, seasonalityProfile, pendingReports, settings, etc.) stays
+// on its old flat path until a follow-up session migrates it — see the
+// roadmap's Phase 3 sequencing. Do NOT tenant-root a collection here without
+// also migrating its Firestore rule and any existing documents first.
+async function getTenantId() {
+  // window._auth is this app's own auth wrapper, not the raw Firebase Auth
+  // SDK object — it exposes getIdTokenResult()/getIdToken() directly on
+  // itself (no .currentUser), same as App.jsx already calls it elsewhere.
+  // Caught live during Phase 3 rollout: an earlier version of this function
+  // used window._auth.currentUser.getIdTokenResult(), which would have
+  // thrown "Cannot read properties of undefined" on every asset load.
+  if (!window._auth) throw new Error("Not signed in");
+  const tokenResult = await window._auth.getIdTokenResult();
+  if (!tokenResult) throw new Error("Not signed in");
+  const tenantId = tokenResult.claims.tenantId;
+  if (!tenantId) throw new Error("Your account is missing tenant access — try signing out and back in. If that doesn't fix it, contact an admin.");
+  return tenantId;
+}
+
 async function logAudit(assetId, assetMSN, action) {
   try {
     const user = window._authUser;
@@ -29,13 +58,15 @@ async function logAudit(assetId, assetMSN, action) {
 const db = {
   async getAssets() {
     const { db: fs, collection, getDocs } = getFS();
-    const snap = await getDocs(collection(fs, "assets"));
+    const tenantId = await getTenantId();
+    const snap = await getDocs(collection(fs, "tenants", tenantId, "assets"));
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
   async saveAsset(asset) {
     const { db: fs, doc, setDoc } = getFS();
+    const tenantId = await getTenantId();
     const { _dbId, _updatedAt, ...data } = asset;
-    await setDoc(doc(fs, "assets", String(asset.id)), { ...data, updatedAt: new Date().toISOString() });
+    await setDoc(doc(fs, "tenants", tenantId, "assets", String(asset.id)), { ...data, updatedAt: new Date().toISOString() });
   },
   // Cascade delete (follow-up from security-remediation-roadmap.md Phase 1
   // session, 2026-08-14): this used to only remove the assets/{id} document,
@@ -72,6 +103,13 @@ const db = {
   async deleteAsset(id) {
     const { db: fs, doc, collection, query, where, getDocs, writeBatch } = getFS();
     const assetId = String(id);
+    // Only the assets doc itself is tenant-rooted this session (Phase 3
+    // Session 1 scope — see getTenantId() above). Every other collection
+    // referenced below (utilisation, shareTokens, leases, reserves,
+    // scheduledEvents, pendingReports, seasonalityProfile) is still on its
+    // old flat path and stays that way until its own migration session —
+    // do not tenant-root those doc() calls without migrating them first.
+    const tenantId = await getTenantId();
 
     // Collections that reference the asset via an assetId/asset_id field —
     // queried and every matching doc queued for deletion. shopVisitProjections
@@ -104,8 +142,11 @@ const db = {
     // Firestore, so no existence check needed for assets that never had one.
     refsToDelete.push(doc(fs, "seasonalityProfile", assetId));
 
-    // The asset document itself, deleted last.
-    refsToDelete.push(doc(fs, "assets", assetId));
+    // The asset document itself, deleted last. Tenant-rooted (Phase 3
+    // Session 1) — the flat assets/{id} doc this migrated from is left
+    // alone; it's orphaned, not deleted, so there's a rollback copy until a
+    // later cleanup session removes it.
+    refsToDelete.push(doc(fs, "tenants", tenantId, "assets", assetId));
 
     // Firestore batches cap at 500 writes — chunk defensively even though a
     // single asset is very unlikely to approach that at this scale.
