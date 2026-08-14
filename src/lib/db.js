@@ -40,11 +40,18 @@ async function logAudit(assetId, assetMSN, action) {
   try {
     const user = window._authUser;
     if (!user) return;
-    const { db: fs, collection, addDoc } = getFS();
+    const { db: fs, collection, addDoc, serverTimestamp } = getFS();
+    // Phase 3 Session 7 (3D / M-03, security-remediation-roadmap.md):
+    // timestamp switched from a client-supplied ISO string to
+    // serverTimestamp() so firestore.rules can validate it against
+    // request.time — a client-supplied string could be set to any value,
+    // letting a forged/backdated audit entry through. Every other field
+    // here (userId, userEmail) is likewise now checked in rules against the
+    // caller's own auth token, not just trusted as-sent.
     await addDoc(collection(fs, "auditLog"), {
       userId: user.uid,
       userEmail: user.email,
-      timestamp: new Date().toISOString(),
+      timestamp: serverTimestamp(),
       assetId: assetId != null ? String(assetId) : null,
       assetMSN: assetMSN != null ? String(assetMSN) : null,
       action
