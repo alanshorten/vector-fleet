@@ -121,11 +121,16 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
       const barLabel=hideBranding?'':`<span style="color:#C9A84C;font-weight:700;font-size:14px;flex:1">TailiQ — Tech Spec MSN ${escapeHtml(asset.msn)}</span>`;
       const withBar=base.replace('<body>',`<body><div style="position:fixed;top:0;left:0;right:0;background:#1B3A6B;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.3);print-color-adjust:exact;-webkit-print-color-adjust:exact">${barLabel}<button onclick="window.print()" style="background:#C9A84C;color:#0a1520;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button><button onclick="window.close()" style="background:transparent;color:#94a3b8;border:1px solid #2d3f55;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">✕ Close</button></div><div style="height:52px"></div>`);
       const withPrint=withBar.replace('</style>','@media print{body>div:first-child{display:none!important}div[style*="height:52px"]{display:none!important}}</style>');
-      // H-03 Layer 2: 'noopener' strips window.opener from the new tab so
-      // generated content (even if some value slipped past escaping) has no
-      // reference back into this authenticated session.
-      const win=window.open('','_blank','noopener');
+      // H-03 Layer 2: sever window.opener from this (parent) side after
+      // opening, rather than passing the 'noopener' feature to window.open()
+      // itself — 'noopener' makes most browsers return null instead of a
+      // window handle, which breaks the document.write() below entirely
+      // (this shipped as a blank-tab bug the first time round). Nulling
+      // win.opener here gets the same "no reference back to this session"
+      // result while keeping the handle we need to write into.
+      const win=window.open();
       if(!win)return;
+      win.opener=null;
       win.document.write(withPrint);
       win.document.close();
     };
