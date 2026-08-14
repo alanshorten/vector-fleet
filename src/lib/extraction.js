@@ -6,8 +6,19 @@ import { APU_LLP_PROMPT, ENGINE_LLP_PROMPT, OPERATOR_HISTORY_PROMPT, REASON_CATE
 // the review screen lets the user correct it before it's ever saved.
 const normaliseReasonCategory=(v)=>REASON_CATEGORIES.includes(v)?v:"Other";
 
+// ---- Authenticated /api/extract fetch (security-remediation-roadmap.md
+// Phase 1B) — /api/extract forwards TailiQ's own Anthropic API key, so as
+// of Phase 1B it requires a valid Firebase ID token from a signed-in user.
+// Every caller in this file (and PhotosAndSpecs.jsx, UploadView.jsx,
+// pots.js, llpCatalogueImport.js) goes through this one helper so the auth
+// header is never accidentally omitted from a new call site.
+async function extractFetch(body){
+  const idToken=await window._auth.getIdToken();
+  return fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${idToken}`},body:JSON.stringify(body)});
+}
+
 async function callExtractAPI(base64,prompt,model,maxTokens,invalidFormatLabel){
-  const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model,max_tokens:maxTokens,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:prompt}]}]})});
+  const resp=await extractFetch({model,max_tokens:maxTokens,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:prompt}]}]});
   if(!resp.ok){
     const status=resp.status;
     if(status===401||status===403)throw new Error("Authentication error with the TailiQ service. Please contact your administrator.");
@@ -128,7 +139,7 @@ async function extractOperatorHistory(file){
   // Sonnet, not Haiku — the schema is simpler than an LLP sheet but real-world
   // format variation (combined vs paired rows, header vs per-row operator,
   // still-on-wing detection) is high (operator-history-scoping-handoff.md §6).
-  const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:OPERATOR_HISTORY_PROMPT}]}]})});
+  const resp=await extractFetch({model:"claude-sonnet-4-6",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:OPERATOR_HISTORY_PROMPT}]}]});
   if(!resp.ok){
     const status=resp.status;
     if(status===401||status===403)throw new Error("Authentication error with the TailiQ service. Please contact your administrator.");
@@ -355,7 +366,7 @@ const LEASE_EXTRACT_PROMPT=`Extract lease/reserve financial terms from this docu
 Field meaning: AF-6Y = Airframe 6-Year/heavy structural check reserve (monthly rate). AF-12Y = Airframe 12-Year/deeper structural check reserve (monthly rate). AP-OH = APU overhaul reserve (rate per APU operating hour). LG-OH = Landing gear overhaul reserve (monthly rate). ENGINE_RESTORATION = engine performance restoration reserve (rate per engine flight hour) — applies generically, do not split by engine position unless the document explicitly gives different rates per position. ENGINE_LLP = engine life-limited parts reserve (rate per engine flight cycle) — same rule.`;
 
 async function runLeaseExtraction(contentBlock){
-  const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1200,messages:[{role:"user",content:[contentBlock,{type:"text",text:LEASE_EXTRACT_PROMPT}]}]})});
+  const resp=await extractFetch({model:"claude-sonnet-4-6",max_tokens:1200,messages:[{role:"user",content:[contentBlock,{type:"text",text:LEASE_EXTRACT_PROMPT}]}]});
   if(!resp.ok) throw new Error(`/api/extract returned ${resp.status}`);
   const result=await resp.json();
   if(result.error) throw new Error(result.error);
@@ -402,7 +413,7 @@ async function extractAvionicsLRU(file){
   // dense multi-page tabular extraction is at/above Haiku's reliable
   // ceiling. max_tokens raised to 8000 — these lists commonly run 50+ rows
   // across several pages (see real samples: SmartLynx 9H-SLG ran 4 pages).
-  const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:8000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:AVIONICS_LRU_PROMPT}]}]})});
+  const resp=await extractFetch({model:"claude-sonnet-4-6",max_tokens:8000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:AVIONICS_LRU_PROMPT}]}]});
   if(!resp.ok){
     const status=resp.status;
     if(status===401||status===403)throw new Error("Authentication error with the TailiQ service. Please contact your administrator.");
@@ -465,7 +476,7 @@ async function translateScenarioChat(text){
   // requests, imprecise numbers, non-native phrasing) to trust to the
   // cheaper model, same reasoning as the lease/LLP/avionics extraction
   // functions above. Cost difference is negligible at this call volume.
-  const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:400,messages:[{role:"user",content:[{type:"text",text:SCENARIO_CHAT_PROMPT+'\n\nUser request: "'+text+'"'}]}]})});
+  const resp=await extractFetch({model:"claude-sonnet-4-6",max_tokens:400,messages:[{role:"user",content:[{type:"text",text:SCENARIO_CHAT_PROMPT+'\n\nUser request: "'+text+'"'}]}]});
   if(!resp.ok){
     const status=resp.status;
     if(status===401||status===403)throw new Error("Authentication error with the TailiQ service. Please contact your administrator.");
@@ -504,7 +515,7 @@ async function extractShopVisits(file){
   if(file.type!=="application/pdf")throw new Error("Please upload a PDF file.");
   if(file.size>10*1024*1024)throw new Error("File is too large (maximum 10 MB).");
   const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Could not read the file. Please try again."));r.readAsDataURL(file);});
-  const resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:SHOP_VISIT_PROMPT}]}]})});
+  const resp=await extractFetch({model:"claude-sonnet-4-6",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:SHOP_VISIT_PROMPT}]}]});
   if(!resp.ok){
     const status=resp.status;
     if(status===401||status===403)throw new Error("Authentication error with the TailiQ service. Please contact your administrator.");
@@ -566,4 +577,4 @@ function mergeShopVisits(existingRows,newRows){
   });
 };
 
-export { ATA_CHAPTER_MAP, AVIONICS_LRU_PROMPT, DOLLAR_FIGURE_RE, LEASE_EXTRACT_PROMPT, LEASE_PAGE_KEYWORDS, RATE_CONSTRUCT_RE, SCENARIO_CHAT_PROMPT, ataChapterLabel, ataChapterSortNum, escapeRegex, extractAvionicsLRU, extractDocxSectionChunks, extractLLPSheet, extractOperatorHistory, extractShopVisits, extractPdfPageTexts, fileToBase64, isBoldPseudoHeading, isDocxFile, isSupportedLeaseFile, matchAssetForText, mergeOperatorHistory, mergeShopVisits, quickParseLeaseFile, runLeaseExtraction, scoreLeaseChunks, translateScenarioChat };
+export { ATA_CHAPTER_MAP, AVIONICS_LRU_PROMPT, DOLLAR_FIGURE_RE, LEASE_EXTRACT_PROMPT, LEASE_PAGE_KEYWORDS, RATE_CONSTRUCT_RE, SCENARIO_CHAT_PROMPT, ataChapterLabel, ataChapterSortNum, escapeRegex, extractAvionicsLRU, extractDocxSectionChunks, extractFetch, extractLLPSheet, extractOperatorHistory, extractShopVisits, extractPdfPageTexts, fileToBase64, isBoldPseudoHeading, isDocxFile, isSupportedLeaseFile, matchAssetForText, mergeOperatorHistory, mergeShopVisits, quickParseLeaseFile, runLeaseExtraction, scoreLeaseChunks, translateScenarioChat };

@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { extractPdfPageTexts } from './extraction';
+import { extractFetch, extractPdfPageTexts } from './extraction';
 
 // ============================================================
 // LLP Catalogue upload parsers — knowledge-base-scoping-handoff.md §1
@@ -182,14 +182,10 @@ async function parsePdfCatalogueFile(file, targetPartNumbers) {
     throw new Error(`None of this fleet's ${targetPartNumbers.length} part numbers were found anywhere in this document — check it's the right catalogue file.`);
   }
 
-  const resp = await fetch("/api/extract", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 2000,
-      messages: [{ role: "user", content: [{ type: "text", text: buildLookupPrompt(snippetEntries) }] }]
-    })
+  const resp = await extractFetch({
+    model: "claude-sonnet-4-6",
+    max_tokens: 2000,
+    messages: [{ role: "user", content: [{ type: "text", text: buildLookupPrompt(snippetEntries) }] }]
   });
   if (!resp.ok) {
     const status = resp.status;

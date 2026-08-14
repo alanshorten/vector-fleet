@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { daysFromNow, isEmpty, parseHHMM } from '../lib/assetHelpers';
 import { db } from '../lib/db';
-import { ataChapterSortNum, extractAvionicsLRU } from '../lib/extraction';
+import { ataChapterSortNum, extractAvionicsLRU, extractFetch } from '../lib/extraction';
 import { uploadToCloudinary } from '../lib/uploadHelpers';
 
 function LopaCropTool({asset,saveAsset,notify,onClose}){
@@ -324,10 +324,10 @@ function SpecsQuickImport({asset,saveAsset,notify,open}){
       let resp;
       if(isPDF){
         const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Could not read the file."));r.readAsDataURL(file);});
-        resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:3000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:prompt}]}]})});
+        resp=await extractFetch({model:"claude-sonnet-4-6",max_tokens:3000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:prompt}]}]});
       } else if(isImage){
         const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Could not read the file."));r.readAsDataURL(file);});
-        resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:3000,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:file.type,data:base64}},{type:"text",text:prompt}]}]})});
+        resp=await extractFetch({model:"claude-sonnet-4-6",max_tokens:3000,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:file.type,data:base64}},{type:"text",text:prompt}]}]});
       } else {
         const arrayBuffer=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(new Error("Could not read the file."));r.readAsArrayBuffer(file);});
         let csvText;
@@ -335,7 +335,7 @@ function SpecsQuickImport({asset,saveAsset,notify,open}){
           const wb=XLSX.read(new Uint8Array(arrayBuffer),{type:"array"});
           csvText=wb.SheetNames.map(name=>"Sheet: "+name+"\n"+XLSX.utils.sheet_to_csv(wb.Sheets[name],{skipHidden:true})).join("\n\n");
         }catch(xlsxErr){throw new Error("Could not parse the Excel file.");}
-        resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:3000,messages:[{role:"user",content:[{type:"text",text:"The following is the contents of an Excel spreadsheet exported as CSV.\n\n"+csvText+"\n\n"+prompt}]}]})});
+        resp=await extractFetch({model:"claude-sonnet-4-6",max_tokens:3000,messages:[{role:"user",content:[{type:"text",text:"The following is the contents of an Excel spreadsheet exported as CSV.\n\n"+csvText+"\n\n"+prompt}]}]});
       }
       if(!resp.ok)throw new Error("Extraction request failed (error "+resp.status+"). Please try again.");
       const result=await resp.json();

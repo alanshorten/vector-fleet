@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BulkLeaseImport } from './BulkLeaseImport';
 import { APU_LLP_PROMPT, ENGINE_LLP_PROMPT, parseHHMM } from '../lib/assetHelpers';
 import { db } from '../lib/db';
+import { extractFetch } from '../lib/extraction';
 
 function EngineSNAction({change,prevEngines,mergedAsset,saveAsset,notify}){
   const[mode,setMode]=useState(null); // null | "atshop" | "resolved"
@@ -137,7 +138,7 @@ const extract=async()=>{
       let resp;
       if(isPDF){
         const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Could not read the file. Please try again."));r.readAsDataURL(file);});
-        resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:extractModel,max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:prompt}]}]})});
+        resp=await extractFetch({model:extractModel,max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:prompt}]}]});
       } else {
         let csvText;
         try{
@@ -148,7 +149,7 @@ const extract=async()=>{
         }catch(xlsxErr){
           throw new Error(xlsxErr.message||"Could not parse the Excel file. Please check the file is not corrupted and try again.");
         }
-        resp=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:extractModel,max_tokens:4000,messages:[{role:"user",content:[{type:"text",text:"The following is the contents of an Excel spreadsheet (sheet: "+(selectedSheet||"selected")+") exported as CSV.\n\n"+csvText+"\n\n"+prompt}]}]})});
+        resp=await extractFetch({model:extractModel,max_tokens:4000,messages:[{role:"user",content:[{type:"text",text:"The following is the contents of an Excel spreadsheet (sheet: "+(selectedSheet||"selected")+") exported as CSV.\n\n"+csvText+"\n\n"+prompt}]}]});
       }
       if(!resp.ok){
         const status=resp.status;

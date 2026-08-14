@@ -1,3 +1,18 @@
+// api/extract.js — Server-side AI extraction proxy
+//
+// SECURITY (remediated 2026-08, Phase 1B — see security-remediation-roadmap.md):
+// This endpoint forwards a request to Anthropic using TailiQ's own API key.
+// It previously had no authentication at all — CORS doesn't help, since a
+// direct HTTP client bypasses it entirely — so anyone who found the URL
+// could use it as a free, arbitrary-model, arbitrary-token-limit Claude
+// proxy at TailiQ's expense. It now requires a valid Firebase ID token from
+// a signed-in TailiQ user with a recognised role (any role — even Viewer
+// needs extraction for tech-spec/document flows), and only forwards a
+// strict, allowlisted subset of the client's request to Anthropic: model
+// (from a fixed allowlist), max_tokens (capped), and messages. Any other
+// field the client sends — including a `system` prompt override — is
+// dropped by construction, never forwarded.
+//
 // Was 60s. Dense multi-engine LLP documents (e.g. combined LH+RH sheets) can push the
 // model's own reasoning + response time to 50-57s on their own, right against a 60s
 // ceiling — Vercel was killing the function outright on the slower attempts before it
@@ -15,68 +30,98 @@ const ALLOWED_ORIGINS = [
   'https://app.tailiq.app',
 ];
 
+const admin = require('firebase-admin');
+const { callAnthropic } = require('./_lib/anthropicCall');
+
+function getApp() {
+  if (admin.apps.length) return admin.app();
+  return admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+    }),
+  });
+}
+
+// Every model any client caller of this endpoint actually uses, as of
+// Phase 1B (extraction.js, PhotosAndSpecs.jsx, UploadView.jsx, pots.js,
+// llpCatalogueImport.js, email-ingest.js). Add a model here deliberately
+// when a new one is needed — never widen this to accept whatever the
+// client sends.
+const ALLOWED_MODELS = new Set([
+  'claude-haiku-4-5-20251001',
+  'claude-sonnet-4-6',
+]);
+
+// The largest legitimate request today (avionics LRU extraction) asks for
+// 8000. Capped a little above that for headroom without leaving the cap
+// effectively unbounded.
+const MAX_TOKENS_CAP = 8000;
+
+const VALID_ROLES = new Set(['admin', 'editor', 'viewer', 'dataEntry']);
+
 export default async function handler(req, res) {
   const origin = req.headers.origin;
   if (ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
+
+  // ---- auth: any signed-in TailiQ user with a recognised role ------------
+  const authHeader = req.headers.authorization || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) {
+    return res.status(401).json({ error: 'Missing authentication token.' });
+  }
+
+  let app, decoded;
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify(req.body)
-    });
-    const text = await response.text();
-    let parsed;
-    try {
-      parsed = JSON.parse(text);
-    } catch (e) {
-      return res.status(200).json({ ok: false, raw: text.slice(0, 2000) });
-    }
-    if (!Array.isArray(parsed.content)) {
-      return res.status(200).json({ ok: false, raw: (parsed.error?.message || JSON.stringify(parsed)).slice(0, 2000) });
-    }
-    // Combine all text blocks (handles the rare multi-block case)
-    const combinedText = parsed.content
-      .filter(b => b.type === 'text')
-      .map(b => b.text)
-      .join('\n');
-    // The model may reason in plain text before producing the answer.
-    // Prefer a fenced ```json ... ``` block if present — this is what we
-    // now explicitly ask for in prompts that allow reasoning (e.g. LLP extraction).
-    let candidate;
-    const fenced = combinedText.match(/```json\s*([\s\S]*?)```/);
-    if (fenced) {
-      candidate = fenced[1].trim();
-    } else {
-      // Fallback: no fence found. Try to find the first '{' or '[' and take
-      // everything from there to the matching last '}' or ']' in the text,
-      // in case the model dropped the fence but still ended with raw JSON.
-      const firstBrace = combinedText.search(/[\{\[]/);
-      if (firstBrace !== -1) {
-        const lastBraceObj = combinedText.lastIndexOf('}');
-        const lastBraceArr = combinedText.lastIndexOf(']');
-        const lastBrace = Math.max(lastBraceObj, lastBraceArr);
-        candidate = lastBrace > firstBrace ? combinedText.slice(firstBrace, lastBrace + 1) : combinedText;
-      } else {
-        candidate = combinedText;
-      }
-    }
-    candidate = candidate.replace(/```json|```/g, '').trim();
-    try {
-      return res.status(200).json({ ok: true, data: JSON.parse(candidate) });
-    } catch (e) {
-      return res.status(200).json({ ok: false, raw: combinedText.slice(0, 2000) });
-    }
+    app = getApp();
   } catch (err) {
-    return res.status(200).json({ error: err.message });
+    console.error('extract: Firebase Admin init failed', err);
+    return res.status(500).json({ error: 'Server configuration error.' });
+  }
+  try {
+    decoded = await admin.auth(app).verifyIdToken(idToken);
+  } catch (err) {
+    return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
+  }
+  if (!VALID_ROLES.has(decoded.role)) {
+    return res.status(403).json({ error: 'Your account is not authorised to use extraction.' });
+  }
+
+  // ---- build a strict, allowlisted upstream request -----------------------
+  // Never forward the client's raw body to Anthropic — only these three
+  // fields, each validated. This is what actually stops the "arbitrary
+  // model / arbitrary token limit / arbitrary system-prompt override" abuse
+  // path, independent of the auth check above.
+  const body = (req.body && typeof req.body === 'object') ? req.body : {};
+  if (!ALLOWED_MODELS.has(body.model)) {
+    return res.status(400).json({ error: 'Unsupported model.' });
+  }
+  const maxTokens = Number(body.max_tokens);
+  if (!Number.isFinite(maxTokens) || maxTokens < 1 || maxTokens > MAX_TOKENS_CAP) {
+    return res.status(400).json({ error: `max_tokens must be a number between 1 and ${MAX_TOKENS_CAP}.` });
+  }
+  if (!Array.isArray(body.messages) || !body.messages.length) {
+    return res.status(400).json({ error: 'messages is required.' });
+  }
+  const anthropicRequest = {
+    model: body.model,
+    max_tokens: maxTokens,
+    messages: body.messages,
+  };
+
+  try {
+    const result = await callAnthropic(anthropicRequest);
+    const { httpStatus, ...body } = result;
+    return res.status(httpStatus).json(body);
+  } catch (err) {
+    console.error('extract: request to Anthropic failed', err);
+    return res.status(502).json({ error: err.message });
   }
 }

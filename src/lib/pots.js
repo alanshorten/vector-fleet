@@ -1,4 +1,5 @@
 import { isCFM } from './assetHelpers';
+import { extractFetch } from './extraction';
 import { getCheckCostBand, getEnPrBand, getOutflowEscalationPct } from './knowledgeBase';
 
 const FIXED_RESERVE_POT_DEFS = [
@@ -158,7 +159,7 @@ Opening balance: $${pot.openingBalance}
 ${context}
 
 Respond with ONLY a single JSON object and absolutely nothing else — no markdown code fences, no preamble, no explanation before or after it: {"flagged": true or false, "message": "one short sentence explaining why, or empty string if not flagged"}`;
-    const resp = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 400, messages: [{ role: "user", content: [{ type: "text", text: prompt }] }] }) });
+    const resp = await extractFetch({ model: "claude-haiku-4-5-20251001", max_tokens: 400, messages: [{ role: "user", content: [{ type: "text", text: prompt }] }] });
     if (!resp.ok) throw new Error(`/api/extract returned ${resp.status}`);
     // /api/extract already calls Claude and parses its JSON output
     // server-side — it does NOT return the raw Anthropic Messages API

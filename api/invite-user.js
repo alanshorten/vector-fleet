@@ -124,24 +124,42 @@ module.exports = async (req, res) => {
   try {
     const auth = admin.auth(app);
 
+    // SECURITY (remediated 2026-08, Phase 1C — see security-remediation-roadmap.md
+    // H-04): this used to delete-and-recreate any existing account on resend
+    // (losing its UID/history and letting an admin silently reset another
+    // admin's account), then returned the raw password-reset link straight
+    // to the calling browser (whoever clicked "resend" could set the
+    // victim's password themselves). Neither happens anymore: an existing
+    // account is never deleted, an existing admin account is never touched
+    // at all, and the reset link is only ever emailed to the account owner
+    // — never included in the API response — once we're on the resend path.
+    let newUser;
+    let isResend = false;
+
     // Create the user with no password — they choose their own via the
     // reset link. A random throwaway password is required by the Admin SDK
     // API itself but is never shared with anyone or stored by us.
     try {
-      await auth.createUser({ email: normalizedEmail, emailVerified: false });
+      newUser = await auth.createUser({ email: normalizedEmail, emailVerified: false });
     } catch (err) {
       if (err.code === 'auth/email-already-exists') {
-        // Resend path: delete the existing user and recreate so a fresh
-        // oobCode is generated. Admin-only endpoint so this is intentional.
+        isResend = true;
         const existing = await auth.getUserByEmail(normalizedEmail);
-        await auth.deleteUser(existing.uid);
-        await auth.createUser({ email: normalizedEmail, emailVerified: false });
+        if (existing.customClaims?.role === 'admin') {
+          // Refuse outright rather than silently no-op, so the caller knows
+          // this isn't the right flow for an admin account.
+          return res.status(403).json({ error: 'This email belongs to an admin account. Admin accounts cannot be resent an invite from here.' });
+        }
+        newUser = existing;
       } else {
         throw err;
       }
     }
-    // Set role claim immediately so the user has the right access from first sign-in
-    const newUser = await auth.getUserByEmail(normalizedEmail);
+
+    // Set role claim. For a brand-new user this gives them the right access
+    // from first sign-in; for a resend, this is the one legitimate way this
+    // endpoint changes an existing (non-admin) user's role, as an explicit
+    // and visible part of the same admin action — not a hidden side effect.
     await auth.setCustomUserClaims(newUser.uid, { role });
 
     const firebaseHostedLink = await auth.generatePasswordResetLink(normalizedEmail, {
@@ -179,14 +197,23 @@ module.exports = async (req, res) => {
     if (!sgResp.ok) {
       const errText = await sgResp.text();
       console.error('invite-user: SendGrid send failed', sgResp.status, errText);
-      // User account now exists in Firebase Auth even though the email
-      // failed — surface this clearly rather than pretending it worked.
+      if (isResend) {
+        // Never surface the reset link for a resend, even when SendGrid
+        // fails — that's exactly the exposure this fix closes. The caller
+        // (an admin) can try resending again once SendGrid is fixed.
+        return res.status(502).json({
+          error: 'The account role was updated but the invite email could not be sent. Check SendGrid configuration and try resending the invite again.',
+        });
+      }
+      // Brand-new account, no prior owner — falling back to sharing the
+      // link manually is safe here since the inviting admin is the only
+      // person who has taken any action so far.
       return res.status(502).json({
         error: 'The account was created but the invite email could not be sent. Check SendGrid configuration, or share this link with them directly: ' + resetLink,
       });
     }
 
-    return res.status(200).json({ ok: true, inviteLink: resetLink });
+    return res.status(200).json(isResend ? { ok: true, resent: true } : { ok: true, inviteLink: resetLink });
   } catch (err) {
     console.error('invite-user: failed', err);
     return res.status(500).json({ error: 'Something went wrong creating the invite. Please try again.' });

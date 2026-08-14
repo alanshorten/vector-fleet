@@ -1,16 +1,32 @@
 // VectorIQ — Email Ingestion Webhook (V1 gate item, Section 12 of roadmap)
-// POST /api/email-ingest  <-  SendGrid Inbound Parse
+// POST /api/email-ingest?key={EMAIL_INGEST_SECRET}  <-  SendGrid Inbound Parse
+//
+// SECURITY (remediated 2026-08, see security-remediation-roadmap.md Phase 1A):
+// The recipient address (`to`/`envelope`) is caller-controlled — a raw HTTP
+// client can set it to whatever it wants, so it was never a real trust
+// boundary even though the company-slug check below still exists as a
+// routing signal. The actual auth boundary is now a high-entropy shared
+// secret passed as `?key=` on the webhook URL, checked before anything else
+// runs. Configure SendGrid Inbound Parse to POST to
+// `https://app.tailiq.app/api/email-ingest?key={EMAIL_INGEST_SECRET}` and set
+// EMAIL_INGEST_SECRET in Vercel env vars. SendGrid's Inbound Parse does not
+// support request signing the way their Event Webhook does, so a shared
+// secret in the URL (transmitted over HTTPS) is the standard mitigation for
+// this class of receiver.
+//
+// Every successful extraction that would touch live asset data is now
+// staged in `pendingReports` for human review rather than auto-applied —
+// see the write logic near the bottom of this file. This is a second,
+// independent layer of defense on top of the secret: even a valid, correctly
+// authenticated report can't silently change live fleet data without a
+// human clicking Apply in the Dashboard review queue.
 //
 // Single-company build (per roadmap: "build single-company first, extend
 // when second organisation onboards"). companyId/role multi-tenancy hasn't
-// been backfilled yet (TECH_DEBT 2.3), so the trust boundary here is the
-// recipient address itself: {company}@reports.tailiq.app, validated against
-// EXPECTED_COMPANY_SLUG. This is the same trust model most inbound-email
-// products use for unauthenticated mailboxes (unguessable address, not a
-// cryptographic signature) — SendGrid's Inbound Parse does not support
-// request signing the way their Event Webhook does. Hardening further
-// (e.g. a random suffix on the local-part) is a future option, not needed
-// for one company.
+// been backfilled yet (TECH_DEBT 2.3) — the company-slug check is a routing
+// aid only, not a security control. Once Phase 3 (tenant isolation) lands,
+// the asset-matching query below should also be scoped to the resolved
+// tenant rather than querying the whole `assets` collection.
 //
 // Parse and discard: the raw attachment is never written anywhere. Only
 // the structured JSON that comes back from Claude (via /api/extract, the
@@ -19,9 +35,13 @@
 // — there is no path from this endpoint to an arbitrary Firestore write.
 //
 // Reuses, rather than re-derives:
-//   - /api/extract for the actual Claude call + response parsing (so any
-//     future fix there — e.g. the reasoning-prelude fix in TECH_DEBT 0.2 —
-//     automatically applies here too)
+//   - api/_lib/anthropicCall.js for the actual Claude call + response
+//     parsing (so any future fix there — e.g. the reasoning-prelude fix in
+//     TECH_DEBT 0.2 — automatically applies here too). Prior to Phase 1B
+//     this called back into /api/extract over HTTP; that endpoint now
+//     requires a Firebase user ID token this server-to-server caller
+//     doesn't have, so the shared logic was extracted into a plain module
+//     both endpoints import directly — no HTTP round-trip, no auth mismatch.
 //   - calculations/utilisation.js (Brain 1) for the merge/delta logic,
 //     loaded the same way techSpecBuilder.js is shared between index.html
 //     and share.html, just with a tiny Node-compatible `window` shim
@@ -42,8 +62,8 @@ const vm = require('vm');
 const fs = require('fs');
 const path = require('path');
 const admin = require('firebase-admin');
+const { callAnthropic } = require('./_lib/anthropicCall');
 
-const APP_ORIGIN = 'https://vector-fleet.vercel.app';
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // matches the 10MB limit on the manual Upload flow
 
 // ---- Firebase Admin (same pattern as api/share/[token].js) ----------------
@@ -151,20 +171,14 @@ function companySlugFromRecipient(recipientAddress) {
   return match ? match[1].toLowerCase() : null;
 }
 
-// ---- call the existing /api/extract endpoint (single source of truth for
-// the Claude call + response parsing — see file header) --------------------
+// ---- call the shared Anthropic caller (single source of truth for the
+// Claude call + response parsing — see file header) -------------------------
 async function callExtract(messageContent) {
-  const resp = await fetch(`${APP_ORIGIN}/api/extract`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4000,
-      messages: [{ role: 'user', content: messageContent }]
-    })
+  const result = await callAnthropic({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 4000,
+    messages: [{ role: 'user', content: messageContent }]
   });
-  const result = await resp.json();
-  if (result.error) throw new Error(result.error);
   const rawParsed = result.ok ? result.data : JSON.parse((result.raw || '').replace(/```json|```/g, '').trim());
   return Array.isArray(rawParsed) ? rawParsed[rawParsed.length - 1] : rawParsed;
 }
@@ -183,19 +197,19 @@ async function writeNotification(fsdb, payload) {
   }
 }
 
-// ---- review-queue severity classification (Section 12a) -------------------
-// Brain 1's warning strings already encode severity via their leading
-// glyph — "\u26A0" (⚠) for things that should hold a report back pending
-// review (S/N change, delta mismatch, gap detected), vs "\u2139"/"\uD83D\uDD27"
-// (ℹ/🔧) for informational notes (same-month merge, removal log) that are
-// fine to apply immediately. No Brain 1 changes needed — this just reads
-// the same warning text the manual Upload flow already shows.
-function hasHighSeverityWarning(warnings) {
-  return (warnings || []).some(function (w) { return w.indexOf('\u26A0') === 0; });
-}
-
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
+
+  // ---- shared-secret auth gate (Phase 1A) --------------------------------
+  // This must run before any body parsing. Fail closed and silent, same
+  // posture as the company-slug rejection below — an unauthenticated
+  // caller learns nothing from the response about why it was rejected.
+  const expectedSecret = process.env.EMAIL_INGEST_SECRET || '';
+  const providedSecret = (req.query && req.query.key) || '';
+  if (!expectedSecret || providedSecret !== expectedSecret) {
+    console.error('email-ingest: rejected — missing or invalid webhook secret');
+    return res.status(200).json({ ok: false, reason: 'unauthorized' });
+  }
 
   let fields, files;
   try {
@@ -347,46 +361,29 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, status: 'history_only' });
     }
 
-    // ---- Review queue gate (Section 12a) -----------------------------------
-    // High-severity warnings (S/N change, delta mismatch, gap detected) hold
-    // the report back from going live, same way out-of-order uploads already
-    // never touch live state. The full merge result (already computed by
-    // Brain 1 above) is staged in `pendingReports` rather than discarded, so
-    // Apply in the review queue is just "write what we already calculated" —
-    // no re-parsing, no re-running Brain 1, no risk of a different result
+    // ---- Review queue gate (Phase 1A: every result, not just high-severity) -
+    // Previously, only high-severity warnings (S/N change, delta mismatch,
+    // gap detected) held a report back for review — everything else wrote
+    // straight to live asset data. Now that this endpoint is reachable by
+    // anyone who obtains the shared secret (not just SendGrid), a compromised
+    // or leaked secret should not translate into silent live-data writes.
+    // Every non-historyOnly result is staged in `pendingReports` regardless
+    // of severity, so Apply in the Dashboard review queue is always a human
+    // decision. The full merge result (already computed by Brain 1 above) is
+    // staged as-is, so Apply is just "write what we already calculated" — no
+    // re-parsing, no re-running Brain 1, no risk of a different result
     // between now and review.
-    if (hasHighSeverityWarning(result.warnings)) {
-      await fsdb.collection('pendingReports').add({
-        ...baseLog,
-        status: 'pending_review',
-        warnings: result.warnings,
-        isNewAsset: result.isNewAsset,
-        mergedAsset: result.mergedAsset,
-        utilisationRecord: result.utilisationRecord,
-        createdAt: new Date().toISOString()
-      });
-      await writeNotification(fsdb, { ...baseLog, status: 'pending_review', warnings: result.warnings });
-      return res.status(200).json({ ok: true, status: 'pending_review' });
-    }
-
-    const { _dbId, _updatedAt, ...assetData } = result.mergedAsset;
-    await fsdb.collection('assets').doc(String(result.mergedAsset.id)).set({
-      ...assetData,
-      updatedAt: new Date().toISOString()
-    });
-    await fsdb.collection('utilisation').add({
-      ...result.utilisationRecord,
-      asset_id: String(result.utilisationRecord.asset_id),
-      created_at: new Date().toISOString()
-    });
-
-    await writeNotification(fsdb, {
+    await fsdb.collection('pendingReports').add({
       ...baseLog,
-      status: result.isNewAsset ? 'created' : 'updated',
-      warnings: result.warnings
+      status: 'pending_review',
+      warnings: result.warnings,
+      isNewAsset: result.isNewAsset,
+      mergedAsset: result.mergedAsset,
+      utilisationRecord: result.utilisationRecord,
+      createdAt: new Date().toISOString()
     });
-
-    return res.status(200).json({ ok: true, status: result.isNewAsset ? 'created' : 'updated', msn: msnForLog });
+    await writeNotification(fsdb, { ...baseLog, status: 'pending_review', warnings: result.warnings });
+    return res.status(200).json({ ok: true, status: 'pending_review' });
   } catch (err) {
     console.error('email-ingest: Firestore write failed', err);
     await writeNotification(fsdb, { ...baseLog, status: 'error', warnings: ['Failed to save to Firestore: ' + (err.message || 'unknown error')] });
