@@ -25,7 +25,14 @@ function openTechSpec(html,hideBranding=false){
   const barLabel=hideBranding?'':' <span style="color:#C9A84C;font-weight:700;font-size:14px;flex:1">TailiQ Fleet Intelligence</span>';
   const withBar=html.replace('<body>',`<body><div style="position:fixed;top:0;left:0;right:0;background:#1B3A6B;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${barLabel}<button onclick="window.print()" style="background:#C9A84C;color:#0a1520;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button><button onclick="window.close()" style="background:transparent;color:#94a3b8;border:1px solid #2d3f55;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">✕ Close</button></div><div style="height:52px"></div>`);
   const withPrint=withBar.replace('</style>','@media print{body>div:first-child{display:none!important}div[style*="height:52px"]{display:none!important}}</style>');
-  const win=window.open();win.document.write(withPrint);win.document.close();
+  // H-03 Layer 2: open with 'noopener' so the generated document has no
+  // window.opener reference back to this authenticated session (defense in
+  // depth alongside the HTML-escaping in techSpecBuilder.js — even if a
+  // malicious value somehow reached the DOM, it can't call back into
+  // opener._auth or otherwise touch this window).
+  const win=window.open('','_blank','noopener');
+  if(!win){return;}
+  win.document.write(withPrint);win.document.close();
 };
 
 async function generateTechSpec(asset){

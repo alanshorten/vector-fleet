@@ -943,7 +943,21 @@ function HistoryTab({asset,isAdmin,notify}){
 };
 
 function DocumentsTab({asset}){
-  const view=doc=>{const win=window.open();win.document.write(`<iframe src="${doc.data}" style="width:100%;height:100vh;border:none"/>`)};
+  // H-03 fix: this used to open a blank window and document.write() an
+  // <iframe src="${doc.data}"> into it — doc.data is a Firestore-sourced
+  // document URL, so an attacker-controlled value there could execute in a
+  // same-origin, script-capable document with access to this session.
+  // Instead: validate it's a plain https: URL and hand it straight to the
+  // browser via noopener/noreferrer — no HTML is built or written at all,
+  // so there's nothing left to inject into.
+  const view=doc=>{
+    const url=doc?.data;
+    if(!url||typeof url!=="string"||!/^https:\/\//i.test(url)){
+      alert("This document's link looks invalid and can't be opened.");
+      return;
+    }
+    window.open(url,'_blank','noopener,noreferrer');
+  };
   return(
     <div className="card" style={{padding:18}}>
       <div className="section-title">Documents</div>
