@@ -100,6 +100,14 @@ iframe{width:100%;border:none;background:#FCFCF9;border-radius:4px;min-height:80
   iframeWrap.className = 'wrap';
   iframeWrap.style.paddingTop = '0';
   const iframe = document.createElement('iframe');
+  // H-03 Layer 2: sandbox this frame. 'allow-same-origin' (kept) is what
+  // lets the scrollHeight/print calls below reach into contentWindow —
+  // without it the frame gets an opaque origin and those throw. Deliberately
+  // NOT including 'allow-scripts': the generated tech-spec HTML never needs
+  // to run script of its own, so disabling script execution inside the
+  // frame entirely removes the payoff of any markup that slipped past the
+  // escaping in techSpecBuilder.js (defense in depth, not a substitute for it).
+  iframe.setAttribute('sandbox', 'allow-same-origin');
   iframeWrap.appendChild(iframe);
 
   document.body.appendChild(bar);
