@@ -649,7 +649,23 @@ function AdminView({assets,saveAsset,notify,loadAssets,userRole}){
     const blank=makeBlankAsset(newA,"aircraft");
     await saveAsset(blank);setShowNew(false);setNewA({msn:"",registration:"",model:"A320-214",operator:"",manufacturer:"Airbus S.A.S.",dom:""});notify(`Asset MSN ${blank.msn} created`);
   };
-  const deleteAsset=async(id)=>{if(!confirm(`Delete asset MSN ${id}?`))return;const msn=assets.find(a=>String(a.id)===String(id))?.msn||id;await db.deleteAsset(id);await logAudit(id,msn,"Deleted asset");await loadAssets();notify("Asset deleted");};
+  const deleteAsset=async(id)=>{
+    if(!confirm(`Delete asset MSN ${id}?`))return;
+    const msn=assets.find(a=>String(a.id)===String(id))?.msn||id;
+    try{
+      await db.deleteAsset(id);
+      await logAudit(id,msn,"Deleted asset");
+      await loadAssets();
+      notify("Asset deleted");
+    }catch(e){
+      // Previously this had no try/catch at all — a Firestore rules
+      // rejection (e.g. from the cascade delete hitting a collection with a
+      // deny-delete rule) failed silently: the batch commit throws, nothing
+      // after it runs, and the button just looked like it did nothing.
+      console.error("deleteAsset failed:",e);
+      notify(`Delete failed: ${e?.message||e}`,"error");
+    }
+  };
   return(
     <div>
       <h1 style={{fontSize:20,color:"var(--color-carbon)",fontWeight:700,marginBottom:18}}>Settings</h1>

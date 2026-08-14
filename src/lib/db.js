@@ -40,34 +40,48 @@ const db = {
   // Cascade delete (follow-up from security-remediation-roadmap.md Phase 1
   // session, 2026-08-14): this used to only remove the assets/{id} document,
   // leaving every related record — utilisation history, pending review
-  // reports, lease/reserve financial data, calendar overrides, shop visit
-  // projections, share links, cost-tracker completions — orphaned in
-  // Firestore. Assets (and prospects) are always keyed by their own natural
-  // ID (MSN for aircraft, ESN for engine prospects — see makeBlankAsset /
-  // makeBlankEngineProspect in assetHelpers.js and the newMSN-as-id logic in
-  // calculations/utilisation.js), never a random Firestore ID, so deleting
-  // an asset and later creating a new one with the same MSN landed at the
-  // exact same document path — and all that orphaned data silently
-  // reattached. Confirmed with Alan (2026-08-14): cascade everything
-  // EXCEPT auditLog. auditLog is deliberately immutable/append-only
-  // everywhere else in this file and in firestore.rules, and stays that way
-  // here too — deleting an asset is itself an audited action (see the
-  // logAudit call at the call site in AdminView.jsx/Prospects.jsx) and the
-  // record of what happened to it should survive the asset itself.
+  // reports, lease/reserve financial data, calendar overrides, share links —
+  // orphaned in Firestore. Assets (and prospects) are always keyed by their
+  // own natural ID (MSN for aircraft, ESN for engine prospects — see
+  // makeBlankAsset / makeBlankEngineProspect in assetHelpers.js and the
+  // newMSN-as-id logic in calculations/utilisation.js), never a random
+  // Firestore ID, so deleting an asset and later creating a new one with the
+  // same MSN landed at the exact same document path — and all that orphaned
+  // data silently reattached.
+  //
+  // Scope confirmed with Alan (2026-08-14, revised same day after an initial
+  // "everything bar auditLog" pass): this only removes this customer's own
+  // operational tracking record for the asset. It deliberately does NOT
+  // touch real-world outcome data that compiles into the fleet-wide IQ
+  // database, since that has ongoing analytical value independent of
+  // whether any one customer is still actively tracking the asset:
+  //   - auditLog — immutable everywhere else in this file and in
+  //     firestore.rules (rules literally forbid delete on it); deleting an
+  //     asset is itself an audited action, so the record of what happened
+  //     to it should survive the asset itself.
+  //   - shopVisitProjections — same append-only design as auditLog
+  //     (firestore.rules also forbids delete on it outright).
+  //   - completedEvents — actual logged maintenance completions with real
+  //     costs entered; kept for the same "real-world outcome data" reason
+  //     as shopVisitProjections, even though firestore.rules doesn't
+  //     currently have an explicit rule for this collection either way
+  //     (flagged separately — see TECH_DEBT.md).
+  // Utilisation history and seasonalityProfile, by contrast, ARE deleted —
+  // they're this customer's own tracking/forecasting state, not compiled
+  // fleet intelligence, so a re-created asset at the same MSN starts clean.
   async deleteAsset(id) {
     const { db: fs, doc, collection, query, where, getDocs, writeBatch } = getFS();
     const assetId = String(id);
 
     // Collections that reference the asset via an assetId/asset_id field —
-    // queried and every matching doc queued for deletion.
+    // queried and every matching doc queued for deletion. shopVisitProjections
+    // and completedEvents are deliberately NOT in this list — see comment above.
     const byAssetId = [
       { name: "utilisation", field: "asset_id" },
       { name: "shareTokens", field: "assetId" },
       { name: "leases", field: "assetId" },
       { name: "reserves", field: "assetId" },
       { name: "scheduledEvents", field: "assetId" },
-      { name: "shopVisitProjections", field: "assetId" },
-      { name: "completedEvents", field: "assetId" },
     ];
 
     const refsToDelete = [];
