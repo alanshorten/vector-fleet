@@ -494,6 +494,25 @@ const db = {
     const ref = await addDoc(collection(fs, "completedEvents"), payload);
     return { id: ref.id, ...payload };
   },
+  // Correction path (2026-08-14 follow-up): completedEvents is otherwise
+  // append-only by design — see the header comment above — because it's
+  // real-world outcome data intended to eventually compile into the
+  // cross-fleet IQ database, so asset deletion deliberately never cascades
+  // into it (see deleteAsset above). But "append-only" was never meant to
+  // mean "a mis-entered or test record can never be removed" — Alan hit
+  // this directly logging a $999,999 test entry against a real asset while
+  // testing the picker fix. Bad/test data has no business staying in a
+  // dataset meant to feed real cost benchmarking, so this is a narrow,
+  // audited escape hatch: admin/editor only (firestore.rules already gates
+  // completedEvents writes — which include deletes — to admin/editor, same
+  // as scheduledEvents/seasonalityProfile), and every deletion is logged
+  // to auditLog by the caller (see CompletedEventsHistory in FlyForward.jsx)
+  // so there's a permanent record that a completion entry was removed, even
+  // though the entry itself is gone.
+  async deleteCompletedEvent(id) {
+    const { db: fs, doc, deleteDoc } = getFS();
+    await deleteDoc(doc(fs, "completedEvents", id));
+  },
   // --- Email review queue (Section 12a) ---
   async getPendingReports() {
     const { db: fs, collection, getDocs } = getFS();

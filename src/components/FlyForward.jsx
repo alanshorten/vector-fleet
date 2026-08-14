@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { PotNumInput } from './AssetView';
 import { LeaseWizard } from './LeaseWizard';
 import { isCFM } from '../lib/assetHelpers';
-import { db } from '../lib/db';
+import { db, logAudit } from '../lib/db';
 import { FF_COLORS, buildAssetMaintenanceCalendar, buildFlyForwardProjection } from '../lib/flyForwardHelpers';
+import { buildPotDefsForActivation } from '../lib/pots';
 import { useLayoutMode } from '../lib/layoutMode';
 import { getEndOfLeaseTermsDefaults } from '../lib/knowledgeBase';
 
@@ -1217,11 +1218,12 @@ function PendingCompletionsPanel({ asset, pending, onCompleted, notify, canEnter
 // completed event be logged manually even when it's not (or no longer)
 // sitting in the pending list — e.g. entering historical data, or an
 // event that was already Dismissed and needs its real costs added later.
-function CompletedEventsHistory({ asset, completedEvents, eventTypeOptions, canEnterCosts, notify, onSaved }) {
+function CompletedEventsHistory({ asset, completedEvents, eventTypeOptions, canEnterCosts, isAdmin, notify, onSaved }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickCode, setPickCode] = useState("");
   const [pickDate, setPickDate] = useState("");
   const [manualEvt, setManualEvt] = useState(null);
+  const [deleting, setDeleting] = useState(null);
 
   const startManual = () => {
     if (!pickCode || !pickDate) { notify("Select an event type and date", "error"); return; }
@@ -1232,6 +1234,27 @@ function CompletedEventsHistory({ asset, completedEvents, eventTypeOptions, canE
       cost: null, beyondHorizon: false
     });
     setPickerOpen(false); setPickCode(""); setPickDate("");
+  };
+
+  // Correction path for a mis-entered or test completed-event record —
+  // admin/editor only (matches firestore.rules), and every deletion writes
+  // an auditLog entry naming exactly what was removed, since the record
+  // itself won't exist afterward to show what it was. See db.js's
+  // deleteCompletedEvent for the full "why deletable at all" reasoning.
+  const deleteEvent = async (ev) => {
+    if (!confirm(`Delete this completed-event record?\n\n${ev.code} — ${ev.label || ev.code}\n${ev.eventDateProjected || "no date"} · ${ev.totalCost != null ? `$${Math.round(ev.totalCost).toLocaleString()}` : "no cost data"}\n\nThis cannot be undone from within the app.`)) return;
+    setDeleting(ev.id);
+    try {
+      await db.deleteCompletedEvent(ev.id);
+      await logAudit(asset.id, asset.msn, `Deleted completed event: ${ev.code} (${ev.eventDateProjected || "no date"}, ${ev.totalCost != null ? `$${Math.round(ev.totalCost).toLocaleString()}` : "no cost data"})`);
+      await onSaved();
+      notify("Completed event deleted");
+    } catch (e) {
+      console.error("deleteCompletedEvent failed:", e);
+      notify(`Delete failed: ${e?.message || e}`, "error");
+    } finally {
+      setDeleting(null);
+    }
   };
 
   const sorted = [...completedEvents].sort((a, b) => new Date(b.eventDateProjected || b.confirmedAt) - new Date(a.eventDateProjected || a.confirmedAt));
@@ -1265,12 +1288,20 @@ function CompletedEventsHistory({ asset, completedEvents, eventTypeOptions, canE
             {ev.noCostData && <span className="pill" style={{ marginLeft: 6, background: "var(--color-attention-tint)", color: "var(--color-attention)", fontSize: 10 }}>No cost data</span>}
             {ev.mroRegion && <span style={{ marginLeft: 6, color: "var(--color-graphite)" }}>· {ev.mroRegion}</span>}
           </div>
-          <div style={{ fontSize: 12, color: "var(--color-graphite)" }}>
-            {ev.totalCost != null ? `$${Math.round(ev.totalCost).toLocaleString()}` : "—"}
-            {ev.costDelta != null && (
-              <span style={{ marginLeft: 8, color: ev.costDelta > 0 ? "var(--color-critical)" : "var(--color-positive)" }}>
-                {ev.costDelta > 0 ? "+" : ""}${Math.round(ev.costDelta).toLocaleString()} vs projected
-              </span>
+          <div style={{ fontSize: 12, color: "var(--color-graphite)", display: "flex", alignItems: "center", gap: 10 }}>
+            <span>
+              {ev.totalCost != null ? `$${Math.round(ev.totalCost).toLocaleString()}` : "—"}
+              {ev.costDelta != null && (
+                <span style={{ marginLeft: 8, color: ev.costDelta > 0 ? "var(--color-critical)" : "var(--color-positive)" }}>
+                  {ev.costDelta > 0 ? "+" : ""}${Math.round(ev.costDelta).toLocaleString()} vs projected
+                </span>
+              )}
+            </span>
+            {isAdmin && (
+              <button className="btn btn-ghost" style={{ fontSize: 10, padding: "2px 6px", color: "var(--color-critical)" }}
+                disabled={deleting === ev.id} onClick={() => deleteEvent(ev)}>
+                {deleting === ev.id ? "Deleting…" : "Delete"}
+              </button>
             )}
           </div>
         </div>
@@ -1285,7 +1316,7 @@ function CompletedEventsHistory({ asset, completedEvents, eventTypeOptions, canE
   );
 }
 
-function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = false, showSeasonality: showSeasonalityProp = false, setShowSeasonality: setShowSeasonalityProp = null }) {
+function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = false, isAdmin = false, showSeasonality: showSeasonalityProp = false, setShowSeasonality: setShowSeasonalityProp = null }) {
   const [loading, setLoading] = useState(true);
   const [lease, setLease] = useState(null);
   const [reserveDocs, setReserveDocs] = useState([]);
@@ -1428,23 +1459,29 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
   });
 
   // Event Type options for the manual "+ Log Completed Event" picker.
-  // Previously sourced from reserveDocs (raw Firestore reserve-pot docs),
-  // which are only written by the Lease Wizard's Reserve Setup step — so
-  // any asset with no active lease/reserve pots on file got an empty
-  // dropdown, even though the Maintenance Calendar itself (this same
-  // component) already shows real, dated events for that asset via
-  // buildAssetMaintenanceCalendar's synthetic-pot fallback (see
-  // flyForwardHelpers.js). maintenanceCal.events is that same leaseless-
-  // safe source — every check (AF-6Y/AF-12Y) and pot-driven event
-  // (LG-OH/EN-LP always real; EN-PR/AP-OH omitted entirely when
-  // synthesized rather than faked) already carries a real {code, label}
-  // regardless of lease status, so deriving the picker's options from it
-  // instead makes "Log Completed Event" work the same way on both leased
-  // and leaseless assets. Deduped by code since the calendar can list the
-  // same code multiple times (one entry per due cycle).
-  const eventTypeOptions = Array.from(
-    maintenanceCal.events.reduce((m, evt) => (m.has(evt.code) ? m : m.set(evt.code, evt.label)), new Map())
-  ).map(([code, label]) => ({ code, label }));
+  //
+  // First pass sourced this from reserveDocs (raw Firestore reserve-pot
+  // docs, only written by the Lease Wizard's Reserve Setup step) — empty
+  // dropdown on any leaseless asset. Second pass switched to
+  // maintenanceCal.events, which fixed leaseless assets but silently
+  // dropped EN-PR and AP-OH: buildAssetMaintenanceCalendar (via
+  // buildCalendarEntry in flyForwardHelpers.js) deliberately omits both
+  // from its *synthesized* pots when there's no confirmed reserve pot,
+  // because it can't compute a real forward-looking due DATE for either
+  // without a lease anchor (no tracked "last PR date"; APU's
+  // nowOffsetMonths is never populated anywhere) — see the comments above
+  // buildCalendarEntry for the full reasoning. That's a real constraint on
+  // *projecting* a future date, but it doesn't apply here: logging a
+  // completed event is the opposite direction — Alan supplies a real
+  // historic date and cost directly, the app isn't guessing anything.
+  //
+  // So this now sources options from buildPotDefsForActivation(asset)
+  // (pots.js) instead — the full, unfiltered set of every pot/check code
+  // this asset could ever have (AF-6Y/AF-12Y, LG-OH, AP-OH, and per-engine
+  // EN-PR-{pos}/EN-LP-{pos}), independent of lease status or the
+  // projection logic entirely. Every code is always available to log as a
+  // historic completion, on any asset, leased or not.
+  const eventTypeOptions = buildPotDefsForActivation(asset).map(def => ({ code: def.code, label: def.label }));
 
   const { mode: layoutMode } = useLayoutMode();
   const inLandscape = layoutMode === "landscape";
@@ -1455,7 +1492,7 @@ function MaintenanceCalendarView({ asset, notify = () => {}, canEnterCosts = fal
 
       {/* Completed Events + Calendar description — side by side on landscape */}
       <div style={inLandscape ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 16, marginBottom: 16, alignItems: "stretch" } : undefined}>
-        <CompletedEventsHistory asset={asset} completedEvents={completedEvents} eventTypeOptions={eventTypeOptions} canEnterCosts={canEnterCosts} notify={notify} onSaved={reload}/>
+        <CompletedEventsHistory asset={asset} completedEvents={completedEvents} eventTypeOptions={eventTypeOptions} canEnterCosts={canEnterCosts} isAdmin={isAdmin} notify={notify} onSaved={reload}/>
         <div style={{ background: "var(--color-teal-tint)", border: "1px solid var(--color-teal)", borderRadius: 10, padding: "12px 16px", marginBottom: inLandscape ? 0 : 16 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)" }}>Maintenance Calendar — MSN {asset.msn}</div>
           <div style={{ fontSize: 12, color: "var(--color-graphite)", marginTop: 2 }}>
