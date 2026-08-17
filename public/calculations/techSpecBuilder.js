@@ -271,7 +271,7 @@ ${eng.operatorHistory?.length?`${cO("Operator History",svgList)}${tblScroll(`<ta
   const col2=(l,r)=>`<table class="col2" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin-bottom:13px"><colgroup><col width="49%"/><col width="2%"/><col width="49%"/></colgroup><tr>${l}<td style="border:none;padding:0"></td>${r}</tr></table>`;
   const col3=(a,b,c)=>`<table width="100%" cellpadding="0" cellspacing="0" class="lg3col" style="border-collapse:separate;margin-bottom:13px"><colgroup><col width="32%"/><col width="2%"/><col width="32%"/><col width="2%"/><col width="32%"/></colgroup><tr>${a}<td style="border:none;padding:0"></td>${b}<td style="border:none;padding:0"></td>${c}</tr></table>`;
   const cC=`</div>`;
-  const kvR=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #E8E7E2;padding:5px 0;font-size:10px;color:#687078;font-weight:600;width:150px;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #E8E7E2;padding:5px 0;font-size:10.5px;color:#151A1D;font-weight:600;vertical-align:top">${escapeHtml(v)}</td></tr>`;
+  const kvR=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #E8E7E2;padding:5px 0;font-size:10px;color:#687078;font-weight:600;width:150px;vertical-align:top">${escapeHtml(l)}</td><td style="border:none;border-bottom:1px solid #E8E7E2;padding:5px 0;font-size:10.5px;color:#151A1D;font-weight:600;vertical-align:top">${escapeHtml(v)}</td></tr>`;
   const mT=(lbl,val,sub)=>`<div class="mini-t"><div class="mini-l">${lbl}</div><div class="mini-v">${val}</div>${sub?`<div class="mini-s">${sub}</div>`:""}</div>`;
   const TH='background:#E8E7E2;color:#687078;font-weight:700;text-align:left;padding:5px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #D9DCD8';
   const TD='padding:5px 8px;border:1px solid #D9DCD8;vertical-align:top';
@@ -365,7 +365,7 @@ ${col2(
     ${IH("Check History",svgWrench)}
     ${(()=>{
       const enteredChecks=(asset.checks||[]).filter(c=>c.lastDate||c.nextDate);
-      const tableRows=!enteredChecks.length?'<tr><td colspan="5" style="color:#687078;font-style:italic">No check history entered</td></tr>':enteredChecks.map(c=>`<tr><td style="${TD}">${c.name}</td><td style="${TD}">${fmtDate(c.lastDate)}</td><td style="${TD}">${c.lastFH?.toLocaleString()||"—"}</td><td style="${TD}">${c.lastFC?.toLocaleString()||"—"}</td><td style="${TD};font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("");
+      const tableRows=!enteredChecks.length?'<tr><td colspan="5" style="color:#687078;font-style:italic">No check history entered</td></tr>':enteredChecks.map(c=>`<tr><td style="${TD}">${escapeHtml(c.name)}</td><td style="${TD}">${fmtDate(c.lastDate)}</td><td style="${TD}">${c.lastFH?.toLocaleString()||"—"}</td><td style="${TD}">${c.lastFC?.toLocaleString()||"—"}</td><td style="${TD};font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("");
       const cards=!enteredChecks.length?'<div class="dt-card" style="color:#687078;font-style:italic">No check history entered</div>':enteredChecks.map(c=>`<div class="dt-card">${dtRow("Check",c.name)}${dtRow("Last Date",fmtDate(c.lastDate))}${dtRow("FH",c.lastFH?.toLocaleString()||"—")}${dtRow("FC",c.lastFC?.toLocaleString()||"—")}${dtRow("Next Due",fmtDate(c.nextDate),"font-weight:800")}</div>`).join("");
       const tableHtml=`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Check</th><th style="${TH}">Last Date</th><th style="${TH}">FH</th><th style="${TH}">FC</th><th style="${TH}">Next Due</th></tr></thead><tbody>${tableRows}</tbody></table>`;
       return dualRender(tableHtml,cards);
@@ -471,7 +471,7 @@ ${(()=>{
   const wb=asset.wheelsBrakes||{};
   const rows=[["Main Wheels",wb.mainWheels],["Nose Wheels",wb.noseWheels],["Brake Unit",wb.brakes]].filter(([,item])=>item&&(item.pn||item.mfr));
   if(!rows.length)return"";
-  const wbTable=`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Component</th><th style="${TH}">Qty</th><th style="${TH}">P/N</th><th style="${TH}">Manufacturer</th></tr></thead><tbody>${rows.map(([label,item])=>`<tr><td style="${TD}">${label}</td><td style="${TD}">${item.qty||"—"}</td><td style="${TD}">${item.pn||"—"}</td><td style="${TD}">${item.mfr||"—"}</td></tr>`).join("")}</tbody></table>`;
+  const wbTable=`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Component</th><th style="${TH}">Qty</th><th style="${TH}">P/N</th><th style="${TH}">Manufacturer</th></tr></thead><tbody>${rows.map(([label,item])=>`<tr><td style="${TD}">${escapeHtml(label)}</td><td style="${TD}">${escapeHtml(item.qty||"—")}</td><td style="${TD}">${escapeHtml(item.pn||"—")}</td><td style="${TD}">${escapeHtml(item.mfr||"—")}</td></tr>`).join("")}</tbody></table>`;
   const wbCards=rows.map(([label,item])=>`<div class="dt-card">${dtRow("Component",label)}${dtRow("Qty",item.qty||"—")}${dtRow("P/N",item.pn||"—","font-family:IBM Plex Mono,monospace")}${dtRow("Manufacturer",item.mfr||"—")}</div>`).join("");
   return`${cO("Wheels &amp; Brakes",svgWheel)}${dualRender(wbTable,wbCards)}${cC}`;
 })()}
