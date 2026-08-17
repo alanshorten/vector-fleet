@@ -1407,7 +1407,9 @@ Follow-up to 4.85, same session. Alan flagged that the Calendar tab was still sh
 
 **IT Security Review v4 produced August 2026.** Closes the completedEvents Firestore rule (confirmed written and verified), adds a product family section (Section 2a) covering TailiQ Specs and the free tools as in-development stubs with their own future review. v4 supersedes v3 and is the current document. IT review meeting scheduled (Nikifor Hristov, Vectorgroup IT).
 
-**Priority:** ✅ Done — v4 document current and complete.
+**Correction, August 2026 (see 4.128 below):** the completedEvents-rule claim above was wrong. A Codex static security assessment of the repository (independent of this checklist) found `firestore.rules` had **no** `match` block for `completedEvents` at all — not a permissive rule, nothing — which under Firestore's default-deny meant every read/write to it (including "Log Completed Event" in the Maintenance Calendar) was silently rejected in production. Caught and fixed during the Phase 1 remediation build session when Alan hit it live and pasted the actual Console rules to compare against this doc's claim. This is exactly the kind of doc/reality drift the roadmap in 4.128 was written to close out — treat "✅ Done" marks in this file as a starting point for verification, not a guarantee, until a fresh assessment confirms the current state.
+
+**Priority:** ✅ Done — v4 document superseded; see 4.128 for the current, independently-verified security state.
 
 ---
 
@@ -2030,4 +2032,37 @@ Files touched: `public/calculations/flyForward.js`, `src/components/FlyForward.j
 
 ---
 
+### 4.128 Codex Security Assessment (Aug 2026) — 12 Findings, Remediation Complete — ✅ DONE (August 2026)
+
+**Context.** A static, read-only security assessment (Codex — no dependency installation, no running app, no production access) was run against this repository in August 2026, independent of and more rigorous than the internal IT/Security Review checklists (4.87 and predecessors) that had accumulated in this file. It found 12 findings across four severity tiers and, in the process, surfaced that at least one prior "✅ Done" claim in this document (the `completedEvents` Firestore rule, 4.87) did not match what was actually live — see the correction note added to 4.87. Full findings, per-finding remediation detail, and file:line references are in `SECURITY_ASSESSMENT.md` (project docs) and the phased build plan in `security-remediation-roadmap.md` (same location) — not duplicated here in full; this entry is the tech-debt-register summary and pointer.
+
+**Remediation status as of 2026-08-17 — 11 of 12 findings closed and confirmed live-tested, 1 deployed pending test:**
+
+| ID | Severity | Finding | Status |
+|----|----------|---------|--------|
+| C-01 | Critical | No tenant isolation in Firestore rules/queries | ✅ Closed — tenant-rooted Firestore subcollections, immutable `tenantId` claim, `db.js` rewritten to resolve tenant from the caller's own claim (never client input) |
+| C-02 | Critical | Unauthenticated email webhook could write asset data | ✅ Closed — shared-secret gate on `api/email-ingest.js` |
+| H-01 | High | Unauthenticated Anthropic API proxy | ✅ Closed — `api/extract.js` requires a verified Firebase ID token + server-side request allowlisting |
+| H-02 | High | Any signed-in user could mint/revoke share links for any asset | ✅ Closed — share creation/revocation moved server-side (`api/share/create.js`, `api/share/revoke.js`), tenant/role verified |
+| H-03 | High | Stored XSS in generated tech specs and public shares | ✅ Closed — `techSpecBuilder.js` escapes every interpolated value, `https:`-only image allowlist, sandboxed/opener-nulled rendering |
+| H-04 | High | Invite-resend deleted/recreated accounts and leaked reset links | ✅ Closed — `api/invite-user.js` resend no longer deletes accounts; reset links emailed, never returned to the caller |
+| M-01 | Medium | Revoked/changed roles stayed valid for up to ~1hr | ✅ Closed — `verifyIdToken(token, true)` + `tenantMembers/{uid}` membership doc consulted on every write |
+| M-02 | Medium | Public share bearer tokens leaked to a third-party QR service | ✅ Closed — QR codes now generated client-side (`qrcode` npm package) |
+| M-03 | Medium | Audit log entries were forgeable (any user, any identity/timestamp) | ✅ Closed — `firestore.rules` binds `userId`/`userEmail`/`timestamp` to the authenticated caller |
+| M-04 | Medium | Landing-page signup endpoint had no rate limit | 🟡 Deployed, not yet tested — blocked on the landing page being back online (Alan's choice, unrelated to this fix) |
+| L-01 | Low | No lockfile, no SRI on CDN scripts, no CSP/security headers | ✅ Closed — `package-lock.json` committed, SRI added to the four CDN `<script>` tags, `Content-Security-Policy-Report-Only` + security headers live on `vercel.json`, confirmed present via browser devtools with a clean console (no CSP violations, no SRI failures) |
+| — | — | Settings collection writable by any signed-in user (Decision 4) | ✅ Closed alongside M-03 — writes restricted to admin/editor |
+
+**Deliberately still open, tracked as explicit follow-up rather than oversight (see `SECURITY_ASSESSMENT.md` for detail):**
+- The pre-migration flat Firestore collections (`assets`, `leases`, `reserves`, `scheduledEvents`, `seasonalityProfile`, `utilisation`, `shareTokens`, `pendingReports`) remain live as DEPRECATED/TRANSITIONAL rollback copies, not yet tightened to deny or deleted.
+- The CSP is report-only, not enforcing — intended to be tuned against real console violation data before that switch.
+- A checklist of production/dashboard-only items the original static assessment couldn't verify from the repo alone (Firebase signup controls, Cloudinary preset limits, secrets rotation schedule, third-party data-retention terms, log redaction) has not been worked through yet.
+- Two high-severity `npm audit` advisories (Vite path traversal, xlsx prototype pollution/ReDoS) surfaced while building the L-01 lockfile — not part of the original 12 findings, not yet triaged, may require a breaking version bump to fix.
+
+**Note on this file's own reliability:** the 4.87 correction above is a live example of why — treat any "✅ Done"/"✅ RESOLVED" mark in this register, including this entry once time passes, as a starting point to verify against a fresh assessment or live testing, not a permanent guarantee.
+
+---
+
 *Last updated: August 2026 — This session (Fly-Forward Financials summary split + app-wide Reserve Position sign-convention rollout, Sonnet build): Two related threads closed out. First, 4.126 — resolved the Forward Exposure Summary card question definitively: rather than reviving the expensive `buildFleetExposure`-based approach that crashed twice previously, split the existing "Portfolio Shortfall Summary" card into "Lease Shortfall Summary" + "Post-Lease Shortfall Summary," the latter a cheap aggregation of data (`partialFundedNote`) each pot's projection was already computing for its own card display. Second, 4.127 — live-testing that split against MSN 6014 surfaced a genuine UX problem (shortfall figures read as inverted — negative numbers in green, positive in red), scoped in conversation before any code was touched, then rolled out consistently across every screen carrying the same convention: `FlyForward.jsx` pot cards, `Scenarios.jsx` per-pot worst-case table, and `PortfolioView.jsx`'s Route Suitability Matcher table (which also had an unrelated colour bug — surplus showing grey instead of green — fixed in the same pass). Deliberately left alone: Fleet Exposure totals (already unambiguous) and EOL Position's contractual payment-adjustment figure (different formula, different — already correct — sign convention). Tech spec / design system merge (4.124's Opus scoping session) has also since been run and built — see 4.125; `VECTORIQ_ROADMAP.md` Section 19 rows for both threads updated in this sync. All three touched files passed Babel (`@babel/preset-react`) transform + `node --check` before delivery.*
+
+*Last updated: 2026-08-17 — Codex security assessment (12 findings) fully remediated across four phases (Phase 1 endpoint hardening, Phase 2 HTML sanitisation, Phase 3 tenant isolation, Phase 4 supply-chain hardening) — see 4.128 above. 11 of 12 findings closed and live-verified; M-04 deployed pending test. `SECURITY_ASSESSMENT.md` updated in the project docs with a per-finding status; this is the tech-debt-register summary of that work.*
