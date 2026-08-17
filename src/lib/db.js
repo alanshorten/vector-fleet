@@ -21,6 +21,13 @@ const getFS = () => {
 // on its old flat path until a follow-up session migrates it — see the
 // roadmap's Phase 3 sequencing. Do NOT tenant-root a collection here without
 // also migrating its Firestore rule and any existing documents first.
+//
+// UPDATE 2026-08-17 (second-reassessment-followup-scoping-handoff.md item 3):
+// shopVisitProjections, knowledgeBase, and completedEvents were the last
+// three collections still reading/writing flat paths below. All three now
+// use this same tenantId resolution — see each function's own comment for
+// what changed and why (completedEvents in particular was a live bug, not
+// just a tenant-isolation gap — see its functions below).
 async function getTenantId() {
   // window._auth is this app's own auth wrapper, not the raw Firebase Auth
   // SDK object — it exposes getIdTokenResult()/getIdToken() directly on
@@ -98,27 +105,38 @@ const db = {
   //     asset is itself an audited action, so the record of what happened
   //     to it should survive the asset itself.
   //   - shopVisitProjections — same append-only design as auditLog
-  //     (firestore.rules also forbids delete on it outright).
+  //     (firestore.rules also forbids delete on it outright). Tenant-rooted
+  //     as of 2026-08-17 (see getShopVisitProjections/saveShopVisitProjection
+  //     below) — still deliberately excluded from cascade delete for the
+  //     same reason.
   //   - completedEvents — actual logged maintenance completions with real
   //     costs entered; kept for the same "real-world outcome data" reason
-  //     as shopVisitProjections, even though firestore.rules doesn't
-  //     currently have an explicit rule for this collection either way
-  //     (flagged separately — see TECH_DEBT.md).
+  //     as shopVisitProjections. Tenant-rooted as of 2026-08-17 (see
+  //     getCompletedEvents/saveCompletedEvent/deleteCompletedEvent below) —
+  //     this also fixed a live bug where firestore.rules had NO rule for
+  //     this collection at all (default-deny silently blocked every client
+  //     read/write) despite this file's comments having assumed one existed
+  //     — see those functions' comments for the full story. Still
+  //     deliberately excluded from cascade delete for the same reason as
+  //     shopVisitProjections.
   // Utilisation history and seasonalityProfile, by contrast, ARE deleted —
   // they're this customer's own tracking/forecasting state, not compiled
   // fleet intelligence, so a re-created asset at the same MSN starts clean.
   async deleteAsset(id) {
     const { db: fs, doc, collection, query, where, getDocs, writeBatch } = getFS();
     const assetId = String(id);
-    // Phase 3 tenant-isolation migration status as of Session 4: assets,
+    // Phase 3 tenant-isolation migration status as of 2026-08-17: assets,
     // leases, reserves, scheduledEvents, utilisation, and shareTokens are
-    // all tenant-rooted. Nothing remains in byAssetIdFlat as of this
-    // session — kept as an empty list (rather than removed) so the pattern
-    // and comment stay in place for any future collection that needs it.
-    // Do NOT tenant-root a doc() call here without migrating that
-    // collection's rule and existing documents first (see
-    // security-remediation-roadmap.md Phase 3 and the phase3-session*
-    // delivery docs in this project for what's been done so far).
+    // all tenant-rooted. shopVisitProjections and completedEvents are ALSO
+    // now tenant-rooted (as of today) but remain deliberately excluded from
+    // this cascade-delete list — see the comment above for why. Nothing
+    // remains in byAssetIdFlat as of this session — kept as an empty list
+    // (rather than removed) so the pattern and comment stay in place for
+    // any future collection that needs it. Do NOT tenant-root a doc() call
+    // here without migrating that collection's rule and existing documents
+    // first (see security-remediation-roadmap.md Phase 3 and the
+    // phase3-session*/second-reassessment-followup delivery docs in this
+    // project for what's been done so far).
     const tenantId = await getTenantId();
 
     // Collections that reference the asset via an assetId/asset_id field —
@@ -433,14 +451,21 @@ const db = {
     await setDoc(ref, data);
     return { id: String(assetId), ...data };
   },
+  // Tenant-rooted 2026-08-17 (second-reassessment-followup-scoping-handoff.md
+  // item 3) — this collection was a straightforward migration miss during
+  // Phase 3, not a deliberate choice. Same shape and role posture as before
+  // (any signed-in user can read/create, update/delete blocked in rules),
+  // just moved under the caller's own tenant path.
   async getShopVisitProjections(assetId) {
     const { db: fs, collection, query, where, getDocs } = getFS();
-    const q = query(collection(fs, "shopVisitProjections"), where("assetId", "==", String(assetId)));
+    const tenantId = await getTenantId();
+    const q = query(collection(fs, "tenants", tenantId, "shopVisitProjections"), where("assetId", "==", String(assetId)));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => new Date(b.calculatedAt) - new Date(a.calculatedAt));
   },
   async saveShopVisitProjection(assetId, companyId, projection) {
     const { db: fs, collection, addDoc } = getFS();
+    const tenantId = await getTenantId();
     const now = new Date().toISOString();
     const data = {
       assetId: String(assetId),
@@ -457,20 +482,27 @@ const db = {
       confidence: projection.confidence || "monthly-snapshot",
       calculatedAt: now
     };
-    await addDoc(collection(fs, "shopVisitProjections"), data);
+    await addDoc(collection(fs, "tenants", tenantId, "shopVisitProjections"), data);
     return data;
   },
   // --- Knowledge Base (knowledge-base-scoping-handoff.md, July 2026) ---
+  // Tenant-rooted 2026-08-17 (second-reassessment-followup-scoping-handoff.md
+  // item 3 — Alan confirmed: tenant-root rather than keep a shared global
+  // default). Doc id logic (`companyId || "default"`) is unchanged; only the
+  // path gained the tenant prefix. Every current call site omits companyId,
+  // so in practice this is `tenants/{tenantId}/knowledgeBase/default` today.
   async getKnowledgeBase(companyId = null) {
     const { db: fs, doc, getDoc } = getFS();
+    const tenantId = await getTenantId();
     const id = companyId || "default";
-    const snap = await getDoc(doc(fs, "knowledgeBase", id));
+    const snap = await getDoc(doc(fs, "tenants", tenantId, "knowledgeBase", id));
     return snap.exists() ? { id: snap.id, ...snap.data() } : null;
   },
   async saveKnowledgeBase(companyId, data) {
     const { db: fs, doc, setDoc, getDoc } = getFS();
+    const tenantId = await getTenantId();
     const id = companyId || "default";
-    const ref = doc(fs, "knowledgeBase", id);
+    const ref = doc(fs, "tenants", tenantId, "knowledgeBase", id);
     const existing = await getDoc(ref).catch(() => null);
     const now = new Date().toISOString();
     const payload = {
@@ -485,8 +517,9 @@ const db = {
   },
   async getLLPCatalogue(companyId = null) {
     const { db: fs, collection, getDocs } = getFS();
+    const tenantId = await getTenantId();
     const id = companyId || "default";
-    const snap = await getDocs(collection(fs, "knowledgeBase", id, "llpCatalogue"));
+    const snap = await getDocs(collection(fs, "tenants", tenantId, "knowledgeBase", id, "llpCatalogue"));
     return snap.docs.map(d => ({ partNumber: d.id, ...d.data() }));
   },
   // entries: [{ partNumber, unitPrice, engineFamily, catalogueYear }, ...]
@@ -496,6 +529,7 @@ const db = {
   // preferred when available.
   async saveLLPCataloguePrices(companyId, entries) {
     const { db: fs, doc, setDoc, writeBatch } = getFS();
+    const tenantId = await getTenantId();
     const id = companyId || "default";
     const now = new Date().toISOString();
     const payloadFor = e => ({
@@ -507,12 +541,12 @@ const db = {
     });
     if (typeof writeBatch === "function") {
       const batch = writeBatch(fs);
-      entries.forEach(e => batch.set(doc(fs, "knowledgeBase", id, "llpCatalogue", e.partNumber), payloadFor(e)));
+      entries.forEach(e => batch.set(doc(fs, "tenants", tenantId, "knowledgeBase", id, "llpCatalogue", e.partNumber), payloadFor(e)));
       await batch.commit();
       return;
     }
     await Promise.all(entries.map(e =>
-      setDoc(doc(fs, "knowledgeBase", id, "llpCatalogue", e.partNumber), payloadFor(e))
+      setDoc(doc(fs, "tenants", tenantId, "knowledgeBase", id, "llpCatalogue", e.partNumber), payloadFor(e))
     ));
   },
   // --- SV Cost Tracker (monthly-report-cost-tracker-handoff.md §2, TECH_DEBT.md 4.101) ---
@@ -520,23 +554,38 @@ const db = {
   // one addDoc per completed event, never overwritten. "Cleared" from the
   // pending-completion nudge is determined by a matching code+dueCycle
   // record existing here, not by deleting anything from scheduledEvents.
+  //
+  // FIXED 2026-08-17 (second-reassessment-followup-scoping-handoff.md item 3):
+  // this collection was a LIVE BUG, not just a tenant-isolation gap.
+  // firestore.rules had no rule for `completedEvents` at any path — flat or
+  // otherwise — so Firestore's default-deny silently blocked every client
+  // read and write, despite the comments below (on deleteCompletedEvent)
+  // assuming an admin/editor rule already existed here. Alan confirmed live
+  // 2026-08-17 that logging a completed maintenance event was in fact
+  // broken. Now tenant-rooted with a real admin/editor write rule matching
+  // what the comments always assumed was true.
   async getCompletedEvents(assetId) {
     const { db: fs, collection, query, where, getDocs } = getFS();
-    const q = query(collection(fs, "completedEvents"), where("assetId", "==", String(assetId)));
+    const tenantId = await getTenantId();
+    const q = query(collection(fs, "tenants", tenantId, "completedEvents"), where("assetId", "==", String(assetId)));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => new Date(b.confirmedAt) - new Date(a.confirmedAt));
   },
   // Fleet-wide read — no assetId filter. Used by FleetCompletedEventsView
   // on the fleet Calendar tab to show all logged events across all assets.
-  // Same single-tenant pattern as getAssets() — no companyId filter needed
-  // at current scale (all data in one Firestore instance).
+  // Tenant-rooted as of 2026-08-17 — this is now naturally scoped to the
+  // caller's own tenant's assets rather than being a genuinely global,
+  // cross-tenant read (which is what it would have been had this collection
+  // ever actually worked before today's fix).
   async getAllCompletedEvents() {
     const { db: fs, collection, getDocs } = getFS();
-    const snap = await getDocs(collection(fs, "completedEvents"));
+    const tenantId = await getTenantId();
+    const snap = await getDocs(collection(fs, "tenants", tenantId, "completedEvents"));
     return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => new Date(b.confirmedAt) - new Date(a.confirmedAt));
   },
   async saveCompletedEvent(assetId, companyId, data) {
     const { db: fs, collection, addDoc } = getFS();
+    const tenantId = await getTenantId();
     const now = new Date().toISOString();
     const payload = {
       assetId: String(assetId),
@@ -578,7 +627,7 @@ const db = {
       confirmedAt: now,
       createdAt: now
     };
-    const ref = await addDoc(collection(fs, "completedEvents"), payload);
+    const ref = await addDoc(collection(fs, "tenants", tenantId, "completedEvents"), payload);
     return { id: ref.id, ...payload };
   },
   // Correction path (2026-08-14 follow-up): completedEvents is otherwise
@@ -590,15 +639,18 @@ const db = {
   // this directly logging a $999,999 test entry against a real asset while
   // testing the picker fix. Bad/test data has no business staying in a
   // dataset meant to feed real cost benchmarking, so this is a narrow,
-  // audited escape hatch: admin/editor only (firestore.rules already gates
-  // completedEvents writes — which include deletes — to admin/editor, same
-  // as scheduledEvents/seasonalityProfile), and every deletion is logged
-  // to auditLog by the caller (see CompletedEventsHistory in FlyForward.jsx)
-  // so there's a permanent record that a completion entry was removed, even
-  // though the entry itself is gone.
+  // audited escape hatch: admin/editor only (firestore.rules now genuinely
+  // gates completedEvents writes — including deletes — to admin/editor at
+  // the tenant-rooted path, same as scheduledEvents/seasonalityProfile —
+  // this rule did not actually exist anywhere before the 2026-08-17 fix, see
+  // the header comment above), and every deletion is logged to auditLog by
+  // the caller (see CompletedEventsHistory in FlyForward.jsx) so there's a
+  // permanent record that a completion entry was removed, even though the
+  // entry itself is gone.
   async deleteCompletedEvent(id) {
     const { db: fs, doc, deleteDoc } = getFS();
-    await deleteDoc(doc(fs, "completedEvents", id));
+    const tenantId = await getTenantId();
+    await deleteDoc(doc(fs, "tenants", tenantId, "completedEvents", id));
   },
   // --- Email review queue (Section 12a) ---
   // Tenant-rooted since Phase 3 Session 4 — note api/email-ingest.js writes
