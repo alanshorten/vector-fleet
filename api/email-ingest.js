@@ -26,6 +26,23 @@
 // cases that matter; the shared secret above is what actually closes the
 // unauthenticated-access hole.)
 //
+// ABUSE LIMITS (2026-08, see claude_abuse-limits-build-spec.md): a valid
+// shared secret (or a leaked one) shouldn't be able to flood this endpoint,
+// balloon a single email into unbounded storage/AI cost, or replay the same
+// email indefinitely via SendGrid's own retry behaviour. Five independent
+// guardrails, all well above real usage (real utilisation report emails
+// have 1-6 attachments and a handful of forwards per day, not per hour):
+//   2A. Attachment count cap (10/email, excess logged and discarded)
+//   2B. Aggregate attachment size cap (25MB/email, hard reject)
+//   2C. Field size limits (from/to/subject/etc, truncated before use)
+//   2D. Idempotency via Message-ID hash (24h dedup, silent ack)
+//   2E. Per-sender rate limit (20/hour, silent ack-and-skip)
+// All five preserve this endpoint's existing convention of always
+// responding HTTP 200 to SendGrid (even on rejection) — SendGrid retries
+// non-2xx responses, and a retry storm on a rejected/duplicate/rate-limited
+// email is exactly the failure mode these limits exist to prevent. The
+// `ok`/`reason` fields in the body carry the real outcome for our own logs.
+//
 // Single-company build (per roadmap: "build single-company first, extend
 // when second organisation onboards"). companyId/role multi-tenancy hasn't
 // been backfilled yet (TECH_DEBT 2.3) — the company-slug check is a routing
@@ -66,10 +83,34 @@ const XLSX = require('xlsx');
 const vm = require('vm');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const admin = require('firebase-admin');
 const { callAnthropic } = require('./_lib/anthropicCall');
 
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // matches the 10MB limit on the manual Upload flow
+
+// ---- 2A / 2B: attachment count + aggregate size caps -----------------------
+// Real utilisation report emails have 1-6 attachments. 10 is generous
+// headroom; anything beyond that is logged and discarded rather than
+// buffered at all (see parseMultipart below — excess file streams are
+// drained and dropped, never held in memory).
+const MAX_ATTACHMENTS = 10;
+// Just inside SendGrid's own 30MB platform limit, so a legitimate email
+// that SendGrid itself would accept never trips this.
+const MAX_AGGREGATE_BYTES = 25 * 1024 * 1024;
+
+// ---- 2C: field size limits --------------------------------------------------
+const FIELD_LIMITS = { from: 256, to: 256, subject: 512, default: 1024 };
+function capField(value, limit) {
+  const s = (value == null) ? '' : String(value);
+  return s.length > limit ? s.slice(0, limit) : s;
+}
+
+// ---- 2D: idempotency window --------------------------------------------------
+const DEDUP_TTL_MS = 24 * 60 * 60 * 1000;
+
+// ---- 2E: per-sender rate limit -----------------------------------------------
+const RATE_LIMIT_PER_HOUR = 20;
 
 // Matches the TENANT_ID hardcoded in bootstrap-admin.js/set-role.js/
 // invite-user.js/the migrate-*-to-tenant.js files. This endpoint reads and
@@ -116,24 +157,52 @@ function getProcessUtilisationReport() {
 // ---- multipart parsing (SendGrid Inbound Parse posts multipart/form-data) --
 // Fields of interest: `envelope` (JSON string with the real to/from, more
 // reliable than the human-readable `to`/`from` headers which can contain
-// display names or multiple recipients), `subject`, and one file field per
+// display names or multiple recipients), `subject`, `headers` (raw header
+// block, used for Message-ID extraction — see 2D), and one file field per
 // attachment (`attachment1`, `attachment2`, ...) plus a JSON `attachment-info`
 // field describing them. We only need the file bytes + filename/mimetype,
 // so we read every file field generically rather than relying on exact
 // SendGrid field naming, in case that varies by plan/config.
+//
+// 2A/2B: attachments beyond MAX_ATTACHMENTS are drained (stream.resume())
+// and dropped without ever entering memory — count and aggregate byte caps
+// are both enforced here, at parse time, rather than after the fact, so a
+// malicious or malformed email can't force us to buffer more than the caps
+// allow regardless of what it claims in attachment-info.
 function parseMultipart(req) {
   return new Promise((resolve, reject) => {
     const fields = {};
     const files = [];
     let totalBytes = 0;
+    let acceptedCount = 0;
+    let discardedCount = 0;
+    let aggregateExceeded = false;
     const bb = Busboy({ headers: req.headers, limits: { fileSize: MAX_ATTACHMENT_BYTES } });
 
     bb.on('field', (name, val) => { fields[name] = val; });
 
     bb.on('file', (name, stream, info) => {
+      if (acceptedCount >= MAX_ATTACHMENTS) {
+        discardedCount++;
+        stream.resume(); // drain without buffering — never held in memory
+        return;
+      }
+      acceptedCount++;
       const chunks = [];
       let truncated = false;
-      stream.on('data', (chunk) => { chunks.push(chunk); totalBytes += chunk.length; });
+      let fileBytes = 0;
+      stream.on('data', (chunk) => {
+        fileBytes += chunk.length;
+        totalBytes += chunk.length;
+        if (totalBytes > MAX_AGGREGATE_BYTES) {
+          // Stop buffering this and all subsequent chunks once the
+          // aggregate cap is blown — the whole email gets rejected below,
+          // so there's no point holding the bytes.
+          aggregateExceeded = true;
+          return;
+        }
+        chunks.push(chunk);
+      });
       stream.on('limit', () => { truncated = true; });
       stream.on('end', () => {
         files.push({
@@ -141,13 +210,14 @@ function parseMultipart(req) {
           filename: info.filename || '',
           mimeType: info.mimeType || '',
           buffer: Buffer.concat(chunks),
-          truncated
+          bytes: fileBytes,
+          truncated,
         });
       });
     });
 
     bb.on('error', reject);
-    bb.on('finish', () => resolve({ fields, files }));
+    bb.on('finish', () => resolve({ fields, files, totalBytes, discardedCount, aggregateExceeded }));
     req.pipe(bb);
   });
 }
@@ -185,6 +255,27 @@ function extractRecipient(fields) {
 function companySlugFromRecipient(recipientAddress) {
   const match = /^([^@]+)@/.exec((recipientAddress || '').trim());
   return match ? match[1].toLowerCase() : null;
+}
+
+// ---- 2D: Message-ID extraction + hashing ------------------------------------
+// SendGrid Inbound Parse exposes the raw header block as a `headers` field
+// (not a dedicated Message-ID field). Falls back to a hash of
+// from+subject+recipient+attachment-info if no Message-ID header is present
+// at all (rare, but some malformed/relayed mail omits it) — that fallback
+// is intentionally coarser (won't catch a genuine resend with new content
+// under the same subject) but still catches the common case this guards
+// against: SendGrid's own retry storms on a single delivery attempt.
+function extractMessageId(fields) {
+  if (fields.headers) {
+    const m = /^Message-ID:\s*(.+)$/im.exec(fields.headers);
+    if (m) return m[1].trim();
+  }
+  return null;
+}
+function dedupKeyFor(fields, recipient) {
+  const messageId = extractMessageId(fields);
+  const basis = messageId || `${fields.from || ''}|${fields.subject || ''}|${recipient}|${fields['attachment-info'] || ''}`;
+  return crypto.createHash('sha256').update(basis).digest('hex');
 }
 
 // ---- call the shared Anthropic caller (single source of truth for the
@@ -238,30 +329,6 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok: false, reason: 'unauthorized' });
   }
 
-  let fields, files;
-  try {
-    ({ fields, files } = await parseMultipart(req));
-  } catch (err) {
-    console.error('email-ingest: multipart parse failed', err);
-    // Malformed body isn't something SendGrid can usefully retry past —
-    // ack it so it doesn't keep hammering us with the same bad payload.
-    return res.status(200).json({ ok: false, reason: 'parse_error' });
-  }
-
-  const fromAddress = fields.from || '';
-  const subject = fields.subject || '';
-  const recipient = extractRecipient(fields);
-  const companySlug = companySlugFromRecipient(recipient);
-  const expectedSlug = (process.env.EXPECTED_COMPANY_SLUG || '').toLowerCase();
-
-  // Fail closed and silent — no retry storm, no information leakage about
-  // why. This is the only gate standing in for real companyId/role
-  // validation until the Section 2.3 backfill happens.
-  if (!companySlug || !expectedSlug || companySlug !== expectedSlug) {
-    console.error('email-ingest: rejected — recipient did not match expected company', { recipient });
-    return res.status(200).json({ ok: false, reason: 'company_not_recognised' });
-  }
-
   let app, fsdb;
   try {
     app = getApp();
@@ -269,6 +336,77 @@ module.exports = async (req, res) => {
   } catch (err) {
     console.error('email-ingest: Firebase Admin init failed', err);
     return res.status(200).json({ ok: false, reason: 'init_error' });
+  }
+
+  let fields, files, discardedCount, aggregateExceeded;
+  try {
+    ({ fields, files, discardedCount, aggregateExceeded } = await parseMultipart(req));
+  } catch (err) {
+    console.error('email-ingest: multipart parse failed', err);
+    // Malformed body isn't something SendGrid can usefully retry past —
+    // ack it so it doesn't keep hammering us with the same bad payload.
+    return res.status(200).json({ ok: false, reason: 'parse_error' });
+  }
+
+  // ---- 2C: field size limits, applied before any further use --------------
+  const fromAddress = capField(fields.from, FIELD_LIMITS.from);
+  const subject = capField(fields.subject, FIELD_LIMITS.subject);
+  const recipientRaw = capField(extractRecipient(fields), FIELD_LIMITS.to);
+  const companySlug = companySlugFromRecipient(recipientRaw);
+  const expectedSlug = (process.env.EXPECTED_COMPANY_SLUG || '').toLowerCase();
+
+  // Fail closed and silent — no retry storm, no information leakage about
+  // why. This is the only gate standing in for real companyId/role
+  // validation until the Section 2.3 backfill happens.
+  if (!companySlug || !expectedSlug || companySlug !== expectedSlug) {
+    console.error('email-ingest: rejected — recipient did not match expected company', { recipient: recipientRaw });
+    return res.status(200).json({ ok: false, reason: 'company_not_recognised' });
+  }
+
+  // ---- 2A: log (but don't fail on) discarded excess attachments -----------
+  if (discardedCount > 0) {
+    console.warn('email-ingest: discarded attachments beyond the per-email cap', {
+      companySlug, from: fromAddress, subject, discardedCount, cap: MAX_ATTACHMENTS,
+    });
+  }
+
+  // ---- 2B: aggregate size cap ----------------------------------------------
+  if (aggregateExceeded) {
+    await writeNotification(fsdb, {
+      status: 'error', companySlug, from: fromAddress, subject,
+      warnings: [`Total attachment size exceeded the ${MAX_AGGREGATE_BYTES / (1024 * 1024)}MB per-email limit and was not processed.`],
+    });
+    return res.status(200).json({ ok: false, reason: 'aggregate_too_large' });
+  }
+
+  // ---- 2E: per-sender rate limit -------------------------------------------
+  try {
+    const underRateLimit = await checkAndIncrementSenderRate(fsdb, fromAddress);
+    if (!underRateLimit) {
+      console.warn('email-ingest: rejected — sender exceeded hourly rate limit', { from: fromAddress });
+      return res.status(200).json({ ok: false, reason: 'rate_limited' });
+    }
+  } catch (err) {
+    // Fail open on the rate-limit check itself — a Firestore hiccup here
+    // shouldn't block a legitimate report. The other four guardrails still
+    // apply regardless.
+    console.error('email-ingest: rate limit check failed, proceeding', err);
+  }
+
+  // ---- 2D: idempotency / replay protection ---------------------------------
+  const dedupKey = dedupKeyFor(fields, recipientRaw);
+  try {
+    const isNew = await claimDedupKey(fsdb, dedupKey);
+    if (!isNew) {
+      console.warn('email-ingest: duplicate delivery skipped', { from: fromAddress, subject, dedupKey });
+      return res.status(200).json({ ok: true, status: 'duplicate_skipped' });
+    }
+  } catch (err) {
+    // Fail open — a Firestore hiccup on the dedup check shouldn't drop a
+    // legitimate, non-duplicate report. Worst case on failure is an
+    // occasional double-process, which the S/N-change/delta-mismatch
+    // review gate downstream already surfaces for human review anyway.
+    console.error('email-ingest: dedup check failed, proceeding', err);
   }
 
   // Pick the first supported attachment. Multiple-attachment emails are
@@ -434,3 +572,44 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok: false, reason: 'write_failed' });
   }
 };
+
+// ---- 2D helper: claim a dedup key (returns true if this is a new, unseen
+// delivery; false if already processed within the TTL window) --------------
+async function claimDedupKey(fsdb, dedupKey) {
+  const ref = fsdb.collection('tenants').doc(TENANT_ID).collection('emailIngestDedup').doc(dedupKey);
+  return fsdb.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists) return false;
+    tx.set(ref, {
+      createdAt: new Date().toISOString(),
+      // Written for a Firestore TTL policy on this collection group's
+      // `expiresAt` field (configure in the Firebase console) — the field
+      // alone doesn't expire anything without that policy, but correctness
+      // of the dedup check never depends on the reap actually happening.
+      expiresAt: new Date(Date.now() + DEDUP_TTL_MS),
+    });
+    return true;
+  });
+}
+
+// ---- 2E helper: increment and check the sender's rolling hourly count -----
+// Keyed by a hash of the lowercased sender address + the current UTC hour
+// bucket, so it resets naturally on the hour with no separate reaper needed
+// for correctness (same pattern as the daily cap in extract.js).
+async function checkAndIncrementSenderRate(fsdb, fromAddress) {
+  const senderKey = crypto.createHash('sha256').update((fromAddress || '').trim().toLowerCase()).digest('hex');
+  const hourBucket = new Date().toISOString().slice(0, 13).replace(/[-T:]/g, ''); // UTC YYYYMMDDHH
+  const ref = fsdb.collection('tenants').doc(TENANT_ID).collection('emailIngestRate').doc(`${senderKey}_${hourBucket}`);
+  return fsdb.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const count = snap.exists ? (snap.data().count || 0) : 0;
+    if (count >= RATE_LIMIT_PER_HOUR) return false;
+    tx.set(ref, {
+      count: count + 1,
+      hourBucket,
+      updatedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // TTL policy target, 2h headroom past the bucket
+    }, { merge: true });
+    return true;
+  });
+}
