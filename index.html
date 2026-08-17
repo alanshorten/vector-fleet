@@ -15,13 +15,30 @@
 
 <!-- Third-party libs used as bare globals (window.XLSX, window.pdfjsLib, window.mammoth,
      window.Chart) by components — left as classic CDN scripts, unchanged from the
-     single-file app. Not converted to npm packages in this migration pass. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.7.0/mammoth.browser.min.js"></script>
+     single-file app. Not converted to npm packages in this migration pass.
+
+     SRI (Phase 4 / L-01, security-remediation-roadmap.md): integrity hashes below
+     were computed from the npm-published packages at the pinned versions (xlsx
+     0.18.5, pdfjs-dist 3.11.174, mammoth 1.7.0, chart.js 4.5.0), since this build
+     environment has no direct network path to cdnjs.cloudflare.com to hash the
+     live response. cdnjs mirrors these exact npm/release artifacts, so the hashes
+     should match, but re-verify against the live CDN URL before relying on this
+     in production (e.g. `curl -sL <url> | openssl dgst -sha384 -binary | openssl
+     base64 -A`) — a mismatch will hard-block the script from loading (SRI fails
+     closed), not silently degrade. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.7.0/mammoth.browser.min.js" integrity="sha384-XsDe9keS+6qnJvogt5RdvXf7GBLzUYIb8TiVP3pHI4/oBwvxwdkCMiesydsYgRdF" crossorigin="anonymous"></script>
 <!-- Chart.js — used only by the Fly-Forward Demo view (sample-data validation, not live) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js" integrity="sha384-XcdcwHqIPULERb2yDEM4R0XaQKU3YnDsrTmjACBZyfdVVqjh6xQ4/DCMd7XLcA6Y" crossorigin="anonymous"></script>
 <script>
+  // Note: pdf.worker.min.js is loaded via pdfjsLib's internal worker-fetch
+  // mechanism (a runtime workerSrc assignment, not a static <script> tag), so
+  // the HTML `integrity` attribute cannot be applied to it directly — the
+  // browser has no SRI hook for that load path. Its computed hash (from the
+  // matching pdfjs-dist 3.11.174 npm release) is recorded here for reference
+  // if a future pass adds a manual fetch+verify wrapper:
+  // sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2
   if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';}
 </script>
 
