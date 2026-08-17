@@ -27,7 +27,6 @@ service cloud.firestore {
     function memberHasRole(tenantId, roles) {
       return isActiveMember(tenantId) && memberDoc(tenantId).data.role in roles;
     }
-
     // tenantMembers itself (Decision 2). Written exclusively by admin
     // server endpoints via the Admin SDK, which bypasses these rules
     // entirely — bootstrap-admin.js, set-role.js, invite-user.js,
@@ -38,7 +37,6 @@ service cloud.firestore {
     match /tenants/{tenantId}/tenantMembers/{uid} {
       allow read, write: if false;
     }
-
     // Tenant-rooted assets (security-remediation-roadmap.md Phase 3, Session 1).
     // The `assets` collection now lives at /tenants/{tenantId}/assets/{assetId}
     // for anyone with the new tenantId custom claim (see bootstrap-admin.js/
@@ -48,12 +46,10 @@ service cloud.firestore {
     // here rather than silently falling through, since a null/undefined
     // claim can never equal a real path segment.
     //
-    // TRANSITIONAL: the old flat /assets/{assetId} match further down is
-    // deliberately left in place and unchanged for now — do not remove it
-    // until db.js has been redeployed to read/write this tenant-rooted path
-    // AND the migration script has run AND the app has been confirmed
-    // working end-to-end. Removing it early would break the app for anyone
-    // whose client is still mid-deploy-cycle on the old db.js.
+    // The old flat /assets/{assetId} match further down was closed to deny
+    // 2026-08-17 (second-reassessment-followup-scoping-handoff.md item 2) —
+    // db.js has been on this tenant-rooted path since Phase 3 Session 1 and
+    // has been stable for weeks, so it was safe to close the rollback path.
     match /tenants/{tenantId}/assets/{assetId} {
       allow read: if request.auth != null
                   && request.auth.token.tenantId == tenantId;
@@ -62,7 +58,6 @@ service cloud.firestore {
       // the helper functions' comment for why.
       allow write: if memberHasRole(tenantId, ['admin', 'editor', 'dataEntry']);
     }
-
     // Tenant-rooted leases/reserves (Phase 3, Session 2). Same shape and
     // same role gate as the flat rules below, just under the tenant path —
     // see the assets rule above for the reasoning on tenantId checks.
@@ -76,7 +71,6 @@ service cloud.firestore {
                   && request.auth.token.tenantId == tenantId;
       allow write: if memberHasRole(tenantId, ['admin', 'editor', 'dataEntry']);
     }
-
     // Tenant-rooted scheduledEvents/seasonalityProfile (Phase 3, Session 3).
     // Same shape as leases/reserves above but admin/editor ONLY (no
     // dataEntry) — matches the role gate on the flat rules below, since
@@ -92,7 +86,53 @@ service cloud.firestore {
                   && request.auth.token.tenantId == tenantId;
       allow write: if memberHasRole(tenantId, ['admin', 'editor']);
     }
-
+    // Tenant-rooted shopVisitProjections (second-reassessment-followup-
+    // scoping-handoff.md item 3, 2026-08-17). This collection was never
+    // tenant-rooted during Phase 3 — a straightforward migration miss, not
+    // a deliberate choice. Same append-only shape as the flat rule below:
+    // create open to any signed-in tenant member (a Viewer can trigger a
+    // monthly snapshot just by having the Financials tab open), update and
+    // delete blocked outright — every recompute writes a new doc rather
+    // than touching a prior one.
+    match /tenants/{tenantId}/shopVisitProjections/{docId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow create: if request.auth != null
+                    && request.auth.token.tenantId == tenantId;
+      allow update, delete: if false;
+    }
+    // Tenant-rooted knowledgeBase (second-reassessment-followup-scoping-
+    // handoff.md item 3, 2026-08-17 — Alan confirmed: tenant-root it rather
+    // than keep a shared global default). Same admin/editor-only write gate
+    // as the flat rule below — house-view forecasting assumption data, not
+    // raw per-asset input. Doc id continues to be `${companyId || 'default'}`
+    // under the tenant path — companyId stays the pre-existing, always-null
+    // legacy field, unrelated to tenantId, same pattern already used for
+    // leases/reserves/etc.
+    match /tenants/{tenantId}/knowledgeBase/{companyId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if memberHasRole(tenantId, ['admin', 'editor']);
+      match /llpCatalogue/{partNumber} {
+        allow read: if request.auth != null
+                    && request.auth.token.tenantId == tenantId;
+        allow write: if memberHasRole(tenantId, ['admin', 'editor']);
+      }
+    }
+    // Tenant-rooted completedEvents (second-reassessment-followup-scoping-
+    // handoff.md item 3, 2026-08-17). FIXES A LIVE BUG: this collection
+    // never had ANY rule anywhere in this file — not flat, not tenant-
+    // rooted — despite db.js's saveCompletedEvent/deleteCompletedEvent
+    // comments assuming an admin/editor gate already existed here "same as
+    // scheduledEvents/seasonalityProfile". Firestore's implicit default-
+    // deny silently blocked every client read and write as a result;
+    // confirmed broken in production by Alan 2026-08-17. This is the fix —
+    // matches the role gate db.js's own comments already assumed was live.
+    match /tenants/{tenantId}/completedEvents/{eventId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if memberHasRole(tenantId, ['admin', 'editor']);
+    }
     // Financial reserve/lease data — writes restricted to admin/editor/
     // dataEntry roles. "role" is the Firebase Auth custom claim already
     // set by /api/bootstrap-admin and /api/set-role, and already read
@@ -105,19 +145,15 @@ service cloud.firestore {
     // now, matching every other collection below, pending the fuller
     // Viewer/Editor/Admin read-scoping pass in Section 7.
     //
-    // DEPRECATED / TRANSITIONAL (Phase 3 Session 2, 2026-08-14): same status
-    // as the flat /assets rule below — kept only as a rollback copy until
-    // the tenant-rooted path is confirmed working end-to-end, then tighten
-    // to deny in a follow-up session.
+    // CLOSED (2026-08-17, second-reassessment-followup-scoping-handoff.md
+    // item 2): the tenant-rooted path above has been live and stable since
+    // mid-August. Documents remain in Firestore as a rollback copy — only
+    // access is denied, nothing was deleted.
     match /leases/{leaseId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-                   && request.auth.token.role in ['admin', 'editor', 'dataEntry'];
+      allow read, write: if false;
     }
     match /reserves/{reserveId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-                   && request.auth.token.role in ['admin', 'editor', 'dataEntry'];
+      allow read, write: if false;
     }
     // Core asset records — same role gate as above. Specs, engines, LLP
     // sheets, and avionics listings are all written onto the asset doc
@@ -127,22 +163,14 @@ service cloud.firestore {
     // tabs admin/editor-only (isAdmin) — this rule only governs the
     // collection-level write, not which in-app flow produced it.
     //
-    // DEPRECATED / TRANSITIONAL (Phase 3 Session 1, 2026-08-14): the app now
-    // reads and writes assets at /tenants/{tenantId}/assets/{assetId} (rule
-    // above) once db.js is redeployed and the migration script has run. This
-    // flat-path rule is kept ONLY so the flat documents remain a rollback
-    // copy and aren't immediately orphaned-and-inaccessible mid-transition.
-    // Once the tenant-rooted path is confirmed working end-to-end, tighten
-    // this to `allow read, write: if false` (or delete the flat docs
-    // entirely) in a follow-up session — do not leave both paths live
-    // indefinitely, since that's exactly the kind of unscoped duplicate
-    // access path Phase 3 exists to close.
+    // CLOSED (2026-08-17, second-reassessment-followup-scoping-handoff.md
+    // item 2): this was the original C-01 cross-tenant bypass path — any
+    // signed-in user with a write role could reach any tenant's asset data
+    // through this flat path regardless of the tenant-rooted rule above.
+    // Now denied outright. Documents remain in Firestore as a rollback copy.
     match /assets/{assetId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-                   && request.auth.token.role in ['admin', 'editor', 'dataEntry'];
+      allow read, write: if false;
     }
-
     // Maintenance calendar overrides — admin/editor ONLY, deliberately
     // NOT dataEntry. These feed the Calendar tab, which Data Entry never
     // sees in the nav (VECTORIQ_ROADMAP.md §7a) — date, duration,
@@ -150,27 +178,20 @@ service cloud.firestore {
     // shaping edits reserved for Admin/Editor. Doc id is the
     // assetId_code_dueCycle identity key from Brain 6's own join.
     //
-    // DEPRECATED / TRANSITIONAL (Phase 3 Session 3, 2026-08-14): same status
-    // as the flat /leases and /reserves rules above — kept only as a
-    // rollback copy until the tenant-rooted path is confirmed working
-    // end-to-end, then tighten to deny in a follow-up session.
+    // CLOSED (2026-08-17, second-reassessment-followup-scoping-handoff.md
+    // item 2). Documents remain in Firestore as a rollback copy.
     match /scheduledEvents/{eventId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-                   && request.auth.token.role in ['admin', 'editor'];
+      allow read, write: if false;
     }
     // One reviewed seasonality profile per asset (doc id = assetId),
     // same role gate as scheduledEvents — Brain 6 reads this for
     // placement suggestions. Also Calendar-tab-only, not dataEntry.
     //
-    // DEPRECATED / TRANSITIONAL (Phase 3 Session 3, 2026-08-14): same status
-    // as scheduledEvents above.
+    // CLOSED (2026-08-17, second-reassessment-followup-scoping-handoff.md
+    // item 2). Documents remain in Firestore as a rollback copy.
     match /seasonalityProfile/{assetId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-                   && request.auth.token.role in ['admin', 'editor'];
+      allow read, write: if false;
     }
-
     // Knowledge Base — house-view forecasting defaults (checkCostBands,
     // enPrBandsByFamily, llpEscalationPctByFamily, outflowEscalationPct)
     // plus the LLP Catalogue subcollection. Admin/Editor ONLY, deliberately
@@ -182,17 +203,17 @@ service cloud.firestore {
     // doc's shape; a literal "default" id is used pre-multi-tenancy (see
     // db.js), same null-companyId-for-now pattern as every other
     // collection here.
+    //
+    // CLOSED (2026-08-17, second-reassessment-followup-scoping-handoff.md
+    // item 2 — migrated and confirmed via migrate-3-collections-to-tenant.js
+    // the same day it was tenant-rooted). Documents remain in Firestore as
+    // a rollback copy.
     match /knowledgeBase/{companyId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-                   && request.auth.token.role in ['admin', 'editor'];
+      allow read, write: if false;
       match /llpCatalogue/{partNumber} {
-        allow read: if request.auth != null;
-        allow write: if request.auth != null
-                     && request.auth.token.role in ['admin', 'editor'];
+        allow read, write: if false;
       }
     }
-
     // Audit trail — appendable by any signed-in user (logAudit() fires
     // alongside ordinary asset saves, not just admin actions), but
     // genuinely immutable once written. There is no legitimate app path
@@ -235,12 +256,29 @@ service cloud.firestore {
     // snapshot just by having the Financials tab open. Update/delete are
     // blocked outright — every recompute writes a new doc rather than
     // touching a prior one.
+    //
+    // CLOSED (2026-08-17, second-reassessment-followup-scoping-handoff.md
+    // item 2 — migrated and confirmed via migrate-3-collections-to-tenant.js
+    // the same day it was tenant-rooted). Documents remain in Firestore as
+    // a rollback copy.
     match /shopVisitProjections/{docId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if false;
+      allow read, write: if false;
     }
-
+    // completedEvents (flat path) — deliberately has NO rule here. This is
+    // not an oversight left in place: it's the documentation of a bug found
+    // and fixed 2026-08-17 (see the tenant-rooted completedEvents rule
+    // above). This collection never had a working rule at any path, flat
+    // or tenant-rooted, despite db.js's comments assuming one existed —
+    // Firestore's default-deny silently blocked every client read/write.
+    // No flat-path version ever worked, so unlike the other DEPRECATED
+    // collections above, there's no "rollback copy" to preserve here — the
+    // fix goes straight to the tenant-rooted path with no transitional
+    // flat rule at all. Left as an explicit `if false` below (rather than
+    // just omitting the match block) so a future reader sees this was a
+    // deliberate, documented decision, not an accidental gap re-emerging.
+    match /completedEvents/{eventId} {
+      allow read, write: if false;
+    }
     // Tenant-rooted utilisation/pendingReports (Phase 3, Session 4). Same
     // tenantId-scoped shape as the earlier tenant-rooted rules above, no
     // role restriction (any active tenant member can write) — matches the
@@ -258,7 +296,6 @@ service cloud.firestore {
                   && request.auth.token.tenantId == tenantId;
       allow write: if isActiveMember(tenantId);
     }
-
     // shareTokens (Phase 3, Session 5 — 3B / H-02). Reads stay open to any
     // signed-in user in the tenant (the ShareModal UI lists existing tokens
     // for an asset), but ALL writes are denied outright — creation and
@@ -273,7 +310,6 @@ service cloud.firestore {
                   && request.auth.token.tenantId == tenantId;
       allow write: if false;
     }
-
     // Everything else — unchanged from before: any signed-in Firebase
     // Auth user. Written as explicit per-collection matches rather than
     // a single {document=**} wildcard, because Firestore rules are
@@ -282,15 +318,14 @@ service cloud.firestore {
     // access to those same documents, silently undoing the restrictions
     // just added.
     //
-    // DEPRECATED / TRANSITIONAL (Phase 3 Session 4, 2026-08-14): utilisation,
-    // shareTokens, and pendingReports are now tenant-rooted above. These flat
-    // rules are kept only as a rollback copy until the tenant-rooted path is
-    // confirmed working end-to-end, then tighten to deny in a follow-up
-    // session — same status as the other DEPRECATED rules in this file.
-    match /utilisation/{docId} { allow read, write: if request.auth != null; }
-    match /shareTokens/{token} { allow read, write: if request.auth != null; }
-    match /pendingReports/{docId} { allow read, write: if request.auth != null; }
-
+    // CLOSED (2026-08-17, second-reassessment-followup-scoping-handoff.md
+    // item 2): utilisation, shareTokens, and pendingReports were the last
+    // three of the original eight flat rollback collections still open.
+    // Documents remain in Firestore as a rollback copy — only access is
+    // denied, nothing was deleted.
+    match /utilisation/{docId} { allow read, write: if false; }
+    match /shareTokens/{token} { allow read, write: if false; }
+    match /pendingReports/{docId} { allow read, write: if false; }
     // Settings — Decision 4 (security-remediation-roadmap.md Phase 2A):
     // writes restricted to admin/editor only, belt-and-braces alongside the
     // output-escaping fix already shipped in Phase 2A (techSpecBuilder.js's
