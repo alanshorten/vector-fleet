@@ -1,6 +1,98 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // --- Membership document helpers (Phase 3 Session 6 — 3C / M-01) ---
+    // Custom claims (request.auth.token.role/tenantId) are baked into the
+    // ID token at mint time and stay valid for up to an hour by default,
+    // even after an admin changes or revokes access. Server endpoints now
+    // close most of that gap with verifyIdToken(token, true) (Layer 1 —
+    // see bootstrap-admin.js/set-role.js/invite-user.js/remove-user.js/
+    // share/create.js/share/revoke.js/extract.js), but Firestore rules have
+    // no equivalent check against the token itself. Consulting the
+    // tenantMembers document instead gives WRITE rules an instant,
+    // rules-visible source of truth — updated the moment an admin changes a
+    // role or removes a user, no token refresh or expiry window involved.
+    // READS still use the fast token-claim check only, unchanged from
+    // before this session — an extra document read on every read would be
+    // needless overhead for data that isn't itself a privilege-escalation
+    // risk, and the roadmap's own Layer 2 design note says as much.
+    function memberDoc(tenantId) {
+      return get(/databases/$(database)/documents/tenants/$(tenantId)/tenantMembers/$(request.auth.uid));
+    }
+    function isActiveMember(tenantId) {
+      return request.auth != null
+        && request.auth.token.tenantId == tenantId
+        && memberDoc(tenantId).data.status == 'active';
+    }
+    function memberHasRole(tenantId, roles) {
+      return isActiveMember(tenantId) && memberDoc(tenantId).data.role in roles;
+    }
+
+    // tenantMembers itself (Decision 2). Written exclusively by admin
+    // server endpoints via the Admin SDK, which bypasses these rules
+    // entirely — bootstrap-admin.js, set-role.js, invite-user.js,
+    // remove-user.js. No client read/write access is needed or granted;
+    // the role/status/email fields here are enforcement data consulted by
+    // the helpers above and by other collections' write rules, not
+    // something the app's UI reads or displays today.
+    match /tenants/{tenantId}/tenantMembers/{uid} {
+      allow read, write: if false;
+    }
+
+    // Tenant-rooted assets (security-remediation-roadmap.md Phase 3, Session 1).
+    // The `assets` collection now lives at /tenants/{tenantId}/assets/{assetId}
+    // for anyone with the new tenantId custom claim (see bootstrap-admin.js/
+    // set-role.js/invite-user.js). request.auth.token.tenantId == tenantId
+    // means a user can only reach their OWN tenant's asset subtree — someone
+    // whose token has no tenantId claim yet (pre-migration reload) is denied
+    // here rather than silently falling through, since a null/undefined
+    // claim can never equal a real path segment.
+    //
+    // TRANSITIONAL: the old flat /assets/{assetId} match further down is
+    // deliberately left in place and unchanged for now — do not remove it
+    // until db.js has been redeployed to read/write this tenant-rooted path
+    // AND the migration script has run AND the app has been confirmed
+    // working end-to-end. Removing it early would break the app for anyone
+    // whose client is still mid-deploy-cycle on the old db.js.
+    match /tenants/{tenantId}/assets/{assetId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      // Phase 3 Session 6 (3C / M-01): write now consults the tenantMembers
+      // doc (memberHasRole above) instead of the token claim directly — see
+      // the helper functions' comment for why.
+      allow write: if memberHasRole(tenantId, ['admin', 'editor', 'dataEntry']);
+    }
+
+    // Tenant-rooted leases/reserves (Phase 3, Session 2). Same shape and
+    // same role gate as the flat rules below, just under the tenant path —
+    // see the assets rule above for the reasoning on tenantId checks.
+    match /tenants/{tenantId}/leases/{leaseId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if memberHasRole(tenantId, ['admin', 'editor', 'dataEntry']);
+    }
+    match /tenants/{tenantId}/reserves/{reserveId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if memberHasRole(tenantId, ['admin', 'editor', 'dataEntry']);
+    }
+
+    // Tenant-rooted scheduledEvents/seasonalityProfile (Phase 3, Session 3).
+    // Same shape as leases/reserves above but admin/editor ONLY (no
+    // dataEntry) — matches the role gate on the flat rules below, since
+    // these are Calendar-tab-only, financial-projection-shaping edits that
+    // Data Entry never sees in the nav.
+    match /tenants/{tenantId}/scheduledEvents/{eventId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if memberHasRole(tenantId, ['admin', 'editor']);
+    }
+    match /tenants/{tenantId}/seasonalityProfile/{assetId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if memberHasRole(tenantId, ['admin', 'editor']);
+    }
+
     // Financial reserve/lease data — writes restricted to admin/editor/
     // dataEntry roles. "role" is the Firebase Auth custom claim already
     // set by /api/bootstrap-admin and /api/set-role, and already read
@@ -12,6 +104,11 @@ service cloud.firestore {
     // edits nothing permanent. Reads stay open to any signed-in user for
     // now, matching every other collection below, pending the fuller
     // Viewer/Editor/Admin read-scoping pass in Section 7.
+    //
+    // DEPRECATED / TRANSITIONAL (Phase 3 Session 2, 2026-08-14): same status
+    // as the flat /assets rule below — kept only as a rollback copy until
+    // the tenant-rooted path is confirmed working end-to-end, then tighten
+    // to deny in a follow-up session.
     match /leases/{leaseId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null
@@ -29,6 +126,17 @@ service cloud.firestore {
     // The app's own UI still keeps manual field-editing in the Details
     // tabs admin/editor-only (isAdmin) — this rule only governs the
     // collection-level write, not which in-app flow produced it.
+    //
+    // DEPRECATED / TRANSITIONAL (Phase 3 Session 1, 2026-08-14): the app now
+    // reads and writes assets at /tenants/{tenantId}/assets/{assetId} (rule
+    // above) once db.js is redeployed and the migration script has run. This
+    // flat-path rule is kept ONLY so the flat documents remain a rollback
+    // copy and aren't immediately orphaned-and-inaccessible mid-transition.
+    // Once the tenant-rooted path is confirmed working end-to-end, tighten
+    // this to `allow read, write: if false` (or delete the flat docs
+    // entirely) in a follow-up session — do not leave both paths live
+    // indefinitely, since that's exactly the kind of unscoped duplicate
+    // access path Phase 3 exists to close.
     match /assets/{assetId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null
@@ -41,6 +149,11 @@ service cloud.firestore {
     // downtime, and concurrency overrides stay financial-projection-
     // shaping edits reserved for Admin/Editor. Doc id is the
     // assetId_code_dueCycle identity key from Brain 6's own join.
+    //
+    // DEPRECATED / TRANSITIONAL (Phase 3 Session 3, 2026-08-14): same status
+    // as the flat /leases and /reserves rules above — kept only as a
+    // rollback copy until the tenant-rooted path is confirmed working
+    // end-to-end, then tighten to deny in a follow-up session.
     match /scheduledEvents/{eventId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null
@@ -49,6 +162,9 @@ service cloud.firestore {
     // One reviewed seasonality profile per asset (doc id = assetId),
     // same role gate as scheduledEvents — Brain 6 reads this for
     // placement suggestions. Also Calendar-tab-only, not dataEntry.
+    //
+    // DEPRECATED / TRANSITIONAL (Phase 3 Session 3, 2026-08-14): same status
+    // as scheduledEvents above.
     match /seasonalityProfile/{assetId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null
@@ -83,9 +199,34 @@ service cloud.firestore {
     // that ever updates or deletes a past entry — allowing it anyway
     // would mean the log could be silently altered or erased after the
     // fact, defeating its purpose.
+    //
+    // Phase 3 Session 7 (3D / M-03, security-remediation-roadmap.md):
+    // previously a signed-in user could create a doc here with ANY
+    // userId/userEmail/timestamp — impersonating another user or
+    // backdating an entry, since only request.auth != null was checked.
+    // Now every field is bound to the caller's own verified identity:
+    // userId/userEmail must match the caller's own auth token (can't log
+    // an action as someone else), timestamp must equal request.time
+    // (db.js now writes serverTimestamp() instead of a client-supplied ISO
+    // string, so this actually matches), and only the exact field set
+    // logAudit() ever writes is permitted — no extra fields smuggled in.
+    // `action` is free-text (see FlyForward.jsx's completed-event delete
+    // log, which composes a dynamic string) rather than a fixed enum — a
+    // strict allowlist isn't compatible with how this field is actually
+    // used across the app, so this constrains it to a non-empty string
+    // under a sane length cap instead, which closes the actual abuse case
+    // (arbitrary/oversized payload injection) without breaking legitimate
+    // descriptive messages.
     match /auditLog/{entryId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null;
+      allow create: if request.auth != null
+                     && request.resource.data.userId == request.auth.uid
+                     && request.resource.data.userEmail == request.auth.token.email
+                     && request.resource.data.timestamp == request.time
+                     && request.resource.data.action is string
+                     && request.resource.data.action.size() > 0
+                     && request.resource.data.action.size() <= 300
+                     && request.resource.data.keys().hasOnly(['userId', 'userEmail', 'timestamp', 'assetId', 'assetMSN', 'action']);
       allow update, delete: if false;
     }
     // Shop visit cost projections — append-only, same immutable-log
@@ -100,6 +241,39 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Tenant-rooted utilisation/pendingReports (Phase 3, Session 4). Same
+    // tenantId-scoped shape as the earlier tenant-rooted rules above, no
+    // role restriction (any active tenant member can write) — matches the
+    // permissive any-signed-in-user pattern on the flat rules below, just
+    // narrowed to the caller's own tenant. Write now uses isActiveMember
+    // (Phase 3 Session 6 — 3C / M-01) so a disabled/removed user's writes
+    // stop instantly rather than waiting on token expiry; read is unchanged.
+    match /tenants/{tenantId}/utilisation/{docId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if isActiveMember(tenantId);
+    }
+    match /tenants/{tenantId}/pendingReports/{docId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if isActiveMember(tenantId);
+    }
+
+    // shareTokens (Phase 3, Session 5 — 3B / H-02). Reads stay open to any
+    // signed-in user in the tenant (the ShareModal UI lists existing tokens
+    // for an asset), but ALL writes are denied outright — creation and
+    // revocation now happen exclusively through api/share/create.js and
+    // api/share/revoke.js (Admin SDK, bypasses these rules entirely), which
+    // enforce admin/editor role and asset-ownership checks server-side
+    // before writing anything. This closes H-02: previously any signed-in
+    // user (including Viewer/DataEntry) could create a share link for any
+    // asset by writing directly to this collection from the browser.
+    match /tenants/{tenantId}/shareTokens/{token} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if false;
+    }
+
     // Everything else — unchanged from before: any signed-in Firebase
     // Auth user. Written as explicit per-collection matches rather than
     // a single {document=**} wildcard, because Firestore rules are
@@ -107,9 +281,32 @@ service cloud.firestore {
     // rules above would otherwise still independently grant broader
     // access to those same documents, silently undoing the restrictions
     // just added.
+    //
+    // DEPRECATED / TRANSITIONAL (Phase 3 Session 4, 2026-08-14): utilisation,
+    // shareTokens, and pendingReports are now tenant-rooted above. These flat
+    // rules are kept only as a rollback copy until the tenant-rooted path is
+    // confirmed working end-to-end, then tighten to deny in a follow-up
+    // session — same status as the other DEPRECATED rules in this file.
     match /utilisation/{docId} { allow read, write: if request.auth != null; }
     match /shareTokens/{token} { allow read, write: if request.auth != null; }
     match /pendingReports/{docId} { allow read, write: if request.auth != null; }
-    match /settings/{key} { allow read, write: if request.auth != null; }
+
+    // Settings — Decision 4 (security-remediation-roadmap.md Phase 2A):
+    // writes restricted to admin/editor only, belt-and-braces alongside the
+    // output-escaping fix already shipped in Phase 2A (techSpecBuilder.js's
+    // escapeHtml()). Viewer and DataEntry excluded — this collection holds
+    // things like the tech-spec disclaimer text and branding toggle, which
+    // feed directly into the same HTML templates Phase 2A hardened; keeping
+    // write access no broader than the components that consume it is the
+    // point of "belt and braces" here. Not tenant-rooted (out of scope for
+    // this session — settings isn't asset-scoped the way the collections
+    // migrated so far are), so this uses the token role claim directly like
+    // the other still-flat collections in this file, rather than the
+    // tenantMembers-backed memberHasRole() helper.
+    match /settings/{key} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.token.role in ['admin', 'editor'];
+    }
   }
 }
