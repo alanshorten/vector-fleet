@@ -71,6 +71,21 @@ async function logAudit(assetId, assetMSN, action) {
       action
     });
   } catch (e) {
+    // 18 Aug review, debugged live with Alan: getFirestore() here uses
+    // in-memory cache only (no enableIndexedDbPersistence/persistentLocalCache
+    // configured anywhere in this app), so this is NOT an offline-persistence
+    // replay issue. It's simpler than that — Firestore's SDK auto-retries a
+    // write if the underlying WebChannel connection drops mid-request. If the
+    // original attempt actually succeeded server-side but the acknowledgment
+    // was lost in a reconnect, the automatic retry targets the same doc ID
+    // and correctly gets rejected as "already exists" — even though the real
+    // write landed fine the first time. Confirmed directly: every one of
+    // these warnings observed during testing had a real, correctly-written
+    // document behind it. Since the entry this call wanted to create already
+    // exists, that's a successful outcome, not a failure — don't scare
+    // whoever's watching the console with a warning that looks like data
+    // loss when none occurred.
+    if (e?.code === 'already-exists') return;
     // Non-fatal — never block the main operation
     console.warn("Audit log write failed:", e);
   }
