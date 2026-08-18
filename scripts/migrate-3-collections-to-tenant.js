@@ -28,7 +28,16 @@
 //      `npm install dotenv --save-dev` and renaming .env.local to .env, or
 //      just `export` the three values directly — whichever's easiest for
 //      you).
-//   2. node migrate-3-collections-to-tenant.js
+//   2. node scripts/migrate-3-collections-to-tenant.js
+//
+// Moved from api/ to scripts/ (2026-08) so it no longer counts as a
+// Vercel serverless function on the Hobby plan's 12-function cap — it
+// was never an HTTP endpoint, just a plain Node script that happened to
+// sit in api/ (Vercel treats every .js file there as a route regardless
+// of whether it exports a handler). Already run and confirmed live;
+// kept here as a reference / re-run tool for any future similar
+// migration, not because it needs to run again.
+
 //   3. Read the summary it prints at the end. It reports counts found,
 //      copied, and skipped (already existed) for each collection.
 //   4. Nothing is deleted from the flat paths by this script — the flat
