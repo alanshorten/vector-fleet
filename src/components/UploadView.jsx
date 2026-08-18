@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BulkLeaseImport } from './BulkLeaseImport';
 import { APU_LLP_PROMPT, ENGINE_LLP_PROMPT, parseHHMM } from '../lib/assetHelpers';
 import { db } from '../lib/db';
-import { extractFetch } from '../lib/extraction';
+import { extractFetch, fileToBase64, parseExcelFetch } from '../lib/extraction';
 
 function EngineSNAction({change,prevEngines,mergedAsset,saveAsset,notify}){
   const[mode,setMode]=useState(null); // null | "atshop" | "resolved"
@@ -89,26 +89,35 @@ function UploadView({assets,saveAsset,notify}){
   const[showInstructions,setShowInstructions]=useState(false);
   const[sheetNames,setSheetNames]=useState([]);
   const[selectedSheet,setSelectedSheet]=useState(null);
-  const[xlsxWorkbook,setXlsxWorkbook]=useState(null);
+  // Array of {name, csv, rows} — one entry per sheet, returned by
+  // /api/parse-excel (xlsx remediation, 2026-08, see
+  // claude_xlsx-remediation-option-d-build-handoff.md). Parsing now happens
+  // server-side, so this holds the already-parsed result rather than a
+  // live workbook object; extract() below just looks up the selected
+  // sheet's pre-computed csv.
+  const[xlsxSheets,setXlsxSheets]=useState(null);
+  const[parsingExcel,setParsingExcel]=useState(false);
 
-  const handleFile=e=>{
+  const handleFile=async e=>{
     const f=e.target.files?.[0];
     if(!f)return;
     setFile(f);setExtracted(null);setError(null);setDone(false);
-    setSheetNames([]);setSelectedSheet(null);setXlsxWorkbook(null);
+    setSheetNames([]);setSelectedSheet(null);setXlsxSheets(null);
     const isExcel=f.type==="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"||f.type==="application/vnd.ms-excel"||f.name.endsWith(".xlsx")||f.name.endsWith(".xls");
     if(isExcel){
-      const reader=new FileReader();
-      reader.onload=(ev)=>{
-        try{
-          const wb=XLSX.read(new Uint8Array(ev.target.result),{type:"array"});
-          setXlsxWorkbook(wb);
-          setSheetNames(wb.SheetNames);
-          // default to last sheet (most recent), user can change
-          setSelectedSheet(wb.SheetNames[wb.SheetNames.length-1]);
-        }catch(e){/* will surface when extract() is called */}
-      };
-      reader.readAsArrayBuffer(f);
+      setParsingExcel(true);
+      try{
+        const base64=await fileToBase64(f);
+        const sheets=await parseExcelFetch(base64);
+        setXlsxSheets(sheets);
+        setSheetNames(sheets.map(s=>s.name));
+        // default to last sheet (most recent), user can change
+        setSelectedSheet(sheets.length?sheets[sheets.length-1].name:null);
+      }catch(parseErr){
+        setError(parseErr.message||"Could not read this Excel file. Please check the file is not corrupted and try again.");
+      }finally{
+        setParsingExcel(false);
+      }
     }
   };
 
@@ -142,10 +151,10 @@ const extract=async()=>{
       } else {
         let csvText;
         try{
-          const wb=xlsxWorkbook;
-          if(!wb)throw new Error("Excel file not ready — please re-select the file.");
-          const sheetToParse=selectedSheet||wb.SheetNames[wb.SheetNames.length-1];
-          csvText="Sheet: "+sheetToParse+"\n"+XLSX.utils.sheet_to_csv(wb.Sheets[sheetToParse],{skipHidden:true});
+          if(!xlsxSheets||!xlsxSheets.length)throw new Error("Excel file not ready — please re-select the file.");
+          const sheetToParse=selectedSheet||xlsxSheets[xlsxSheets.length-1].name;
+          const sheet=xlsxSheets.find(s=>s.name===sheetToParse)||xlsxSheets[xlsxSheets.length-1];
+          csvText="Sheet: "+sheet.name+"\n"+sheet.csv;
         }catch(xlsxErr){
           throw new Error(xlsxErr.message||"Could not parse the Excel file. Please check the file is not corrupted and try again.");
         }
@@ -411,7 +420,7 @@ const extract=async()=>{
       <p style={{color:"var(--color-graphite)",marginBottom:16,fontSize:13}}>Select report type, upload PDF or Excel, and TailiQ extracts the data for your review.</p>
       <div className="flab g8" style={{marginBottom:16}}>
         {[["util","📄 Utilisation Report",null],["llp","Engine LLP Sheet","engine"],["apu_llp","APU LLP Sheet","apu"],["tac","📄 TAC — Delivery Baseline","engine"],["lease","📑 Bulk Lease Import",null]].map(([v,l,icon])=>(
-          <button key={v} onClick={()=>{setUploadType(v);setFile(null);setExtracted(null);setError(null);setDone(false);setInstructions("");setShowInstructions(false);setSheetNames([]);setSelectedSheet(null);setXlsxWorkbook(null);setMatchedLease(null);}}
+          <button key={v} onClick={()=>{setUploadType(v);setFile(null);setExtracted(null);setError(null);setDone(false);setInstructions("");setShowInstructions(false);setSheetNames([]);setSelectedSheet(null);setXlsxSheets(null);setMatchedLease(null);}}
             style={{padding:"8px 16px",background:uploadType===v?"var(--color-teal)":"var(--color-technical-grey)",color:uploadType===v?"var(--color-soft-white)":"var(--color-graphite)",border:`1px solid ${uploadType===v?"var(--color-teal)":"var(--color-divider)"}`,borderRadius:6,fontSize:13,fontWeight:600,cursor:"pointer"}}>
             {icon&&<TabIcon type={icon} color={uploadType===v?"var(--color-ochre)":"var(--color-graphite)"}/>}{l}
           </button>
@@ -429,6 +438,7 @@ const extract=async()=>{
         </label>
         {file&&!done&&(
           <div style={{marginTop:14,display:"flex",flexDirection:"column",gap:8,alignItems:"center",width:"100%"}}>
+            {parsingExcel&&<div style={{fontSize:12,color:"var(--color-graphite)"}}>Reading spreadsheet…</div>}
             {sheetNames.length>1&&(
               <div style={{width:"100%",maxWidth:500}}>
                 <label style={{fontSize:11,color:"var(--color-graphite)",display:"block",marginBottom:4}}>Select sheet to parse</label>
@@ -446,7 +456,7 @@ const extract=async()=>{
                 <button className="btn btn-ghost" style={{fontSize:11}} onClick={()=>{setShowInstructions(false);setInstructions("");}}>✕ Clear instructions</button>
               </div>
             }
-            <button className="btn btn-gold" onClick={extract} disabled={extracting}>{extracting?"Extracting…":"Extract"}</button>
+            <button className="btn btn-gold" onClick={extract} disabled={extracting||parsingExcel}>{extracting?"Extracting…":"Extract"}</button>
           </div>
         )}
       </div>

@@ -13,11 +13,11 @@
     "@vercel/functions": "^1.5.0",
     "firebase-admin": "^12.7.0",
     "busboy": "^1.6.0",
-    "xlsx": "^0.18.5",
+    "exceljs": "^4.4.0",
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^5.4.11"
+    "vite": "^5.4.21"
   }
 }

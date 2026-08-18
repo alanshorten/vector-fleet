@@ -17,6 +17,29 @@ async function extractFetch(body){
   return fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${idToken}`},body:JSON.stringify(body)});
 }
 
+// ---- Authenticated /api/parse-excel fetch (xlsx remediation, 2026-08 —
+// see claude_xlsx-remediation-option-d-build-handoff.md) — Excel parsing
+// moved server-side (ExcelJS has known Vite/Buffer bundling issues in the
+// browser), so both client Excel-upload flows (llpCatalogueImport.js,
+// UploadView.jsx) go through this one helper rather than each managing
+// its own auth header. base64File is the raw file, base64-encoded (no
+// data: URL prefix — use fileToBase64 above). Returns
+// { sheets: [{ name, csv, rows }] } on success; throws with a
+// user-facing message on failure.
+async function parseExcelFetch(base64File){
+  const idToken=await window._auth.getIdToken();
+  const resp=await fetch("/api/parse-excel",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${idToken}`},body:JSON.stringify({file:base64File})});
+  if(!resp.ok){
+    let msg="Could not read this Excel file. Please try again.";
+    try{const body=await resp.json();if(body.error)msg=body.error;}catch(parseErr){}
+    if(resp.status===401||resp.status===403)msg="Authentication error. Please contact your administrator.";
+    throw new Error(msg);
+  }
+  const data=await resp.json();
+  if(!data.sheets||!Array.isArray(data.sheets))throw new Error("Received an unexpected response while parsing this Excel file.");
+  return data.sheets;
+}
+
 async function callExtractAPI(base64,prompt,model,maxTokens,invalidFormatLabel){
   const resp=await extractFetch({model,max_tokens:maxTokens,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:prompt}]}]});
   if(!resp.ok){
@@ -577,4 +600,4 @@ function mergeShopVisits(existingRows,newRows){
   });
 };
 
-export { ATA_CHAPTER_MAP, AVIONICS_LRU_PROMPT, DOLLAR_FIGURE_RE, LEASE_EXTRACT_PROMPT, LEASE_PAGE_KEYWORDS, RATE_CONSTRUCT_RE, SCENARIO_CHAT_PROMPT, ataChapterLabel, ataChapterSortNum, escapeRegex, extractAvionicsLRU, extractDocxSectionChunks, extractFetch, extractLLPSheet, extractOperatorHistory, extractShopVisits, extractPdfPageTexts, fileToBase64, isBoldPseudoHeading, isDocxFile, isSupportedLeaseFile, matchAssetForText, mergeOperatorHistory, mergeShopVisits, quickParseLeaseFile, runLeaseExtraction, scoreLeaseChunks, translateScenarioChat };
+export { ATA_CHAPTER_MAP, AVIONICS_LRU_PROMPT, DOLLAR_FIGURE_RE, LEASE_EXTRACT_PROMPT, LEASE_PAGE_KEYWORDS, RATE_CONSTRUCT_RE, SCENARIO_CHAT_PROMPT, ataChapterLabel, ataChapterSortNum, escapeRegex, extractAvionicsLRU, extractDocxSectionChunks, extractFetch, extractLLPSheet, extractOperatorHistory, extractShopVisits, extractPdfPageTexts, fileToBase64, isBoldPseudoHeading, isDocxFile, isSupportedLeaseFile, matchAssetForText, mergeOperatorHistory, mergeShopVisits, parseExcelFetch, quickParseLeaseFile, runLeaseExtraction, scoreLeaseChunks, translateScenarioChat };

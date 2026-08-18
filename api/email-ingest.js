@@ -79,7 +79,7 @@ export const maxDuration = 60;
 export const config = { api: { bodyParser: false } };
 
 const Busboy = require('busboy');
-const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 const vm = require('vm');
 const fs = require('fs');
 const path = require('path');
@@ -230,6 +230,37 @@ function isExcel(att) {
   return att.mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
     att.mimeType === 'application/vnd.ms-excel' ||
     /\.xlsx$/i.test(att.filename) || /\.xls$/i.test(att.filename);
+}
+
+// ---- ExcelJS CSV helper (xlsx remediation, 2026-08 — see
+// claude_xlsx-remediation-option-d-build-handoff.md) --------------------------
+// SheetJS (xlsx) 0.18.5 has an unpatched prototype-pollution CVE with no
+// npm fix; this endpoint parses genuinely untrusted internet-facing input
+// (any sender who can reach reports.tailiq.app), so it moved to ExcelJS,
+// which has no direct sheet_to_csv equivalent — built here by hand. Mirrors
+// the old SheetJS output closely enough for this file's use (feeding CSV
+// text to Claude for extraction, not round-tripping data back to a sheet).
+function sheetToCsv(worksheet) {
+  const rows = [];
+  worksheet.eachRow({ includeEmpty: true }, (row) => {
+    const cells = [];
+    for (let i = 1; i <= row.cellCount; i++) {
+      const cell = row.getCell(i);
+      let val = cell.value;
+      if (val === null || val === undefined) val = '';
+      else if (typeof val === 'object') {
+        if (val.result !== undefined) val = val.result; // formula cell
+        else if (val.text !== undefined) val = val.text; // rich text
+        else if (val.richText) val = val.richText.map(rt => rt.text).join('');
+      }
+      if (val instanceof Date) val = val.toISOString();
+      val = String(val);
+      if (/[,\n"]/.test(val)) val = '"' + val.replace(/"/g, '""') + '"';
+      cells.push(val);
+    }
+    rows.push(cells.join(','));
+  });
+  return rows.join('\n');
 }
 
 // ---- the exact utilisation-report extraction prompt, copied verbatim from
@@ -441,8 +472,9 @@ module.exports = async (req, res) => {
         { type: 'text', text: UTIL_PROMPT }
       ];
     } else {
-      const wb = XLSX.read(attachment.buffer, { type: 'buffer' });
-      const csvText = wb.SheetNames.map(name => 'Sheet: ' + name + '\n' + XLSX.utils.sheet_to_csv(wb.Sheets[name], { skipHidden: true })).join('\n\n');
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(attachment.buffer);
+      const csvText = workbook.worksheets.map(ws => 'Sheet: ' + ws.name + '\n' + sheetToCsv(ws)).join('\n\n');
       messageContent = [
         { type: 'text', text: 'The following is the contents of an Excel spreadsheet exported as CSV. This is the most recent month\'s data.\n\n' + csvText + '\n\n' + UTIL_PROMPT }
       ];

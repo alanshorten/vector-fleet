@@ -13,20 +13,25 @@
 <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png"/>
 <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png"/>
 
-<!-- Third-party libs used as bare globals (window.XLSX, window.pdfjsLib, window.mammoth,
+<!-- Third-party libs used as bare globals (window.pdfjsLib, window.mammoth,
      window.Chart) by components — left as classic CDN scripts, unchanged from the
      single-file app. Not converted to npm packages in this migration pass.
 
+     xlsx (SheetJS) removed 2026-08 as part of the xlsx remediation (Option D —
+     see claude_xlsx-remediation-option-d-build-handoff.md): SheetJS 0.18.5 has
+     an unpatched prototype-pollution CVE with no npm fix, and all Excel parsing
+     (client and server) has been consolidated server-side onto ExcelJS via
+     /api/parse-excel, so no client-side Excel library is loaded here anymore.
+
      SRI (Phase 4 / L-01, security-remediation-roadmap.md): integrity hashes below
-     were computed from the npm-published packages at the pinned versions (xlsx
-     0.18.5, pdfjs-dist 3.11.174, mammoth 1.7.0, chart.js 4.5.0), since this build
+     were computed from the npm-published packages at the pinned versions
+     (pdfjs-dist 3.11.174, mammoth 1.7.0, chart.js 4.5.0), since this build
      environment has no direct network path to cdnjs.cloudflare.com to hash the
      live response. cdnjs mirrors these exact npm/release artifacts, so the hashes
      should match, but re-verify against the live CDN URL before relying on this
      in production (e.g. `curl -sL <url> | openssl dgst -sha384 -binary | openssl
      base64 -A`) — a mismatch will hard-block the script from loading (SRI fails
      closed), not silently degrade. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.7.0/mammoth.browser.min.js" integrity="sha384-XsDe9keS+6qnJvogt5RdvXf7GBLzUYIb8TiVP3pHI4/oBwvxwdkCMiesydsYgRdF" crossorigin="anonymous"></script>
 <!-- Chart.js — used only by the Fly-Forward Demo view (sample-data validation, not live) -->
