@@ -86,6 +86,14 @@ const path = require('path');
 const crypto = require('crypto');
 const admin = require('firebase-admin');
 const { callAnthropic } = require('./_lib/anthropicCall');
+const {
+  ExcelLimitError,
+  checkZipStructure,
+  withTimeout,
+  checkWorksheetCount,
+  checkSheetBounds,
+  PARSE_TIMEOUT_MS,
+} = require('./_lib/excelLimits');
 
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // matches the 10MB limit on the manual Upload flow
 
@@ -240,7 +248,12 @@ function isExcel(att) {
 // which has no direct sheet_to_csv equivalent — built here by hand. Mirrors
 // the old SheetJS output closely enough for this file's use (feeding CSV
 // text to Claude for extraction, not round-tripping data back to a sheet).
+//
+// Item 3 (18 Aug review): checkSheetBounds (api/_lib/excelLimits.js) rejects
+// a pathologically wide/tall sheet before iterating its rows/cells — this is
+// internet-facing input, same reasoning as the CVE move above.
 function sheetToCsv(worksheet) {
+  checkSheetBounds(worksheet);
   const rows = [];
   worksheet.eachRow({ includeEmpty: true }, (row) => {
     const cells = [];
@@ -486,8 +499,18 @@ module.exports = async (req, res) => {
         { type: 'text', text: UTIL_PROMPT }
       ];
     } else {
+      // Item 3 (18 Aug review): this is genuinely untrusted internet-facing
+      // input (any sender who can reach reports.tailiq.app) — ZIP structure
+      // pre-check and a load timeout before the expensive full parse, same
+      // ceilings as api/parse-excel.js (api/_lib/excelLimits.js).
+      await checkZipStructure(attachment.buffer);
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(attachment.buffer);
+      await withTimeout(
+        workbook.xlsx.load(attachment.buffer),
+        PARSE_TIMEOUT_MS,
+        'This file took too long to parse and was rejected.'
+      );
+      checkWorksheetCount(workbook);
       // Real airline monthly reports arrive as a running multi-sheet archive
       // (one sheet per month, e.g. "1124", "1224", "0125", ...), not a
       // single-sheet file — confirmed against a real production attachment,
@@ -509,10 +532,16 @@ module.exports = async (req, res) => {
     }
   } catch (err) {
     console.error('email-ingest: could not read attachment', err);
+    // ExcelLimitError messages are already safe, specific, user-facing text
+    // (api/_lib/excelLimits.js) — surface them directly rather than the
+    // generic fallback below.
+    const warning = err instanceof ExcelLimitError
+      ? err.message
+      : 'Could not read the attached file. It may be corrupted or an unsupported variant of PDF/Excel.';
     await writeNotification(fsdb, {
       status: 'error', companySlug, from: fromAddress, subject,
       fileName: attachment.filename,
-      warnings: ['Could not read the attached file. It may be corrupted or an unsupported variant of PDF/Excel.']
+      warnings: [warning]
     });
     return res.status(200).json({ ok: false, reason: 'unreadable_attachment' });
   }

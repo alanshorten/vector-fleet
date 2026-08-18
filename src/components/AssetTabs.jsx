@@ -493,7 +493,11 @@ function OperatorHistoryEditor({eng,engIdx,asset,isAdmin,saveAsset,notify}){
   );
 };
 
-function EnginesTab({asset,isAdmin,saveAsset,notify}){
+function EnginesTab({asset,isAdmin,saveAsset,notify,userRole}){
+  // Item 4 (18 Aug review): same Data-Entry Share-visibility gate as the
+  // Details-layer Share button in AssetView.jsx — dataEntry can no longer
+  // read shareTokens (firestore.rules), so hide the entry point here too.
+  const canSeeAdvanced=!!userRole&&userRole!=='dataEntry';
   const[editIdx,setEditIdx]=useState(null);
   const[form,setForm]=useState(null);
   const[addLLPIdx,setAddLLPIdx]=useState(null);
@@ -526,15 +530,27 @@ function EnginesTab({asset,isAdmin,saveAsset,notify}){
                 {eng.atShop&&<span style={{fontSize:11,color:"var(--color-critical)"}}>🔧 At shop</span>}
               </div>
               <div className="flab g8">
-                <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>setShareIdx(ei)}>🔗 Share</button>
+                {canSeeAdvanced&&<button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={()=>setShareIdx(ei)}>🔗 Share</button>}
                 <button className="btn btn-gold" style={{fontSize:12,padding:"8px 16px"}} onClick={async()=>{
                   const photoKey=engineStockPhotoKey(eng.type);
                   const engPhoto=photoKey?(await db.getSetting(photoKey).catch(()=>null)||""):"";
                   const [logo,defaultDisclaimer,hideBranding]=await Promise.all([getTechSpecLogo(),getDefaultDisclaimer(),getTechSpecBrandingHidden()]);
                   const base=buildTechSpecHTML({...asset,engines:[eng],_engineOnly:true,_enginePos:eng.position||ei+1},engPhoto,logo,defaultDisclaimer,"",!!hideBranding);
-                  const withBar=base.replace('<body>',`<body><div style="position:fixed;top:0;left:0;right:0;background:#1B3A6B;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.3)"><span style="color:#C9A84C;font-weight:700;font-size:14px;flex:1">TailiQ — Engine Spec ESN ${eng.sn||"—"}</span><button onclick="window.print()" style="background:#C9A84C;color:#0a1520;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button><button onclick="window.close()" style="background:transparent;color:#94a3b8;border:1px solid #2d3f55;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">✕ Close</button></div><div style="height:52px"></div>`);
+                  // H-03 (item 1, 18 Aug review): eng.sn is Firestore-sourced and was
+                  // interpolated raw into this document.write() sink — same class of bug
+                  // already fixed on the full-asset spec path in AssetView.jsx. escapeHtml
+                  // is a global from calculations/techSpecBuilder.js (loaded via <script>).
+                  const withBar=base.replace('<body>',`<body><div style="position:fixed;top:0;left:0;right:0;background:#1B3A6B;padding:10px 20px;display:flex;gap:10px;align-items:center;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.3)"><span style="color:#C9A84C;font-weight:700;font-size:14px;flex:1">TailiQ — Engine Spec ESN ${escapeHtml(eng.sn||"—")}</span><button onclick="window.print()" style="background:#C9A84C;color:#0a1520;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button><button onclick="window.close()" style="background:transparent;color:#94a3b8;border:1px solid #2d3f55;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">✕ Close</button></div><div style="height:52px"></div>`);
                   const withPrint=withBar.replace('</style>','@media print{body>div:first-child{display:none!important}div[style*="height:52px"]{display:none!important}}</style>');
-                  const win=window.open();win.document.write(withPrint);win.document.close();
+                  // H-03 Layer 2: same opener-severing pattern as AssetView.jsx — check the
+                  // window actually opened (popup blockers) before writing into it, then
+                  // null win.opener rather than passing 'noopener' to window.open() itself
+                  // (which would make most browsers return null and break the write below).
+                  const win=window.open();
+                  if(!win)return;
+                  win.opener=null;
+                  win.document.write(withPrint);
+                  win.document.close();
                 }}>📋 Generate Tech Spec</button>
                 {isAdmin&&!isEditing&&<button className="btn btn-ghost" onClick={()=>{const f=JSON.parse(JSON.stringify(eng));if(!f.thrust)f.thrust="27K";setForm(f);setEditIdx(ei);}}>Edit</button>}
                 {isAdmin&&isEditing&&<><button className="btn btn-ghost" onClick={()=>{setEditIdx(null);setForm(null);}}>Cancel</button><button className="btn btn-gold" onClick={saveEngineEdit}>Save</button></>}

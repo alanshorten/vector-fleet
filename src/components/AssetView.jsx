@@ -152,7 +152,11 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
         </div>
         {layer==="details"&&(
           <div className="flab g12" style={{marginLeft:"auto",flexShrink:0}}>
-            <button className="btn btn-ghost" onClick={()=>setShareOpen(true)}>🔗 Share</button>
+            {/* Item 4 (18 Aug review): shareTokens documents hold plaintext bearer
+                tokens; Data Entry has no legitimate reason to see them, so hide the
+                entry point to ShareModal rather than let it open to an empty/erroring
+                list. Matches the read-rule narrowing in firestore.rules. */}
+            {canSeeAdvanced&&<button className="btn btn-ghost" onClick={()=>setShareOpen(true)}>🔗 Share</button>}
             <button className="btn btn-gold" onClick={()=>genSpecRef.current&&genSpecRef.current()}>📋 Generate Tech Spec</button>
           </div>
         )}
@@ -178,7 +182,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
             ))}
           </div>
           {tab==="overview"&&<OverviewTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
-          {tab==="engines"&&<EnginesTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
+          {tab==="engines"&&<EnginesTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify} userRole={userRole}/>}
           {tab==="landing gear"&&<LandingGearTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
           {tab==="apu"&&<APUTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}
           {tab==="avionics"&&<AvionicsTab asset={asset} isAdmin={isAdmin} saveAsset={saveAsset} notify={notify}/>}

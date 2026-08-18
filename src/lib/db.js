@@ -48,6 +48,13 @@ async function logAudit(assetId, assetMSN, action) {
     const user = window._authUser;
     if (!user) return;
     const { db: fs, collection, addDoc, serverTimestamp } = getFS();
+    // Item 8 (18 Aug review): auditLog was never tenant-rooted — writes now
+    // go to tenants/{tenantId}/auditLog, matching firestore.rules. Resolves
+    // tenantId the same way every other tenant-rooted write in this file
+    // does; if that throws (not signed in / missing claim), the outer
+    // try/catch below makes this fail non-fatally like everything else here
+    // — an audit-log write should never block the action it's logging.
+    const tenantId = await getTenantId();
     // Phase 3 Session 7 (3D / M-03, security-remediation-roadmap.md):
     // timestamp switched from a client-supplied ISO string to
     // serverTimestamp() so firestore.rules can validate it against
@@ -55,7 +62,7 @@ async function logAudit(assetId, assetMSN, action) {
     // letting a forged/backdated audit entry through. Every other field
     // here (userId, userEmail) is likewise now checked in rules against the
     // caller's own auth token, not just trusted as-sent.
-    await addDoc(collection(fs, "auditLog"), {
+    await addDoc(collection(fs, "tenants", tenantId, "auditLog"), {
       userId: user.uid,
       userEmail: user.email,
       timestamp: serverTimestamp(),
