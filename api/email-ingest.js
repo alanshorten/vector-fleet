@@ -245,22 +245,36 @@ function sheetToCsv(worksheet) {
   worksheet.eachRow({ includeEmpty: true }, (row) => {
     const cells = [];
     for (let i = 1; i <= row.cellCount; i++) {
-      const cell = row.getCell(i);
-      let val = cell.value;
-      if (val === null || val === undefined) val = '';
-      else if (typeof val === 'object') {
-        if (val.result !== undefined) val = val.result; // formula cell
-        else if (val.text !== undefined) val = val.text; // rich text
-        else if (val.richText) val = val.richText.map(rt => rt.text).join('');
-      }
-      if (val instanceof Date) val = val.toISOString();
-      val = String(val);
+      let val = String(unwrapCellValue(row.getCell(i).value));
       if (/[,\n"]/.test(val)) val = '"' + val.replace(/"/g, '""') + '"';
       cells.push(val);
     }
     rows.push(cells.join(','));
   });
   return rows.join('\n');
+}
+
+// Recursive unwrap so a formula cell's cached result (or a hyperlink's text,
+// or rich text) is resolved down to a primitive. Bug fix (2026-08-18, found
+// via a real workbook with un-cached cross-sheet formulas): a formula cell
+// with NO cached result (never recalculated by whatever last saved the
+// file, or errored) has no 'result'/'text'/'richText' key at all — falling
+// through to String(val) on the raw {formula:...} object produced the
+// literal text "[object Object]" in the CSV sent to Claude, which broke
+// its JSON response (SyntaxError at JSON.parse). Any object shape we don't
+// recognise is now treated as blank, matching how SheetJS effectively
+// behaved before (it also only ever had a cached value to show, never a
+// live recalculation).
+function unwrapCellValue(val) {
+  if (val === null || val === undefined) return '';
+  if (val instanceof Date) return val.toISOString();
+  if (typeof val === 'object') {
+    if (val.result !== undefined) return unwrapCellValue(val.result); // formula cell with a cached result
+    if (val.text !== undefined) return unwrapCellValue(val.text);     // rich text / hyperlink
+    if (val.richText) return val.richText.map(rt => rt.text).join('');
+    return ''; // formula with no cached result, a formula error, or any other unrecognised shape — blank, never stringified
+  }
+  return typeof val === 'string' ? val : String(val);
 }
 
 // ---- the exact utilisation-report extraction prompt, copied verbatim from
