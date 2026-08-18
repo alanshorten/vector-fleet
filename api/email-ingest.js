@@ -488,9 +488,23 @@ module.exports = async (req, res) => {
     } else {
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(attachment.buffer);
-      const csvText = workbook.worksheets.map(ws => 'Sheet: ' + ws.name + '\n' + sheetToCsv(ws)).join('\n\n');
+      // Real airline monthly reports arrive as a running multi-sheet archive
+      // (one sheet per month, e.g. "1124", "1224", "0125", ...), not a
+      // single-sheet file — confirmed against a real production attachment,
+      // 2026-08-18. Concatenating every sheet (the original behaviour,
+      // inherited unchanged from the pre-ExcelJS SheetJS code) overwhelmed
+      // the single-report extraction schema with tens of thousands of
+      // tokens of near-identical historical data and reliably broke
+      // Claude's JSON output (SyntaxError on parse). Only the LAST sheet
+      // (most recent month, by tab order) is extracted now — same
+      // "default to last sheet" convention UploadView.jsx already uses for
+      // manual uploads, just without a human in the loop to override it
+      // here.
+      const sheet = workbook.worksheets[workbook.worksheets.length - 1];
+      if (!sheet) throw new Error('Excel file has no sheets.');
+      const csvText = 'Sheet: ' + sheet.name + '\n' + sheetToCsv(sheet);
       messageContent = [
-        { type: 'text', text: 'The following is the contents of an Excel spreadsheet exported as CSV. This is the most recent month\'s data.\n\n' + csvText + '\n\n' + UTIL_PROMPT }
+        { type: 'text', text: 'The following is the contents of an Excel spreadsheet (sheet: ' + sheet.name + ') exported as CSV. This is the most recent month\'s data.\n\n' + csvText + '\n\n' + UTIL_PROMPT }
       ];
     }
   } catch (err) {
