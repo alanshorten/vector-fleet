@@ -71,13 +71,37 @@ service cloud.firestore {
     // 2026-08-17 (second-reassessment-followup-scoping-handoff.md item 2) —
     // db.js has been on this tenant-rooted path since Phase 3 Session 1 and
     // has been stable for weeks, so it was safe to close the rollback path.
+    // H-01 fix: enforce type on the small set of top-level asset scalar
+    // fields that feed straight into fmtHHMM()/toLocaleString() in the
+    // tech-spec renderer (public/calculations/techSpecBuilder.js) — msn
+    // must stay a string, currentFH/currentFC (when present at the top
+    // level) must stay numbers. Full type enforcement on the nested
+    // engines[]/llps[]/shopVisits[] arrays (where most of H-01's affected
+    // fields actually live — currentFH, currentFC, fh, fc, tsnAtRemoval,
+    // csnAtRemoval, weights.*) is not practical in Firestore Rules, which
+    // has no way to iterate and validate arbitrary-length array-of-map
+    // elements. That gap is closed instead on the read/render side: every
+    // formatter that touches those nested numeric fields (fmtHHMM, fmtNum)
+    // now strictly coerces to Number and renders "—" for anything that
+    // isn't a finite number, so a non-numeric value stored in those fields
+    // can no longer reach the generated HTML as attacker-controlled markup
+    // regardless of what's sitting in Firestore. A Cloud Function-based
+    // full-document validator remains a reasonable follow-up for
+    // defense-in-depth but isn't required to close H-01 itself.
+    function assetScalarFieldsValid() {
+      let d = request.resource.data;
+      return (!('msn' in d) || d.msn is string)
+          && (!('currentFH' in d) || d.currentFH is number)
+          && (!('currentFC' in d) || d.currentFC is number);
+    }
     match /tenants/{tenantId}/assets/{assetId} {
       allow read: if request.auth != null
                   && request.auth.token.tenantId == tenantId;
       // Phase 3 Session 6 (3C / M-01): write now consults the tenantMembers
       // doc (memberHasRole above) instead of the token claim directly — see
       // the helper functions' comment for why.
-      allow write: if memberHasRole(tenantId, ['admin', 'editor', 'dataEntry']);
+      allow write: if memberHasRole(tenantId, ['admin', 'editor', 'dataEntry'])
+                   && assetScalarFieldsValid();
     }
     // Tenant-rooted leases/reserves (Phase 3, Session 2). Same shape and
     // same role gate as the flat rules below, just under the tenant path —
@@ -356,9 +380,19 @@ service cloud.firestore {
     // including Data Entry — shareTokens documents hold plaintext bearer
     // tokens, and Data Entry has no legitimate reason to see the Share
     // modal's token list. Narrowed to admin/editor/viewer.
+    // M-03 fix: shareTokens documents ARE the plaintext bearer token (the
+    // doc ID is the token used in the public share URL) — a rules-based
+    // read check can only gate on the caller's ROLE, not on whether they
+    // created a given token or on live (non-token-cached) membership
+    // status. That meant any admin/editor/viewer with a still-valid ID
+    // token could read and copy every token in the collection, including
+    // ones created by someone else, and kept being able to for as long as
+    // their cached token lasted even after being downgraded/disabled
+    // elsewhere. Reads are now denied outright, same as writes already
+    // were — api/share/list.js (Admin SDK, re-checks live tenantMembers
+    // status on every call) is the only read path left.
     match /tenants/{tenantId}/shareTokens/{token} {
-      allow read: if memberHasRole(tenantId, ['admin', 'editor', 'viewer']);
-      allow write: if false;
+      allow read, write: if false;
     }
     // Everything else — unchanged from before: any signed-in Firebase
     // Auth user. Written as explicit per-collection matches rather than
@@ -383,15 +417,29 @@ service cloud.firestore {
     // things like the tech-spec disclaimer text and branding toggle, which
     // feed directly into the same HTML templates Phase 2A hardened; keeping
     // write access no broader than the components that consume it is the
-    // point of "belt and braces" here. Not tenant-rooted (out of scope for
-    // this session — settings isn't asset-scoped the way the collections
-    // migrated so far are), so this uses the token role claim directly like
-    // the other still-flat collections in this file, rather than the
-    // tenantMembers-backed memberHasRole() helper.
+    // point of "belt and braces" here.
+    //
+    // M-01 fix (19 Aug 2026 security review): the "not tenant-rooted, out
+    // of scope for this session" note that used to sit here is no longer
+    // true — settings moved from the flat, cross-tenant /settings/{key}
+    // path above to a tenant-rooted subtree, gated the same way as the
+    // other tenant-rooted collections (memberHasRole against the live
+    // tenantMembers doc, not just the token's role claim — see the helper
+    // functions' comment at the top of this file). Read is any active
+    // member of the tenant (branding/disclaimer settings aren't sensitive
+    // to read within a tenant, same posture the old rule had); write stays
+    // admin/editor, matching the flat rule's original intent.
+    match /tenants/{tenantId}/settings/{key} {
+      allow read: if isActiveMember(tenantId);
+      allow write: if memberHasRole(tenantId, ['admin', 'editor']);
+    }
+    // Old flat /settings/{key} path — deny-by-default now that the app has
+    // moved to the tenant-rooted path above. Left explicit (rather than
+    // just letting it fall through to Firestore's default deny) so it's
+    // clear this was a deliberate close, not an oversight, the same
+    // pattern already used for the old flat /assets/{assetId} path.
     match /settings/{key} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-                   && request.auth.token.role in ['admin', 'editor'];
+      allow read, write: if false;
     }
   }
 }

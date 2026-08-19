@@ -11,7 +11,31 @@
 // (single source of truth, used by both pages).
 const QR_TAILIQ="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASIAAAEiCAIAAADS3EjhAAAFE0lEQVR4nO3dMXLVMBRAUcJkUdQsgYWyBGp2ZVoqTYJyebJzTsvYsT//jor/Rnq5rusLUPo6/QDwfDKDnMwgJzPIyQxyMoOczCAnM8jJDHIyg5zMICczyMkMcjKDnMwgJzPIyQxyMoOczCD3unPxt+8/Puo5DvH718/Fv67fd33tjp3PeeeNpu58pp3/X6sZ5GQGOZlBTmaQkxnkZAY5mUFOZpCTGeS2pkDWuqmIHd3cw46d+ZL1tVOTK2vP+26sWc0gJzPIyQxyMoOczCAnM8jJDHIyg5zMIBdOgax1v7ifOWHQ2XnfO87E7Jj6bljNICczyMkMcjKDnMwgJzPIyQxyMoOczCA3NgVyR92OHWf6bPM0HasZ5GQGOZlBTmaQkxnkZAY5mUFOZpCTGeRMgfwnUxMVO9MnZ54mc0dWM8jJDHIyg5zMICczyMkMcjKDnMwgJzPIjU2BPG+GYGqnkPWdp86L2fG874bVDHIyg5zMICczyMkMcjKDnMwgJzPIyQxy4RTIHc9A2bEz59HNiJy5n8dn+25YzSAnM8jJDHIyg5zMICczyMkMcjKDnMwgtzUF8rw9G8505nzJmu/G36xmkJMZ5GQGOZlBTmaQkxnkZAY5mUFOZpDbmgKZ2mfizLmHtW6SY8cdz4tZ695o585WM8jJDHIyg5zMICczyMkMcjKDnMwgJzPIhSfC7OjmPKZmRLpTXbpr16amfLo7d29kNYOczCAnM8jJDHIyg5zMICczyMkMcjKD3Mt1Xf988R13g+jmAKamT87cz+PMGZGpc2qsZpCTGeRkBjmZQU5mkJMZ5GQGOZlBTmaQG5sCOfOElDP/7tqZn+Ta1CzOmr1A4MZkBjmZQU5mkJMZ5GQGOZlBTmaQkxnktqZAdpw5bzF1Xsza1FN9tv1L1nae2WoGOZlBTmaQkxnkZAY5mUFOZpCTGeRkBjl7gbzj7651b3TmKTad572v1QxyMoOczCAnM8jJDHIyg5zMICczyMkMcvYCeYczn6pz5s4oO6bmWqxmkJMZ5GQGOZlBTmaQkxnkZAY5mUFOZpAbmwJZmzrlZMeZJ7M871SXM99ozWoGOZlBTmaQkxnkZAY5mUFOZpCTGeRkBrmxE2F2nDkHMHWOydrU3z2TvUDgsWQGOZlBTmaQkxnkZAY5mUFOZpCTGeQO3QvkTGfuUHLmLM6OqdOCOlYzyMkMcjKDnMwgJzPIyQxyMoOczCAnM8i97lxsr4i3X3vmBMnazjM/b5Jjh9UMcjKDnMwgJzPIyQxyMoOczCAnM8jJDHJbUyBrZ/7S352uMnUizNRTrZ05m7Jj542sZpCTGeRkBjmZQU5mkJMZ5GQGOZlBTmaQC6dA1uyN8XZTu4ys3XEnmKlP0moGOZlBTmaQkxnkZAY5mUFOZpCTGeRkBrmxKZA7uuNeIN2dz5zjWT/V1OSK1QxyMoOczCAnM8jJDHIyg5zMICczyMkMcqZAPszUzMTz9uRYu+P5OFYzyMkMcjKDnMwgJzPIyQxyMoOczCAnM8iNTYF0v7hPmdobY2o/j507f7aZGKsZ5GQGOZlBTmaQkxnkZAY5mUFOZpCTGeTCKZAzf4/fMbULxfM+yW4GaOez6nYKsZpBTmaQkxnkZAY5mUFOZpCTGeRkBjmZQe7luq7pZ4CHs5pBTmaQkxnkZAY5mUFOZpCTGeRkBjmZQU5mkJMZ5GQGOZlBTmaQkxnkZAY5mUFOZpCTGeT+APKwhBaz1hARAAAAAElFTkSuQmCC";
 function fmtDate(s){try{if(!s)return"—";let d=s;if(/^\d{2}\/\d{2}\/\d{4}$/.test(s)){const m=s.split("/");d=m[2]+"-"+m[1]+"-"+m[0];}return new Date(d).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});}catch{return s||"—";}}
-function fmtHHMM(dec){if(!dec&&dec!==0)return"—";if(typeof dec==="string"&&dec.includes(":"))return dec;return`${Math.floor(dec).toLocaleString()}:${String(Math.round((dec%1)*60)).padStart(2,"0")}`;}
+// H-01 fix: fmtHHMM previously returned any string containing a colon
+// verbatim (the "already formatted HH:MM" passthrough), which let an
+// attacker-controlled currentFH/fh/tsn... field carrying HTML survive
+// into the generated document unescaped. That passthrough is removed —
+// the input is now always strictly coerced to a finite Number before
+// formatting; anything that isn't a real number (including a malicious
+// string with a colon, tags, or quotes) renders as "—" instead.
+function fmtHHMM(dec){
+  if(dec===null||dec===undefined||dec==="")return"—";
+  const n=typeof dec==="number"?dec:Number(dec);
+  if(!Number.isFinite(n))return"—";
+  return `${Math.floor(n).toLocaleString()}:${String(Math.round((n%1)*60)).padStart(2,"0")}`;
+}
+// H-01 fix: safe replacement for direct `.toLocaleString()` calls on
+// Firestore-sourced numeric fields. Object.prototype.toLocaleString()
+// (inherited by plain strings) silently returns the string unchanged,
+// so `someFirestoreField.toLocaleString()` was a second stored-XSS
+// vector alongside fmtHHMM whenever the field held a non-numeric,
+// attacker-controlled string. fmtNum forces strict Number coercion
+// first and renders "—" for anything that doesn't come out finite.
+function fmtNum(v){
+  if(v===null||v===undefined||v==="")return"—";
+  const n=typeof v==="number"?v:Number(v);
+  return Number.isFinite(n)?n.toLocaleString():"—";
+}
 
 // --- H-03 fix: HTML-escape every Firestore-sourced value before it's
 // interpolated into a generated tech-spec HTML string. Applied at the
@@ -172,8 +196,8 @@ td{padding:5px 8px;border:1px solid #D9DCD8;vertical-align:top}
   // To re-enable: restore the original COVER_PILL definition from git history (commit before this change).
   const COVER_PILL='';
     const llpRows=(llps,csn)=>!llps?.length?'<tr><td colspan="4" style="color:#687078;font-style:italic">No LLP data entered</td></tr>':llps.map(l=>{const r=calcLLPRem(l,csn);return`<tr><td>${escapeHtml(l.desc||"")}</td><td style="font-family:IBM Plex Mono,monospace">${escapeHtml(l.pn||"")}</td><td style="font-family:IBM Plex Mono,monospace">${escapeHtml(l.sn||"")}</td><td style="font-weight:700;color:${r<1000?"#B54848":r<3000?"#B7791F":"#151A1D"}">${r.toLocaleString()}</td></tr>`;}).join("");
-  const svRows=(visits,currentFH,currentFC)=>{if(!visits||!visits.length)return'<tr><td colspan="4" style="color:#687078;font-style:italic">No shop visits recorded</td></tr>';const mroLine=(mro)=>mro?'<br/><span style="font-size:9px;color:#687078">'+escapeHtml(mro)+'</span>':"";const rows=visits.map(sv=>'<tr><td>'+escapeHtml(sv.details||"")+'</td><td>'+fmtDate(sv.date)+mroLine(sv.mro)+'</td><td style="font-family:IBM Plex Mono,monospace">'+(fmtHHMM(sv.fh)||"")+'</td><td style="font-family:IBM Plex Mono,monospace">'+(sv.fc?sv.fc.toLocaleString():"")+'</td></tr>').join("");const last=visits[visits.length-1];const sinceFH=currentFH&&last.fh?currentFH-last.fh:null;const sinceFC=currentFC&&last.fc?currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;const sinceRow='<tr style="background:#E8E7E2"><td colspan="2" style="color:#151A1D;font-weight:700">Since Last Shop Visit</td><td style="font-family:IBM Plex Mono,monospace">'+(sinceFH!==null?fmtHHMM(sinceFH):"—")+'</td><td style="font-family:IBM Plex Mono,monospace">'+(sinceFC!==null?sinceFC.toLocaleString():"—")+'</td></tr><tr style="background:#E8E7E2"><td colspan="4" style="color:#687078;font-size:9px">Days since last shop visit: '+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td></tr>';return rows+sinceRow;};
-  const operatorHistoryRows=(rows)=>{if(!rows?.length)return'<tr><td colspan="7" style="color:#687078;font-style:italic">No operator history recorded</td></tr>';const sorted=[...rows].sort((a,b)=>{if(!a.installDate)return 1;if(!b.installDate)return -1;return new Date(a.installDate)-new Date(b.installDate);});const mostRecent=sorted[sorted.length-1];return sorted.map(r=>'<tr'+(r._gapFlag?' style="background:#fef3cd"':'')+'><td>'+escapeHtml(r.operator||"—")+'</td><td style="font-family:IBM Plex Mono,monospace">'+escapeHtml(r.aircraft||"—")+'</td><td>'+fmtDate(r.installDate)+'</td><td>'+(r.removalDate?fmtDate(r.removalDate):(r===mostRecent?('No removal recorded'+(r.asOfDate?' (as of '+fmtDate(r.asOfDate)+')':'')):'Unknown'))+'</td><td style="font-family:IBM Plex Mono,monospace">'+(r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—")+'</td><td style="font-family:IBM Plex Mono,monospace">'+(r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—")+'</td><td>'+escapeHtml(r.reason||"—")+'</td></tr>').join("");};
+  const svRows=(visits,currentFH,currentFC)=>{if(!visits||!visits.length)return'<tr><td colspan="4" style="color:#687078;font-style:italic">No shop visits recorded</td></tr>';const mroLine=(mro)=>mro?'<br/><span style="font-size:9px;color:#687078">'+escapeHtml(mro)+'</span>':"";const rows=visits.map(sv=>'<tr><td>'+escapeHtml(sv.details||"")+'</td><td>'+fmtDate(sv.date)+mroLine(sv.mro)+'</td><td style="font-family:IBM Plex Mono,monospace">'+(fmtHHMM(sv.fh)||"")+'</td><td style="font-family:IBM Plex Mono,monospace">'+(sv.fc!=null?fmtNum(sv.fc):"")+'</td></tr>').join("");const last=visits[visits.length-1];const sinceFH=currentFH&&last.fh?currentFH-last.fh:null;const sinceFC=currentFC&&last.fc?currentFC-last.fc:null;const sinceDays=last.date?Math.floor((new Date()-new Date(last.date))/86400000):null;const sinceRow='<tr style="background:#E8E7E2"><td colspan="2" style="color:#151A1D;font-weight:700">Since Last Shop Visit</td><td style="font-family:IBM Plex Mono,monospace">'+(sinceFH!==null?fmtHHMM(sinceFH):"—")+'</td><td style="font-family:IBM Plex Mono,monospace">'+(sinceFC!==null?sinceFC.toLocaleString():"—")+'</td></tr><tr style="background:#E8E7E2"><td colspan="4" style="color:#687078;font-size:9px">Days since last shop visit: '+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td></tr>';return rows+sinceRow;};
+  const operatorHistoryRows=(rows)=>{if(!rows?.length)return'<tr><td colspan="7" style="color:#687078;font-style:italic">No operator history recorded</td></tr>';const sorted=[...rows].sort((a,b)=>{if(!a.installDate)return 1;if(!b.installDate)return -1;return new Date(a.installDate)-new Date(b.installDate);});const mostRecent=sorted[sorted.length-1];return sorted.map(r=>'<tr'+(r._gapFlag?' style="background:#fef3cd"':'')+'><td>'+escapeHtml(r.operator||"—")+'</td><td style="font-family:IBM Plex Mono,monospace">'+escapeHtml(r.aircraft||"—")+'</td><td>'+fmtDate(r.installDate)+'</td><td>'+(r.removalDate?fmtDate(r.removalDate):(r===mostRecent?('No removal recorded'+(r.asOfDate?' (as of '+fmtDate(r.asOfDate)+')':'')):'Unknown'))+'</td><td style="font-family:IBM Plex Mono,monospace">'+(r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—")+'</td><td style="font-family:IBM Plex Mono,monospace">'+(r.csnAtRemoval!=null?fmtNum(r.csnAtRemoval):"—")+'</td><td>'+escapeHtml(r.reason||"—")+'</td></tr>').join("");};
   // --- Mobile card variants of the three row-generators above. Same data, same
   // formatting (fmtDate/fmtHHMM/toLocaleString calls match their table counterparts
   // exactly), just laid out as .dt-card/.dt-row divs instead of <tr>/<td>. See
@@ -197,7 +221,7 @@ td{padding:5px 8px;border:1px solid #D9DCD8;vertical-align:top}
   };
   const svCards=(visits,currentFH,currentFC)=>{
     if(!visits||!visits.length)return'<div class="dt-card" style="color:#687078;font-style:italic">No shop visits recorded</div>';
-    const cards=visits.map(sv=>`<div class="dt-card">${dtRow("Details",sv.details||"—")}${dtRow("Date",fmtDate(sv.date))}${dtRow("MRO",sv.mro)}${dtRow("TSN",fmtHHMM(sv.fh)||"—","font-family:IBM Plex Mono,monospace")}${dtRow("CSN",sv.fc?sv.fc.toLocaleString():"—","font-family:IBM Plex Mono,monospace")}</div>`).join("");
+    const cards=visits.map(sv=>`<div class="dt-card">${dtRow("Details",sv.details||"—")}${dtRow("Date",fmtDate(sv.date))}${dtRow("MRO",sv.mro)}${dtRow("TSN",fmtHHMM(sv.fh)||"—","font-family:IBM Plex Mono,monospace")}${dtRow("CSN",sv.fc!=null?fmtNum(sv.fc):"—","font-family:IBM Plex Mono,monospace")}</div>`).join("");
     const last=visits[visits.length-1];
     const sinceFH=currentFH&&last.fh?currentFH-last.fh:null;
     const sinceFC=currentFC&&last.fc?currentFC-last.fc:null;
@@ -209,7 +233,7 @@ td{padding:5px 8px;border:1px solid #D9DCD8;vertical-align:top}
     if(!rows?.length)return'<div class="dt-card" style="color:#687078;font-style:italic">No operator history recorded</div>';
     const sorted=[...rows].sort((a,b)=>{if(!a.installDate)return 1;if(!b.installDate)return -1;return new Date(a.installDate)-new Date(b.installDate);});
     const mostRecent=sorted[sorted.length-1];
-    return sorted.map(r=>`<div class="dt-card"${r._gapFlag?' style="background:#fef3cd"':""}>${dtRow("Operator",r.operator||"—")}${dtRow("Aircraft",r.aircraft||"—","font-family:IBM Plex Mono,monospace")}${dtRow("Installed",fmtDate(r.installDate))}${dtRow("Removed",r.removalDate?fmtDate(r.removalDate):(r===mostRecent?("No removal recorded"+(r.asOfDate?" (as of "+fmtDate(r.asOfDate)+")":"")):"Unknown"))}${dtRow("TSN",r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—","font-family:IBM Plex Mono,monospace")}${dtRow("CSN",r.csnAtRemoval!=null?r.csnAtRemoval.toLocaleString():"—","font-family:IBM Plex Mono,monospace")}${dtRow("Reason",r.reason||"—")}</div>`).join("");
+    return sorted.map(r=>`<div class="dt-card"${r._gapFlag?' style="background:#fef3cd"':""}>${dtRow("Operator",r.operator||"—")}${dtRow("Aircraft",r.aircraft||"—","font-family:IBM Plex Mono,monospace")}${dtRow("Installed",fmtDate(r.installDate))}${dtRow("Removed",r.removalDate?fmtDate(r.removalDate):(r===mostRecent?("No removal recorded"+(r.asOfDate?" (as of "+fmtDate(r.asOfDate)+")":"")):"Unknown"))}${dtRow("TSN",r.tsnAtRemoval!=null?fmtHHMM(r.tsnAtRemoval):"—","font-family:IBM Plex Mono,monospace")}${dtRow("CSN",r.csnAtRemoval!=null?fmtNum(r.csnAtRemoval):"—","font-family:IBM Plex Mono,monospace")}${dtRow("Reason",r.reason||"—")}</div>`).join("");
   };
   const engSec=(eng,pos,fullHistory=false)=>{if(!eng)return"";const ll=lowestLimiter(eng);const llDesc=lowestLLPDesc(eng);const svSorted=[...(eng.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);});const svRecent=svSorted.slice(-1);const svAll=svSorted;return`
 ${pgH(`Engine #${pos} \u2014 ESN ${escapeHtml(eng.sn||"\u2014")}`)}
@@ -219,7 +243,7 @@ ${col2(
     <table class="kv" width="100%" cellpadding="0" cellspacing="0">
       ${kvR("Model / Thrust",`${eng.type||"\u2014"} \u00b7 ${eng.thrust||"\u2014"}`)}
       ${kvR("Flight Hours Since New",`${fmtHHMM(eng.currentFH)} FH`)}
-      ${kvR("Flight Cycles Since New",`${(eng.currentFC||0).toLocaleString()} FC`)}
+      ${kvR("Flight Cycles Since New",`${fmtNum(eng.currentFC||0)} FC`)}
     </table>
     ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#687078;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
   </td>`,
@@ -256,7 +280,7 @@ ${eng.operatorHistory?.length?`${cO("Operator History",svgList)}${tblScroll(`<ta
     const sinceFC=(curFC!=null&&g.lastOverhaulFC!=null)?curFC-g.lastOverhaulFC:null;
     const lastDateISO=lgFromDDMMYYYY(g.lastOverhaulDate);
     const sinceDays=lastDateISO?Math.floor((new Date()-new Date(lastDateISO))/86400000):null;
-    return'<table style="margin-bottom:14px"><thead><tr><th colspan="5" style="background:transparent;color:#151A1D;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid #151A1D">'+escapeHtml(title)+'</th></tr><tr><th>Part Number</th><th>Serial Number</th><th>Manufacturer</th><th>Totals Since New</th><th>Next Overhaul Due (Cal / Cyc)</th></tr></thead><tbody><tr><td>'+escapeHtml(g.pn||"—")+'</td><td>'+escapeHtml(g.sn||"—")+'</td><td>'+escapeHtml(g.mfr||"—")+'</td><td>'+totalsCell+'</td><td style="font-weight:700">'+ nextDueCell+'</td></tr></tbody></table>'+'<table style="margin-bottom:14px"><thead><tr><th>Last Overhaul Date</th><th>Leg FH at OH</th><th>Leg CSN at OH</th><th>Days Since</th><th>FH Since</th><th>CSN Since</th></tr></thead><tbody><tr><td>'+lgFmtDate(g.lastOverhaulDate)+'</td><td>'+(g.lastOverhaulFH!=null?fmtHHMM(g.lastOverhaulFH):"—")+'</td><td>'+(g.lastOverhaulFC!=null?g.lastOverhaulFC.toLocaleString():"—")+'</td><td>'+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td><td>'+(sinceFH!=null?fmtHHMM(sinceFH):"—")+'</td><td>'+(sinceFC!=null?Math.round(sinceFC).toLocaleString():"—")+'</td></tr></tbody></table>';
+    return'<table style="margin-bottom:14px"><thead><tr><th colspan="5" style="background:transparent;color:#151A1D;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid #151A1D">'+escapeHtml(title)+'</th></tr><tr><th>Part Number</th><th>Serial Number</th><th>Manufacturer</th><th>Totals Since New</th><th>Next Overhaul Due (Cal / Cyc)</th></tr></thead><tbody><tr><td>'+escapeHtml(g.pn||"—")+'</td><td>'+escapeHtml(g.sn||"—")+'</td><td>'+escapeHtml(g.mfr||"—")+'</td><td>'+totalsCell+'</td><td style="font-weight:700">'+ nextDueCell+'</td></tr></tbody></table>'+'<table style="margin-bottom:14px"><thead><tr><th>Last Overhaul Date</th><th>Leg FH at OH</th><th>Leg CSN at OH</th><th>Days Since</th><th>FH Since</th><th>CSN Since</th></tr></thead><tbody><tr><td>'+lgFmtDate(g.lastOverhaulDate)+'</td><td>'+(g.lastOverhaulFH!=null?fmtHHMM(g.lastOverhaulFH):"—")+'</td><td>'+(g.lastOverhaulFC!=null?fmtNum(g.lastOverhaulFC):"—")+'</td><td>'+(sinceDays!==null?sinceDays.toLocaleString():"—")+'</td><td>'+(sinceFH!=null?fmtHHMM(sinceFH):"—")+'</td><td>'+(sinceFC!=null?Math.round(sinceFC).toLocaleString():"—")+'</td></tr></tbody></table>';
   };
   const lowestLLPDesc=(obj)=>{if(!obj?.llps?.length)return null;const csn=obj?.currentFC||0;let min=Infinity,desc=null;for(const l of (obj.llps||[])){const r=calcLLPRem(l,csn);if(r<min){min=r;desc=l.desc||null;}}return desc;};
   const progBar=(rem,max=20000)=>{if(rem===null||rem===undefined||isNaN(rem))return'';const pct=Math.min(100,Math.max(0,(rem/max)*100));const col=rem>6000?'#25745A':rem>3000?'#B7791F':'#B54848';return`<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:11px"><tr><td style="border:none;padding:0 0 4px 0;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#687078">Lowest LLP Limiter</td><td align="right" style="border:none;padding:0 0 4px 0;font-size:11px;font-weight:800;color:${col}">${rem.toLocaleString()} FC Rem.</td></tr></table><div style="height:6px;background:#D9DCD8;border-radius:3px;overflow:hidden"><div style="height:6px;width:${pct.toFixed(1)}%;background:${col};border-radius:3px"></div></div>`;};
@@ -307,7 +331,7 @@ ${eng.operatorHistory?.length?`${cO("Operator History",svgList)}${tblScroll(`<ta
     const iconThrust=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#687078" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13,2L3,14h9l-1,8,10-12h-9l1-8z"/></svg>`;
     return`<table width="100%" cellpadding="0" cellspacing="0" class="sc-cards" style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col width="25%"/><col width="25%"/><col width="25%"/><col width="25%"/></colgroup><tr>
       <td width="25%" class="sc-cell" style="width:25%;padding:0 4px 0 0;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFH}</div><div class="sc-val">${fmtHHMM(eng?.currentFH)}</div><div class="sc-lbl">Flight Hours</div></div></td>
-      <td width="25%" class="sc-cell" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFC}</div><div class="sc-val">${(eng?.currentFC||0).toLocaleString()}</div><div class="sc-lbl">Flight Cycles</div></div></td>
+      <td width="25%" class="sc-cell" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFC}</div><div class="sc-val">${fmtNum(eng?.currentFC||0)}</div><div class="sc-lbl">Flight Cycles</div></div></td>
       <td width="25%" class="sc-cell" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconType}</div><div class="sc-val-sm">${escapeHtml(eng?.type||"—")}</div><div class="sc-lbl">Engine Type</div></div></td>
       <td width="25%" class="sc-cell" style="width:25%;padding:0 0 0 4px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconThrust}</div><div class="sc-val-sm">${escapeHtml(eng?.thrust||"—")}</div><div class="sc-lbl">Thrust Rating</div></div></td>
     </tr></table>`;})()}
@@ -340,7 +364,7 @@ ${PAGE_FOOTER}
     const opVal=escapeHtml(asset.operator||"—");
     return`<table width="100%" cellpadding="0" cellspacing="0" class="sc-cards" style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col width="25%"/><col width="25%"/><col width="25%"/><col width="25%"/></colgroup><tr>
       <td width="25%" class="sc-cell" style="width:25%;padding:0 4px 0 0;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFH}</div><div class="sc-val">${fmtHHMM(af.currentFH)}</div><div class="sc-lbl">Flight Hours</div></div></td>
-      <td width="25%" class="sc-cell" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFC}</div><div class="sc-val">${(af.currentFC||0).toLocaleString()}</div><div class="sc-lbl">Flight Cycles</div></div></td>
+      <td width="25%" class="sc-cell" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconFC}</div><div class="sc-val">${fmtNum(af.currentFC||0)}</div><div class="sc-lbl">Flight Cycles</div></div></td>
       <td width="25%" class="sc-cell" style="width:25%;padding:0 2px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconDOM}</div><div class="sc-val" style="font-size:14px">${domDisp}</div><div class="sc-lbl">Date of Manufacture</div></div></td>
       <td width="25%" class="sc-cell" style="width:25%;padding:0 0 0 4px;border:none;vertical-align:top"><div class="sc-inner" style="height:108px;box-sizing:border-box"><div class="sc-icon">${iconOp}</div><div class="sc-val-sm">${opVal}</div><div class="sc-lbl">${opLabel}</div></div></td>
     </tr></table>`;})()}
@@ -354,19 +378,19 @@ ${col2(
   `<td style="${CS}">
     ${IH("Weights",svgScale)}
     <table width="100%" cellpadding="0" cellspacing="0"><tr>
-      <td style="padding:0 4px 0 0;border:none;vertical-align:top;width:50%">${mT("MTOW",(asset.weights?.mtow?.toLocaleString()||"—")+" kg",(asset.weights?.mtow_lb?.toLocaleString()||"—")+" lb")}</td>
-      <td style="padding:0 0 0 4px;border:none;vertical-align:top;width:50%">${mT("MLW",(asset.weights?.mlw?.toLocaleString()||"—")+" kg",(asset.weights?.mlw_lb?.toLocaleString()||"—")+" lb")}</td>
+      <td style="padding:0 4px 0 0;border:none;vertical-align:top;width:50%">${mT("MTOW",(fmtNum(asset.weights?.mtow)||"—")+" kg",(fmtNum(asset.weights?.mtow_lb)||"—")+" lb")}</td>
+      <td style="padding:0 0 0 4px;border:none;vertical-align:top;width:50%">${mT("MLW",(fmtNum(asset.weights?.mlw)||"—")+" kg",(fmtNum(asset.weights?.mlw_lb)||"—")+" lb")}</td>
     </tr><tr><td colspan="2" style="border:none;height:6px"></td></tr><tr>
-      <td style="padding:0 4px 0 0;border:none;vertical-align:top">${mT("MZFW",(asset.weights?.mzfw?.toLocaleString()||"—")+" kg",(asset.weights?.mzfw_lb?.toLocaleString()||"—")+" lb")}</td>
-      <td style="padding:0 0 0 4px;border:none;vertical-align:top">${mT("Max Taxi",(asset.weights?.mtw?.toLocaleString()||"—")+" kg",(asset.weights?.mtw_lb?.toLocaleString()||"—")+" lb")}</td>
+      <td style="padding:0 4px 0 0;border:none;vertical-align:top">${mT("MZFW",(fmtNum(asset.weights?.mzfw)||"—")+" kg",(fmtNum(asset.weights?.mzfw_lb)||"—")+" lb")}</td>
+      <td style="padding:0 0 0 4px;border:none;vertical-align:top">${mT("Max Taxi",(fmtNum(asset.weights?.mtw)||"—")+" kg",(fmtNum(asset.weights?.mtw_lb)||"—")+" lb")}</td>
     </tr></table>
   </td>`,
   `<td style="${CS}">
     ${IH("Check History",svgWrench)}
     ${(()=>{
       const enteredChecks=(asset.checks||[]).filter(c=>c.lastDate||c.nextDate);
-      const tableRows=!enteredChecks.length?'<tr><td colspan="5" style="color:#687078;font-style:italic">No check history entered</td></tr>':enteredChecks.map(c=>`<tr><td style="${TD}">${escapeHtml(c.name)}</td><td style="${TD}">${fmtDate(c.lastDate)}</td><td style="${TD}">${c.lastFH?.toLocaleString()||"—"}</td><td style="${TD}">${c.lastFC?.toLocaleString()||"—"}</td><td style="${TD};font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("");
-      const cards=!enteredChecks.length?'<div class="dt-card" style="color:#687078;font-style:italic">No check history entered</div>':enteredChecks.map(c=>`<div class="dt-card">${dtRow("Check",c.name)}${dtRow("Last Date",fmtDate(c.lastDate))}${dtRow("FH",c.lastFH?.toLocaleString()||"—")}${dtRow("FC",c.lastFC?.toLocaleString()||"—")}${dtRow("Next Due",fmtDate(c.nextDate),"font-weight:800")}</div>`).join("");
+      const tableRows=!enteredChecks.length?'<tr><td colspan="5" style="color:#687078;font-style:italic">No check history entered</td></tr>':enteredChecks.map(c=>`<tr><td style="${TD}">${escapeHtml(c.name)}</td><td style="${TD}">${fmtDate(c.lastDate)}</td><td style="${TD}">${fmtNum(c.lastFH)||"—"}</td><td style="${TD}">${fmtNum(c.lastFC)||"—"}</td><td style="${TD};font-weight:700">${fmtDate(c.nextDate)}</td></tr>`).join("");
+      const cards=!enteredChecks.length?'<div class="dt-card" style="color:#687078;font-style:italic">No check history entered</div>':enteredChecks.map(c=>`<div class="dt-card">${dtRow("Check",c.name)}${dtRow("Last Date",fmtDate(c.lastDate))}${dtRow("FH",fmtNum(c.lastFH)||"—")}${dtRow("FC",fmtNum(c.lastFC)||"—")}${dtRow("Next Due",fmtDate(c.nextDate),"font-weight:800")}</div>`).join("");
       const tableHtml=`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Check</th><th style="${TH}">Last Date</th><th style="${TH}">FH</th><th style="${TH}">FC</th><th style="${TH}">Next Due</th></tr></thead><tbody>${tableRows}</tbody></table>`;
       return dualRender(tableHtml,cards);
     })()}
@@ -423,7 +447,7 @@ ${col2(
     <table class="kv" width="100%" cellpadding="0" cellspacing="0">
       ${kvR("Model / Thrust",`${eng.type||"\u2014"} \u00b7 ${eng.thrust||"\u2014"}`)}
       ${kvR("Flight Hours Since New",`${fmtHHMM(eng.currentFH)} FH`)}
-      ${kvR("Flight Cycles Since New",`${(eng.currentFC||0).toLocaleString()} FC`)}
+      ${kvR("Flight Cycles Since New",`${fmtNum(eng.currentFC||0)} FC`)}
     </table>
     ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#687078;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
   </td>`,
@@ -485,7 +509,7 @@ ${col2(
       ${kvR("Part Number",apu.pn||"—")}
       ${kvR("Serial Number",apu.sn||"—")}
       ${kvR("Time Since New",fmtHHMM(apu.currentFH)+" FH")}
-      ${kvR("Cycles Since New",(apu.currentFC||0).toLocaleString()+" FC")}
+      ${kvR("Cycles Since New",fmtNum(apu.currentFC||0)+" FC")}
     </table>
     ${(()=>{const ll=lowestLimiter(apu);const desc=lowestLLPDesc(apu);return ll!==null?progBar(ll)+(desc?`<div style="font-size:8.5px;color:#687078;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${desc}</div>`:""):"";})()}
   </td>`,

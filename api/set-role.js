@@ -141,39 +141,55 @@ module.exports = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    await auth.setCustomUserClaims(uid, { role, tenantId: decoded.tenantId });
-    // Revoke existing refresh tokens so the change takes effect promptly —
-    // without this, a signed-in user's cached ID token (and the role claim
-    // baked into it) stays valid for up to an hour regardless of what an
-    // admin just changed. The client periodically force-refreshes its token
-    // and detects/reacts to this revocation (see App.jsx).
-    await auth.revokeRefreshTokens(uid);
+    // M-02 fix: this used to write the Auth custom claim FIRST and treat
+    // the tenantMembers sync as non-fatal afterwards. Firestore WRITE
+    // rules consult the tenantMembers doc's role, not the token claim
+    // (see memberHasRole() in firestore.rules) — so a failed sync left the
+    // user's PREVIOUS, higher role live in the one place that actually
+    // gates writes, for as long as the sync stayed broken, with the claim
+    // change and even the revoked refresh token doing nothing to close
+    // that gap. Order is now flipped: write tenantMembers to the NEW
+    // (lower/target) role first and require it to succeed — that's the
+    // change that actually reduces write access — before touching Auth at
+    // all. If this fails, the request aborts here: the user keeps their
+    // old role everywhere (claim untouched, membership doc untouched), a
+    // safe, consistent failure rather than a partial downgrade with a
+    // stale-but-more-privileged membership doc.
+    const fs = admin.firestore(app);
+    const memberRef = fs.collection('tenants').doc(decoded.tenantId).collection('tenantMembers').doc(uid);
+    const memberSnap = await memberRef.get();
+    const nowIso = new Date().toISOString();
+    await memberRef.set({
+      role,
+      email: targetUser.email || null,
+      status: targetUser.disabled ? 'disabled' : 'active',
+      createdAt: memberSnap.exists ? memberSnap.data().createdAt : nowIso,
+      updatedAt: nowIso,
+    }, { merge: true });
 
-    // Phase 3 Session 6 (3C / M-01, Layer 2, Decision 2): keep the
-    // tenantMembers membership doc in sync with the role change. This is
-    // what Firestore WRITE rules actually consult (see the memberRole()/
-    // isActiveMember() helpers in firestore.rules) — an instant,
-    // rules-visible source of truth that doesn't wait on token refresh or
-    // expiry the way the custom claim above does.
+    // Membership state (the actual write-access gate) is now downgraded
+    // and committed. Auth claim + token revocation follow — if either of
+    // these fails partway, the worst case is a stale but MORE restrictive
+    // claim/token than the membership doc, which is the safe direction to
+    // fail in (never the reverse).
     try {
-      const fs = admin.firestore(app);
-      const ref = fs.collection('tenants').doc(decoded.tenantId).collection('tenantMembers').doc(uid);
-      const snap = await ref.get();
-      const now = new Date().toISOString();
-      await ref.set({
-        role,
-        email: targetUser.email || null,
-        status: targetUser.disabled ? 'disabled' : 'active',
-        createdAt: snap.exists ? snap.data().createdAt : now,
-        updatedAt: now,
-      }, { merge: true });
-    } catch (memberErr) {
-      // Non-fatal — the custom claim (which just succeeded above) is still
-      // the primary access-control mechanism for reads and for every
-      // server endpoint. A membership-doc sync failure here means Firestore
-      // WRITE rules could lag behind this role change until it's retried,
-      // which is logged for visibility rather than failing the whole request.
-      console.error('set-role POST: tenantMembers sync failed', memberErr);
+      await auth.setCustomUserClaims(uid, { role, tenantId: decoded.tenantId });
+      // Revoke existing refresh tokens so the change takes effect promptly
+      // — without this, a signed-in user's cached ID token (and the role
+      // claim baked into it) stays valid for up to an hour regardless of
+      // what an admin just changed. The client periodically force-refreshes
+      // its token and detects/reacts to this revocation (see App.jsx).
+      await auth.revokeRefreshTokens(uid);
+    } catch (claimErr) {
+      // Logged for visibility and for the operator-recovery step M-02
+      // recommends, but NOT re-thrown — the membership doc (the control
+      // that actually matters for Firestore writes) is already correctly
+      // downgraded above, so the user is not over-privileged even if this
+      // step didn't complete. A stale Auth claim just means their client
+      // still SHOWS the old role/UI until their token naturally refreshes
+      // or an admin retries this endpoint — a UX gap, not an authorization
+      // gap.
+      console.error('set-role POST: Auth claim update failed after tenantMembers was already downgraded — operator should retry for this uid', { uid, tenantId: decoded.tenantId, targetRole: role, err: claimErr });
     }
 
     // Audit log — server-side privilege action (Session A, 19 Aug 2026).

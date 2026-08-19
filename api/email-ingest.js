@@ -9,10 +9,23 @@
 // secret passed as `?key=` on the webhook URL, checked before anything else
 // runs. Configure SendGrid Inbound Parse to POST to
 // `https://app.tailiq.app/api/email-ingest?key={EMAIL_INGEST_SECRET}` and set
-// EMAIL_INGEST_SECRET in Vercel env vars. SendGrid's Inbound Parse does not
-// support request signing the way their Event Webhook does, so a shared
-// secret in the URL (transmitted over HTTPS) is the standard mitigation for
-// this class of receiver.
+// EMAIL_INGEST_SECRET in Vercel env vars.
+//
+// H-02 fix: the line above used to say SendGrid's Inbound Parse "does not
+// support request signing the way their Event Webhook does" — that's out
+// of date. SendGrid now supports ECDSA request signing for Inbound Parse
+// (Twilio SendGrid docs, "Securing your Inbound Parse Webhooks") via a
+// security policy attached to the Parse webhook, delivered as the
+// X-Twilio-Email-Event-Webhook-Signature / -Timestamp headers, same
+// mechanism as the Event Webhook. verifyInboundParseSignature() below
+// implements it and is enforced whenever SENDGRID_INBOUND_PARSE_PUBLIC_KEY
+// is set. It's additive on top of the ?key= shared secret, not a
+// replacement — set up steps (create a security policy in the SendGrid
+// console, attach it to this Parse webhook, copy the returned public_key
+// into that env var) are outside this repo and still need doing in the
+// SendGrid dashboard; until the env var is set this layer logs a warning
+// and does not block, so the endpoint keeps working exactly as before on
+// the shared-secret + sender-authentication-alignment controls alone.
 //
 // High-severity warnings (S/N change, delta mismatch, gap detected) still
 // hold a report back in `pendingReports` for human review rather than
@@ -187,6 +200,22 @@ function parseMultipart(req) {
     let aggregateExceeded = false;
     const bb = Busboy({ headers: req.headers, limits: { fileSize: MAX_ATTACHMENT_BYTES } });
 
+    // H-02 fix: capture the exact raw bytes of the request body alongside
+    // Busboy's parse, for verifyInboundParseSignature() below — SendGrid's
+    // signature is computed over the raw, unparsed multipart body, so it
+    // has to be captured before/independent of Busboy's own parsing. Capped
+    // at the same aggregate limit (plus multipart framing headroom) as
+    // attachments already are, so this doesn't add a new unbounded-memory
+    // path; a body that blows the cap already gets aggregateExceeded=true
+    // and is rejected below regardless of signature status.
+    const rawChunks = [];
+    let rawBytes = 0;
+    const RAW_BODY_CAP = MAX_AGGREGATE_BYTES + 1024 * 1024;
+    req.on('data', (chunk) => {
+      rawBytes += chunk.length;
+      if (rawBytes <= RAW_BODY_CAP) rawChunks.push(chunk);
+    });
+
     bb.on('field', (name, val) => { fields[name] = val; });
 
     bb.on('file', (name, stream, info) => {
@@ -225,9 +254,41 @@ function parseMultipart(req) {
     });
 
     bb.on('error', reject);
-    bb.on('finish', () => resolve({ fields, files, totalBytes, discardedCount, aggregateExceeded }));
+    bb.on('finish', () => resolve({
+      fields, files, totalBytes, discardedCount, aggregateExceeded,
+      rawBody: Buffer.concat(rawChunks),
+    }));
     req.pipe(bb);
   });
+}
+
+// H-02 fix: optional additional layer on top of the ?key= shared secret —
+// verifies SendGrid's ECDSA Inbound Parse signature when a security policy
+// has been configured in the SendGrid console and its public key stored in
+// SENDGRID_INBOUND_PARSE_PUBLIC_KEY (see the header comment for setup
+// steps). Same scheme as SendGrid's Event Webhook signing: SHA-256 over
+// `timestamp + rawBody`, DER-encoded ECDSA signature, P-256 SPKI public
+// key. Returns true (pass), false (fail — reject), or null (not
+// configured — caller treats null as "skip, rely on the shared secret
+// alone" rather than blocking legitimate mail before this layer has been
+// set up SendGrid-side).
+function verifyInboundParseSignature(rawBody, req) {
+  const publicKeyRaw = process.env.SENDGRID_INBOUND_PARSE_PUBLIC_KEY || '';
+  if (!publicKeyRaw) return null;
+  const signature = req.headers['x-twilio-email-event-webhook-signature'];
+  const timestamp = req.headers['x-twilio-email-event-webhook-timestamp'];
+  if (!signature || !timestamp) return false;
+  try {
+    const pem = publicKeyRaw.includes('BEGIN PUBLIC KEY')
+      ? publicKeyRaw
+      : `-----BEGIN PUBLIC KEY-----\n${publicKeyRaw.match(/.{1,64}/g).join('\n')}\n-----END PUBLIC KEY-----\n`;
+    const publicKey = crypto.createPublicKey(pem);
+    const payload = Buffer.concat([Buffer.from(String(timestamp), 'utf8'), rawBody]);
+    return crypto.verify('sha256', payload, publicKey, Buffer.from(signature, 'base64'));
+  } catch (err) {
+    console.error('email-ingest: inbound parse signature verification errored', err);
+    return false;
+  }
 }
 
 // ---- attachment type detection ---------------------------------------------
@@ -358,10 +419,43 @@ async function isSenderApproved(fsdb, tenantId, senderEmail) {
 // e.g. SPF: "pass"/"neutral"/"fail", dkim: "{@domain.com : pass}". Lenient
 // substring match on "pass" covers both shapes without needing to parse
 // dkim's per-domain object-literal-looking format precisely.
-function senderAuthPassed(fields) {
-  const spf = (fields.SPF || fields.spf || '').toLowerCase();
-  const dkim = (fields.dkim || '').toLowerCase();
-  return spf.includes('pass') || dkim.includes('pass');
+// H-02 fix: the previous version accepted ANY passing SPF or DKIM result,
+// with no check that the authenticated domain had anything to do with the
+// envelope sender this message claims to be from. That let an attacker
+// spoof an allowlisted envelope MAIL FROM (which isSenderApproved() alone
+// can't detect — it's just a header comparison), then attach a DKIM
+// signature that validly authenticates a completely different,
+// attacker-controlled domain, and still sail through because *some*
+// signature on the message happened to pass.
+//
+// SendGrid's SPF field already reports the result of authenticating the
+// envelope MAIL FROM domain specifically (RFC 7208) — a pass there is
+// aligned to `envelopeDomain` by construction, no separate identity to
+// compare. DKIM is different: SendGrid's `dkim` field can report results
+// for signatures across MULTIPLE domains on one message (its own shape is
+// roughly "{@domain-a.com : pass; @domain-b.com : neutral}"), so a pass
+// entry has to be extracted per-domain and compared against the envelope
+// sender's domain before it counts as authenticating that sender. This is
+// a DMARC-style relaxed alignment check (subdomains of the envelope
+// domain are accepted, matching how DMARC itself treats alignment).
+function extractPassedDkimDomains(dkimField) {
+  const domains = [];
+  const re = /@([a-z0-9.-]+)\s*:\s*pass\b/gi;
+  let m;
+  while ((m = re.exec(dkimField || '')) !== null) domains.push(m[1].toLowerCase());
+  return domains;
+}
+function domainAligned(candidate, expected) {
+  if (!candidate || !expected) return false;
+  return candidate === expected || candidate.endsWith('.' + expected);
+}
+function senderAuthAligned(fields, envelopeSender) {
+  const envelopeDomain = senderDomain(envelopeSender);
+  if (!envelopeDomain) return false;
+  const spfPass = (fields.SPF || fields.spf || '').toLowerCase().includes('pass');
+  const dkimDomains = extractPassedDkimDomains(fields.dkim || fields.DKIM || '');
+  const dkimAligned = dkimDomains.some((d) => domainAligned(d, envelopeDomain));
+  return spfPass || dkimAligned;
 }
 
 // ---- 2D: Message-ID extraction + hashing ------------------------------------
@@ -379,9 +473,12 @@ function extractMessageId(fields) {
   }
   return null;
 }
-function dedupKeyFor(fields, recipient) {
+function dedupKeyFor(fields, recipient, envelopeSender) {
   const messageId = extractMessageId(fields);
-  const basis = messageId || `${fields.from || ''}|${fields.subject || ''}|${recipient}|${fields['attachment-info'] || ''}`;
+  // H-02 fix: fall back to the authenticated envelope sender, not the
+  // spoofable display `from` header, so dedup can't be trivially bypassed
+  // by varying the display name/address on otherwise-identical replays.
+  const basis = messageId || `${envelopeSender || fields.from || ''}|${fields.subject || ''}|${recipient}|${fields['attachment-info'] || ''}`;
   return crypto.createHash('sha256').update(basis).digest('hex');
 }
 
@@ -445,14 +542,26 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok: false, reason: 'init_error' });
   }
 
-  let fields, files, discardedCount, aggregateExceeded;
+  let fields, files, discardedCount, aggregateExceeded, rawBody;
   try {
-    ({ fields, files, discardedCount, aggregateExceeded } = await parseMultipart(req));
+    ({ fields, files, discardedCount, aggregateExceeded, rawBody } = await parseMultipart(req));
   } catch (err) {
     console.error('email-ingest: multipart parse failed', err);
     // Malformed body isn't something SendGrid can usefully retry past —
     // ack it so it doesn't keep hammering us with the same bad payload.
     return res.status(200).json({ ok: false, reason: 'parse_error' });
+  }
+
+  // H-02 fix: enforce the ECDSA Inbound Parse signature once it's been set
+  // up SendGrid-side (see verifyInboundParseSignature). Fails closed only
+  // when the key IS configured and the signature is missing/invalid; while
+  // unconfigured it logs once and falls through to the existing controls.
+  const sigResult = verifyInboundParseSignature(rawBody, req);
+  if (sigResult === false) {
+    console.error('email-ingest: rejected — Inbound Parse signature missing or invalid');
+    return res.status(200).json({ ok: false, reason: 'bad_signature' });
+  } else if (sigResult === null) {
+    console.warn('email-ingest: Inbound Parse signature verification not configured (SENDGRID_INBOUND_PARSE_PUBLIC_KEY unset) — relying on shared secret + sender alignment only');
   }
 
   // ---- 2C: field size limits, applied before any further use --------------
@@ -493,7 +602,7 @@ module.exports = async (req, res) => {
   } catch (err) {
     console.error('email-ingest: approvedSenders lookup failed', err);
   }
-  const authPassed = senderAuthPassed(fields);
+  const authPassed = senderAuthAligned(fields, envelopeSender);
   if (!senderApproved || !authPassed) {
     console.warn('email-ingest: rejected — sender not approved or not authenticated', {
       tenantId, sender: maskEmail(envelopeSender), senderApproved, authPassed,
@@ -518,10 +627,13 @@ module.exports = async (req, res) => {
   }
 
   // ---- 2E: per-sender rate limit -------------------------------------------
+  // H-02 fix: key the rate limit on the authenticated envelope identity,
+  // not the display `from` header — the display From is attacker-chosen
+  // and trivially varied to dodge a per-sender limit keyed on it.
   try {
-    const underRateLimit = await checkAndIncrementSenderRate(fsdb, tenantId, fromAddress);
+    const underRateLimit = await checkAndIncrementSenderRate(fsdb, tenantId, envelopeSender);
     if (!underRateLimit) {
-      console.warn('email-ingest: rejected — sender exceeded hourly rate limit', { from: maskEmail(fromAddress) });
+      console.warn('email-ingest: rejected — sender exceeded hourly rate limit', { from: maskEmail(envelopeSender) });
       return res.status(200).json({ ok: false, reason: 'rate_limited' });
     }
   } catch (err) {
@@ -532,7 +644,7 @@ module.exports = async (req, res) => {
   }
 
   // ---- 2D: idempotency / replay protection ---------------------------------
-  const dedupKey = dedupKeyFor(fields, recipientRaw);
+  const dedupKey = dedupKeyFor(fields, recipientRaw, envelopeSender);
   try {
     const isNew = await claimDedupKey(fsdb, tenantId, dedupKey);
     if (!isNew) {

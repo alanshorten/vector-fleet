@@ -147,10 +147,17 @@ module.exports = async (req, res) => {
     // TailiQ branding regardless of the in-app toggle — the PDF path (which
     // calls db.getSetting('tech_spec_hide_branding') directly) respected it,
     // this endpoint just never read the same setting.
+    // M-01 fix: these used to read the flat, cross-tenant /settings
+    // collection (any tenant's editor could overwrite any other tenant's
+    // disclaimer/branding here, and every share link — regardless of
+    // tenant — was reading the SAME global value). Now reads the
+    // tenant-scoped subtree at /tenants/{tenantId}/settings, using the
+    // tenantId this endpoint already resolved from the matched share
+    // token above — no new lookup needed, just the correct path.
     let defaultDisclaimer = null;
     let hideBranding = false;
     try {
-      const settingSnap = await fs.collection('settings').doc('default_disclaimer').get();
+      const settingSnap = await fs.collection('tenants').doc(tenantId).collection('settings').doc('default_disclaimer').get();
       if (settingSnap.exists) defaultDisclaimer = settingSnap.data().value || null;
     } catch (e) {
       // Non-fatal — the tech spec builder falls back to its own hardcoded
@@ -158,7 +165,7 @@ module.exports = async (req, res) => {
       // should never break the share link itself.
     }
     try {
-      const brandingSnap = await fs.collection('settings').doc('tech_spec_hide_branding').get();
+      const brandingSnap = await fs.collection('tenants').doc(tenantId).collection('settings').doc('tech_spec_hide_branding').get();
       if (brandingSnap.exists) hideBranding = !!brandingSnap.data().value;
     } catch (e) {
       // Non-fatal — falls back to showing branding, same as an unset toggle.

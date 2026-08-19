@@ -314,9 +314,17 @@ function SpecsQuickImport({asset,saveAsset,notify,open}){
   const extract=async()=>{
     if(!file)return;
     const isPDF=file.type==="application/pdf";
-    const isExcel=file.type==="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"||file.type==="application/vnd.ms-excel"||file.name.endsWith(".xlsx")||file.name.endsWith(".xls");
+    // L-01 fix: Excel quick-import used to shell out to a global `XLSX`
+    // object that hasn't existed client-side since the xlsx package was
+    // removed (TECH_DEBT 4.132 — replaced by exceljs server-side, see
+    // api/parse-excel.js). That left this branch silently broken — every
+    // .xlsx/.xls upload here threw "Could not parse the Excel file." no
+    // matter what was in it. Rather than leave dead, always-failing code
+    // in place, Excel support is dropped from this quick-import path
+    // entirely; re-wiring it through api/parse-excel.js is a separate,
+    // real feature change if this is wanted back, not a security fix.
     const isImage=file.type.startsWith("image/");
-    if(!isPDF&&!isExcel&&!isImage){setError("Unsupported file type. Please upload a PDF, Excel file, or image/screenshot.");return;}
+    if(!isPDF&&!isImage){setError("Unsupported file type. Please upload a PDF or image/screenshot.");return;}
     if(file.size>10*1024*1024){setError("File is too large (maximum 10 MB).");return;}
     setExtracting(true);setError(null);
     try{
@@ -329,13 +337,11 @@ function SpecsQuickImport({asset,saveAsset,notify,open}){
         const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Could not read the file."));r.readAsDataURL(file);});
         resp=await extractFetch({model:"claude-sonnet-4-6",max_tokens:3000,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:file.type,data:base64}},{type:"text",text:prompt}]}]});
       } else {
-        const arrayBuffer=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(new Error("Could not read the file."));r.readAsArrayBuffer(file);});
-        let csvText;
-        try{
-          const wb=XLSX.read(new Uint8Array(arrayBuffer),{type:"array"});
-          csvText=wb.SheetNames.map(name=>"Sheet: "+name+"\n"+XLSX.utils.sheet_to_csv(wb.Sheets[name],{skipHidden:true})).join("\n\n");
-        }catch(xlsxErr){throw new Error("Could not parse the Excel file.");}
-        resp=await extractFetch({model:"claude-sonnet-4-6",max_tokens:3000,messages:[{role:"user",content:[{type:"text",text:"The following is the contents of an Excel spreadsheet exported as CSV.\n\n"+csvText+"\n\n"+prompt}]}]});
+        // Unreachable — isExcel branch removed above (L-01 fix). Guarded
+        // here too so this can never silently fall through if the file-type
+        // check above is ever loosened again without restoring real Excel
+        // support.
+        throw new Error("Unsupported file type. Please upload a PDF or image/screenshot.");
       }
       if(!resp.ok)throw new Error("Extraction request failed (error "+resp.status+"). Please try again.");
       const result=await resp.json();
@@ -480,13 +486,13 @@ function SpecsQuickImport({asset,saveAsset,notify,open}){
   return(
     <div className="card" style={{padding:16,marginBottom:16,gridColumn:"1/-1"}}>
       <div>
-        <div style={{fontSize:11,color:"var(--color-graphite)",marginBottom:10}}>Upload a tech spec PDF, Excel sheet, or screenshot. TailiQ will extract Date of Manufacture, Operator, Weights, Check History, Specifications, Engine/APU Shop Visits, and Landing Gear Overhaul dates for review before saving.</div>
+        <div style={{fontSize:11,color:"var(--color-graphite)",marginBottom:10}}>Upload a tech spec PDF or screenshot. TailiQ will extract Date of Manufacture, Operator, Weights, Check History, Specifications, Engine/APU Shop Visits, and Landing Gear Overhaul dates for review before saving.</div>
         <div className="card" style={{padding:20,textAlign:"center",marginBottom:10,border:"2px dashed var(--color-divider)"}}>
           <div style={{fontSize:28,marginBottom:8}}>📁</div>
-          <input type="file" accept=".pdf,.xlsx,.xls,image/*" id="specsQuickImportFile" onChange={handleFile} style={{display:"none"}}/>
+          <input type="file" accept=".pdf,image/*" id="specsQuickImportFile" onChange={handleFile} style={{display:"none"}}/>
           <label htmlFor="specsQuickImportFile" style={{cursor:"pointer"}}>
             <div style={{fontWeight:600,color:file?"var(--color-carbon)":"var(--color-graphite)",marginBottom:4,fontSize:13}}>{file?file.name:"Click to select file"}</div>
-            <div style={{fontSize:11,color:"var(--color-graphite)"}}>PDF, Excel, or screenshot</div>
+            <div style={{fontSize:11,color:"var(--color-graphite)"}}>PDF or screenshot</div>
           </label>
           {file&&(
             <div style={{marginTop:12}}>

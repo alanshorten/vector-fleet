@@ -238,16 +238,26 @@ const db = {
       await batch.commit();
     }
   },
+  // M-01 fix: moved from the flat /settings/{key} collection (readable by
+  // any authenticated user regardless of tenant, and writable by any
+  // admin/editor in ANY tenant — see firestore.rules) to
+  // /tenants/{tenantId}/settings/{key}, resolved via getTenantId() the
+  // same way every other tenant-rooted collection in this file already is.
+  // Existing settings docs need a one-time migration into the new tenant
+  // subtree (see the M-01 delivery note) — this only changes where the app
+  // reads/writes going forward.
   async getSetting(key) {
     try {
+      const tenantId = await getTenantId();
       const { db: fs, doc, getDoc } = getFS();
-      const snap = await getDoc(doc(fs, "settings", key));
+      const snap = await getDoc(doc(fs, "tenants", tenantId, "settings", key));
       return snap.exists() ? snap.data().value : null;
     } catch { return null; }
   },
   async setSetting(key, value) {
+    const tenantId = await getTenantId();
     const { db: fs, doc, setDoc } = getFS();
-    await setDoc(doc(fs, "settings", key), { value });
+    await setDoc(doc(fs, "tenants", tenantId, "settings", key), { value });
   },
   // Tenant-rooted since Phase 3 Session 4 (security-remediation-roadmap.md).
   async getUtilisation(asset_id) {
@@ -292,12 +302,20 @@ const db = {
     if (!resp.ok) throw new Error(data.error || "Failed to create share link");
     return data;
   },
+  // M-03 fix: this used to read tenants/{tenantId}/shareTokens directly
+  // via the client Firestore SDK. firestore.rules now denies that read
+  // outright (shareTokens documents ARE the plaintext bearer token) — the
+  // only read path left is this authenticated server endpoint, which
+  // re-checks live tenantMembers status on every call rather than trusting
+  // a possibly-stale cached token claim (see api/share/list.js header).
   async getShareTokensForAsset(assetId) {
-    const { db: fs, collection, query, where, getDocs } = getFS();
-    const tenantId = await getTenantId();
-    const q = query(collection(fs, "tenants", tenantId, "shareTokens"), where("assetId", "==", String(assetId)));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ token: d.id, ...d.data() }));
+    const idToken = await window._auth.getIdToken();
+    const resp = await fetch(`/api/share/list?assetId=${encodeURIComponent(assetId)}`, {
+      headers: { Authorization: `Bearer ${idToken}` }
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || "Failed to load share links");
+    return data.tokens || [];
   },
   async revokeShareToken(token) {
     const idToken = await window._auth.getIdToken();
