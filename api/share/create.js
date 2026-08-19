@@ -1,5 +1,6 @@
-// TailiQ — Server-side share token creation
+// TailiQ — Server-side share token creation + listing
 // POST /api/share/create  { assetId, companyId, enginePos } -> { token, ...tokenData }
+// GET  /api/share/create?assetId={id}                       -> { tokens: [...] }
 //
 // security-remediation-roadmap.md Phase 3, Session 5 (3B / H-02).
 //
@@ -15,6 +16,31 @@
 // Firestore rules (deployed alongside this file) now deny all direct
 // client writes to tenants/{tenantId}/shareTokens — this endpoint (Admin
 // SDK, bypasses rules) is the only write path left.
+//
+// M-03 fix (19 Aug 2026 security review) folded the listing endpoint into
+// THIS file rather than a separate api/share/list.js — Vercel's Hobby plan
+// caps a deployment at 12 serverless functions, and this repo was already
+// sitting at exactly 12 before that endpoint was added (see git history /
+// the deploy failure this fix responds to). GET and POST share the same
+// auth boilerplate (verify token, check tenantId/role) anyway, so folding
+// list into create costs nothing but a req.method branch.
+//
+// GET (list): previously the ShareModal UI (AssetView.jsx) read
+// tenants/{tenantId}/shareTokens directly via the client Firestore SDK,
+// and firestore.rules allowed that to any signed-in admin/editor/viewer in
+// the tenant. shareTokens documents ARE the plaintext bearer credential
+// (the doc holds the same token used in the public share URL), so that
+// rule let any Viewer copy every other user's active share links for an
+// asset, not just their own. firestore.rules now denies ALL direct client
+// reads on shareTokens — this endpoint (Admin SDK) is the only read path
+// left, and it re-verifies with checkRevoked=true AND checks LIVE
+// tenantMembers status on every call (not just the token claim), closing
+// the stale-token window for reads the same way M-02 closed it for
+// writes. Who's allowed to see tokens is unchanged (admin/editor/viewer,
+// matching AssetView.jsx's canSeeAdvanced gate) — a Viewer can still
+// list/copy tokens created by someone else, which is existing product
+// behaviour (Viewers use share links, not just admins/editors), not a new
+// hole this introduces.
 
 const admin = require('firebase-admin');
 const crypto = require('crypto');
@@ -41,10 +67,10 @@ module.exports = async (req, res) => {
   if (ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'POST' && req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   const authHeader = req.headers.authorization || '';
   const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -69,6 +95,43 @@ module.exports = async (req, res) => {
   if (!decoded.tenantId) {
     return res.status(403).json({ error: 'Your account is missing tenant access — try signing out and back in.' });
   }
+
+  // ---- GET: list tokens for an asset (M-03 fix) ----------------------------
+  if (req.method === 'GET') {
+    if (!['admin', 'editor', 'viewer'].includes(decoded.role)) {
+      return res.status(403).json({ error: 'Access required to view share links.' });
+    }
+    const { assetId: listAssetId } = req.query || {};
+    if (!listAssetId || Array.isArray(listAssetId)) {
+      return res.status(400).json({ error: 'assetId is required.' });
+    }
+    const fs = admin.firestore(app);
+    // Live membership check (not just the token claim) — a role/status
+    // change made moments ago via set-role.js/remove-user.js is immediately
+    // visible here, same as it is to Firestore write rules via
+    // memberHasRole(), rather than waiting on this caller's token to expire
+    // or be force-refreshed.
+    try {
+      const memberSnap = await fs.collection('tenants').doc(decoded.tenantId).collection('tenantMembers').doc(decoded.uid).get();
+      if (!memberSnap.exists || memberSnap.data()?.status !== 'active') {
+        return res.status(403).json({ error: 'Your account no longer has active access to this tenant.' });
+      }
+    } catch (e) {
+      console.error('share/list: membership check failed', e);
+      return res.status(500).json({ error: 'Could not verify access.' });
+    }
+    try {
+      const snap = await fs.collection('tenants').doc(decoded.tenantId).collection('shareTokens')
+        .where('assetId', '==', String(listAssetId)).get();
+      const tokens = snap.docs.map((d) => ({ token: d.id, ...d.data() }));
+      return res.status(200).json({ tokens });
+    } catch (e) {
+      console.error('share/list: query failed', e);
+      return res.status(500).json({ error: 'Could not load share links.' });
+    }
+  }
+
+  // ---- POST: create a token (unchanged from before) -------------------------
   if (!['admin', 'editor'].includes(decoded.role)) {
     return res.status(403).json({ error: 'Admin or editor access required to create a share link.' });
   }

@@ -307,10 +307,13 @@ const db = {
   // outright (shareTokens documents ARE the plaintext bearer token) — the
   // only read path left is this authenticated server endpoint, which
   // re-checks live tenantMembers status on every call rather than trusting
-  // a possibly-stale cached token claim (see api/share/list.js header).
+  // a possibly-stale cached token claim. Folded into api/share/create.js
+  // as a GET handler (not a separate api/share/list.js) — Vercel's Hobby
+  // plan caps a deployment at 12 serverless functions and this repo was
+  // already at exactly 12, so a standalone list.js broke the build.
   async getShareTokensForAsset(assetId) {
     const idToken = await window._auth.getIdToken();
-    const resp = await fetch(`/api/share/list?assetId=${encodeURIComponent(assetId)}`, {
+    const resp = await fetch(`/api/share/create?assetId=${encodeURIComponent(assetId)}`, {
       headers: { Authorization: `Bearer ${idToken}` }
     });
     const data = await resp.json().catch(() => ({}));
