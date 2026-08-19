@@ -2175,19 +2175,21 @@ Neither built yet — flagged here so the finding isn't lost; scope a build sess
 
 ---
 
-### 4.135 Log Redaction — Email Addresses Logged in Plaintext, Report Content Confirmed Clean — 🟡 LOW PRIORITY, not yet fixed (18 August 2026)
+### 4.135 Log Redaction — Email Addresses Logged in Plaintext, Report Content Confirmed Clean — ✅ FIXED (19 August 2026)
 
 **Context.** `SECURITY_ASSESSMENT.md` Section 4's last unworked checklist item. Full scan run across all twelve `api/*.js` files (every `console.log`/`console.warn`/`console.error` call) to see what actually lands in Vercel's function logs.
 
 **The good news, confirmed by search, not assumed:** no file anywhere logs actual extracted report content, parsed financial/technical data, CSV text, or model responses. The genuinely sensitive material (utilisation figures, LLP data, lease terms) never touches Vercel's logs.
 
-**What is logged in plaintext:**
+**What was logged in plaintext (now fixed):**
 - `email-ingest.js` — sender email address, recipient address, and email subject line, across several `warn`/`error` calls (rejected-company check, rate-limit rejection, duplicate-delivery, discarded-attachments).
-- `remove-user.js` — one line logs both the deleted user's email and the acting admin's email: `remove-user: deleted ${userRecord.email} (${uid}) by admin ${decoded.email}`.
+- `remove-user.js` — one line logged both the deleted user's email and the acting admin's email: `remove-user: deleted ${userRecord.email} (${uid}) by admin ${decoded.email}`.
 
 Everything else checked (SendGrid API error text, Firestore write failures, HTTP status codes) is operational noise, not user content — SendGrid's error responses describe *why a send failed*, they don't echo back the invited person's data.
 
-**Assessment:** low priority, not a real risk today. This is TailiQ's own operational logging, not a leak to any third party — logging email addresses for debugging is standard practice. Not fixed this session. Worth revisiting only if/when TailiQ needs to make specific data-retention or privacy claims to a lessee/airline, since "email addresses appear in our own function logs" would need to be part of that disclosure. If it's ever worth fixing: redact or hash email addresses before logging in the handful of call sites above, rather than a blanket logging-framework change.
+**Assessment:** low priority, not a real risk today — this was TailiQ's own operational logging, not a leak to any third party. Fixed anyway (19 Aug) since it was cheap and self-contained. Subject lines were deliberately left as-is (useful for triage, not PII in the same sense as an address); only the address fields were masked.
+
+**Fix applied.** New shared helper `api/_lib/logRedact.js` exports `maskEmail(email)`, which keeps the domain (still useful for "which company sent this" triage) but masks the local part down to its first character (e.g. `ops@partner.com` → `o**@partner.com`). Applied at all four `email-ingest.js` call sites (rejected-recipient, discarded-attachments, rate-limit-rejected, duplicate-delivery) and the one `remove-user.js` log line (both the deleted user's and the acting admin's email). Not a security boundary — anyone with log access already sees everything else in the request — just reduces plaintext PII sitting in third-party log storage. `node --check` clean on all three touched files.
 
 ---
 

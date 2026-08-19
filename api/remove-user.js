@@ -12,6 +12,7 @@
 const TENANT_ID = 'maverick';
 
 const admin = require('firebase-admin');
+const { maskEmail } = require('./_lib/logRedact');
 
 const ALLOWED_ORIGINS = [
   'https://vector-fleet.vercel.app',
@@ -94,7 +95,7 @@ module.exports = async (req, res) => {
     }
 
     await auth.deleteUser(uid);
-    console.log(`remove-user: deleted ${userRecord.email} (${uid}) by admin ${decoded.email}`);
+    console.log(`remove-user: deleted ${maskEmail(userRecord.email)} (${uid}) by admin ${maskEmail(decoded.email)}`);
 
     // Phase 3 Session 6 (3C / M-01, Layer 2, Decision 2): remove the
     // corresponding tenantMembers doc too — the account is gone entirely,

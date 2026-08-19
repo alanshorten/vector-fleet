@@ -94,6 +94,7 @@ const {
   checkSheetBounds,
   PARSE_TIMEOUT_MS,
 } = require('./_lib/excelLimits');
+const { maskEmail } = require('./_lib/logRedact');
 
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // matches the 10MB limit on the manual Upload flow
 
@@ -417,14 +418,14 @@ module.exports = async (req, res) => {
   // why. This is the only gate standing in for real companyId/role
   // validation until the Section 2.3 backfill happens.
   if (!companySlug || !expectedSlug || companySlug !== expectedSlug) {
-    console.error('email-ingest: rejected — recipient did not match expected company', { recipient: recipientRaw });
+    console.error('email-ingest: rejected — recipient did not match expected company', { recipient: maskEmail(recipientRaw) });
     return res.status(200).json({ ok: false, reason: 'company_not_recognised' });
   }
 
   // ---- 2A: log (but don't fail on) discarded excess attachments -----------
   if (discardedCount > 0) {
     console.warn('email-ingest: discarded attachments beyond the per-email cap', {
-      companySlug, from: fromAddress, subject, discardedCount, cap: MAX_ATTACHMENTS,
+      companySlug, from: maskEmail(fromAddress), subject, discardedCount, cap: MAX_ATTACHMENTS,
     });
   }
 
@@ -441,7 +442,7 @@ module.exports = async (req, res) => {
   try {
     const underRateLimit = await checkAndIncrementSenderRate(fsdb, fromAddress);
     if (!underRateLimit) {
-      console.warn('email-ingest: rejected — sender exceeded hourly rate limit', { from: fromAddress });
+      console.warn('email-ingest: rejected — sender exceeded hourly rate limit', { from: maskEmail(fromAddress) });
       return res.status(200).json({ ok: false, reason: 'rate_limited' });
     }
   } catch (err) {
@@ -456,7 +457,7 @@ module.exports = async (req, res) => {
   try {
     const isNew = await claimDedupKey(fsdb, dedupKey);
     if (!isNew) {
-      console.warn('email-ingest: duplicate delivery skipped', { from: fromAddress, subject, dedupKey });
+      console.warn('email-ingest: duplicate delivery skipped', { from: maskEmail(fromAddress), subject, dedupKey });
       return res.status(200).json({ ok: true, status: 'duplicate_skipped' });
     }
   } catch (err) {
