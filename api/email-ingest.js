@@ -121,16 +121,15 @@ const DEDUP_TTL_MS = 24 * 60 * 60 * 1000;
 // ---- 2E: per-sender rate limit -----------------------------------------------
 const RATE_LIMIT_PER_HOUR = 20;
 
-// Matches the TENANT_ID hardcoded in bootstrap-admin.js/set-role.js/
-// invite-user.js/the migrate-*-to-tenant.js files. This endpoint reads and
-// writes the Firestore Admin SDK directly, bypassing db.js, so it needs its
-// own tenant-rooted paths kept in sync by hand as each collection migrates.
-// assets was hotfixed 2026-08-14 after being missed when Phase 3 Session 1
-// shipped (any auto-applied emailed utilisation report silently never
-// reached the live asset until the fix). utilisation and pendingReports were
-// updated in the same session as db.js this time (Phase 3 Session 4), not
-// after the fact.
-const TENANT_ID = 'maverick';
+// Build Group A (tenant onboarding, 19 Aug 2026): TENANT_ID is no longer a
+// hardcoded constant. The recipient's local-part (companySlug below) IS the
+// tenantId — api/create-tenant.js's tenantSlug becomes both the Firestore
+// tenant doc ID and the tenantId custom claim, using the exact same slug
+// convention, so "does a live tenant exist at this slug" is now a genuine
+// per-request lookup rather than a single-tenant assumption. This endpoint
+// reads and writes the Firestore Admin SDK directly, bypassing db.js, so its
+// tenant-rooted paths are threaded through by hand (tenantId parameter) as
+// they were when TENANT_ID was a constant.
 
 // ---- Firebase Admin (same pattern as api/share/[token].js) ----------------
 function getApp() {
@@ -316,6 +315,55 @@ function companySlugFromRecipient(recipientAddress) {
   return match ? match[1].toLowerCase() : null;
 }
 
+// ---- Build Group A: sender verification against a tenant's approvedSenders
+// allowlist, plus SPF/DKIM pass check. Both must pass — a known sender whose
+// mail is spoofed (auth fails) is rejected exactly the same as an unknown
+// sender whose mail is genuinely authenticated. Neither check alone is
+// sufficient: an allowlist match on a spoofable envelope `from` header means
+// nothing without authentication behind it, and a passing SPF/DKIM result
+// only proves the sending domain is genuine, not that TailiQ actually wants
+// mail from it.
+function extractEmailAddress(raw) {
+  const m = /<([^>]+)>/.exec(raw || '');
+  const addr = (m ? m[1] : (raw || '')).trim().toLowerCase();
+  return addr;
+}
+function extractEnvelopeSender(fields, fallback) {
+  if (fields.envelope) {
+    try {
+      const env = JSON.parse(fields.envelope);
+      if (env.from) return extractEmailAddress(env.from);
+    } catch { /* fall through */ }
+  }
+  return extractEmailAddress(fallback);
+}
+function senderDomain(email) {
+  const at = (email || '').lastIndexOf('@');
+  return at >= 0 ? email.slice(at + 1) : '';
+}
+async function isSenderApproved(fsdb, tenantId, senderEmail) {
+  if (!senderEmail) return false;
+  const domain = senderDomain(senderEmail);
+  const snap = await fsdb.collection('tenants').doc(tenantId).collection('approvedSenders').get();
+  for (const doc of snap.docs) {
+    const data = doc.data() || {};
+    const value = (data.value || '').toLowerCase();
+    if (data.type === 'email' && value === senderEmail) return true;
+    if (data.type === 'domain' && value && domain === value) return true;
+  }
+  return false;
+}
+// SendGrid Inbound Parse sends SPF/DKIM verification results as separate
+// multipart fields (`SPF`, `dkim`) rather than trustworthy request headers —
+// e.g. SPF: "pass"/"neutral"/"fail", dkim: "{@domain.com : pass}". Lenient
+// substring match on "pass" covers both shapes without needing to parse
+// dkim's per-domain object-literal-looking format precisely.
+function senderAuthPassed(fields) {
+  const spf = (fields.SPF || fields.spf || '').toLowerCase();
+  const dkim = (fields.dkim || '').toLowerCase();
+  return spf.includes('pass') || dkim.includes('pass');
+}
+
 // ---- 2D: Message-ID extraction + hashing ------------------------------------
 // SendGrid Inbound Parse exposes the raw header block as a `headers` field
 // (not a dedicated Message-ID field). Falls back to a hash of
@@ -412,14 +460,45 @@ module.exports = async (req, res) => {
   const subject = capField(fields.subject, FIELD_LIMITS.subject);
   const recipientRaw = capField(extractRecipient(fields), FIELD_LIMITS.to);
   const companySlug = companySlugFromRecipient(recipientRaw);
-  const expectedSlug = (process.env.EXPECTED_COMPANY_SLUG || '').toLowerCase();
 
-  // Fail closed and silent — no retry storm, no information leakage about
-  // why. This is the only gate standing in for real companyId/role
-  // validation until the Section 2.3 backfill happens.
-  if (!companySlug || !expectedSlug || companySlug !== expectedSlug) {
-    console.error('email-ingest: rejected — recipient did not match expected company', { recipient: maskEmail(recipientRaw) });
+  // Build Group A (19 Aug 2026): the recipient's local-part IS the tenantId
+  // — resolved by checking a live tenant doc exists at that slug, rather
+  // than comparing against a single EXPECTED_COMPANY_SLUG env var. Fail
+  // closed and silent either way — no retry storm, no information leakage
+  // about why a given slug was rejected.
+  const tenantId = companySlug;
+  let tenantExists = false;
+  if (tenantId) {
+    try {
+      const tenantSnap = await fsdb.collection('tenants').doc(tenantId).get();
+      tenantExists = tenantSnap.exists && tenantSnap.data()?.status === 'active';
+    } catch (err) {
+      console.error('email-ingest: tenant lookup failed', err);
+    }
+  }
+  if (!tenantId || !tenantExists) {
+    console.error('email-ingest: rejected — recipient did not resolve to a known, active tenant', { recipient: maskEmail(recipientRaw) });
     return res.status(200).json({ ok: false, reason: 'company_not_recognised' });
+  }
+
+  // ---- sender verification (Build Group A) ---------------------------------
+  // Both checks must pass: the envelope sender must be on this tenant's
+  // approvedSenders allowlist, AND SendGrid's own SPF/DKIM verification must
+  // report a pass for this delivery. See the helper functions above for why
+  // neither check alone is sufficient.
+  const envelopeSender = extractEnvelopeSender(fields, fromAddress);
+  let senderApproved = false;
+  try {
+    senderApproved = await isSenderApproved(fsdb, tenantId, envelopeSender);
+  } catch (err) {
+    console.error('email-ingest: approvedSenders lookup failed', err);
+  }
+  const authPassed = senderAuthPassed(fields);
+  if (!senderApproved || !authPassed) {
+    console.warn('email-ingest: rejected — sender not approved or not authenticated', {
+      tenantId, sender: maskEmail(envelopeSender), senderApproved, authPassed,
+    });
+    return res.status(200).json({ ok: false, reason: 'sender_not_approved' });
   }
 
   // ---- 2A: log (but don't fail on) discarded excess attachments -----------
@@ -440,7 +519,7 @@ module.exports = async (req, res) => {
 
   // ---- 2E: per-sender rate limit -------------------------------------------
   try {
-    const underRateLimit = await checkAndIncrementSenderRate(fsdb, fromAddress);
+    const underRateLimit = await checkAndIncrementSenderRate(fsdb, tenantId, fromAddress);
     if (!underRateLimit) {
       console.warn('email-ingest: rejected — sender exceeded hourly rate limit', { from: maskEmail(fromAddress) });
       return res.status(200).json({ ok: false, reason: 'rate_limited' });
@@ -455,7 +534,7 @@ module.exports = async (req, res) => {
   // ---- 2D: idempotency / replay protection ---------------------------------
   const dedupKey = dedupKeyFor(fields, recipientRaw);
   try {
-    const isNew = await claimDedupKey(fsdb, dedupKey);
+    const isNew = await claimDedupKey(fsdb, tenantId, dedupKey);
     if (!isNew) {
       console.warn('email-ingest: duplicate delivery skipped', { from: maskEmail(fromAddress), subject, dedupKey });
       return res.status(200).json({ ok: true, status: 'duplicate_skipped' });
@@ -565,7 +644,7 @@ module.exports = async (req, res) => {
   let previousAsset = null;
   try {
     const msn = parsed.msn ? parsed.msn.toString().replace(/^0+/, '') : '';
-    const snap = await fsdb.collection('tenants').doc(TENANT_ID).collection('assets').get();
+    const snap = await fsdb.collection('tenants').doc(tenantId).collection('assets').get();
     const assets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     previousAsset = assets.find(a => a.msn?.toString().replace(/^0+/, '') === msn) || null;
   } catch (err) {
@@ -607,7 +686,7 @@ module.exports = async (req, res) => {
       // Out-of-order / duplicate-period / unparseable-period upload — saved
       // to history only, live asset state is never touched. Mirrors
       // confirmSave's handling of result.historyOnly exactly.
-      await fsdb.collection('tenants').doc(TENANT_ID).collection('utilisation').add({
+      await fsdb.collection('tenants').doc(tenantId).collection('utilisation').add({
         ...result.utilisationRecord,
         asset_id: String(result.utilisationRecord.asset_id),
         created_at: new Date().toISOString()
@@ -625,7 +704,7 @@ module.exports = async (req, res) => {
     // no re-parsing, no re-running Brain 1, no risk of a different result
     // between now and review.
     if (hasHighSeverityWarning(result.warnings)) {
-      await fsdb.collection('tenants').doc(TENANT_ID).collection('pendingReports').add({
+      await fsdb.collection('tenants').doc(tenantId).collection('pendingReports').add({
         ...baseLog,
         status: 'pending_review',
         warnings: result.warnings,
@@ -639,11 +718,11 @@ module.exports = async (req, res) => {
     }
 
     const { _dbId, _updatedAt, ...assetData } = result.mergedAsset;
-    await fsdb.collection('tenants').doc(TENANT_ID).collection('assets').doc(String(result.mergedAsset.id)).set({
+    await fsdb.collection('tenants').doc(tenantId).collection('assets').doc(String(result.mergedAsset.id)).set({
       ...assetData,
       updatedAt: new Date().toISOString()
     });
-    await fsdb.collection('tenants').doc(TENANT_ID).collection('utilisation').add({
+    await fsdb.collection('tenants').doc(tenantId).collection('utilisation').add({
       ...result.utilisationRecord,
       asset_id: String(result.utilisationRecord.asset_id),
       created_at: new Date().toISOString()
@@ -665,8 +744,8 @@ module.exports = async (req, res) => {
 
 // ---- 2D helper: claim a dedup key (returns true if this is a new, unseen
 // delivery; false if already processed within the TTL window) --------------
-async function claimDedupKey(fsdb, dedupKey) {
-  const ref = fsdb.collection('tenants').doc(TENANT_ID).collection('emailIngestDedup').doc(dedupKey);
+async function claimDedupKey(fsdb, tenantId, dedupKey) {
+  const ref = fsdb.collection('tenants').doc(tenantId).collection('emailIngestDedup').doc(dedupKey);
   return fsdb.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     if (snap.exists) return false;
@@ -686,10 +765,10 @@ async function claimDedupKey(fsdb, dedupKey) {
 // Keyed by a hash of the lowercased sender address + the current UTC hour
 // bucket, so it resets naturally on the hour with no separate reaper needed
 // for correctness (same pattern as the daily cap in extract.js).
-async function checkAndIncrementSenderRate(fsdb, fromAddress) {
+async function checkAndIncrementSenderRate(fsdb, tenantId, fromAddress) {
   const senderKey = crypto.createHash('sha256').update((fromAddress || '').trim().toLowerCase()).digest('hex');
   const hourBucket = new Date().toISOString().slice(0, 13).replace(/[-T:]/g, ''); // UTC YYYYMMDDHH
-  const ref = fsdb.collection('tenants').doc(TENANT_ID).collection('emailIngestRate').doc(`${senderKey}_${hourBucket}`);
+  const ref = fsdb.collection('tenants').doc(tenantId).collection('emailIngestRate').doc(`${senderKey}_${hourBucket}`);
   return fsdb.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const count = snap.exists ? (snap.data().count || 0) : 0;

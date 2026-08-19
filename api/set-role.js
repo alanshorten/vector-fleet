@@ -9,9 +9,13 @@
 // security-remediation-roadmap.md Phase 3, Session 1: setCustomUserClaims
 // REPLACES the whole claims object, it doesn't merge — so this must always
 // re-stamp tenantId alongside role, or a role change would silently wipe a
-// user's tenant access. TENANT_ID is hardcoded (see bootstrap-admin.js for
-// why — single-tenant today).
-const TENANT_ID = 'maverick';
+// user's tenant access.
+//
+// Build Group A (tenant onboarding, 19 Aug 2026): the tenantId to re-stamp
+// is no longer a hardcoded constant — it's resolved per-request from the
+// calling admin's own tenantId claim (decoded.tenantId, set below after the
+// token is verified). An admin can only ever change roles within their own
+// tenant this way; there's no client input path to name a different tenant.
 
 const admin = require('firebase-admin');
 const { writeAuditLog } = require('./_lib/auditLog');
@@ -77,15 +81,23 @@ module.exports = async (req, res) => {
 
   const auth = admin.auth(app);
 
-  // GET — list all users with their role claims
+  // GET — list users with their role claims, scoped to the caller's own tenant
   if (req.method === 'GET') {
     try {
+      // Build Group A (19 Aug 2026): listUsers(1000) previously returned
+      // every account platform-wide with no tenant filter — harmless when
+      // 'maverick' was the only tenant, but a real cross-tenant user-list
+      // disclosure once a second tenant exists. Filtered to accounts whose
+      // tenantId claim matches the caller's own; a super-admin account (no
+      // tenantId, platform-level only) never appears in any tenant's list.
       const listResult = await auth.listUsers(1000);
-      const users = listResult.users.map(u => ({
-        uid: u.uid,
-        email: u.email || '',
-        role: u.customClaims?.role || null,
-      }));
+      const users = listResult.users
+        .filter(u => u.customClaims?.tenantId === decoded.tenantId)
+        .map(u => ({
+          uid: u.uid,
+          email: u.email || '',
+          role: u.customClaims?.role || null,
+        }));
       // Sort: admin first, then editor, then viewer, then dataEntry, then unset; alphabetical within group
       const order = { admin: 0, editor: 1, viewer: 2, dataEntry: 3 };
       users.sort((a, b) => {
@@ -118,7 +130,18 @@ module.exports = async (req, res) => {
     const targetUser = await auth.getUser(uid);
     const oldRole = targetUser.customClaims?.role || 'none';
 
-    await auth.setCustomUserClaims(uid, { role, tenantId: TENANT_ID });
+    // Build Group A (19 Aug 2026): the tenantId re-stamped below is now
+    // resolved from the caller's own claim rather than a shared hardcoded
+    // constant — which means an admin from tenant A calling this with a
+    // tenant B user's uid would otherwise silently REASSIGN that user into
+    // tenant A. Reject outright unless the target already belongs to the
+    // caller's own tenant. This mirrors the same ownership check
+    // api/share/create.js already does for assets.
+    if (targetUser.customClaims?.tenantId !== decoded.tenantId) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    await auth.setCustomUserClaims(uid, { role, tenantId: decoded.tenantId });
     // Revoke existing refresh tokens so the change takes effect promptly —
     // without this, a signed-in user's cached ID token (and the role claim
     // baked into it) stays valid for up to an hour regardless of what an
@@ -134,7 +157,7 @@ module.exports = async (req, res) => {
     // expiry the way the custom claim above does.
     try {
       const fs = admin.firestore(app);
-      const ref = fs.collection('tenants').doc(TENANT_ID).collection('tenantMembers').doc(uid);
+      const ref = fs.collection('tenants').doc(decoded.tenantId).collection('tenantMembers').doc(uid);
       const snap = await ref.get();
       const now = new Date().toISOString();
       await ref.set({
@@ -157,7 +180,7 @@ module.exports = async (req, res) => {
     // Non-fatal: a failed audit write should never block the role change itself.
     try {
       const fs = admin.firestore(app);
-      await writeAuditLog(fs, TENANT_ID, {
+      await writeAuditLog(fs, decoded.tenantId, {
         userId:    decoded.uid,
         userEmail: decoded.email,
         action:    `Changed role for ${targetUser.email || uid} from ${oldRole} to ${role}`,

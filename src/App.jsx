@@ -222,21 +222,22 @@ function AppInner(){
         if(!tokenResult)return; // not signed in yet
         let role=tokenResult.claims.role;
         let tenantId=tokenResult.claims.tenantId;
-        // security-remediation-roadmap.md Phase 3, Session 1: also call
-        // bootstrap-admin when tenantId is missing, not just role — this is
-        // what lets an already-signed-in account (created before Phase 3
-        // shipped, already has a role claim) pick up tenantId just by
-        // reloading the app once, with no manual admin action needed.
-        // bootstrap-admin.js no-ops on role if one's already set and only
-        // backfills the missing tenantId in that case.
+        // Build Group A (19 Aug 2026): every account now has role+tenantId
+        // stamped at creation time — invite-user.js for an existing tenant's
+        // users, create-tenant.js for a new tenant's first admin — so
+        // there's no longer a legitimate "missing claims" case that needs
+        // self-healing via a bootstrap endpoint. api/bootstrap-admin.js
+        // (which used to be called here) is deleted; its old job — closing
+        // the "first user wins" self-registration race — is superseded by
+        // create-tenant.js plus disabling Firebase self-registration
+        // entirely. If either claim is still missing here, force one token
+        // refresh in case this is just a stale cached token from right
+        // before claims were set (e.g. immediately after being invited),
+        // rather than attempting to provision anything client-side.
         if(!role||!tenantId){
-          const idToken=await window._auth.getIdToken();
-          const resp=await fetch('/api/bootstrap-admin',{method:'POST',headers:{'Authorization':`Bearer ${idToken}`}});
-          if(resp.ok){
-            tokenResult=await window._auth.getIdTokenResult(true); // force refresh
-            role=tokenResult?.claims?.role;
-            tenantId=tokenResult?.claims?.tenantId;
-          }
+          tokenResult=await window._auth.getIdTokenResult(true);
+          role=tokenResult?.claims?.role;
+          tenantId=tokenResult?.claims?.tenantId;
         }
         setUserRole(role||'viewer');
         if((role||'viewer')==='viewer') setView('portfolio');

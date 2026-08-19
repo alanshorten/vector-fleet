@@ -18,14 +18,16 @@ const ALLOWED_ORIGINS = [
   'https://app.tailiq.app',
 ];
 
-// Matches the TENANT_ID hardcoded in bootstrap-admin.js/set-role.js/
-// invite-user.js/the migrate-*-to-tenant.js files. This endpoint reads the
-// Firestore Admin SDK directly, bypassing db.js, so it needs its own
-// tenant-rooted paths kept in sync by hand as each collection migrates —
-// assets (Phase 3 Session 1, hotfixed 2026-08-14 after being missed at the
-// time) and shareTokens (Phase 3 Session 4, updated in the same session as
-// db.js this time, not after the fact).
-const TENANT_ID = 'maverick';
+// Build Group A (tenant onboarding, 19 Aug 2026): this endpoint is public
+// and unauthenticated by design — a share link's token is the only thing it
+// receives, and a bare token carries no tenant information. Previously that
+// was fine because there was only ever one tenant to look in (TENANT_ID
+// hardcoded to 'maverick'). Now that a second tenant is possible, the token
+// is found via a collectionGroup('shareTokens') query matching on the
+// `token` field (added to the stored doc in api/share/create.js — a
+// collectionGroup query can only filter on field values, not on document
+// ID), and the tenant is then derived from the matched document's own path
+// rather than assumed.
 
 function getApp() {
   if (admin.apps.length) return admin.app();
@@ -79,10 +81,31 @@ module.exports = async (req, res) => {
     const app = getApp();
     const fs = admin.firestore(app);
 
-    const tokenSnap = await fs.collection('tenants').doc(TENANT_ID).collection('shareTokens').doc(token).get();
-    if (!tokenSnap.exists) {
+    // Look up the token across every tenant's shareTokens subcollection —
+    // requires a Firestore index scoped to "Collection group" on the
+    // `token` field (Firestore will surface a console link to create it on
+    // first use if it's missing). Falls back to the old direct doc-ID path
+    // under a fixed 'maverick' tenant if the collection-group query finds
+    // nothing, so share links created before this field existed (which have
+    // no `token` field to match on) keep working until they naturally
+    // expire — these are always 7-day tokens, so this fallback is temporary
+    // by construction and can be removed once confirmed unnecessary.
+    let tokenSnap = null;
+    try {
+      const cgSnap = await fs.collectionGroup('shareTokens').where('token', '==', token).limit(1).get();
+      if (!cgSnap.empty) tokenSnap = cgSnap.docs[0];
+    } catch (err) {
+      console.error('share token lookup: collectionGroup query failed', err);
+    }
+    if (!tokenSnap) {
+      const legacySnap = await fs.collection('tenants').doc('maverick').collection('shareTokens').doc(token).get();
+      if (legacySnap.exists) tokenSnap = legacySnap;
+    }
+    if (!tokenSnap || !tokenSnap.exists) {
       return res.status(404).json({ error: 'Link not found' });
     }
+    // Two levels up from the matched doc: tenants/{tenantId}/shareTokens/{token}.
+    const tenantId = tokenSnap.ref.parent.parent.id;
     const tokenData = tokenSnap.data();
 
     if (tokenData.revoked) {
@@ -96,7 +119,7 @@ module.exports = async (req, res) => {
       return res.status(404).json({ error: 'Link not found' });
     }
 
-    const assetSnap = await fs.collection('tenants').doc(TENANT_ID).collection('assets').doc(String(tokenData.assetId)).get();
+    const assetSnap = await fs.collection('tenants').doc(tenantId).collection('assets').doc(String(tokenData.assetId)).get();
     if (!assetSnap.exists) {
       return res.status(404).json({ error: 'Asset not found' });
     }

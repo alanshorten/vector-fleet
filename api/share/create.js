@@ -102,6 +102,13 @@ module.exports = async (req, res) => {
     const now = new Date();
     const expires = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7-day default, same as before
     const data = {
+      // Build Group A (19 Aug 2026): the token is also stored as a field,
+      // not just the document ID — api/share/[token].js (the public,
+      // unauthenticated resolver) no longer knows which tenant to look in
+      // ahead of time now that tenant IDs aren't a single hardcoded
+      // constant, so it finds the token via a collectionGroup('shareTokens')
+      // query, which can only filter on field values, not document ID.
+      token,
       assetId: String(assetId),
       companyId: companyId || null,
       enginePos: enginePosClean,

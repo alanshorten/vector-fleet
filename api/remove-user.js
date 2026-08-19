@@ -5,11 +5,10 @@
 // via Firebase ID token custom claim. The admin account itself is protected
 // and cannot be removed via this endpoint.
 
-// security-remediation-roadmap.md Phase 3, Session 6 (3C / M-01, Decision 2):
-// matches the TENANT_ID hardcoded in bootstrap-admin.js/set-role.js/
-// invite-user.js — needed here now to clean up the removed user's
-// tenantMembers doc alongside their Auth account.
-const TENANT_ID = 'maverick';
+// Build Group A (tenant onboarding, 19 Aug 2026): the tenantId used to clean
+// up the removed user's tenantMembers doc is resolved per-request from the
+// calling admin's own tenantId claim (decoded.tenantId below), not a shared
+// hardcoded constant.
 
 const admin = require('firebase-admin');
 const { maskEmail } = require('./_lib/logRedact');
@@ -95,13 +94,20 @@ module.exports = async (req, res) => {
       return res.status(403).json({ error: 'Admin accounts cannot be removed via this endpoint.' });
     }
 
+    // Build Group A (19 Aug 2026): reject unless the target already belongs
+    // to the caller's own tenant — otherwise a tenant A admin could remove a
+    // tenant B user just by knowing their uid. Same check as set-role.js.
+    if (userRecord.customClaims?.tenantId !== decoded.tenantId) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
     await auth.deleteUser(uid);
     console.log(`remove-user: deleted ${maskEmail(userRecord.email)} (${uid}) by admin ${maskEmail(decoded.email)}`);
 
     // Audit log — server-side privilege action (Session A, 19 Aug 2026).
     // Non-fatal: a failed audit write should never block the removal itself.
     try {
-      await writeAuditLog(admin.firestore(app), TENANT_ID, {
+      await writeAuditLog(admin.firestore(app), decoded.tenantId, {
         userId:    decoded.uid,
         userEmail: decoded.email,
         action:    `Removed user ${userRecord.email || uid}`,
@@ -119,7 +125,7 @@ module.exports = async (req, res) => {
     // that can no longer authenticate anyway, since verifyIdToken would
     // fail for it.
     try {
-      await admin.firestore(app).collection('tenants').doc(TENANT_ID).collection('tenantMembers').doc(uid).delete();
+      await admin.firestore(app).collection('tenants').doc(decoded.tenantId).collection('tenantMembers').doc(uid).delete();
     } catch (memberErr) {
       console.error('remove-user: tenantMembers cleanup failed', memberErr);
     }

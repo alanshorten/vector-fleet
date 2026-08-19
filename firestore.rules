@@ -37,6 +37,27 @@ service cloud.firestore {
     match /tenants/{tenantId}/tenantMembers/{uid} {
       allow read, write: if false;
     }
+    // Tenant document itself (Build Group A, tenant onboarding —
+    // claude_security-review-20260818-handoff.md). Written exclusively by
+    // api/create-tenant.js via the Admin SDK, which bypasses these rules.
+    // Read is gated on the platform-level superAdmin claim — separate from
+    // and above the tenant-scoped role model — since this is what the
+    // /platform tenant-list screen queries. No tenant-scoped role (not even
+    // admin) can read another tenant's doc; only a super-admin manages the
+    // list of tenants.
+    match /tenants/{tenantId} {
+      allow read: if request.auth != null && request.auth.token.superAdmin == true;
+      allow write: if false;
+    }
+    // approvedSenders (Build Group A) — the email-ingest sender allowlist
+    // consulted by api/email-ingest.js's sender-verification step. Seeded at
+    // tenant-creation time by api/create-tenant.js (Admin SDK, bypasses
+    // these rules); this rule governs ongoing management once a platform
+    // sender-management UI exists. Admin-only, same posture as `settings`
+    // (Decision 4) — editors don't manage security-relevant allowlists.
+    match /tenants/{tenantId}/approvedSenders/{docId} {
+      allow read, write: if memberHasRole(tenantId, ['admin']);
+    }
     // Tenant-rooted assets (security-remediation-roadmap.md Phase 3, Session 1).
     // The `assets` collection now lives at /tenants/{tenantId}/assets/{assetId}
     // for anyone with the new tenantId custom claim (see bootstrap-admin.js/

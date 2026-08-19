@@ -25,10 +25,11 @@ const CONTINUE_URL = 'https://app.tailiq.app/?view=set-password';
 
 const SENDER = 'TailiQ <invites@tailiq.app>';
 
-// security-remediation-roadmap.md Phase 3, Session 1: hardcoded — see
-// bootstrap-admin.js for why (single-tenant today). Stamped alongside role
-// below since setCustomUserClaims replaces the whole claims object.
-const TENANT_ID = 'maverick';
+// Build Group A (tenant onboarding, 19 Aug 2026): the tenantId stamped
+// alongside role (setCustomUserClaims replaces the whole claims object) is
+// resolved per-request from the inviting admin's own tenantId claim
+// (decoded.tenantId below), not a shared hardcoded constant. An admin can
+// only ever invite into their own tenant this way.
 
 function getApp() {
   if (admin.apps.length) return admin.app();
@@ -167,6 +168,19 @@ module.exports = async (req, res) => {
           // this isn't the right flow for an admin account.
           return res.status(403).json({ error: 'This email belongs to an admin account. Admin accounts cannot be resent an invite from here.' });
         }
+        // Build Group A (19 Aug 2026): Firebase Auth emails are unique
+        // across the whole project, not per-tenant — so "email already
+        // exists" can mean a DIFFERENT tenant's user, not necessarily one of
+        // this admin's own. Without this check, the setCustomUserClaims call
+        // below would silently reassign that account's tenantId to the
+        // inviting admin's tenant, along with a new role — a cross-tenant
+        // account takeover. Only allow the resend path when the existing
+        // account already belongs to the caller's own tenant (or has no
+        // tenantId yet at all — a pre-Phase-3 leftover, handled the same way
+        // set-role.js's own bootstrapping cases are).
+        if (existing.customClaims?.tenantId && existing.customClaims.tenantId !== decoded.tenantId) {
+          return res.status(409).json({ error: 'This email belongs to an account in a different organisation and cannot be invited here.' });
+        }
         newUser = existing;
       } else {
         throw err;
@@ -177,7 +191,7 @@ module.exports = async (req, res) => {
     // from first sign-in; for a resend, this is the one legitimate way this
     // endpoint changes an existing (non-admin) user's role, as an explicit
     // and visible part of the same admin action — not a hidden side effect.
-    await auth.setCustomUserClaims(newUser.uid, { role, tenantId: TENANT_ID });
+    await auth.setCustomUserClaims(newUser.uid, { role, tenantId: decoded.tenantId });
 
     // Phase 3 Session 6 (3C / M-01, Layer 2, Decision 2): keep the
     // tenantMembers membership doc in sync — what Firestore WRITE rules
@@ -186,7 +200,7 @@ module.exports = async (req, res) => {
     // the custom claim above is still the primary access-control mechanism.
     try {
       const fs = admin.firestore(app);
-      const ref = fs.collection('tenants').doc(TENANT_ID).collection('tenantMembers').doc(newUser.uid);
+      const ref = fs.collection('tenants').doc(decoded.tenantId).collection('tenantMembers').doc(newUser.uid);
       const snap = await ref.get();
       const now = new Date().toISOString();
       await ref.set({
