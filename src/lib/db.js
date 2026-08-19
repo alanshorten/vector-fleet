@@ -91,6 +91,29 @@ async function logAudit(assetId, assetMSN, action) {
   }
 };
 
+// Audit log scope expansion, Session B (19 Aug 2026) — level 2 (before/after)
+// diff logging for financial/operational edits. Given a before/after object
+// pair and the list of fields worth auditing (financially meaningful ones
+// only — never metadata like updatedAt/confirmedBy), returns a compact
+// "field: old → new" string covering just the fields that actually changed.
+// Returns "" when nothing in fieldsToTrack changed (e.g. a re-save with no
+// edits) — callers should skip the audit write entirely in that case rather
+// than log a no-op "edited X:" entry with nothing after the colon.
+function describeChanges(before, after, fieldsToTrack) {
+  const changes = [];
+  for (const field of fieldsToTrack) {
+    const oldVal = before?.[field];
+    const newVal = after?.[field];
+    // JSON.stringify comparison covers array/object fields (e.g.
+    // monthlyWeightings) as well as primitives, without a deep-equal dep.
+    const changed = JSON.stringify(oldVal) !== JSON.stringify(newVal);
+    if (!changed) continue;
+    const fmt = v => (v === undefined || v === null ? "–" : v);
+    changes.push(`${field}: ${fmt(oldVal)} → ${fmt(newVal)}`);
+  }
+  return changes.join(", ");
+}
+
 const db = {
   async getAssets() {
     const { db: fs, collection, getDocs } = getFS();
@@ -318,6 +341,11 @@ const db = {
       createdAt: now
     };
     const ref = await addDoc(collection(fs, "tenants", tenantId, "leases"), data);
+
+    // Audit log — Session B (19 Aug 2026). Append-only create, no before-
+    // state to diff against — key terms only, not the full record.
+    await logAudit(assetId, assetId, `Created lease for asset ${assetId} (lessee: ${data.lessee || "–"}, ${data.leaseStart || "–"} to ${data.leaseEnd || "–"})`);
+
     return { id: ref.id, ...data };
   },
   async getLeasesForAsset(assetId) {
@@ -335,9 +363,24 @@ const db = {
     return snap.exists() ? { id: snap.id, ...snap.data() } : null;
   },
   async deleteLease(leaseId) {
-    const { db: fs, doc, deleteDoc } = getFS();
+    const { db: fs, doc, deleteDoc, getDoc } = getFS();
     const tenantId = await getTenantId();
-    await deleteDoc(doc(fs, "tenants", tenantId, "leases", leaseId));
+    const ref = doc(fs, "tenants", tenantId, "leases", leaseId);
+
+    // Audit log — Session B (19 Aug 2026). Read before delete since the
+    // record won't exist to inspect afterward. Non-fatal if this read fails
+    // (e.g. already gone) — proceed with the delete either way.
+    let leaseData = null;
+    try {
+      const snap = await getDoc(ref);
+      if (snap.exists()) leaseData = snap.data();
+    } catch (e) { /* fall through — deletion still proceeds */ }
+
+    await deleteDoc(ref);
+
+    if (leaseData) {
+      await logAudit(leaseData.assetId, leaseData.assetId, `Deleted lease for asset ${leaseData.assetId} (lessee: ${leaseData.lessee || "–"})`);
+    }
   },
   // TAC (Technical Acceptance Certificate) snapshot — end-of-lease-position-
   // handoff.md §4b / eol-position-session-handoff.md §4b. Deliberately a
@@ -359,6 +402,12 @@ const db = {
       }
     };
     await setDoc(doc(fs, "tenants", tenantId, "leases", leaseId), payload, { merge: true });
+
+    // Audit log — Session B (19 Aug 2026). Action-level only, per the build
+    // handoff — before/after is less meaningful here since this is typically
+    // a first upload or a correction of a bad OCR read, not a renegotiation.
+    await logAudit(null, null, `Uploaded TAC for lease ${leaseId}`);
+
     return payload.tacSnapshot;
   },
   async saveReservePot(assetId, companyId, pot) {
@@ -405,6 +454,25 @@ const db = {
       createdAt: (existing && existing.exists() ? existing.data().createdAt : null) || now
     };
     await setDoc(ref, data);
+
+    // Audit log — Session B (19 Aug 2026), level 2 (before/after). The
+    // getDoc above already gives us the before-state for free. Only the
+    // financially meaningful fields are tracked — not metadata like
+    // updatedAt/confirmedBy/inputMethod.
+    const reserveFieldsToTrack = [
+      "accrualBasis", "accrualRate", "accrualRateBaseYear", "escalationPctPerYr",
+      "openingBalance", "openingBalanceAsOf", "triggerBasis", "triggerInterval",
+      "escalationRegime", "outflowCostBaseYear", "outflowEscalationPct",
+      "projectedCostLow", "projectedCostHigh", "harvestThresholdFC",
+      "stubBufferPct", "fullStackReplacementCost"
+    ];
+    const before = existing && existing.exists() ? existing.data() : null;
+    const changeDesc = describeChanges(before, data, reserveFieldsToTrack);
+    if (changeDesc) {
+      const verb = before ? "Edited" : "Created";
+      await logAudit(assetId, assetId, `${verb} reserve pot ${pot.code} for asset ${assetId}: ${changeDesc}`);
+    }
+
     return { id, ...data };
   },
   async getReservePots(assetId) {
@@ -423,9 +491,14 @@ const db = {
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
   async saveScheduledEventOverride(assetId, companyId, override) {
-    const { db: fs, doc, setDoc } = getFS();
+    const { db: fs, doc, setDoc, getDoc } = getFS();
     const tenantId = await getTenantId();
     const id = `${assetId}_${override.code}_${override.dueCycle}`.replace(/\s+/g, "_");
+    const ref = doc(fs, "tenants", tenantId, "scheduledEvents", id);
+    // Session B (19 Aug 2026): one extra read for the before-state — this
+    // function didn't previously read before writing. Negligible cost given
+    // this is a manual user action, not a high-frequency automated write.
+    const existing = await getDoc(ref).catch(() => null);
     const now = new Date().toISOString();
     const data = {
       assetId: String(assetId),
@@ -439,14 +512,37 @@ const db = {
       confirmedAt: now,
       updatedAt: now
     };
-    await setDoc(doc(fs, "tenants", tenantId, "scheduledEvents", id), data);
+    await setDoc(ref, data);
+
+    // Audit log — Session B (19 Aug 2026), level 2.
+    const before = existing && existing.exists() ? existing.data() : null;
+    const changeDesc = describeChanges(before, data, ["durationWeeks", "scheduledDate"]);
+    if (changeDesc) {
+      const verb = before ? "Updated" : "Created";
+      await logAudit(assetId, assetId, `${verb} schedule override for asset ${assetId} event ${override.code}: ${changeDesc}`);
+    }
+
     return { id, ...data };
   },
   async deleteScheduledEventOverride(assetId, code, dueCycle) {
-    const { db: fs, doc, deleteDoc } = getFS();
+    const { db: fs, doc, deleteDoc, getDoc } = getFS();
     const tenantId = await getTenantId();
     const id = `${assetId}_${code}_${dueCycle}`.replace(/\s+/g, "_");
-    await deleteDoc(doc(fs, "tenants", tenantId, "scheduledEvents", id));
+    const ref = doc(fs, "tenants", tenantId, "scheduledEvents", id);
+
+    // Audit log — Session B (19 Aug 2026). Read before delete to capture
+    // what was removed. Non-fatal if the read fails — proceed either way.
+    let existed = false;
+    try {
+      const snap = await getDoc(ref);
+      existed = snap.exists();
+    } catch (e) { /* fall through — deletion still proceeds */ }
+
+    await deleteDoc(ref);
+
+    if (existed) {
+      await logAudit(assetId, assetId, `Deleted schedule override for asset ${assetId} event ${code}`);
+    }
   },
   async getSeasonalityProfile(assetId) {
     const { db: fs, doc, getDoc } = getFS();
@@ -471,6 +567,18 @@ const db = {
       createdAt: (existing && existing.exists() ? existing.data().createdAt : null) || now
     };
     await setDoc(ref, data);
+
+    // Audit log — Session B (19 Aug 2026), level 2. monthlyWeightings is an
+    // object/array — describeChanges compares it via JSON.stringify and
+    // reports it as a single changed/unchanged field rather than a granular
+    // per-month diff, which would be noise for a 12-value weighting object.
+    const before = existing && existing.exists() ? existing.data() : null;
+    const changeDesc = describeChanges(before, data, ["activeWeeksPerYear", "monthlyWeightings"]);
+    if (changeDesc) {
+      const verb = before ? "Updated" : "Created";
+      await logAudit(assetId, assetId, `${verb} seasonality profile for asset ${assetId}: ${changeDesc}`);
+    }
+
     return { id: String(assetId), ...data };
   },
   // Tenant-rooted 2026-08-17 (second-reassessment-followup-scoping-handoff.md
@@ -535,6 +643,12 @@ const db = {
       createdAt: (existing && existing.exists() ? existing.data().createdAt : null) || now
     };
     await setDoc(ref, payload);
+
+    // Audit log — Session B (19 Aug 2026). Action-level only, per the build
+    // handoff — the payload is a large mixed object, so a field-level diff
+    // wouldn't be meaningful here the way it is for reserves/scheduling.
+    await logAudit(null, null, "Updated knowledge base");
+
     return { id, ...payload };
   },
   async getLLPCatalogue(companyId = null) {
@@ -565,11 +679,16 @@ const db = {
       const batch = writeBatch(fs);
       entries.forEach(e => batch.set(doc(fs, "tenants", tenantId, "knowledgeBase", id, "llpCatalogue", e.partNumber), payloadFor(e)));
       await batch.commit();
+      await logAudit(null, null, `Updated LLP catalogue prices, ${entries.length} parts`);
       return;
     }
     await Promise.all(entries.map(e =>
       setDoc(doc(fs, "tenants", tenantId, "knowledgeBase", id, "llpCatalogue", e.partNumber), payloadFor(e))
     ));
+
+    // Audit log — Session B (19 Aug 2026). Action-level only, per the build
+    // handoff — a batch of ~50-60 parts isn't suited to a per-field diff.
+    await logAudit(null, null, `Updated LLP catalogue prices, ${entries.length} parts`);
   },
   // --- SV Cost Tracker (monthly-report-cost-tracker-handoff.md §2, TECH_DEBT.md 4.101) ---
   // Append-only, same pattern as saveShopVisitProjection/saveUtilisation —

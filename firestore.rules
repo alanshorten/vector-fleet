@@ -260,7 +260,14 @@ service cloud.firestore {
                      && request.resource.data.timestamp == request.time
                      && request.resource.data.action is string
                      && request.resource.data.action.size() > 0
-                     && request.resource.data.action.size() <= 300
+                     // Raised from 300 to 1000 (audit log scope expansion,
+                     // Session B, 19 Aug 2026) — level-2 (before/after) diff
+                     // logging on financial edits (e.g. reserve pot changes
+                     // with several changed fields) can exceed 300 chars
+                     // easily; truncating would lose exactly the detail this
+                     // log exists to capture. No real cost to Firestore at
+                     // this size.
+                     && request.resource.data.action.size() <= 1000
                      && request.resource.data.keys().hasOnly(['userId', 'userEmail', 'timestamp', 'assetId', 'assetMSN', 'action']);
       allow update, delete: if false;
     }
