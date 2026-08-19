@@ -2138,7 +2138,7 @@ Closes 4.128's "still open" xlsx/Vite bullet.
 
 ---
 
-### 4.133 Cloudinary Unsigned Upload Preset Has No Format Restriction or Moderation — 🔴 OPEN, confirmed via live console check (18 August 2026)
+### 4.133 Cloudinary Unsigned Upload Preset Has No Format Restriction or Moderation — ✅ FIXED (19 August 2026)
 
 **Context.** `SECURITY_ASSESSMENT.md` Section 4 flagged this as an unverified "dashboard-only" observation — checked directly against the live Cloudinary console this session (part of working through Section 4's checklist), confirming it as a real, currently-exploitable gap rather than a theoretical one.
 
@@ -2150,11 +2150,13 @@ Closes 4.128's "still open" xlsx/Vite bullet.
 
 **Impact.** Nothing today stops an arbitrarily large file of any type being uploaded through this preset — the only backstop is Cloudinary's account-wide storage/bandwidth quota, which would mean cost/quota exhaustion rather than a clean rejection.
 
-**Fix, not yet built — two options, not mutually exclusive:**
-1. **Preset-side:** set "Allowed formats" on `fs7bezpu` to just what the app actually uploads (likely `jpg,jpeg,png,webp` for asset photos — needs confirming against every real upload path before locking down, to avoid breaking something legitimate).
-2. **Code-side:** add a client-side file-size/type check in `uploadHelpers.js` before the upload fires — cheaper, immediate, doesn't depend on the Cloudinary console at all. This was `SECURITY_ASSESSMENT.md`'s original recommendation.
+**Fix applied — both layers, not mutually exclusive:**
+1. **Preset-side (19 Aug, Alan, Cloudinary console):** "Allowed formats" on `fs7bezpu` set to `jpg,jpeg,png,webp` — matches every real upload path in the app (confirmed against every `uploadToCloudinary()` call site: `AssetTabs.jsx` photo galleries, `PhotosAndSpecs.jsx` asset photos + LOPA crop, `AdminView.jsx` logos/engine covers/airframe covers). Manual moderation left off deliberately — turning it on would put every photo upload behind a review queue, disproportionate for a 5-6 person trusted team.
+2. **Code-side:** already built (see 6B, 18 Aug) — `uploadHelpers.js`'s `validateImageFile()` blocks non-image types and anything over 10MB client-side before the upload fires.
 
-Neither built yet — flagged here so the finding isn't lost; scope a build session for whichever approach (or both) makes sense.
+**Verified server-side enforcement, not just trusting the console setting saved correctly:** a standalone test page POSTed a non-image file directly to Cloudinary's unsigned upload endpoint using the public cloud name/preset, bypassing the app's own client-side check entirely. Upload was rejected. Confirms the restriction is enforced by Cloudinary itself, not just by the app's own file picker (which anyone could route around by POSTing directly, as the original finding noted).
+
+Max file size still isn't enforceable preset-side (no such field exists in Cloudinary's console) — the client-side 10MB cap from 6B remains the only size backstop, same residual gap as before, just no longer combined with an unrestricted format.
 
 ---
 

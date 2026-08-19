@@ -1,283 +1,369 @@
-// api/parse-excel.js — Authenticated Excel parsing endpoint
-//
-// SECURITY (2026-08, xlsx remediation — Option D, see
-// claude_xlsx-remediation-option-d-build-handoff.md): SheetJS (xlsx)
-// 0.18.5 has an unpatched prototype-pollution CVE (GHSA-4r6h-8v6p-xvw6)
-// with no npm fix and no future npm release — the maintainers only ship
-// patched builds through their own CDN, outside the normal npm update
-// path. Rather than take on that unusual CDN-sourced dependency, all
-// Excel parsing (both client upload flows and the server-side
-// email-ingest path) has been consolidated onto ExcelJS, which is
-// actively maintained and Node-native.
-//
-// This endpoint exists specifically so client code never bundles ExcelJS
-// itself — ExcelJS relies on Node's Buffer internally and has known,
-// unresolved bundling issues under Vite/Rollup in the browser. Moving all
-// parsing server-side sidesteps that entirely: the client sends raw file
-// bytes, this endpoint parses them, and returns structured sheet data.
-// See src/lib/llpCatalogueImport.js and src/components/UploadView.jsx for
-// the two client callers (via the shared parseExcelFetch helper in
-// src/lib/extraction.js).
-//
-// Auth: same pattern as /api/extract — any signed-in TailiQ user with a
-// recognised role.
-//
-// DECOMPRESSION / RESOURCE LIMITS (item 3, 18 Aug review): the compressed
-// body size was already capped (5MB), but uncompressed size, ZIP entry
-// count, worksheet count, and row/column count per sheet were all
-// unbounded before workbook.xlsx.load() ran — a small, compressed
-// "zip bomb"-style file could exhaust memory/CPU before this endpoint
-// got a chance to reject it. Ceilings now live in api/_lib/excelLimits.js
-// (shared with api/email-ingest.js's Excel path) and are enforced in this
-// order: ZIP structure pre-check (before ExcelJS even loads the file) ->
-// load timeout -> worksheet count -> per-sheet row/column bounds. Also
-// added: a per-user concurrency lock (same Firestore-transaction pattern
-// as api/extract.js's extraction lock), so one user can't queue up
-// multiple in-flight parses.
-//
-// Parse and discard: the uploaded file is parsed in memory only and never
-// written anywhere — consistent with the app's parse-and-discard
-// commercial story.
-
-const admin = require('firebase-admin');
-const ExcelJS = require('exceljs');
-const {
-  ExcelLimitError,
-  checkZipStructure,
-  withTimeout,
-  checkWorksheetCount,
-  checkSheetBounds,
-  PARSE_TIMEOUT_MS,
-} = require('./_lib/excelLimits');
-
-// Allow both the legacy Vercel URL and the new tailiq.app domain while
-// we're mid-transition, matching /api/extract.
-const ALLOWED_ORIGINS = [
-  'https://vector-fleet.vercel.app',
-  'https://app.tailiq.app',
-];
-
-function getApp() {
-  if (admin.apps.length) return admin.app();
-  return admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-    }),
-  });
-}
-
-const VALID_ROLES = new Set(['admin', 'editor', 'viewer', 'dataEntry']);
-
-// Any legitimate utilisation report or LLP catalogue is well under 1MB.
-// 5MB matches /api/extract's cap — generous headroom, not a real ceiling
-// for legitimate use.
-const MAX_BODY_BYTES = 5 * 1024 * 1024;
-
-// Fallback tenant for callers whose token predates the tenantId claim
-// (Phase 3). New tokens always carry tenantId; this only matters for a
-// brief transition window right after that rollout.
-const FALLBACK_TENANT_ID = 'maverick';
-
-// ---- per-user concurrency lock (item 3) -------------------------------------
-// Same pattern as api/extract.js's extractionLocks, separate collection so
-// the two endpoints' locks never interact. TTL is well above
-// PARSE_TIMEOUT_MS plus request overhead, so a crashed invocation can't
-// wedge a user out for long, but a legitimate slow parse isn't preempted
-// mid-flight either.
-const PARSE_LOCK_TTL_MS = 20000;
-
-async function acquireParseLock(fsdb, tenantId, uid) {
-  const ref = fsdb.collection('tenants').doc(tenantId).collection('parseExcelLocks').doc(uid);
-  return fsdb.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const now = Date.now();
-    if (snap.exists) {
-      const startedAt = snap.data().startedAt || 0;
-      if (now - startedAt < PARSE_LOCK_TTL_MS) {
-        return false; // still locked by an in-flight call
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // --- Membership document helpers (Phase 3 Session 6 — 3C / M-01) ---
+    // Custom claims (request.auth.token.role/tenantId) are baked into the
+    // ID token at mint time and stay valid for up to an hour by default,
+    // even after an admin changes or revokes access. Server endpoints now
+    // close most of that gap with verifyIdToken(token, true) (Layer 1 —
+    // see bootstrap-admin.js/set-role.js/invite-user.js/remove-user.js/
+    // share/create.js/share/revoke.js/extract.js), but Firestore rules have
+    // no equivalent check against the token itself. Consulting the
+    // tenantMembers document instead gives WRITE rules an instant,
+    // rules-visible source of truth — updated the moment an admin changes a
+    // role or removes a user, no token refresh or expiry window involved.
+    // READS still use the fast token-claim check only, unchanged from
+    // before this session — an extra document read on every read would be
+    // needless overhead for data that isn't itself a privilege-escalation
+    // risk, and the roadmap's own Layer 2 design note says as much.
+    function memberDoc(tenantId) {
+      return get(/databases/$(database)/documents/tenants/$(tenantId)/tenantMembers/$(request.auth.uid));
+    }
+    function isActiveMember(tenantId) {
+      return request.auth != null
+        && request.auth.token.tenantId == tenantId
+        && memberDoc(tenantId).data.status == 'active';
+    }
+    function memberHasRole(tenantId, roles) {
+      return isActiveMember(tenantId) && memberDoc(tenantId).data.role in roles;
+    }
+    // tenantMembers itself (Decision 2). Written exclusively by admin
+    // server endpoints via the Admin SDK, which bypasses these rules
+    // entirely — bootstrap-admin.js, set-role.js, invite-user.js,
+    // remove-user.js. No client read/write access is needed or granted;
+    // the role/status/email fields here are enforcement data consulted by
+    // the helpers above and by other collections' write rules, not
+    // something the app's UI reads or displays today.
+    match /tenants/{tenantId}/tenantMembers/{uid} {
+      allow read, write: if false;
+    }
+    // Tenant-rooted assets (security-remediation-roadmap.md Phase 3, Session 1).
+    // The `assets` collection now lives at /tenants/{tenantId}/assets/{assetId}
+    // for anyone with the new tenantId custom claim (see bootstrap-admin.js/
+    // set-role.js/invite-user.js). request.auth.token.tenantId == tenantId
+    // means a user can only reach their OWN tenant's asset subtree — someone
+    // whose token has no tenantId claim yet (pre-migration reload) is denied
+    // here rather than silently falling through, since a null/undefined
+    // claim can never equal a real path segment.
+    //
+    // The old flat /assets/{assetId} match further down was closed to deny
+    // 2026-08-17 (second-reassessment-followup-scoping-handoff.md item 2) —
+    // db.js has been on this tenant-rooted path since Phase 3 Session 1 and
+    // has been stable for weeks, so it was safe to close the rollback path.
+    match /tenants/{tenantId}/assets/{assetId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      // Phase 3 Session 6 (3C / M-01): write now consults the tenantMembers
+      // doc (memberHasRole above) instead of the token claim directly — see
+      // the helper functions' comment for why.
+      allow write: if memberHasRole(tenantId, ['admin', 'editor', 'dataEntry']);
+    }
+    // Tenant-rooted leases/reserves (Phase 3, Session 2). Same shape and
+    // same role gate as the flat rules below, just under the tenant path —
+    // see the assets rule above for the reasoning on tenantId checks.
+    match /tenants/{tenantId}/leases/{leaseId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if memberHasRole(tenantId, ['admin', 'editor', 'dataEntry']);
+    }
+    match /tenants/{tenantId}/reserves/{reserveId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if memberHasRole(tenantId, ['admin', 'editor', 'dataEntry']);
+    }
+    // Tenant-rooted scheduledEvents/seasonalityProfile (Phase 3, Session 3).
+    // Same shape as leases/reserves above but admin/editor ONLY (no
+    // dataEntry) — matches the role gate on the flat rules below, since
+    // these are Calendar-tab-only, financial-projection-shaping edits that
+    // Data Entry never sees in the nav.
+    match /tenants/{tenantId}/scheduledEvents/{eventId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if memberHasRole(tenantId, ['admin', 'editor']);
+    }
+    match /tenants/{tenantId}/seasonalityProfile/{assetId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if memberHasRole(tenantId, ['admin', 'editor']);
+    }
+    // Tenant-rooted shopVisitProjections (second-reassessment-followup-
+    // scoping-handoff.md item 3, 2026-08-17). This collection was never
+    // tenant-rooted during Phase 3 — a straightforward migration miss, not
+    // a deliberate choice. Same append-only shape as the flat rule below:
+    // create open to any signed-in tenant member (a Viewer can trigger a
+    // monthly snapshot just by having the Financials tab open), update and
+    // delete blocked outright — every recompute writes a new doc rather
+    // than touching a prior one.
+    match /tenants/{tenantId}/shopVisitProjections/{docId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      // Item 9 (18 Aug review): create was still using the plain token-claim
+      // check instead of isActiveMember(tenantId), inconsistent with every
+      // other tenant-rooted collection — a removed member's still-valid
+      // token could write here until it expired. Aligned with the pattern
+      // used everywhere else in this file.
+      allow create: if isActiveMember(tenantId);
+      allow update, delete: if false;
+    }
+    // Tenant-rooted knowledgeBase (second-reassessment-followup-scoping-
+    // handoff.md item 3, 2026-08-17 — Alan confirmed: tenant-root it rather
+    // than keep a shared global default). Same admin/editor-only write gate
+    // as the flat rule below — house-view forecasting assumption data, not
+    // raw per-asset input. Doc id continues to be `${companyId || 'default'}`
+    // under the tenant path — companyId stays the pre-existing, always-null
+    // legacy field, unrelated to tenantId, same pattern already used for
+    // leases/reserves/etc.
+    match /tenants/{tenantId}/knowledgeBase/{companyId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if memberHasRole(tenantId, ['admin', 'editor']);
+      match /llpCatalogue/{partNumber} {
+        allow read: if request.auth != null
+                    && request.auth.token.tenantId == tenantId;
+        allow write: if memberHasRole(tenantId, ['admin', 'editor']);
       }
-      // Past TTL — treat as abandoned (crashed invocation) and reclaim it.
     }
-    tx.set(ref, { startedAt: now, uid });
-    return true;
-  });
-}
-
-async function releaseParseLock(fsdb, tenantId, uid) {
-  try {
-    await fsdb.collection('tenants').doc(tenantId).collection('parseExcelLocks').doc(uid).delete();
-  } catch (err) {
-    // Non-fatal: worst case is the TTL fallback clears it later.
-    console.error('parse-excel: failed to release concurrency lock', err);
-  }
-}
-
-// ---- ExcelJS -> CSV / rows conversion ---------------------------------------
-// ExcelJS has no direct sheet_to_csv or sheet_to_json(header:1) equivalent
-// — both are built here by hand, close enough to SheetJS's old output for
-// this app's two uses (feeding CSV text to Claude, and raw-array column
-// matching for LLP catalogues).
-function cellValue(cell) {
-  return unwrapCellValue(cell.value);
-}
-
-// Recursive unwrap so a formula cell's cached result (or a hyperlink's text,
-// or rich text) is resolved down to a primitive. Bug fix (2026-08-18, found
-// via a real workbook with un-cached cross-sheet formulas): a formula cell
-// with NO cached result (never recalculated by whatever last saved the
-// file, or errored) has no 'result'/'text'/'richText' key at all — falling
-// through to String(val) on the raw {formula:...} object produces the
-// literal text "[object Object]", which silently corrupted the CSV sent to
-// Claude and broke its JSON response. Any object shape we don't recognise
-// is now treated as blank, matching how SheetJS effectively behaved before
-// (it also only ever had a cached value to show, never a live recalculation).
-function unwrapCellValue(val) {
-  if (val === null || val === undefined) return '';
-  if (val instanceof Date) return val.toISOString();
-  if (typeof val === 'object') {
-    if (val.result !== undefined) return unwrapCellValue(val.result);   // formula cell with a cached result
-    if (val.text !== undefined) return unwrapCellValue(val.text);       // rich text / hyperlink
-    if (val.richText) return val.richText.map(rt => rt.text).join('');
-    return ''; // formula with no cached result, a formula error, or any other unrecognised shape — blank, never stringified
-  }
-  return typeof val === 'string' ? val : String(val);
-}
-
-function sheetToCsv(worksheet) {
-  checkSheetBounds(worksheet);
-  const rows = [];
-  worksheet.eachRow({ includeEmpty: true }, (row) => {
-    const cells = [];
-    for (let i = 1; i <= row.cellCount; i++) {
-      let val = String(cellValue(row.getCell(i)));
-      if (/[,\n"]/.test(val)) val = '"' + val.replace(/"/g, '""') + '"';
-      cells.push(val);
+    // Tenant-rooted completedEvents (second-reassessment-followup-scoping-
+    // handoff.md item 3, 2026-08-17). FIXES A LIVE BUG: this collection
+    // never had ANY rule anywhere in this file — not flat, not tenant-
+    // rooted — despite db.js's saveCompletedEvent/deleteCompletedEvent
+    // comments assuming an admin/editor gate already existed here "same as
+    // scheduledEvents/seasonalityProfile". Firestore's implicit default-
+    // deny silently blocked every client read and write as a result;
+    // confirmed broken in production by Alan 2026-08-17. This is the fix —
+    // matches the role gate db.js's own comments already assumed was live.
+    match /tenants/{tenantId}/completedEvents/{eventId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if memberHasRole(tenantId, ['admin', 'editor']);
     }
-    rows.push(cells.join(','));
-  });
-  return rows.join('\n');
-}
-
-// Matches SheetJS's sheet_to_json(sheet, {header:1, defval:''}) shape —
-// an array of arrays, one per row, no header mapping.
-function sheetToRows(worksheet) {
-  checkSheetBounds(worksheet);
-  const rows = [];
-  worksheet.eachRow({ includeEmpty: true }, (row) => {
-    const cells = [];
-    for (let i = 1; i <= row.cellCount; i++) {
-      cells.push(cellValue(row.getCell(i)));
+    // Financial reserve/lease data — writes restricted to admin/editor/
+    // dataEntry roles. "role" is the Firebase Auth custom claim already
+    // set by /api/bootstrap-admin and /api/set-role, and already read
+    // client-side via getIdTokenResult().claims.role. dataEntry is
+    // included here (not on scheduledEvents/seasonalityProfile below)
+    // because lease/reserve pot entry is explicitly part of the Data
+    // Entry role's job (raw inputs), per VECTORIQ_ROADMAP.md's four-role
+    // model — Viewer is deliberately excluded everywhere, since Viewer
+    // edits nothing permanent. Reads stay open to any signed-in user for
+    // now, matching every other collection below, pending the fuller
+    // Viewer/Editor/Admin read-scoping pass in Section 7.
+    //
+    // CLOSED (2026-08-17, second-reassessment-followup-scoping-handoff.md
+    // item 2): the tenant-rooted path above has been live and stable since
+    // mid-August. Documents remain in Firestore as a rollback copy — only
+    // access is denied, nothing was deleted.
+    match /leases/{leaseId} {
+      allow read, write: if false;
     }
-    rows.push(cells);
-  });
-  return rows;
-}
-
-module.exports = async (req, res) => {
-  const origin = req.headers.origin;
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
-
-  // ---- body size cap, checked as early as possible ------------------------
-  const contentLength = Number(req.headers['content-length']);
-  if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
-    return res.status(413).json({ error: 'File is too large.' });
-  }
-
-  // ---- auth: any signed-in TailiQ user with a recognised role -------------
-  const authHeader = req.headers.authorization || '';
-  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!idToken) {
-    return res.status(401).json({ error: 'Missing authentication token.' });
-  }
-
-  let app, decoded;
-  try {
-    app = getApp();
-  } catch (err) {
-    console.error('parse-excel: Firebase Admin init failed', err);
-    return res.status(500).json({ error: 'Server configuration error.' });
-  }
-  try {
-    decoded = await admin.auth(app).verifyIdToken(idToken, true);
-  } catch (err) {
-    return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
-  }
-  if (!VALID_ROLES.has(decoded.role)) {
-    return res.status(403).json({ error: 'Your account is not authorised to use this feature.' });
-  }
-
-  const tenantId = decoded.tenantId || FALLBACK_TENANT_ID;
-
-  const { file } = req.body || {};
-  if (!file || typeof file !== 'string') {
-    return res.status(400).json({ error: 'No file provided.' });
-  }
-
-  let buffer;
-  try {
-    buffer = Buffer.from(file, 'base64');
-  } catch (err) {
-    return res.status(400).json({ error: 'Could not decode the uploaded file.' });
-  }
-  if (buffer.length > MAX_BODY_BYTES) {
-    return res.status(413).json({ error: 'File is too large.' });
-  }
-
-  // ---- concurrency cap ------------------------------------------------------
-  let fsdb;
-  try {
-    fsdb = admin.firestore(app);
-  } catch (err) {
-    console.error('parse-excel: Firestore init failed', err);
-    return res.status(500).json({ error: 'Server configuration error.' });
-  }
-  let lockAcquired;
-  try {
-    lockAcquired = await acquireParseLock(fsdb, tenantId, decoded.uid);
-  } catch (err) {
-    console.error('parse-excel: concurrency lock check failed', err);
-    return res.status(500).json({ error: 'Server error while checking request status.' });
-  }
-  if (!lockAcquired) {
-    return res.status(429).json({
-      error: 'concurrent_limit',
-      message: 'A file is already being parsed. Please wait for it to complete.',
-    });
-  }
-
-  try {
-    // ZIP structure pre-check — rejects an oversized-once-decompressed or
-    // entry-flooded file before ExcelJS does the expensive full parse.
-    await checkZipStructure(buffer);
-
-    const workbook = new ExcelJS.Workbook();
-    await withTimeout(
-      workbook.xlsx.load(buffer),
-      PARSE_TIMEOUT_MS,
-      'This file took too long to parse and was rejected.'
-    );
-    checkWorksheetCount(workbook);
-    const sheets = workbook.worksheets.map(ws => ({
-      name: ws.name,
-      csv: sheetToCsv(ws),
-      rows: sheetToRows(ws),
-    }));
-    return res.status(200).json({ sheets });
-  } catch (err) {
-    if (err instanceof ExcelLimitError) {
-      return res.status(400).json({ error: err.message });
+    match /reserves/{reserveId} {
+      allow read, write: if false;
     }
-    console.error('parse-excel: failed to parse workbook', err);
-    return res.status(400).json({ error: 'Could not read this Excel file. It may be corrupted or an unsupported format.' });
-  } finally {
-    await releaseParseLock(fsdb, tenantId, decoded.uid);
+    // Core asset records — same role gate as above. Specs, engines, LLP
+    // sheets, and avionics listings are all written onto the asset doc
+    // via the Quick Import / Upload-tab extraction flows, which are part
+    // of Data Entry's raw-input job just as much as lease/reserve entry.
+    // The app's own UI still keeps manual field-editing in the Details
+    // tabs admin/editor-only (isAdmin) — this rule only governs the
+    // collection-level write, not which in-app flow produced it.
+    //
+    // CLOSED (2026-08-17, second-reassessment-followup-scoping-handoff.md
+    // item 2): this was the original C-01 cross-tenant bypass path — any
+    // signed-in user with a write role could reach any tenant's asset data
+    // through this flat path regardless of the tenant-rooted rule above.
+    // Now denied outright. Documents remain in Firestore as a rollback copy.
+    match /assets/{assetId} {
+      allow read, write: if false;
+    }
+    // Maintenance calendar overrides — admin/editor ONLY, deliberately
+    // NOT dataEntry. These feed the Calendar tab, which Data Entry never
+    // sees in the nav (VECTORIQ_ROADMAP.md §7a) — date, duration,
+    // downtime, and concurrency overrides stay financial-projection-
+    // shaping edits reserved for Admin/Editor. Doc id is the
+    // assetId_code_dueCycle identity key from Brain 6's own join.
+    //
+    // CLOSED (2026-08-17, second-reassessment-followup-scoping-handoff.md
+    // item 2). Documents remain in Firestore as a rollback copy.
+    match /scheduledEvents/{eventId} {
+      allow read, write: if false;
+    }
+    // One reviewed seasonality profile per asset (doc id = assetId),
+    // same role gate as scheduledEvents — Brain 6 reads this for
+    // placement suggestions. Also Calendar-tab-only, not dataEntry.
+    //
+    // CLOSED (2026-08-17, second-reassessment-followup-scoping-handoff.md
+    // item 2). Documents remain in Firestore as a rollback copy.
+    match /seasonalityProfile/{assetId} {
+      allow read, write: if false;
+    }
+    // Knowledge Base — house-view forecasting defaults (checkCostBands,
+    // enPrBandsByFamily, llpEscalationPctByFamily, outflowEscalationPct)
+    // plus the LLP Catalogue subcollection. Admin/Editor ONLY, deliberately
+    // NOT dataEntry (knowledge-base-scoping-handoff.md §4: "Only
+    // Admin/Editor roles can edit") — this is house-view assumption data,
+    // a different category from raw per-asset input. Reads open to any
+    // signed-in user, since Fly-Forward's read-only Assumptions panel is
+    // visible to Viewer too. Doc id is `${companyId}` per the scoping
+    // doc's shape; a literal "default" id is used pre-multi-tenancy (see
+    // db.js), same null-companyId-for-now pattern as every other
+    // collection here.
+    //
+    // CLOSED (2026-08-17, second-reassessment-followup-scoping-handoff.md
+    // item 2 — migrated and confirmed via migrate-3-collections-to-tenant.js
+    // the same day it was tenant-rooted). Documents remain in Firestore as
+    // a rollback copy.
+    match /knowledgeBase/{companyId} {
+      allow read, write: if false;
+      match /llpCatalogue/{partNumber} {
+        allow read, write: if false;
+      }
+    }
+    // Audit trail — appendable by any signed-in user (logAudit() fires
+    // alongside ordinary asset saves, not just admin actions), but
+    // genuinely immutable once written. There is no legitimate app path
+    // that ever updates or deletes a past entry — allowing it anyway
+    // would mean the log could be silently altered or erased after the
+    // fact, defeating its purpose.
+    //
+    // Phase 3 Session 7 (3D / M-03, security-remediation-roadmap.md):
+    // previously a signed-in user could create a doc here with ANY
+    // userId/userEmail/timestamp — impersonating another user or
+    // backdating an entry, since only request.auth != null was checked.
+    // Now every field is bound to the caller's own verified identity:
+    // userId/userEmail must match the caller's own auth token (can't log
+    // an action as someone else), timestamp must equal request.time
+    // (db.js now writes serverTimestamp() instead of a client-supplied ISO
+    // string, so this actually matches), and only the exact field set
+    // logAudit() ever writes is permitted — no extra fields smuggled in.
+    // `action` is free-text (see FlyForward.jsx's completed-event delete
+    // log, which composes a dynamic string) rather than a fixed enum — a
+    // strict allowlist isn't compatible with how this field is actually
+    // used across the app, so this constrains it to a non-empty string
+    // under a sane length cap instead, which closes the actual abuse case
+    // (arbitrary/oversized payload injection) without breaking legitimate
+    // descriptive messages.
+    // Item 8 (18 Aug review): auditLog was never tenant-rooted at all — any
+    // signed-in user from any tenant could read every tenant's audit trail
+    // via the flat rule below (writes were already identity-bound, Phase 3
+    // Session 7, but the collection itself sat at a flat, cross-tenant-
+    // readable path). Tenant-rooted here, carrying over the exact same
+    // identity/timestamp/field-set write binding from the flat rule
+    // (see the comment block above the old match, kept for context on WHY
+    // those checks exist). Read narrowed to admin only — the flat rule's
+    // "any signed-in user" read was itself part of the exposure, not just
+    // the missing tenant scoping, so this doesn't just carry that forward.
+    match /tenants/{tenantId}/auditLog/{entryId} {
+      allow read: if memberHasRole(tenantId, ['admin']);
+      allow create: if isActiveMember(tenantId)
+                     && request.resource.data.userId == request.auth.uid
+                     && request.resource.data.userEmail == request.auth.token.email
+                     && request.resource.data.timestamp == request.time
+                     && request.resource.data.action is string
+                     && request.resource.data.action.size() > 0
+                     && request.resource.data.action.size() <= 300
+                     && request.resource.data.keys().hasOnly(['userId', 'userEmail', 'timestamp', 'assetId', 'assetMSN', 'action']);
+      allow update, delete: if false;
+    }
+    // Flat auditLog — CLOSED (item 8, 18 Aug review), same rollback-copy
+    // pattern as the other flat collections denied above: documents remain
+    // in Firestore (migrated via scripts/migrate-auditlog-to-tenant.js, not
+    // deleted), only access is denied.
+    match /auditLog/{entryId} { allow read, write: if false; }
+    // Shop visit cost projections — append-only, same immutable-log
+    // pattern as auditLog. Create is deliberately open to any signed-in
+    // user, including Viewer, since a Viewer can trigger the monthly
+    // snapshot just by having the Financials tab open. Update/delete are
+    // blocked outright — every recompute writes a new doc rather than
+    // touching a prior one.
+    //
+    // CLOSED (2026-08-17, second-reassessment-followup-scoping-handoff.md
+    // item 2 — migrated and confirmed via migrate-3-collections-to-tenant.js
+    // the same day it was tenant-rooted). Documents remain in Firestore as
+    // a rollback copy.
+    match /shopVisitProjections/{docId} {
+      allow read, write: if false;
+    }
+    // completedEvents (flat path) — deliberately has NO rule here. This is
+    // not an oversight left in place: it's the documentation of a bug found
+    // and fixed 2026-08-17 (see the tenant-rooted completedEvents rule
+    // above). This collection never had a working rule at any path, flat
+    // or tenant-rooted, despite db.js's comments assuming one existed —
+    // Firestore's default-deny silently blocked every client read/write.
+    // No flat-path version ever worked, so unlike the other DEPRECATED
+    // collections above, there's no "rollback copy" to preserve here — the
+    // fix goes straight to the tenant-rooted path with no transitional
+    // flat rule at all. Left as an explicit `if false` below (rather than
+    // just omitting the match block) so a future reader sees this was a
+    // deliberate, documented decision, not an accidental gap re-emerging.
+    match /completedEvents/{eventId} {
+      allow read, write: if false;
+    }
+    // Tenant-rooted utilisation/pendingReports (Phase 3, Session 4). Same
+    // tenantId-scoped shape as the earlier tenant-rooted rules above, no
+    // role restriction (any active tenant member can write) — matches the
+    // permissive any-signed-in-user pattern on the flat rules below, just
+    // narrowed to the caller's own tenant. Write now uses isActiveMember
+    // (Phase 3 Session 6 — 3C / M-01) so a disabled/removed user's writes
+    // stop instantly rather than waiting on token expiry; read is unchanged.
+    match /tenants/{tenantId}/utilisation/{docId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if isActiveMember(tenantId);
+    }
+    match /tenants/{tenantId}/pendingReports/{docId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow write: if isActiveMember(tenantId);
+    }
+    // shareTokens (Phase 3, Session 5 — 3B / H-02). Reads stay open to any
+    // signed-in user in the tenant (the ShareModal UI lists existing tokens
+    // for an asset), but ALL writes are denied outright — creation and
+    // revocation now happen exclusively through api/share/create.js and
+    // api/share/revoke.js (Admin SDK, bypasses these rules entirely), which
+    // enforce admin/editor role and asset-ownership checks server-side
+    // before writing anything. This closes H-02: previously any signed-in
+    // user (including Viewer/DataEntry) could create a share link for any
+    // asset by writing directly to this collection from the browser.
+    // Item 4 (18 Aug review): reads were open to any signed-in tenant user,
+    // including Data Entry — shareTokens documents hold plaintext bearer
+    // tokens, and Data Entry has no legitimate reason to see the Share
+    // modal's token list. Narrowed to admin/editor/viewer.
+    match /tenants/{tenantId}/shareTokens/{token} {
+      allow read: if memberHasRole(tenantId, ['admin', 'editor', 'viewer']);
+      allow write: if false;
+    }
+    // Everything else — unchanged from before: any signed-in Firebase
+    // Auth user. Written as explicit per-collection matches rather than
+    // a single {document=**} wildcard, because Firestore rules are
+    // additive across matching blocks — a broad catch-all below the
+    // rules above would otherwise still independently grant broader
+    // access to those same documents, silently undoing the restrictions
+    // just added.
+    //
+    // CLOSED (2026-08-17, second-reassessment-followup-scoping-handoff.md
+    // item 2): utilisation, shareTokens, and pendingReports were the last
+    // three of the original eight flat rollback collections still open.
+    // Documents remain in Firestore as a rollback copy — only access is
+    // denied, nothing was deleted.
+    match /utilisation/{docId} { allow read, write: if false; }
+    match /shareTokens/{token} { allow read, write: if false; }
+    match /pendingReports/{docId} { allow read, write: if false; }
+    // Settings — Decision 4 (security-remediation-roadmap.md Phase 2A):
+    // writes restricted to admin/editor only, belt-and-braces alongside the
+    // output-escaping fix already shipped in Phase 2A (techSpecBuilder.js's
+    // escapeHtml()). Viewer and DataEntry excluded — this collection holds
+    // things like the tech-spec disclaimer text and branding toggle, which
+    // feed directly into the same HTML templates Phase 2A hardened; keeping
+    // write access no broader than the components that consume it is the
+    // point of "belt and braces" here. Not tenant-rooted (out of scope for
+    // this session — settings isn't asset-scoped the way the collections
+    // migrated so far are), so this uses the token role claim directly like
+    // the other still-flat collections in this file, rather than the
+    // tenantMembers-backed memberHasRole() helper.
+    match /settings/{key} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.token.role in ['admin', 'editor'];
+    }
   }
-};
+}
