@@ -9,6 +9,7 @@
 // client input.
 
 const admin = require('firebase-admin');
+const { writeAuditLog } = require('../_lib/auditLog');
 
 const ALLOWED_ORIGINS = [
   'https://vector-fleet.vercel.app',
@@ -87,7 +88,22 @@ module.exports = async (req, res) => {
       // whether a token exists under a different tenant.
       return res.status(200).json({ ok: true });
     }
-    await ref.set({ ...snap.data(), revoked: true });
+    const tokenData = snap.data();
+    await ref.set({ ...tokenData, revoked: true });
+
+    // Audit log — server-side privilege action (Session A, 19 Aug 2026).
+    // Non-fatal: a failed audit write should never block the revocation.
+    try {
+      await writeAuditLog(fs, decoded.tenantId, {
+        userId:    decoded.uid,
+        userEmail: decoded.email,
+        assetId:   tokenData.assetId || null,
+        action:    `Revoked share link for asset ${tokenData.assetId || 'unknown'}`,
+      });
+    } catch (auditErr) {
+      console.error('share/revoke: audit log write failed', auditErr);
+    }
+
     return res.status(200).json({ ok: true });
   } catch (e) {
     console.error('share/revoke: failed', e);

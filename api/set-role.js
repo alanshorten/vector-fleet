@@ -14,6 +14,7 @@
 const TENANT_ID = 'maverick';
 
 const admin = require('firebase-admin');
+const { writeAuditLog } = require('./_lib/auditLog');
 
 const ALLOWED_ORIGINS = [
   'https://vector-fleet.vercel.app',
@@ -110,6 +111,13 @@ module.exports = async (req, res) => {
   }
 
   try {
+    // Fetch the target user BEFORE overwriting claims, so we can capture the
+    // previous role for audit logging. This getUser call used to live after
+    // setCustomUserClaims (for the tenantMembers sync) — moved up so the old
+    // claims are still readable. The same targetUser object is reused below.
+    const targetUser = await auth.getUser(uid);
+    const oldRole = targetUser.customClaims?.role || 'none';
+
     await auth.setCustomUserClaims(uid, { role, tenantId: TENANT_ID });
     // Revoke existing refresh tokens so the change takes effect promptly —
     // without this, a signed-in user's cached ID token (and the role claim
@@ -125,7 +133,6 @@ module.exports = async (req, res) => {
     // rules-visible source of truth that doesn't wait on token refresh or
     // expiry the way the custom claim above does.
     try {
-      const targetUser = await auth.getUser(uid);
       const fs = admin.firestore(app);
       const ref = fs.collection('tenants').doc(TENANT_ID).collection('tenantMembers').doc(uid);
       const snap = await ref.get();
@@ -144,6 +151,19 @@ module.exports = async (req, res) => {
       // WRITE rules could lag behind this role change until it's retried,
       // which is logged for visibility rather than failing the whole request.
       console.error('set-role POST: tenantMembers sync failed', memberErr);
+    }
+
+    // Audit log — server-side privilege action (Session A, 19 Aug 2026).
+    // Non-fatal: a failed audit write should never block the role change itself.
+    try {
+      const fs = admin.firestore(app);
+      await writeAuditLog(fs, TENANT_ID, {
+        userId:    decoded.uid,
+        userEmail: decoded.email,
+        action:    `Changed role for ${targetUser.email || uid} from ${oldRole} to ${role}`,
+      });
+    } catch (auditErr) {
+      console.error('set-role POST: audit log write failed', auditErr);
     }
 
     return res.status(200).json({ ok: true });

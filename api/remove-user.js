@@ -13,6 +13,7 @@ const TENANT_ID = 'maverick';
 
 const admin = require('firebase-admin');
 const { maskEmail } = require('./_lib/logRedact');
+const { writeAuditLog } = require('./_lib/auditLog');
 
 const ALLOWED_ORIGINS = [
   'https://vector-fleet.vercel.app',
@@ -96,6 +97,18 @@ module.exports = async (req, res) => {
 
     await auth.deleteUser(uid);
     console.log(`remove-user: deleted ${maskEmail(userRecord.email)} (${uid}) by admin ${maskEmail(decoded.email)}`);
+
+    // Audit log — server-side privilege action (Session A, 19 Aug 2026).
+    // Non-fatal: a failed audit write should never block the removal itself.
+    try {
+      await writeAuditLog(admin.firestore(app), TENANT_ID, {
+        userId:    decoded.uid,
+        userEmail: decoded.email,
+        action:    `Removed user ${userRecord.email || uid}`,
+      });
+    } catch (auditErr) {
+      console.error('remove-user: audit log write failed', auditErr);
+    }
 
     // Phase 3 Session 6 (3C / M-01, Layer 2, Decision 2): remove the
     // corresponding tenantMembers doc too — the account is gone entirely,

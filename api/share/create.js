@@ -18,6 +18,7 @@
 
 const admin = require('firebase-admin');
 const crypto = require('crypto');
+const { writeAuditLog } = require('../_lib/auditLog');
 
 const ALLOWED_ORIGINS = [
   'https://vector-fleet.vercel.app',
@@ -111,6 +112,22 @@ module.exports = async (req, res) => {
     };
 
     await fs.collection('tenants').doc(decoded.tenantId).collection('shareTokens').doc(token).set(data);
+
+    // Audit log — server-side privilege action (Session A, 19 Aug 2026).
+    // Non-fatal: a failed audit write should never block the share creation.
+    try {
+      const actionParts = [`Created share link for asset ${assetId}`];
+      if (enginePosClean) actionParts[0] += ` engine ${enginePosClean}`;
+      await writeAuditLog(fs, decoded.tenantId, {
+        userId:    decoded.uid,
+        userEmail: decoded.email,
+        assetId:   String(assetId),
+        action:    actionParts[0],
+      });
+    } catch (auditErr) {
+      console.error('share/create: audit log write failed', auditErr);
+    }
+
     return res.status(200).json({ token, ...data });
   } catch (e) {
     console.error('share/create: failed', e);
