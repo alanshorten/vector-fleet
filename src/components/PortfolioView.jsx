@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ShareModal } from './AssetView';
 import { assetStatus, daysFromNow, assetEngineStockPhotoKey, airframeStockPhotoKey } from '../lib/assetHelpers';
 import { db } from '../lib/db';
@@ -114,7 +114,7 @@ function PortfolioView({assets, notify, onSelect}){
                       {[[`Eng 1${eng1?.sn?` · ${eng1.sn}`:""}`,ll1],[`Eng 2${eng2?.sn?` · ${eng2.sn}`:""}`,ll2],["APU",apuLL]].map(([label,val])=>(
                         <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:llpBg(val),borderRadius:6,padding:"7px 11px",border:`1px solid ${llpBorder(val)}`}}>
                           <span style={{fontSize:11,color:"var(--color-graphite)",fontWeight:600}}>{label}</span>
-                          <span style={{fontSize:13,fontWeight:800,color:llpCol(val),fontFamily:"monospace"}}>{val!==null?val.toLocaleString()+" FC":"No data"}</span>
+                          <span style={{fontSize:13,fontWeight:800,color:llpCol(val),fontFamily:"monospace"}}>{val!==null?val.toLocaleString()+" FC":"—"}</span>
                         </div>
                       ))}
                     </div>
@@ -785,7 +785,7 @@ function FleetCompletedEventsView({ assets, onSelectAsset }) {
             <div style={{ fontSize: 12, color: 'var(--color-graphite)' }}>{fmtDate(ev.confirmedAt)}</div>
             {/* Actual cost — muted if no cost data was entered (Dismiss path) */}
             <div style={{ fontSize: 13, fontWeight: 700, color: noCostData ? 'var(--color-graphite)' : 'var(--color-carbon)', fontFamily: 'monospace', fontStyle: noCostData ? 'italic' : 'normal' }}>
-              {noCostData ? 'No data' : fmtCost(actual)}
+              {noCostData ? '—' : fmtCost(actual)}
             </div>
             {/* Projected cost high */}
             <div style={{ fontSize: 12, color: 'var(--color-graphite)', fontFamily: 'monospace' }}>{fmtCost(projected)}</div>
@@ -827,6 +827,10 @@ function FleetCalendarView({ assets, onSelectAsset }) {
   const [loadError, setLoadError] = useState(null);
   const [showExcluded, setShowExcluded] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  // P2 Item 2 — default horizon toggle. Presentation-only: filters which
+  // events render, never mutates underlying data. Resets to the 5y
+  // default on every page load (not persisted per user, per spec).
+  const [horizonYears, setHorizonYears] = useState(5);
 
   useEffect(() => {
     let cancelled = false;
@@ -865,6 +869,13 @@ function FleetCalendarView({ assets, onSelectAsset }) {
   const partial = included.filter(a => a.partial);
   const noReserveSetup = included.filter(a => !a.partial && a.usedSyntheticPots);
   const events = included.flatMap(a => (a.events || []).map(e => ({ ...e, msn: a.msn, assetId: a.assetId })));
+  const horizonCutoff = useMemo(() => {
+    if (horizonYears === "all") return null;
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + horizonYears);
+    return d;
+  }, [horizonYears]);
+  const visibleEvents = horizonCutoff ? events.filter(e => e.date <= horizonCutoff) : events;
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease" }}>
@@ -910,9 +921,22 @@ function FleetCalendarView({ assets, onSelectAsset }) {
         )}
       </div>
 
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+        <div style={{ display: "flex", gap: 4, background: "var(--color-technical-grey)", border: "1px solid var(--color-divider)", padding: 3, borderRadius: 6 }}>
+          {[[5, "5y"], [10, "10y"], [15, "15y"], ["all", "All"]].map(([v, l]) => (
+            <button key={l} onClick={() => setHorizonYears(v)}
+              style={{ padding: "5px 12px", fontSize: 11, fontWeight: 700, borderRadius: 4, border: "none", cursor: "pointer", fontFamily: "inherit", background: horizonYears === v ? "var(--color-carbon)" : "transparent", color: horizonYears === v ? "var(--color-soft-white)" : "var(--color-graphite)", transition: "all 0.15s" }}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {events.length === 0
         ? <div className="card" style={{ padding: 24, textAlign: "center", color: "var(--color-graphite)" }}>No scheduled events across the fleet.</div>
-        : <MaintenanceCalendarGrid events={events}/>}
+        : visibleEvents.length === 0
+        ? <div className="card" style={{ padding: 24, textAlign: "center", color: "var(--color-graphite)" }}>No scheduled events within the selected horizon.</div>
+        : <MaintenanceCalendarGrid events={visibleEvents}/>}
 
       {/* Completed events panel — toggled via header button */}
       {showCompleted && (
@@ -966,7 +990,7 @@ function PandemicScenarioView({ assets }) {
 
   return (
     <div className="card" style={{ padding: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>Pandemic Scenario</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>Fleet Grounding</div>
       <div style={{ fontSize: 12, color: "var(--color-graphite)", marginBottom: 12 }}>
         Grounds the entire fleet from today for the selected period, combined with each asset's own real maintenance grounding — whichever grounds harder wins, downtime never stacks. Exploratory only; nothing here is saved.
       </div>
@@ -1306,22 +1330,38 @@ function ExtendedMaintenanceScenarioView({ assets }) {
 
 // Wrapper — groups all four new controls under one heading, sits
 // alongside PandemicScenarioView on the fleet Scenarios page.
-function FleetScenarioControls({ assets }) {
+// `group` selects which pair of structured controls to render, so the
+// caller (App.jsx) can place each pair under its own section-title
+// header — "Counterparty & Utilisation" (Lessee Default, Fleet-Wide
+// Utilisation) vs. "Maintenance & Cost" (Engine Cost Shock, Extended
+// Maintenance). Per P2 Item 4's grouping reframe. Omit `group` to render
+// all four as before (no header wrapping).
+function FleetScenarioControls({ assets, group }) {
   const { mode: layoutMode } = useLayoutMode();
   const paired = layoutMode === "landscape";
   const pairStyle = paired ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 16, alignItems: "stretch" } : undefined;
+  const showCounterparty = !group || group === "counterparty";
+  const showMaintenance = !group || group === "maintenance";
   return (
-    <div style={{ marginTop: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>Fleet Scenario Controls</div>
-      <div style={{ fontSize: 12, color: "var(--color-graphite)" }}>Four independent structured controls — each runs its own base-vs-scenario comparison. Not combined with each other or with the pandemic slider above.</div>
-      <div style={pairStyle}>
-        <LesseeDefaultScenarioView assets={assets}/>
-        <FleetUtilisationScenarioView assets={assets}/>
-      </div>
-      <div style={pairStyle}>
-        <EngineCostShockScenarioView assets={assets}/>
-        <ExtendedMaintenanceScenarioView assets={assets}/>
-      </div>
+    <div style={{ marginTop: group ? 0 : 16 }}>
+      {!group && (
+        <>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-carbon)", marginBottom: 4 }}>Fleet Scenario Controls</div>
+          <div style={{ fontSize: 12, color: "var(--color-graphite)" }}>Four independent structured controls — each runs its own base-vs-scenario comparison. Not combined with each other or with the pandemic slider above.</div>
+        </>
+      )}
+      {showCounterparty && (
+        <div style={pairStyle}>
+          <LesseeDefaultScenarioView assets={assets}/>
+          <FleetUtilisationScenarioView assets={assets}/>
+        </div>
+      )}
+      {showMaintenance && (
+        <div style={pairStyle}>
+          <EngineCostShockScenarioView assets={assets}/>
+          <ExtendedMaintenanceScenarioView assets={assets}/>
+        </div>
+      )}
     </div>
   );
 }

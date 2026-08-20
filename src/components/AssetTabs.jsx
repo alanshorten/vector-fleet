@@ -68,7 +68,7 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
     csn:asset.apu.currentFC,
   }:null;
   const componentBlocks=apuBlock?[...engineBlocks,apuBlock]:engineBlocks;
-  const lgItems=[["NLG",asset.landingGear?.nose],["LH",asset.landingGear?.left],["RH",asset.landingGear?.right]];
+  const lgItems=[["NLG",asset.landingGear?.nose],["LH MLG",asset.landingGear?.left],["RH MLG",asset.landingGear?.right]];
   // TECH_DEBT.md 4.80 — Check History must display in interval order
   // (2Y, 6Y, 12Y...), not raw insertion/array order. Parses the leading
   // number out of the check name (e.g. "2 Year Check" -> 2); anything
@@ -145,7 +145,7 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
                 <span style={{fontSize:12,color:"var(--color-graphite)"}}>Limiter</span>
                 <span style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12,fontFamily:"var(--font-data)",fontWeight:700,color:col}}>
                   <span style={{width:6,height:6,borderRadius:"50%",background:col,flexShrink:0}}/>
-                  {val!==null?`${val.toLocaleString()} FC`:"No data"}
+                  {val!==null?`${val.toLocaleString()} FC`:"—"}
                 </span>
               </div>
               <div className="flj" style={{padding:"3px 0"}}>
@@ -567,7 +567,7 @@ function EnginesTab({asset,isAdmin,saveAsset,notify,userRole}){
 
             </div>
             <div className="grid4" style={{marginBottom:14}}>
-              {[["TSN",fmtHHMM(eng.currentFH)],["CSN",(eng.currentFC||0).toLocaleString()],["FH/FC",eng.currentFH&&eng.currentFC?(eng.currentFH/eng.currentFC).toFixed(2):"—"],["Lowest LLP",ll!==null?`${ll.toLocaleString()} FC`:"No data"]].map(([l,v])=>(
+              {[["TSN",fmtHHMM(eng.currentFH)],["CSN",(eng.currentFC||0).toLocaleString()],["FH/FC",eng.currentFH&&eng.currentFC?(eng.currentFH/eng.currentFC).toFixed(2):"—"],["Lowest LLP",ll!==null?`${ll.toLocaleString()} FC`:"—"]].map(([l,v])=>(
                 <div key={l} style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
                   <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
                   <div style={{fontSize:14,fontWeight:700,fontFamily:"var(--font-data)",color:l==="Lowest LLP"?(ll===null?"var(--color-graphite)":ll<1000?"var(--color-critical)":ll<3000?"var(--color-attention)":"var(--color-positive)"):"var(--color-carbon)"}}>{v}</div>
@@ -832,7 +832,7 @@ function GearCard({title,gkey,asset,form,editing,isAdmin,set,setForm,af}){
           </div>
           <div style={{textAlign:"center"}}>
             <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Cycles ({editing&&isAdmin?<input type="number" value={intervalCycles} onChange={e=>set("landingGear."+gkey+".overhaulIntervalCycles",e.target.value===""?20000:+e.target.value)} style={{width:48,fontSize:9,padding:"1px 2px"}}/>:intervalCycles.toLocaleString()})</div>
-            <div style={{fontSize:17,fontWeight:700,fontFamily:"var(--font-data)",color:cycStatus?statusColor[cycStatus]:"var(--color-graphite)",marginTop:2}}>{cyclesRemaining!==null?Math.round(cyclesRemaining).toLocaleString():"No data"}</div>
+            <div style={{fontSize:17,fontWeight:700,fontFamily:"var(--font-data)",color:cycStatus?statusColor[cycStatus]:"var(--color-graphite)",marginTop:2}}>{cyclesRemaining!==null?Math.round(cyclesRemaining).toLocaleString():"—"}</div>
             {cyclesRemaining!==null&&<div style={{fontSize:9,color:"var(--color-graphite)"}}>cycles remaining</div>}
           </div>
         </div>
@@ -960,7 +960,7 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
         </div>
         <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
           <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Lowest LLP Limiter</div>
-          <div style={{fontSize:14,fontWeight:700,color:ll===null?"var(--color-graphite)":ll<1000?"var(--color-critical)":ll<3000?"var(--color-attention)":"var(--color-positive)",fontFamily:"var(--font-data)"}}>{ll!==null?ll.toLocaleString()+" FC":"No data"}</div>
+          <div style={{fontSize:14,fontWeight:700,color:ll===null?"var(--color-graphite)":ll<1000?"var(--color-critical)":ll<3000?"var(--color-attention)":"var(--color-positive)",fontFamily:"var(--font-data)"}}>{ll!==null?ll.toLocaleString()+" FC":"—"}</div>
         </div>
         </div>
         </div>

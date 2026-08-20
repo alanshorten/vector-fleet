@@ -186,6 +186,15 @@ function AppInner(){
   const[notification,setNotification]=useState(null);
   const { mode: layoutMode } = useLayoutMode();
 
+  // P1 — scroll reset on route navigation. Previously scroll position
+  // carried over from whatever the previous view/tab left it at (e.g.
+  // landing mid-page inside an asset after scrolling down the fleet
+  // table). Reset to top on any top-level view change, asset selection,
+  // or asset-level tab (Details/Calendar/Financials/Scenarios) change.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [view, selectedId, assetLayer]);
+
   // Reuse the existing ~900px breakpoint from layoutMode.js — "portrait" maps to
   // mobile/narrow, "landscape" to desktop/wide. Hamburger content differs by this.
   const isMobile = layoutMode === "portrait";
@@ -450,11 +459,13 @@ function AppInner(){
         {view==="fleetcalendar"&&canSeeAdvanced&&<FleetCalendarView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>}
         {view==="fleetscenarios"&&canSeeAdvanced&&(
           <>
-            <div style={layoutMode==="landscape" ? {display:"grid",gridTemplateColumns:"1fr 1fr",columnGap:16,alignItems:"stretch"} : undefined}>
-              <RouteMatcherView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>
-              <PandemicScenarioView assets={liveAssets}/>
-            </div>
-            <FleetScenarioControls assets={liveAssets}/>
+            <RouteMatcherView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>
+            <div className="section-title" style={{marginTop:16}}>Operational Disruption</div>
+            <PandemicScenarioView assets={liveAssets}/>
+            <div className="section-title" style={{marginTop:16}}>Counterparty & Utilisation</div>
+            <FleetScenarioControls assets={liveAssets} group="counterparty"/>
+            <div className="section-title" style={{marginTop:16}}>Maintenance & Cost</div>
+            <FleetScenarioControls assets={liveAssets} group="maintenance"/>
           </>
         )}
         {view==="prospects"&&<ProspectListView assets={prospectAssets} saveAsset={saveAsset} notify={notify} userRole={userRole} onSelect={id=>{setSelectedId(id);setView("prospect-editor");}} loadAssets={loadAssets}/>}
