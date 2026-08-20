@@ -107,33 +107,33 @@ function GuideView({userRole}){
   return(
     <div style={{maxWidth:920,margin:"0 auto",animation:"fadeIn 0.2s ease"}}>
       <div style={{marginBottom:24}}>
-        <h1 style={{fontSize:22,color:"#C9A84C",fontWeight:700}}>User Guide</h1>
-        <p style={{color:"#5a7a9a",fontSize:13,marginTop:4}}>TailiQ Fleet Intelligence — Complete Reference</p>
+        <h1 style={{fontSize:22,color:"var(--color-carbon)",fontWeight:700}}>User Guide</h1>
+        <p style={{color:"var(--color-graphite)",fontSize:13,marginTop:4}}>TailiQ Fleet Intelligence — Complete Reference</p>
       </div>
       {sections.slice(0,-3).map((s,si)=>(
         <div key={si} className="card" style={{padding:24,marginBottom:14}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,paddingBottom:12,borderBottom:"1px solid #1e3348"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,paddingBottom:12,borderBottom:"1px solid var(--color-divider)"}}>
             <span style={{fontSize:22}}>{s.icon}</span>
-            <h2 style={{fontSize:13,fontWeight:700,color:"#e2e8f0",textTransform:"uppercase",letterSpacing:"0.07em"}}>{s.title}</h2>
+            <h2 style={{fontSize:13,fontWeight:700,color:"var(--color-carbon)",textTransform:"uppercase",letterSpacing:"0.07em"}}>{s.title}</h2>
           </div>
           {s.content.map(([label,text],i)=>(
-            <div key={i} style={{marginBottom:14,paddingBottom:14,borderBottom:i<s.content.length-1?"1px solid #152030":"none"}}>
-              <div style={{fontSize:12,fontWeight:700,color:"#C9A84C",marginBottom:4}}>{label}</div>
-              <div style={{fontSize:13,color:"#7a9ab5",lineHeight:1.65}}>{text}</div>
+            <div key={i} style={{marginBottom:14,paddingBottom:14,borderBottom:i<s.content.length-1?"1px solid var(--color-divider-inner)":"none"}}>
+              <div style={{fontSize:12,fontWeight:700,color:"var(--color-teal)",marginBottom:4}}>{label}</div>
+              <div style={{fontSize:13,color:"var(--color-graphite)",lineHeight:1.65}}>{text}</div>
             </div>
           ))}
         </div>
       ))}
       {canSeeAdminSections&&sections.slice(-3).map((s,si)=>(
         <div key={`admin-${si}`} className="card" style={{padding:24,marginBottom:14}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,paddingBottom:12,borderBottom:"1px solid #1e3348"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,paddingBottom:12,borderBottom:"1px solid var(--color-divider)"}}>
             <span style={{fontSize:22}}>{s.icon}</span>
-            <h2 style={{fontSize:13,fontWeight:700,color:"#e2e8f0",textTransform:"uppercase",letterSpacing:"0.07em"}}>{s.title}</h2>
+            <h2 style={{fontSize:13,fontWeight:700,color:"var(--color-carbon)",textTransform:"uppercase",letterSpacing:"0.07em"}}>{s.title}</h2>
           </div>
           {s.content.map(([label,text],i)=>(
-            <div key={i} style={{marginBottom:14,paddingBottom:14,borderBottom:i<s.content.length-1?"1px solid #152030":"none"}}>
-              <div style={{fontSize:12,fontWeight:700,color:"#C9A84C",marginBottom:4}}>{label}</div>
-              <div style={{fontSize:13,color:"#7a9ab5",lineHeight:1.65}}>{text}</div>
+            <div key={i} style={{marginBottom:14,paddingBottom:14,borderBottom:i<s.content.length-1?"1px solid var(--color-divider-inner)":"none"}}>
+              <div style={{fontSize:12,fontWeight:700,color:"var(--color-teal)",marginBottom:4}}>{label}</div>
+              <div style={{fontSize:13,color:"var(--color-graphite)",lineHeight:1.65}}>{text}</div>
             </div>
           ))}
         </div>
