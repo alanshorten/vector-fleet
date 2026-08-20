@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ShareModal } from './AssetView';
 import { assetStatus, daysFromNow, assetEngineStockPhotoKey, airframeStockPhotoKey } from '../lib/assetHelpers';
 import { db } from '../lib/db';
@@ -869,12 +869,15 @@ function FleetCalendarView({ assets, onSelectAsset }) {
   const partial = included.filter(a => a.partial);
   const noReserveSetup = included.filter(a => !a.partial && a.usedSyntheticPots);
   const events = included.flatMap(a => (a.events || []).map(e => ({ ...e, msn: a.msn, assetId: a.assetId })));
-  const horizonCutoff = useMemo(() => {
-    if (horizonYears === "all") return null;
-    const d = new Date();
-    d.setFullYear(d.getFullYear() + horizonYears);
-    return d;
-  }, [horizonYears]);
+  // Plain computed value, not a hook — this function already has early
+  // returns above (loading/error states) before this point in the
+  // component, so a useMemo/useState call here would violate the Rules
+  // of Hooks (conditional hook call -> React error #310, blank page).
+  let horizonCutoff = null;
+  if (horizonYears !== "all") {
+    horizonCutoff = new Date();
+    horizonCutoff.setFullYear(horizonCutoff.getFullYear() + horizonYears);
+  }
   const visibleEvents = horizonCutoff ? events.filter(e => e.date <= horizonCutoff) : events;
 
   return (

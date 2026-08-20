@@ -474,18 +474,22 @@ ${(()=>{
     else if(hasRefPair){curFC=g.refLegFC+((af.currentFC||0)-g.refAirframeFC);curFH=(g.refLegFH||0)+((af.currentFH||0)-(g.refAirframeFH||0));}
     const intervalCycles=g?.overhaulIntervalCycles||20000;
     const cycRem=(g?.lastOverhaulFC!=null&&curFC!=null)?(g.lastOverhaulFC+intervalCycles)-curFC:null;
-    const tsnVal=curFH!=null?`<span style="font-family:IBM Plex Mono,monospace">${fmtHHMM(curFH)} FH</span>`:"—";
-    const csnVal=curFC!=null?`<span style="font-family:IBM Plex Mono,monospace">${Math.round(curFC).toLocaleString()} FC</span>`:"—";
-    const lkv=(l,v)=>`<tr><td style="border:none;border-bottom:1px solid #E8E7E2;padding:4px 0;font-size:9.5px;color:#687078;font-weight:600;width:42%;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #E8E7E2;padding:4px 0;font-size:10px;color:#151A1D;font-weight:600;vertical-align:top;word-break:normal;overflow-wrap:anywhere">${escapeHtml(v)}</td></tr>`;
+    const tsnVal=curFH!=null?`${fmtHHMM(curFH)} FH`:"—";
+    const csnVal=curFC!=null?`${Math.round(curFC).toLocaleString()} FC`:"—";
+    // `style` is applied to the value <td> itself, not embedded in `v` —
+    // `v` always stays plain text so escapeHtml(v) below is a real escape,
+    // not a double-escape of pre-built HTML (that bug turned TSN/CSN into
+    // visible raw `<span>` tags in the rendered spec).
+    const lkv=(l,v,style)=>`<tr><td style="border:none;border-bottom:1px solid #E8E7E2;padding:4px 0;font-size:9.5px;color:#687078;font-weight:600;width:42%;vertical-align:top">${l}</td><td style="border:none;border-bottom:1px solid #E8E7E2;padding:4px 0;font-size:10px;color:#151A1D;font-weight:600;vertical-align:top;word-break:normal;overflow-wrap:anywhere${style?`;${style}`:""}">${escapeHtml(v)}</td></tr>`;
     const rows=g?`<table class="kv" width="100%" cellpadding="0" cellspacing="0">
       ${lkv("Part No.",g.pn||"—")}
       ${lkv("Serial No.",g.sn||"—")}
       ${lkv("Manufacturer",g.mfr||"—")}
-      ${lkv("TSN",tsnVal)}
-      ${lkv("CSN",csnVal)}
+      ${lkv("TSN",tsnVal,"font-family:IBM Plex Mono,monospace")}
+      ${lkv("CSN",csnVal,"font-family:IBM Plex Mono,monospace")}
       ${lkv("Next OH Due",lgFmtDate(g.nextDue)||(cycRem!==null?Math.round(cycRem).toLocaleString()+" cyc rem":"—"))}
       ${lkv("Last OH Date",lgFmtDate(g.lastOverhaulDate)||"—")}
-    </table>`:`<div style="color:#687078;font-size:10px">No data</div>`;
+    </table>`:`<div style="color:#687078;font-size:10px">—</div>`;
     return`<td style="${lgCS}"><div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#687078;margin-bottom:8px">${title}</div>${rows}</td>`;
   };
   return col3(lgCol(lg.nose,"Nose Gear"),lgCol(lg.left,"LH Main Gear"),lgCol(lg.right,"RH Main Gear"));
