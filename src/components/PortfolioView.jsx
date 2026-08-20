@@ -146,9 +146,9 @@ function PortfolioView({assets, notify, onSelect}){
                         onClick={e=>{e.stopPropagation();setShareOpenId(a.id);}}>
                         🔗 Share
                       </button>
-                      <button style={{background:"var(--color-ochre)",color:"var(--color-carbon)",border:"none",borderRadius:7,padding:"8px 16px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:"0.03em",transition:"all 0.15s"}}
-                        onMouseEnter={e=>e.currentTarget.style.background="var(--color-ochre-hover)"}
-                        onMouseLeave={e=>e.currentTarget.style.background="var(--color-ochre)"}
+                      <button style={{background:"var(--color-teal)",color:"var(--color-soft-white)",border:"none",borderRadius:7,padding:"8px 16px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:"0.03em",transition:"all 0.15s"}}
+                        onMouseEnter={e=>e.currentTarget.style.background="#274B54"}
+                        onMouseLeave={e=>e.currentTarget.style.background="var(--color-teal)"}
                         onClick={async e=>{
                           e.stopPropagation();
                           const photoKey=assetEngineStockPhotoKey(a);
