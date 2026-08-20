@@ -1106,14 +1106,14 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
               <FFPotCard projection={p} color={colorList[i % colorList.length]} anchored={!!anchoredPot?.firstEventOverrideDate}/>
               {potFinding && (
                 <div style={{ marginTop: -8, marginBottom: 14, paddingLeft: 4 }}>
-                  <FindingTriageControl finding={potFinding} userRole={userRole} onChanged={refreshFindings}/>
+                  <FindingTriageControl finding={potFinding} userRole={userRole} onChanged={refreshFindings} notify={notify}/>
                 </div>
               )}
             </div>
           );
         })}
       </div>
-      <AcceptedPositionsSection assetId={asset.id} userRole={userRole}/>
+      <AcceptedPositionsSection findings={assetFindings.filter(f => f.status === "accepted")}/>
     </div>
   );
 };

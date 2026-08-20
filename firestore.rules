@@ -220,7 +220,13 @@ service cloud.firestore {
     //       trail (handoff: "the original acceptance decision stays in the
     //       finding's audit trail").
     //
-    // Delete: never — same permanent-record posture as auditLog.
+    // Delete: admin-only manual cleanup escape hatch (revised 20 Aug 2026
+    // — originally "never", same posture as auditLog, but a live duplicate-
+    // finding bug during testing left bad records with no way to remove
+    // them since the collection had no delete path at all). Same narrow
+    // pattern as completedEvents' deleteCompletedEvent: findings otherwise
+    // stay append-only/system-managed; this is only for clearing out
+    // mis-created or test data, not routine use.
     function findingSystemUpdate(tenantId) {
       let before = resource.data;
       let after = request.resource.data;
@@ -244,7 +250,7 @@ service cloud.firestore {
                     && request.resource.data.statusChangedAt == request.time
                     && request.resource.data.statusChangedBy == request.auth.uid;
       allow update: if memberHasRole(tenantId, ['admin', 'editor']) || findingSystemUpdate(tenantId);
-      allow delete: if false;
+      allow delete: if memberHasRole(tenantId, ['admin']);
     }
     // Financial reserve/lease data — writes restricted to admin/editor/
     // dataEntry roles. "role" is the Firebase Auth custom claim already

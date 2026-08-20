@@ -1006,6 +1006,22 @@ const db = {
 
       for (const action of result.findingActions) {
         if (action.action === "create") {
+          // Idempotency guard (20 Aug 2026 fix — live-tested: repeatedly
+          // opening the same asset's Financials tab was creating a fresh
+          // duplicate "New" finding every time instead of recognising the
+          // one already open). This check is independent of and stricter
+          // than findingsEngine.js's own reference-band bookkeeping — it
+          // skips the create outright if ANY non-resolved finding already
+          // exists for this exact asset/pot/type/band combination,
+          // regardless of why the engine thought a fresh one was needed.
+          // Belt-and-suspenders: even if the engine-side matching has (or
+          // develops) an edge case, this can't produce a duplicate.
+          const duplicate = openFindings.some(f =>
+            f.type === action.type &&
+            (f.source?.pot || null) === (action.pot || null) &&
+            f.bandAtCreation === action.bandAtCreation
+          );
+          if (duplicate) continue;
           await this.createFinding(asset.id, action);
         } else if (action.action === "resolve") {
           await this.resolveFinding(action.findingId, action.reason);

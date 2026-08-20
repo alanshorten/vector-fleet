@@ -108,13 +108,16 @@ function FleetFindingsCards({ assets, onOpenFinding }) {
 // asset's own Financials tab. Visible to every role including Viewer
 // (transparency, not a call to action) — deliberately muted, no red/amber
 // urgency colours.
-function AcceptedPositionsSection({ assetId, userRole }) {
-  const [findings, setFindings] = useState([]);
-
-  const refresh = () => db.getAssetFindings(assetId).then(all => setFindings(all.filter(f => f.status === "accepted"))).catch(() => {});
-  useEffect(() => { refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [assetId]);
-
-  if (!findings.length) return null;
+// Takes findings as a prop rather than fetching independently — it and
+// FindingTriageControl below both need to reflect the SAME accept action
+// immediately, so FlyForward owns one shared `assetFindings` list (via
+// refreshFindings()) and passes the accepted slice down here. An earlier
+// version fetched its own copy and never learned about an accept that
+// just happened elsewhere on the same page (20 Aug 2026 live-test fix —
+// "accepted the position but... not showing on the financials tab as
+// accepted").
+function AcceptedPositionsSection({ findings }) {
+  if (!findings || !findings.length) return null;
 
   return (
     <div className="card" style={{ padding: 16, marginBottom: 16 }}>
@@ -142,7 +145,7 @@ function AcceptedPositionsSection({ assetId, userRole }) {
 // the handoff's row spec), but Editor/Admin need SOME way to accept a
 // finding. Kept minimal: a small inline control FlyForward can render next
 // to a pot card when that pot has an open (non-accepted) finding.
-function FindingTriageControl({ finding, userRole, onChanged }) {
+function FindingTriageControl({ finding, userRole, onChanged, notify }) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const canTriage = userRole === "admin" || userRole === "editor";
@@ -153,6 +156,12 @@ function FindingTriageControl({ finding, userRole, onChanged }) {
     try {
       await db.acceptFinding(finding.id, finding.bandAtCreation, note || null);
       onChanged && onChanged();
+    } catch (e) {
+      // 20 Aug 2026 live-test fix — a failed accept (e.g. a permission
+      // issue) used to fail silently: the control just stayed put with no
+      // explanation, looking like the click did nothing.
+      if (notify) notify("Failed to accept: " + (e.message || "please try again"), "error");
+      else console.warn("Failed to accept finding:", e);
     } finally {
       setBusy(false);
     }
