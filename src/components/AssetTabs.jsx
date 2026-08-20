@@ -99,7 +99,9 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
           <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--color-divider-inner)"}}>
             <div style={{fontSize:10,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase",marginBottom:8}}>Current Airframe</div>
             <div className="grid2" style={{gap:8}}>
-              {[["AIRFRAME TSN",fmtHHMM(af.currentFH)],["AIRFRAME CSN",af.currentFC?.toLocaleString()||"—"]].map(([l,v])=>(
+              {/* Alan, 20 Aug 2026: same 0-as-empty convention as elsewhere — an
+                  unentered airframe carries currentFH/currentFC as 0, not null. */}
+              {[["AIRFRAME TSN",af.currentFH?fmtHHMM(af.currentFH):"—"],["AIRFRAME CSN",af.currentFC?af.currentFC.toLocaleString():"—"]].map(([l,v])=>(
                 <div key={l} style={{background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:8,padding:"12px 14px"}}>
                   <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
                   <div style={{fontSize:20,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)",marginTop:4}}>{v}</div>

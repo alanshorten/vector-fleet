@@ -99,7 +99,9 @@ function PortfolioView({assets, notify, onSelect}){
 
                   {/* Airframe */}
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
-                    {[["Airframe TSN",fmtHHMM(af.currentFH)],["Airframe CSN",(af.currentFC||0).toLocaleString()]].map(([l,v])=>(
+                    {/* Alan, 20 Aug 2026: same 0-as-empty convention as the engine/APU
+                        fixes — an unentered airframe carries currentFH/currentFC as 0. */}
+                    {[["Airframe TSN",af.currentFH?fmtHHMM(af.currentFH):"—"],["Airframe CSN",af.currentFC?af.currentFC.toLocaleString():"—"]].map(([l,v])=>(
                       <div key={l} style={{background:"var(--color-technical-grey)",borderRadius:8,padding:"10px 12px",border:"1px solid var(--color-divider)"}}>
                         <div style={{fontSize:9,color:"var(--color-graphite)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3}}>{l}</div>
                         <div style={{fontSize:18,fontWeight:800,color:"var(--color-carbon)",fontFamily:"monospace"}}>{v}</div>
@@ -128,7 +130,7 @@ function PortfolioView({assets, notify, onSelect}){
                         <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:dateBg(days),borderRadius:6,padding:"7px 11px",border:`1px solid ${dateBorder(days)}`}}>
                           <span style={{fontSize:11,color:"var(--color-graphite)",fontWeight:600}}>{label}</span>
                           <div style={{textAlign:"right"}}>
-                            <div style={{fontSize:12,fontWeight:700,color:dateCol(days)}}>{date?fmtDate(date):"Not entered"}</div>
+                            <div style={{fontSize:12,fontWeight:700,color:dateCol(days)}}>{date?fmtDate(date):"—"}</div>
                             {days!==null&&<div style={{fontSize:10,color:dateCol(days),opacity:0.8}}>{days<0?`${Math.abs(days)}d overdue`:days===0?"Today":`${days}d`}</div>}
                           </div>
                         </div>

@@ -138,8 +138,8 @@ function Dashboard({assets,onSelect,saveAsset,notify}){
                   <td style={{fontWeight:600}}>{a.registration||"—"}</td>
                   <td><span style={{color:"var(--color-graphite)"}}>{a.model||"—"}</span>{isCFM(a)?<span className="tag" style={{background:"var(--color-teal-tint)",color:"var(--color-teal)",marginLeft:5}}>CFM</span>:<span className="tag" style={{background:"var(--color-divider-inner)",color:"var(--color-graphite)",marginLeft:5}}>V2500</span>}</td>
                   <td style={{color:"var(--color-graphite)"}}>{a.operator||"—"}</td>
-                  <td style={{fontFamily:"var(--font-data)"}}>{fmtHHMM(af.currentFH)}</td>
-                  <td style={{fontFamily:"var(--font-data)"}}>{af.currentFC?.toLocaleString()||"—"}</td>
+                  <td style={{fontFamily:"var(--font-data)"}}>{af.currentFH?fmtHHMM(af.currentFH):"—"}</td>
+                  <td style={{fontFamily:"var(--font-data)"}}>{af.currentFC?af.currentFC.toLocaleString():"—"}</td>
                   <LLPCell eng={a.engines?.[0]}/><LLPCell eng={a.engines?.[1]}/><APUCell apu={a.apu}/>
                   <LGCell g={a.landingGear?.nose}/><LGCell g={a.landingGear?.left}/><LGCell g={a.landingGear?.right}/>
                   <td style={{fontSize:11,color:a._lastPeriod?"var(--color-graphite)":"var(--color-critical)"}}>{a._lastPeriod||"No report"}</td>
@@ -168,7 +168,7 @@ function Dashboard({assets,onSelect,saveAsset,notify}){
                 <div style={{width:10,height:10,borderRadius:"50%",background:SC[st].dot}}/>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px",marginBottom:10}}>
-                {[["AF TSN",fmtHHMM(af.currentFH)],["AF CSN",af.currentFC?.toLocaleString()||"—"]].map(([l,v])=>(
+                {[["AF TSN",af.currentFH?fmtHHMM(af.currentFH):"—"],["AF CSN",af.currentFC?af.currentFC.toLocaleString():"—"]].map(([l,v])=>(
                   <div key={l}><div style={{fontSize:9,color:"var(--color-graphite)",fontWeight:700,textTransform:"uppercase"}}>{l}</div><div style={{fontSize:13,fontWeight:700,color:"var(--color-carbon)",fontFamily:"var(--font-data)"}}>{v}</div></div>
                 ))}
               </div>
