@@ -3,6 +3,7 @@ import { BulkLeaseImport } from './BulkLeaseImport';
 import { APU_LLP_PROMPT, ENGINE_LLP_PROMPT, parseHHMM } from '../lib/assetHelpers';
 import { db } from '../lib/db';
 import { extractFetch, fileToBase64, parseExcelFetch } from '../lib/extraction';
+import { computeAndSyncFindingsForAsset } from '../lib/findingsSync';
 
 function EngineSNAction({change,prevEngines,mergedAsset,saveAsset,notify}){
   const[mode,setMode]=useState(null); // null | "atshop" | "resolved"
@@ -276,6 +277,15 @@ const extract=async()=>{
 
       await saveAsset(result.mergedAsset,"Confirmed utilisation report");
       await db.saveUtilisation(result.utilisationRecord);
+
+      // Fleet Findings sync (20 Aug 2026) — utilisation is the dominant
+      // real-world driver of a pot's shortfall band moving, per Alan's
+      // confirmation, so this is wired directly into the save that
+      // actually changes the numbers rather than waiting for someone to
+      // separately open this asset's Financials tab. Fire-and-forget:
+      // never awaited, never throws (see findingsSync.js) — must not
+      // slow down or block this save.
+      computeAndSyncFindingsForAsset(result.mergedAsset);
 
       if(result.isNewAsset){
         setDone(true);notify(`MSN ${msn} created from ${d.month_year} report`);return;

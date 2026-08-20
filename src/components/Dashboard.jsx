@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { SC, assetStatus, daysFromNow, isCFM } from '../lib/assetHelpers';
 import { db } from '../lib/db';
 import { FleetFindingsCards } from './Findings';
+import { computeAndSyncFindingsForAsset } from '../lib/findingsSync';
 
 function ReviewQueueBanner({saveAsset,notify}){
   const[pending,setPending]=useState([]);
@@ -15,6 +16,10 @@ function ReviewQueueBanner({saveAsset,notify}){
     try{
       await saveAsset(p.mergedAsset,"Applied email report");
       await db.saveUtilisation(p.utilisationRecord);
+      // Fleet Findings sync (20 Aug 2026) — same utilisation-triggered
+      // wiring as UploadView.jsx's confirmSave; fire-and-forget, never
+      // throws (see findingsSync.js).
+      computeAndSyncFindingsForAsset(p.mergedAsset);
       await db.deletePendingReport(p.id);
       notify(`MSN ${p.msn} applied from ${p.period||"report"}`);
       await refresh();

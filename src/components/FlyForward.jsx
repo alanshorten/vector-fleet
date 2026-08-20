@@ -3,11 +3,12 @@ import { PotNumInput } from './AssetView';
 import { LeaseWizard } from './LeaseWizard';
 import { isCFM } from '../lib/assetHelpers';
 import { db, logAudit } from '../lib/db';
-import { FF_COLORS, buildAssetMaintenanceCalendar, buildFlyForwardProjection } from '../lib/flyForwardHelpers';
+import { FF_COLORS, buildAssetMaintenanceCalendar, buildFlyForwardProjection, computeEngineEOLResults, summariseAssetEOLPosition } from '../lib/flyForwardHelpers';
 import { buildPotDefsForActivation } from '../lib/pots';
 import { useLayoutMode } from '../lib/layoutMode';
 import { getEndOfLeaseTermsDefaults } from '../lib/knowledgeBase';
 import { AcceptedPositionsSection, FindingTriageControl } from './Findings';
+import { syncFindingsFromAssembled } from '../lib/findingsSync';
 
 const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -502,55 +503,11 @@ function AssumptionsPanel({ engineFamily }) {
 // specific part isn't on it, D stays null and the part correctly comes
 // back uncomputable with "no TAC on file" — eol-position-session-
 // handoff.md §4a: "that's expected, not a bug" for any lease predating 4b.
-function buildEOLMoneyInputs(eng, { rate, expiryDate, engineFamily, projections, bDenominatorPct, escalationPctPerYr, direction, tacSnapshot }) {
-  const monthsToExpiry = Math.max(0, window.monthsBetween(new Date(), expiryDate));
-  const cyclesToExpiry = (rate?.fcPerMonth || 0) * monthsToExpiry;
-
-  const tacEngine = tacSnapshot?.engines?.find(e => e.position === eng.position);
-
-  const engineParts = (eng.llps || [])
-    .filter(l => l.approvedLife !== null && l.approvedLife !== undefined)
-    .map(l => {
-      const tacPart = tacEngine?.llps?.find(p => p.sn === l.sn);
-      return {
-        pn: l.pn,
-        sn: l.sn,
-        desc: l.desc,
-        approvedLife: l.approvedLife,
-        catalogPriceToday: window.lookupLLPCataloguePrice ? window.lookupLLPCataloguePrice(l.pn, engineFamily) : null,
-        // See file-header comment — null until this part is found on a
-        // saved TAC snapshot for this lease.
-        deliveryBaselineFC: (tacPart && tacPart.deliveryBaselineFC !== undefined) ? tacPart.deliveryBaselineFC : null
-      };
-    });
-
-  const currentFCAtExpiry = (eng.currentFC || 0) + cyclesToExpiry;
-
-  const enLpProjection = (projections || []).find(p => p.code === `EN-LP-${eng.position}`);
-  const potBalanceAtExpiry = enLpProjection?.monthlySeries?.length
-    ? enLpProjection.monthlySeries[enLpProjection.monthlySeries.length - 1].balance
-    : 0;
-
-  return {
-    engineParts,
-    moneyCtx: {
-      currentFCAtExpiry,
-      escalationPctPerYr,
-      // endOfLeasePosition.js's escalateAnnualFn is called positionally
-      // as (price, todayDate, expiryDate, pct) — but window.escalateAnnual's
-      // real signature (see flyForwardHelpers.js's anchorReservePots, which
-      // calls it as (base, baseYear, targetDate, pct)) takes a base YEAR
-      // NUMBER in that slot, not a Date object. Matching that convention
-      // here rather than the ctx field's own name.
-      todayDate: new Date().getFullYear(),
-      expiryDate,
-      bDenominatorPct,
-      escalateAnnualFn: window.escalateAnnual,
-      potBalanceAtExpiry,
-      direction
-    }
-  };
-}
+//
+// buildEOLMoneyInputs moved to flyForwardHelpers.js (20 Aug 2026) so
+// src/lib/findingsSync.js's utilisation-triggered findings sync can call
+// the exact same calc as this component's own EndOfLeasePositionView,
+// instead of a second parallel copy — imported below.
 
 // Physical position projections — asset-level (worst case across every
 // engine; redelivery conditions apply to the whole aircraft, not per
@@ -662,42 +619,9 @@ function EOLPhysicalCard({ physical }) {
   );
 }
 
-// Factored out of EndOfLeasePositionView so the Fleet Findings sync
-// (Category 3, lease-end proximity — findingsEngine.js Brain 10) can read
-// the exact same per-engine EOL money figures the UI shows, rather than a
-// second parallel calculation that could quietly drift from it.
-function computeEngineEOLResults(asset, lease, projections, rate, engineFamily) {
-  const terms = lease.endOfLeaseTerms || getEndOfLeaseTermsDefaults();
-  const expiryDate = new Date(lease.leaseEnd);
-  const escalationPctPerYr = window.LLP_CATALOGUE_PRICES?.[engineFamily]?.escalationPctPerYr ?? null;
-  const engines = (asset.engines || []).filter(e => e.sn && e.llps && e.llps.length);
-  const moneyApplies = !!terms.applies && (terms.componentsCovered || []).includes("ENGINE_LLP");
-  return engines.map(eng => {
-    const { engineParts, moneyCtx } = buildEOLMoneyInputs(eng, {
-      rate, expiryDate, engineFamily, projections,
-      bDenominatorPct: terms.bDenominatorPct,
-      escalationPctPerYr,
-      direction: terms.direction,
-      tacSnapshot: lease.tacSnapshot
-    });
-    const result = moneyApplies
-      ? window.computeEngineEOLAdjustment(engineParts, moneyCtx)
-      : { uncomputable: true, message: "This lease's endOfLeaseTerms marks no EOL adjustment as applicable for Engine LLPs — confirm against the lease schedule before assuming this is correct." };
-    return { position: eng.position, ...result };
-  });
-}
-
-// Asset-level summary for the Fleet Findings trigger (Category 3) — sums
-// netPayableByLessee across engines when every one is computable. If any
-// engine result is uncomputable, the whole asset-level figure is too
-// ("no number is safer than a confident wrong one" — endOfLeasePosition.js
-// — applied here at the asset-aggregate level as well).
-function summariseAssetEOLPosition(engineResults) {
-  if (!engineResults.length) return { uncomputable: true };
-  if (engineResults.some(r => r.uncomputable)) return { uncomputable: true };
-  const netPayableByLessee = engineResults.reduce((sum, r) => sum + (r.netPayableByLessee || 0), 0);
-  return { uncomputable: false, netPayableByLessee };
-}
+// computeEngineEOLResults / summariseAssetEOLPosition moved to
+// flyForwardHelpers.js (20 Aug 2026) alongside buildEOLMoneyInputs, for the
+// same shared-with-findingsSync.js reason — imported below.
 
 function EndOfLeasePositionView({ asset, lease, projections, rate, engineFamily, onClose }) {
   const expiryDate = new Date(lease.leaseEnd);
@@ -898,46 +822,27 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
   }, [loading, asset.id, lease?.id]);
 
   // Fleet Findings trigger (claude_ui-p2-build-handoff.md Item 1, Session B
-  // — findingsEngine.js / Brain 10 was built Session A but nothing called
-  // it yet). Runs once per data-load, same shape as the shopVisitProjections
-  // effect above — recomputes its own Brain 3/6/7 inputs independently
-  // rather than reading render-scope values, so it isn't tied to how often
-  // FlyForward itself re-renders.
+  // — findingsEngine.js / Brain 10 was built Session A). Runs once per
+  // data-load, same shape as the shopVisitProjections effect above.
   //
-  // Deliberately scoped to THIS call site only, not also wired into the
-  // Upload/LeaseWizard/CompletedEvent save flows directly — those all
-  // trigger a real Firestore write, but Brain 5/6/7's inputs (lease,
-  // reserves, scheduled events, seasonality, cost projections, KB) are
-  // only ever fully assembled together here, inside Fly-Forward's own load
-  // effect. Duplicating that assembly at every other save site risked a
-  // second parallel computation quietly drifting from what this tab
-  // actually shows. Practical effect: a finding is (re)computed whenever
-  // this asset's Financials tab is opened or reloaded — not the instant an
-  // upload/lease/completed-event save happens somewhere else in the app
-  // without this tab being open. Flagged plainly, not left implicit.
+  // 20 Aug 2026: the assemble-then-sync logic that used to live inline
+  // here moved to src/lib/findingsSync.js's syncFindingsFromAssembled(), so
+  // it's shared with the 3 utilisation-save call sites (UploadView.jsx x2,
+  // Dashboard.jsx's ReviewQueueBanner) rather than duplicated. Originally
+  // this WAS the only call site, deliberately not wired into Upload/Lease
+  // Wizard/Completed Event directly, over concern that duplicating Brain
+  // 3/6/7's assembly at other save sites could quietly drift from what
+  // this tab shows. Per Alan's confirmation that pot bands realistically
+  // only move on a monthly utilisation upload (lease edits/completed
+  // events are comparatively rare one-off actions), the utilisation-save
+  // sites now call the SAME shared function — so there's still exactly one
+  // place this calculation lives, just more call sites triggering it.
   useEffect(() => {
     if (loading || loadError || !lease) return;
     let cancelled = false;
     (async () => {
-      try {
-        if (!window.evaluateAssetFindings) return; // findingsEngine.js not loaded
-        const { rate: findingsRate, projections: findingsProjections, maintenanceCal: findingsMaintCal, projectionError: findingsError } =
-          buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections });
-        if (cancelled || findingsError) return;
-        const terms = lease.endOfLeaseTerms || getEndOfLeaseTermsDefaults();
-        const eolPositionSummary = terms.applies
-          ? summariseAssetEOLPosition(computeEngineEOLResults(asset, lease, findingsProjections, findingsRate, engineFamily))
-          : { uncomputable: true };
-        await db.syncAssetFindings(asset, {
-          potProjections: findingsProjections,
-          maintenanceEvents: findingsMaintCal?.events || [],
-          leaseEndDate: lease.leaseEnd ? new Date(lease.leaseEnd) : null,
-          eolPosition: eolPositionSummary
-        });
-        if (!cancelled) refreshFindings();
-      } catch (e) {
-        console.warn("Findings sync failed:", e);
-      }
+      await syncFindingsFromAssembled({ asset, lease, reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections });
+      if (!cancelled) refreshFindings();
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps

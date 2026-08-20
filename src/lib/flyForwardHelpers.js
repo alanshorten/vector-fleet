@@ -1,6 +1,12 @@
 import { db } from './db';
-import { getCheckDurationDefaults } from './knowledgeBase';
+import { getCheckDurationDefaults, getEndOfLeaseTermsDefaults } from './knowledgeBase';
 import { buildPotDefsForActivation, buildPotFromDef } from './pots';
+
+// buildEOLMoneyInputs / computeEngineEOLResults / summariseAssetEOLPosition
+// moved here from FlyForward.jsx (20 Aug 2026) so they can be called from
+// both the UI (EndOfLeasePositionView) and the Fleet Findings sync helper
+// (src/lib/findingsSync.js) without duplicating the calculation — same
+// Brain/Body reasoning as everything else in this file.
 
 const FF_COLORS = { AF6Y: "#60a5fa", AF12Y: "#a78bfa", LGOH: "#34d399", APOH: "#fbbf24", ENPR1: "#f472b6", ENLP1: "#f87171", ENPR2: "#fb923c", ENLP2: "#e879f9" };
 
@@ -580,7 +586,21 @@ function buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, schedu
   const usingRealRate = !!utilRate;
   const apuHrPerMonth = window.estimateApuHrPerMonth(rate.fhPerMonth, asset.apu?.currentFH, asset.airframe?.currentFH) || 0;
 
+  // Truncated to the start of today rather than the exact current instant
+  // (20 Aug 2026 live-test fix). Every downstream accrual/shortfall figure
+  // is anchored to this value — using the millisecond-precision `new
+  // Date()` meant reopening the Financials tab minutes or hours apart
+  // could nudge a pot's projected balance just enough to flip its band
+  // across a boundary between one open and the next, with nothing about
+  // the lease or reserves having actually changed. The Fleet Findings
+  // trigger engine (which snapshots this same computation) correctly
+  // treated that as a real transition and kept re-firing/resurfacing —
+  // reported live as "keeps creating a new trigger even though I already
+  // accepted this." Truncating to the day makes repeated opens on the same
+  // calendar day byte-identical; a genuine day-boundary crossing can still
+  // move a pot a day earlier/later than before, which is correct, not a bug.
   const leaseStart = new Date();
+  leaseStart.setHours(0, 0, 0, 0);
   const leaseEnd = new Date(lease.leaseEnd);
   const horizonMonths = Math.max(1, window.monthsBetween(leaseStart, leaseEnd));
 
@@ -719,5 +739,98 @@ function buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, schedu
   return { leaseStart, horizonMonths, rate, usingRealRate, confirmedPots, missingCodes, anchoredPots, maintenanceCal, projections, projectionError };
 };
 
+function buildEOLMoneyInputs(eng, { rate, expiryDate, engineFamily, projections, bDenominatorPct, escalationPctPerYr, direction, tacSnapshot }) {
+  // Truncated to the start of today, same 20 Aug 2026 fix as leaseStart
+  // above — this feeds Category 3 (lease-end proximity) of the Fleet
+  // Findings trigger engine, so the same millisecond-precision jitter that
+  // caused pot bands to flip between reopens could do the same thing here.
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const monthsToExpiry = Math.max(0, window.monthsBetween(today, expiryDate));
+  const cyclesToExpiry = (rate?.fcPerMonth || 0) * monthsToExpiry;
 
-export { FF_COLORS, FLEET_EXPOSURE_HORIZON_MONTHS, addMonthsFF, anchorReservePots, buildAssetMaintenanceCalendar, buildFleetCalendarData, buildFleetExposureData, buildFleetExposureEntry, buildFlyForwardProjection, buildRouteMatchData, buildRouteMatchEntry, loadFleetExposureBundle, reconstructPot, reconstructPotWithStatus };
+  const tacEngine = tacSnapshot?.engines?.find(e => e.position === eng.position);
+
+  const engineParts = (eng.llps || [])
+    .filter(l => l.approvedLife !== null && l.approvedLife !== undefined)
+    .map(l => {
+      const tacPart = tacEngine?.llps?.find(p => p.sn === l.sn);
+      return {
+        pn: l.pn,
+        sn: l.sn,
+        desc: l.desc,
+        approvedLife: l.approvedLife,
+        catalogPriceToday: window.lookupLLPCataloguePrice ? window.lookupLLPCataloguePrice(l.pn, engineFamily) : null,
+        // See file-header comment — null until this part is found on a
+        // saved TAC snapshot for this lease.
+        deliveryBaselineFC: (tacPart && tacPart.deliveryBaselineFC !== undefined) ? tacPart.deliveryBaselineFC : null
+      };
+    });
+
+  const currentFCAtExpiry = (eng.currentFC || 0) + cyclesToExpiry;
+
+  const enLpProjection = (projections || []).find(p => p.code === `EN-LP-${eng.position}`);
+  const potBalanceAtExpiry = enLpProjection?.monthlySeries?.length
+    ? enLpProjection.monthlySeries[enLpProjection.monthlySeries.length - 1].balance
+    : 0;
+
+  return {
+    engineParts,
+    moneyCtx: {
+      currentFCAtExpiry,
+      escalationPctPerYr,
+      // endOfLeasePosition.js's escalateAnnualFn is called positionally
+      // as (price, todayDate, expiryDate, pct) — but window.escalateAnnual's
+      // real signature (see anchorReservePots above, which calls it as
+      // (base, baseYear, targetDate, pct)) takes a base YEAR NUMBER in that
+      // slot, not a Date object. Matching that convention here rather than
+      // the ctx field's own name.
+      todayDate: today.getFullYear(),
+      expiryDate,
+      bDenominatorPct,
+      escalateAnnualFn: window.escalateAnnual,
+      potBalanceAtExpiry,
+      direction
+    }
+  };
+}
+
+// Factored out of EndOfLeasePositionView (FlyForward.jsx) so the Fleet
+// Findings sync (Category 3, lease-end proximity — findingsEngine.js
+// Brain 10) can read the exact same per-engine EOL money figures the UI
+// shows, rather than a second parallel calculation that could quietly
+// drift from it.
+function computeEngineEOLResults(asset, lease, projections, rate, engineFamily) {
+  const terms = lease.endOfLeaseTerms || getEndOfLeaseTermsDefaults();
+  const expiryDate = new Date(lease.leaseEnd);
+  const escalationPctPerYr = window.LLP_CATALOGUE_PRICES?.[engineFamily]?.escalationPctPerYr ?? null;
+  const engines = (asset.engines || []).filter(e => e.sn && e.llps && e.llps.length);
+  const moneyApplies = !!terms.applies && (terms.componentsCovered || []).includes("ENGINE_LLP");
+  return engines.map(eng => {
+    const { engineParts, moneyCtx } = buildEOLMoneyInputs(eng, {
+      rate, expiryDate, engineFamily, projections,
+      bDenominatorPct: terms.bDenominatorPct,
+      escalationPctPerYr,
+      direction: terms.direction,
+      tacSnapshot: lease.tacSnapshot
+    });
+    const result = moneyApplies
+      ? window.computeEngineEOLAdjustment(engineParts, moneyCtx)
+      : { uncomputable: true, message: "This lease's endOfLeaseTerms marks no EOL adjustment as applicable for Engine LLPs — confirm against the lease schedule before assuming this is correct." };
+    return { position: eng.position, ...result };
+  });
+}
+
+// Asset-level summary for the Fleet Findings trigger (Category 3) — sums
+// netPayableByLessee across engines when every one is computable. If any
+// engine result is uncomputable, the whole asset-level figure is too
+// ("no number is safer than a confident wrong one" — endOfLeasePosition.js
+// — applied here at the asset-aggregate level as well).
+function summariseAssetEOLPosition(engineResults) {
+  if (!engineResults.length) return { uncomputable: true };
+  if (engineResults.some(r => r.uncomputable)) return { uncomputable: true };
+  const netPayableByLessee = engineResults.reduce((sum, r) => sum + (r.netPayableByLessee || 0), 0);
+  return { uncomputable: false, netPayableByLessee };
+}
+
+export { FF_COLORS, FLEET_EXPOSURE_HORIZON_MONTHS, addMonthsFF, anchorReservePots, buildAssetMaintenanceCalendar, buildEOLMoneyInputs, buildFleetCalendarData, buildFleetExposureData, buildFleetExposureEntry, buildFlyForwardProjection, buildRouteMatchData, buildRouteMatchEntry, computeEngineEOLResults, loadFleetExposureBundle, reconstructPot, reconstructPotWithStatus, summariseAssetEOLPosition };
