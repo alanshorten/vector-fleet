@@ -58,11 +58,6 @@ export async function syncFindingsFromAssembled({ asset, lease, reserveDocs, uti
 // never be able to block or fail that save.
 export async function computeAndSyncFindingsForAsset(asset) {
   try {
-    // TEMPORARY diagnostic (20 Aug 2026) — lets Alan confirm this new call
-    // path actually runs with whatever utilisation data is on hand, without
-    // needing a report that specifically shifts a pot's band. Safe to
-    // remove once confirmed working live.
-    console.log("[findings-sync] computeAndSyncFindingsForAsset called for asset " + (asset?.id ?? "?") + ", has active lease: " + !!asset?.currentLeaseId);
     if (!asset?.id || !asset.currentLeaseId) return; // no active lease yet — nothing to check
     const [lease, reserveDocs, util, scheduledEvents, seasonalityProfile, costProjections] = await Promise.all([
       db.getLease(asset.currentLeaseId).catch(() => null),
@@ -72,10 +67,9 @@ export async function computeAndSyncFindingsForAsset(asset) {
       db.getSeasonalityProfile(asset.id).catch(() => null),
       db.getShopVisitProjections(asset.id).catch(() => [])
     ]);
-    if (!lease) { console.log("[findings-sync] no lease found — skipped"); return; }
+    if (!lease) return;
     const utilRate = window.computeRealUtilisationRate(util);
     await syncFindingsFromAssembled({ asset, lease, reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections });
-    console.log("[findings-sync] sync completed for asset " + asset.id);
   } catch (e) {
     console.warn("Findings sync (post-utilisation) failed:", e);
   }

@@ -85,10 +85,26 @@ function FleetFindingsCards({ assets, onOpenFinding, userRole }) {
   };
 
   if (findings === null) return null; // no layout flash while loading
-  if (!findings.length) return null; // nothing to show — don't take up space with four empty cards
 
   const assetById = Object.fromEntries((assets || []).map(a => [String(a.id), a]));
-  const byStatus = Object.fromEntries(CARD_STATUSES.map(s => [s, findings.filter(f => f.status === s)]));
+  // Resolved findings drop off the Resolved card 30 days after resolving
+  // (Alan, 20 Aug 2026) — display-only: the Firestore doc itself is never
+  // touched here, so the audit trail (and the admin delete escape hatch)
+  // is unaffected, it just stops cluttering this card indefinitely.
+  // Falls back to statusChangedAt for any older resolved doc that predates
+  // resolvedAt being reliably set.
+  const RESOLVED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+  const resolvedCutoff = Date.now() - RESOLVED_RETENTION_MS;
+  const byStatus = Object.fromEntries(CARD_STATUSES.map(s => {
+    let rows = findings.filter(f => f.status === s);
+    if (s === "resolved") rows = rows.filter(f => (f.resolvedAt || f.statusChangedAt || 0) >= resolvedCutoff);
+    return [s, rows];
+  }));
+
+  // Checked AFTER the 30-day filter, not on the raw fetch — an asset whose
+  // only findings are resolved-and-aged-out shouldn't still render four
+  // empty cards.
+  if (!Object.values(byStatus).some(rows => rows.length)) return null;
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 14 }}>
@@ -205,6 +221,24 @@ function FindingTriageControl({ finding, userRole, onChanged, notify }) {
     }
   };
 
+  // Manual triage (20 Aug 2026) — the original P2 scoping session called
+  // for authorized roles to "triage, assign, monitor, resolve," but only
+  // Accept made it into the actual build. These let Editor/Admin move an
+  // open finding to Action Required or Monitoring by hand, independent of
+  // the automatic engine transitions.
+  const setStatus = async (status) => {
+    setBusy(true);
+    try {
+      await db.setFindingStatus(finding.id, status, note || null);
+      onChanged && onChanged();
+    } catch (e) {
+      if (notify) notify("Failed to update: " + (e.message || "please try again"), "error");
+      else console.warn("Failed to set finding status:", e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   // Admin-only hard delete — 20 Aug 2026, cleanup escape hatch for
   // test/duplicate findings still open (not yet accepted).
   const del = async () => {
@@ -222,8 +256,18 @@ function FindingTriageControl({ finding, userRole, onChanged, notify }) {
   };
 
   return (
-    <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8 }}>
+    <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
       <input placeholder="Optional note" value={note} onChange={e => setNote(e.target.value)} style={{ fontSize: 11, padding: "5px 8px" }}/>
+      {finding.status !== "action_required" && (
+        <button className="btn btn-ghost" style={{ fontSize: 11, padding: "5px 10px", whiteSpace: "nowrap" }} disabled={busy} onClick={() => setStatus("action_required")}>
+          Mark Action Required
+        </button>
+      )}
+      {finding.status !== "monitoring" && (
+        <button className="btn btn-ghost" style={{ fontSize: 11, padding: "5px 10px", whiteSpace: "nowrap" }} disabled={busy} onClick={() => setStatus("monitoring")}>
+          Mark Monitoring
+        </button>
+      )}
       <button className="btn btn-ghost" style={{ fontSize: 11, padding: "5px 10px", whiteSpace: "nowrap" }} disabled={busy} onClick={accept}>
         {busy ? "Accepting…" : "Accept position"}
       </button>

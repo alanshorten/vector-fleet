@@ -984,6 +984,33 @@ const db = {
     }, { merge: true });
   },
 
+  // Manual triage — added 20 Aug 2026 per the original P2 scoping session
+  // ("authorized roles triage, assign, monitor, resolve"), which never
+  // actually made it into the locked build spec beyond Accept. Lets an
+  // Editor/Admin move a still-open finding (new/action_required/
+  // monitoring) to one of the other two open statuses by hand — a plain
+  // Editor/Admin write, covered by firestore.rules' existing blanket
+  // `memberHasRole(['admin','editor'])` update allowance (no rules change
+  // needed). Does not touch bandAtCreation/bandAtAcceptance/acceptedAt/
+  // etc. — purely a status/notes change, and doesn't affect
+  // findingsEngine.js's own logic, which treats new/action_required/
+  // monitoring identically (only accepted vs. not, and resolved vs. not,
+  // matter to it).
+  async setFindingStatus(findingId, status, note) {
+    const { db: fs, doc, getDoc, setDoc, serverTimestamp } = getFS();
+    const tenantId = await getTenantId();
+    const user = window._authUser;
+    const ref = doc(fs, "tenants", tenantId, "findings", findingId);
+    const snap = await getDoc(ref);
+    const existingNotes = snap.exists() ? (snap.data().notes || []) : [];
+    await setDoc(ref, {
+      status,
+      statusChangedAt: serverTimestamp(),
+      statusChangedBy: user?.uid || null,
+      notes: note ? [...existingNotes, { text: note, by: user?.email || user?.uid || "unknown", at: new Date().toISOString() }] : existingNotes
+    }, { merge: true });
+  },
+
   // Admin-only hard delete — added 20 Aug 2026 alongside the firestore.rules
   // `allow delete` change, specifically so test/duplicate findings created
   // during live testing can be cleaned up from inside the app instead of
