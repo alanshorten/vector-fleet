@@ -182,6 +182,70 @@ service cloud.firestore {
                   && request.auth.token.tenantId == tenantId;
       allow write: if memberHasRole(tenantId, ['admin', 'editor']);
     }
+    // Tenant-rooted findings (Fleet Findings Workflow, claude_ui-p2-build-
+    // handoff.md Item 1 / findingsEngine.js, Brain 10 — 20 Aug 2026,
+    // Session A). New collection.
+    //
+    // Read: every active tenant member, including Viewer/Data Entry — the
+    // permissions table in the handoff has "Can see findings: Yes" for all
+    // four roles; only triage/accept is restricted.
+    //
+    // Create: deliberately open to isActiveMember(tenantId) — same
+    // reasoning as auditLog/shopVisitProjections above. Findings are
+    // created by the trigger engine running client-side right after
+    // whichever role's action changed the asset's financial position (a
+    // utilisation upload, a lease/reserve edit, a completed-event record),
+    // and those actions are already permitted for admin/editor/dataEntry —
+    // a Data Entry upload that happens to cross a shortfall band must be
+    // able to write the resulting finding, or the record silently goes
+    // missing. Field validation below constrains what a create can
+    // actually contain, so this openness isn't a blank cheque: a genuine
+    // new finding must start life as status "new" with a real
+    // tenantId/assetId/type/timestamps — it cannot be created pre-accepted
+    // or pre-resolved, and every one of these fields is checked against
+    // the caller's own auth token or request.time, not just trusted as-sent
+    // (same posture as the auditLog rule above).
+    //
+    // Update: split two ways —
+    //   (a) memberHasRole(['admin','editor']) — human triage from the
+    //       Session B UI: accept, add a note, manually change status.
+    //   (b) findingSystemUpdate() — the SAME trigger engine, running as
+    //       whichever role (including dataEntry) caused the recompute,
+    //       auto-resolving a finding or auto-resurfacing an accepted one
+    //       on a further band transition. Deliberately narrower than (a):
+    //       it can only move status among new/action_required/monitoring/
+    //       resolved, and can never touch acceptedAt/acceptedBy — only a
+    //       human accept action (path (a), Session B) sets those, and the
+    //       resurface rule requires them to survive unchanged as audit
+    //       trail (handoff: "the original acceptance decision stays in the
+    //       finding's audit trail").
+    //
+    // Delete: never — same permanent-record posture as auditLog.
+    function findingSystemUpdate(tenantId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      return isActiveMember(tenantId)
+        && after.tenantId == before.tenantId
+        && after.assetId == before.assetId
+        && after.type == before.type
+        && after.status in ['new', 'action_required', 'monitoring', 'resolved']
+        && after.acceptedAt == before.acceptedAt
+        && after.acceptedBy == before.acceptedBy;
+    }
+    match /tenants/{tenantId}/findings/{findingId} {
+      allow read: if request.auth != null
+                  && request.auth.token.tenantId == tenantId;
+      allow create: if isActiveMember(tenantId)
+                    && request.resource.data.tenantId == tenantId
+                    && request.resource.data.assetId is string
+                    && request.resource.data.type in ['shortfall_transition', 'unfunded_event', 'lease_end_proximity']
+                    && request.resource.data.status == 'new'
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.statusChangedAt == request.time
+                    && request.resource.data.statusChangedBy == request.auth.uid;
+      allow update: if memberHasRole(tenantId, ['admin', 'editor']) || findingSystemUpdate(tenantId);
+      allow delete: if false;
+    }
     // Financial reserve/lease data — writes restricted to admin/editor/
     // dataEntry roles. "role" is the Firebase Auth custom claim already
     // set by /api/bootstrap-admin and /api/set-role, and already read

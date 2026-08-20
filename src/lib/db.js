@@ -814,6 +814,195 @@ const db = {
     const tenantId = await getTenantId();
     await deleteDoc(doc(fs, "tenants", tenantId, "completedEvents", id));
   },
+  // --- Fleet Findings Workflow (claude_ui-p2-build-handoff.md Item 1,
+  // findingsEngine.js / Brain 10 — Session A, 20 Aug 2026) ---
+  //
+  // Session A scope: the collection CRUD and the sync orchestrator below.
+  // Nothing in this app currently CALLS syncAssetFindings() yet — wiring it
+  // into the utilisation-upload / lease-save / completed-event save flows,
+  // plus the fleet dashboard cards and Accepted Positions section that
+  // actually display the results, is Session B (per the handoff's build
+  // sequencing). Until Session B wires a call site, this code is inert —
+  // present, unit-testable (findingsEngine.js's pure logic already is, see
+  // the delivery note), but not yet exercised against live Firestore data.
+
+  // All findings for one asset, regardless of status — callers that only
+  // want "open" ones (not resolved) filter client-side, same convention as
+  // every other per-asset collection in this file (no composite-index
+  // queries introduced here).
+  async getAssetFindings(assetId) {
+    const { db: fs, collection, getDocs, query, where } = getFS();
+    const tenantId = await getTenantId();
+    const q = query(collection(fs, "tenants", tenantId, "findings"), where("assetId", "==", String(assetId)));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => {
+      const data = d.data();
+      // Firestore Timestamps -> plain millis, so findingsEngine.js (a pure
+      // Brain file) never has to know about Firestore's Timestamp type.
+      const toMillis = (t) => (t && typeof t.toMillis === "function") ? t.toMillis() : (t ? new Date(t).getTime() : null);
+      return { id: d.id, ...data, createdAt: toMillis(data.createdAt), statusChangedAt: toMillis(data.statusChangedAt), resolvedAt: toMillis(data.resolvedAt), acceptedAt: toMillis(data.acceptedAt) };
+    });
+  },
+
+  // Sets the one-time baseline (findingsEngine.js's "critical design
+  // constraint") — after this, the trigger engine compares every future
+  // recompute against these bands instead of creating findings from the
+  // asset's as-onboarded position.
+  async setFindingsBaseline(assetId, baseline) {
+    const { db: fs, doc, setDoc, serverTimestamp } = getFS();
+    const tenantId = await getTenantId();
+    await setDoc(doc(fs, "tenants", tenantId, "assets", String(assetId)), {
+      findingsBaselineSet: true,
+      findingsBaselineAt: serverTimestamp(),
+      findingsBaseline: baseline // { bands: {[potCode]: band}, leaseEndBand }
+    }, { merge: true });
+  },
+
+  async createFinding(assetId, finding) {
+    const { db: fs, collection, addDoc, serverTimestamp } = getFS();
+    const tenantId = await getTenantId();
+    const user = window._authUser;
+    const payload = {
+      tenantId,
+      assetId: String(assetId),
+      status: "new",
+      type: finding.type,
+      source: {
+        pot: finding.pot || null,
+        eventType: finding.eventType || null,
+        description: finding.description
+      },
+      bandAtCreation: finding.bandAtCreation,
+      bandAtAcceptance: null,
+      shortfallAtCreation: finding.shortfallHigh ?? null,
+      shortfallAtAcceptance: null,
+      createdAt: serverTimestamp(),
+      statusChangedAt: serverTimestamp(),
+      statusChangedBy: user?.uid || null,
+      resolvedAt: null,
+      acceptedAt: null,
+      acceptedBy: null,
+      notes: []
+    };
+    const ref = await addDoc(collection(fs, "tenants", tenantId, "findings"), payload);
+    return { id: ref.id, ...payload };
+  },
+
+  // Auto-resolve — a band/state improved back to the reference the open
+  // finding was created at. System-driven: any active tenant member's
+  // action can trigger this (see firestore.rules findingSystemUpdate()).
+  async resolveFinding(findingId, reason) {
+    const { db: fs, doc, setDoc, serverTimestamp } = getFS();
+    const tenantId = await getTenantId();
+    const user = window._authUser;
+    await setDoc(doc(fs, "tenants", tenantId, "findings", findingId), {
+      status: "resolved",
+      statusChangedAt: serverTimestamp(),
+      statusChangedBy: user?.uid || null,
+      resolvedAt: serverTimestamp()
+    }, { merge: true });
+  },
+
+  // Auto-resurface — an accepted finding got worse than the band it was
+  // accepted at. Per the handoff, the original acceptance stays in the
+  // audit trail (acceptedAt/acceptedBy untouched — firestore.rules enforces
+  // this); only status/statusChangedAt/statusChangedBy move, plus a
+  // system-generated note explaining why.
+  async resurfaceFinding(findingId, note) {
+    const { db: fs, doc, getDoc, setDoc, serverTimestamp } = getFS();
+    const tenantId = await getTenantId();
+    const user = window._authUser;
+    const ref = doc(fs, "tenants", tenantId, "findings", findingId);
+    const snap = await getDoc(ref);
+    const existingNotes = snap.exists() ? (snap.data().notes || []) : [];
+    await setDoc(ref, {
+      status: "action_required",
+      statusChangedAt: serverTimestamp(),
+      statusChangedBy: user?.uid || null,
+      notes: [...existingNotes, { text: note, by: "system", at: new Date().toISOString() }]
+    }, { merge: true });
+  },
+
+  // Human triage (Session B UI calls these — included now since they're
+  // simple CRUD once the collection exists, but nothing calls them yet).
+  async acceptFinding(findingId, currentBand, note) {
+    const { db: fs, doc, getDoc, setDoc, serverTimestamp } = getFS();
+    const tenantId = await getTenantId();
+    const user = window._authUser;
+    const ref = doc(fs, "tenants", tenantId, "findings", findingId);
+    const snap = await getDoc(ref);
+    const existingNotes = snap.exists() ? (snap.data().notes || []) : [];
+    await setDoc(ref, {
+      status: "accepted",
+      statusChangedAt: serverTimestamp(),
+      statusChangedBy: user?.uid || null,
+      bandAtAcceptance: currentBand,
+      acceptedAt: serverTimestamp(),
+      acceptedBy: user?.uid || null,
+      notes: note ? [...existingNotes, { text: note, by: user?.email || user?.uid || "unknown", at: new Date().toISOString() }] : existingNotes
+    }, { merge: true });
+  },
+
+  async addFindingNote(findingId, text) {
+    const { db: fs, doc, getDoc, setDoc, serverTimestamp } = getFS();
+    const tenantId = await getTenantId();
+    const user = window._authUser;
+    const ref = doc(fs, "tenants", tenantId, "findings", findingId);
+    const snap = await getDoc(ref);
+    const existingNotes = snap.exists() ? (snap.data().notes || []) : [];
+    await setDoc(ref, {
+      notes: [...existingNotes, { text, by: user?.email || user?.uid || "unknown", at: new Date().toISOString() }],
+      statusChangedAt: serverTimestamp()
+    }, { merge: true });
+  },
+
+  // The orchestrator — runs findingsEngine.js's pure evaluation for one
+  // asset against its current computed financial position, then executes
+  // whatever actions come back. Never throws to the caller: a findings
+  // sync failure should never block the save action that triggered it
+  // (same non-fatal posture as logAudit above).
+  //
+  // computed: {
+  //   potProjections,      // flyForward.js per-pot projections (Brain 3/4)
+  //   maintenanceEvents,   // buildMaintenanceCalendar(...).events (Brain 6)
+  //   leaseEndDate,        // Date | null
+  //   eolPosition          // buildEndOfLeasePosition(...).money (Brain 7) | null
+  // }
+  async syncAssetFindings(asset, computed) {
+    try {
+      if (!window.evaluateAssetFindings) return; // findingsEngine.js not loaded
+      const openFindings = (await this.getAssetFindings(asset.id)).filter(f => f.status !== "resolved");
+      const result = window.evaluateAssetFindings({
+        baselineSet: !!asset.findingsBaselineSet,
+        baselineBands: asset.findingsBaseline?.bands || null,
+        baselineLeaseEndBand: asset.findingsBaseline?.leaseEndBand || null,
+        potProjections: computed.potProjections || [],
+        maintenanceEvents: computed.maintenanceEvents || [],
+        leaseEndDate: computed.leaseEndDate || null,
+        eolPosition: computed.eolPosition || null,
+        today: new Date(),
+        openFindings
+      });
+
+      if (result.setBaseline) {
+        await this.setFindingsBaseline(asset.id, result.setBaseline);
+        return;
+      }
+
+      for (const action of result.findingActions) {
+        if (action.action === "create") {
+          await this.createFinding(asset.id, action);
+        } else if (action.action === "resolve") {
+          await this.resolveFinding(action.findingId, action.reason);
+        } else if (action.action === "resurface") {
+          await this.resurfaceFinding(action.findingId, action.note);
+        }
+      }
+    } catch (e) {
+      console.warn("Findings sync failed:", e);
+    }
+  },
+
   // --- Email review queue (Section 12a) ---
   // Tenant-rooted since Phase 3 Session 4 — note api/email-ingest.js writes
   // new pending reports directly via the Admin SDK and has been updated in

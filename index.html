@@ -66,6 +66,11 @@
 <script src="/calculations/endOfLeasePosition.js"></script>
 <!-- BRAIN 8 — Route Suitability Matcher (pure logic, no UI, no Firebase) -->
 <script src="/calculations/routeMatcher.js"></script>
+<!-- BRAIN 10 — Fleet Findings Trigger Engine (pure logic, no UI, no Firebase).
+     Brain 9 stays reserved for the parked AI-narrative concept — see
+     reporting-notifications-handoff.md. Depends on window.summarisePortfolioShortfall
+     (shortfall.js, above), so must load after it. -->
+<script src="/calculations/findingsEngine.js"></script>
 <!-- Real-asset utilisation rate derivation (pure logic, no UI, no Firebase) -->
 <script src="/calculations/realAssetContext.js"></script>
 <!-- Real per-part LLP catalogue prices, sourced from Engine_LLP_Escalation_Model.xlsx -->
