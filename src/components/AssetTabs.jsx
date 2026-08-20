@@ -967,11 +967,13 @@ function APUTab({asset,isAdmin,saveAsset,notify}){
         <div style={{flex:1,display:"flex",flexDirection:"column",gap:8}}>
         <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
           <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>TSN</div>
-          <div style={{fontSize:14,fontWeight:700,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{fmtHHMM(apu.currentFH)}</div>
+          {/* Alan, 20 Aug 2026: same 0-as-empty treatment as the engine card —
+              an unentered APU carries currentFH/currentFC as 0, not null. */}
+          <div style={{fontSize:14,fontWeight:700,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{apu.currentFH?fmtHHMM(apu.currentFH):"—"}</div>
         </div>
         <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
           <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>CSN</div>
-          <div style={{fontSize:14,fontWeight:700,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{(apu.currentFC||0).toLocaleString()}</div>
+          <div style={{fontSize:14,fontWeight:700,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{apu.currentFC?apu.currentFC.toLocaleString():"—"}</div>
         </div>
         <div style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
           <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>Lowest LLP Limiter</div>
