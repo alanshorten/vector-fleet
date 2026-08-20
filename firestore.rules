@@ -234,7 +234,16 @@ service cloud.firestore {
         && after.tenantId == before.tenantId
         && after.assetId == before.assetId
         && after.type == before.type
-        && after.status in ['new', 'action_required', 'monitoring', 'resolved']
+        // 'accepted' added 20 Aug 2026 for markFindingImproved — a silent
+        // bookkeeping-only write (sets improvedSinceAcceptance, no status
+        // change) made against a finding that's already accepted, so it
+        // can distinguish "accepted at red, stayed red" from "accepted at
+        // red, recovered to green, relapsed back to red" on a later sync.
+        // Still can't fabricate an acceptance: acceptedAt/acceptedBy below
+        // must stay byte-identical to what was already there, so this only
+        // permits touching a doc that is ALREADY accepted, never
+        // transitioning one into "accepted" via this path.
+        && after.status in ['new', 'action_required', 'monitoring', 'resolved', 'accepted']
         && after.acceptedAt == before.acceptedAt
         && after.acceptedBy == before.acceptedBy;
     }

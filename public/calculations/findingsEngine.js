@@ -96,23 +96,51 @@ function transitionAction({ currentBand, activeFinding, baselineBand, type, pot,
     ? (activeFinding.status === "accepted" ? (activeFinding.bandAtAcceptance || activeFinding.bandAtCreation) : activeFinding.bandAtCreation)
     : (baselineBand || "green");
 
+  // 20 Aug 2026 live-test fix — an accepted finding needs a bit more than a
+  // flat current-vs-accepted-band comparison. Without tracking whether it
+  // ever genuinely improved since acceptance, "accepted at red -> improved
+  // to green -> back to red" was indistinguishable from "sat at red the
+  // whole time" — both just see currentBand === referenceBand and do
+  // nothing. That silently swallowed a real recovery-then-relapse cycle
+  // (reported live: "I accepted this position, moved the pot to green,
+  // then back to red — surely this is a new finding?" — yes, it should be).
+  // `improvedSinceAcceptance` on the finding doc is the memory that makes
+  // the two cases distinguishable; `markImproved` is a silent bookkeeping
+  // action (no visible status change) that sets it the first time an
+  // accepted finding's band gets better than what was accepted.
+  if (activeFinding && activeFinding.status === "accepted") {
+    if (BAND_ORDER[currentBand] < BAND_ORDER[referenceBand]) {
+      if (!activeFinding.improvedSinceAcceptance) {
+        return { action: "markImproved", findingId: activeFinding.id };
+      }
+      return null; // already recorded as improved, nothing new to track
+    }
+    if (currentBand === referenceBand) {
+      if (activeFinding.improvedSinceAcceptance) {
+        // Recovered, then relapsed back to exactly the accepted band —
+        // a real event worth surfacing again, not silence.
+        return {
+          action: "resurface",
+          findingId: activeFinding.id,
+          note: `${description} (returned to the accepted ${referenceBand} position after improving)`
+        };
+      }
+      return null; // never left the accepted band — genuinely unchanged
+    }
+    // Deteriorated beyond the accepted band.
+    return {
+      action: "resurface",
+      findingId: activeFinding.id,
+      note: `${description} (was accepted at ${referenceBand})`
+    };
+  }
+
   if (currentBand === referenceBand) return null;
 
   if (BAND_ORDER[currentBand] > BAND_ORDER[referenceBand]) {
-    // Deteriorated.
-    if (activeFinding && activeFinding.status === "accepted") {
-      // Resurface — spec: "the original acceptance decision stays in the
-      // finding's audit trail", so this is an UPDATE (status back to
-      // action_required + a system note), never a fresh document.
-      return {
-        action: "resurface",
-        findingId: activeFinding.id,
-        note: `${description} (was accepted at ${referenceBand})`
-      };
-    }
-    // A fresh New finding — even if one is already open for this pot/
-    // asset (spec: "even if an amber finding already exists — this is a
-    // further transition").
+    // Deteriorated — a fresh New finding, even if one is already open for
+    // this pot/asset (spec: "even if an amber finding already exists —
+    // this is a further transition").
     return {
       action: "create",
       type,
@@ -125,7 +153,7 @@ function transitionAction({ currentBand, activeFinding, baselineBand, type, pot,
   }
 
   // Improved.
-  if (activeFinding && activeFinding.status !== "accepted") {
+  if (activeFinding) {
     return { action: "resolve", findingId: activeFinding.id, reason: description };
   }
   return null; // improved while accepted — stays accepted, no action

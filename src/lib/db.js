@@ -945,6 +945,21 @@ const db = {
     }, { merge: true });
   },
 
+  // Silent bookkeeping-only update (20 Aug 2026) — records that an
+  // accepted finding's band genuinely improved past what was accepted, so
+  // a LATER return to that same band can be recognised by
+  // findingsEngine.js as a real recovery-then-relapse rather than
+  // "nothing ever changed." No visible status change; system-driven, same
+  // as resolve/resurface.
+  async markFindingImproved(findingId) {
+    const { db: fs, doc, setDoc, serverTimestamp } = getFS();
+    const tenantId = await getTenantId();
+    await setDoc(doc(fs, "tenants", tenantId, "findings", findingId), {
+      improvedSinceAcceptance: true,
+      statusChangedAt: serverTimestamp()
+    }, { merge: true });
+  },
+
   // Human triage (Session B UI calls these — included now since they're
   // simple CRUD once the collection exists, but nothing calls them yet).
   async acceptFinding(findingId, currentBand, note) {
@@ -959,6 +974,10 @@ const db = {
       statusChangedAt: serverTimestamp(),
       statusChangedBy: user?.uid || null,
       bandAtAcceptance: currentBand,
+      // Reset on every (re-)acceptance, including after a resurface gets
+      // re-accepted — each acceptance starts its own improved/relapsed
+      // tracking cycle (see markFindingImproved).
+      improvedSinceAcceptance: false,
       acceptedAt: serverTimestamp(),
       acceptedBy: user?.uid || null,
       notes: note ? [...existingNotes, { text: note, by: user?.email || user?.uid || "unknown", at: new Date().toISOString() }] : existingNotes
@@ -1074,6 +1093,8 @@ const db = {
           await this.resolveFinding(action.findingId, action.reason);
         } else if (action.action === "resurface") {
           await this.resurfaceFinding(action.findingId, action.note);
+        } else if (action.action === "markImproved") {
+          await this.markFindingImproved(action.findingId);
         }
       }
     } catch (e) {
