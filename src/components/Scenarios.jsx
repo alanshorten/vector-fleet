@@ -311,14 +311,11 @@ function Scenarios({ asset }) {
   const chartDatasets = [
     // Chart.js draws straight to canvas — it can't resolve CSS custom
     // properties, so these stay literal hex matched to the design system.
-    // Two rounds of grayscale pairing (graphite/teal, then graphite/carbon)
-    // both still read as "the same dark line" at a glance, especially once
-    // the translucent fills overlap. Scenario now gets its own hue (teal,
-    // its established colour throughout this tab) at a heavier weight AND
-    // a dashed stroke — colour, weight, and line style all differ, so the
-    // distinction holds even if any single channel is hard to see.
-    { label: "Base Case", data: Array.from({ length: chartLength }, (_, i) => baseAgg[i] ? Math.round(baseAgg[i].balance) : null), borderColor: "#687078", backgroundColor: "#68707822", fill: true, tension: 0.15, pointRadius: 0, borderWidth: 2 },
-    { label: "Scenario", data: Array.from({ length: chartLength }, (_, i) => scenarioAgg[i] ? Math.round(scenarioAgg[i].balance) : null), borderColor: "#315D68", backgroundColor: "#315D6833", fill: true, tension: 0.15, pointRadius: 0, borderWidth: 3, borderDash: [6, 3] }
+    // Plain lines, no fill — Base Case in graphite, Scenario in a clearly
+    // distinct hue (amber) so the two series are easy to tell apart at a
+    // glance without relying on a dashed stroke.
+    { label: "Base Case", data: Array.from({ length: chartLength }, (_, i) => baseAgg[i] ? Math.round(baseAgg[i].balance) : null), borderColor: "#687078", backgroundColor: "#687078", fill: false, tension: 0.15, pointRadius: 0, borderWidth: 2 },
+    { label: "Scenario", data: Array.from({ length: chartLength }, (_, i) => scenarioAgg[i] ? Math.round(scenarioAgg[i].balance) : null), borderColor: "#C77E1E", backgroundColor: "#C77E1E", fill: false, tension: 0.15, pointRadius: 0, borderWidth: 2 }
   ];
 
   const fmtPct = v => (v > 0 ? "+" : "") + v + "%";

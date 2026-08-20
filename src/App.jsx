@@ -459,9 +459,10 @@ function AppInner(){
         {view==="fleetcalendar"&&canSeeAdvanced&&<FleetCalendarView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>}
         {view==="fleetscenarios"&&canSeeAdvanced&&(
           <>
-            <RouteMatcherView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>
-            <div className="section-title" style={{marginTop:16}}>Operational Disruption</div>
-            <PandemicScenarioView assets={liveAssets}/>
+            <div style={layoutMode==="landscape"?{display:"grid",gridTemplateColumns:"1fr 1fr",columnGap:16,alignItems:"stretch"}:{display:"flex",flexDirection:"column",gap:16}}>
+              <RouteMatcherView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>
+              <PandemicScenarioView assets={liveAssets}/>
+            </div>
             <div className="section-title" style={{marginTop:16}}>Counterparty & Utilisation</div>
             <FleetScenarioControls assets={liveAssets} group="counterparty"/>
             <div className="section-title" style={{marginTop:16}}>Maintenance & Cost</div>
