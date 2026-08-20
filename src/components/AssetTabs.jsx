@@ -115,11 +115,16 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
               <div style={{fontSize:11,fontWeight:700,color:"var(--color-graphite)",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>{c.name}</div>
               <div className="flj" style={{padding:"3px 0"}}>
                 <span style={{fontSize:12,color:"var(--color-graphite)"}}>TSN</span>
-                <span style={{fontSize:12,fontFamily:"var(--font-data)",color:isEmpty(c.lastFH)?"var(--color-divider)":"var(--color-carbon)"}}>{c.lastFH?.toLocaleString()||"—"}</span>
+                {/* Alan, 20 Aug 2026: a check that's never actually been performed
+                    auto-populates lastFH/lastFC at 0 — 0 is a real, meaningful TSN/CSN
+                    elsewhere in the app, so it can't use isEmpty() (which treats 0 as a
+                    real value on purpose). Here specifically, 0 means "not entered", so
+                    a plain falsy check (treating 0 the same as null/undefined) is correct. */}
+                <span style={{fontSize:12,fontFamily:"var(--font-data)",color:c.lastFH?"var(--color-carbon)":"var(--color-divider)"}}>{c.lastFH?c.lastFH.toLocaleString():"—"}</span>
               </div>
               <div className="flj" style={{padding:"3px 0"}}>
                 <span style={{fontSize:12,color:"var(--color-graphite)"}}>CSN</span>
-                <span style={{fontSize:12,fontFamily:"var(--font-data)",color:isEmpty(c.lastFC)?"var(--color-divider)":"var(--color-carbon)"}}>{c.lastFC?.toLocaleString()||"—"}</span>
+                <span style={{fontSize:12,fontFamily:"var(--font-data)",color:c.lastFC?"var(--color-carbon)":"var(--color-divider)"}}>{c.lastFC?c.lastFC.toLocaleString():"—"}</span>
               </div>
               <div className="flj" style={{padding:"3px 0"}}>
                 <span style={{fontSize:12,color:"var(--color-graphite)"}}>Last</span>
@@ -150,11 +155,14 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
               </div>
               <div className="flj" style={{padding:"3px 0"}}>
                 <span style={{fontSize:12,color:"var(--color-graphite)"}}>TSN</span>
-                <span style={{fontSize:12,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{fmtHHMM(tsn)}</span>
+                {/* Alan, 20 Aug 2026: an unpopulated engine/APU slot carries tsn/csn as
+                    0, not null — 0 is a real value elsewhere, but here it means "not
+                    entered", so treat it as empty rather than showing "0:00"/"0". */}
+                <span style={{fontSize:12,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{tsn?fmtHHMM(tsn):"—"}</span>
               </div>
               <div className="flj" style={{padding:"3px 0"}}>
                 <span style={{fontSize:12,color:"var(--color-graphite)"}}>CSN</span>
-                <span style={{fontSize:12,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{csn!=null?csn.toLocaleString():"—"}</span>
+                <span style={{fontSize:12,fontFamily:"var(--font-data)",color:"var(--color-carbon)"}}>{csn?csn.toLocaleString():"—"}</span>
               </div>
             </div>
           );
@@ -169,7 +177,10 @@ function OverviewTab({asset,isAdmin,saveAsset,notify}){
               <span style={{fontSize:12,color:"var(--color-graphite)"}}>{label}</span>
               <span style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12,fontFamily:"var(--font-data)",fontWeight:700,color:col}}>
                 <span style={{width:6,height:6,borderRadius:"50%",background:col,flexShrink:0}}/>
-                {g?.nextDue?`${fmtDate(g.nextDue)}${days!==null?` (${days<0?Math.abs(days)+"d overdue":days+"d"})`:""}`:"Not entered"}
+                {/* Alan, 20 Aug 2026: "—" instead of "Not entered" here, for
+                    consistency with the rest of Status Summary — it's clear what
+                    it means, and this is a status readout, not an editable field. */}
+                {g?.nextDue?`${fmtDate(g.nextDue)}${days!==null?` (${days<0?Math.abs(days)+"d overdue":days+"d"})`:""}`:"—"}
               </span>
             </div>;
           })}
@@ -567,7 +578,11 @@ function EnginesTab({asset,isAdmin,saveAsset,notify,userRole}){
 
             </div>
             <div className="grid4" style={{marginBottom:14}}>
-              {[["TSN",fmtHHMM(eng.currentFH)],["CSN",(eng.currentFC||0).toLocaleString()],["FH/FC",eng.currentFH&&eng.currentFC?(eng.currentFH/eng.currentFC).toFixed(2):"—"],["Lowest LLP",ll!==null?`${ll.toLocaleString()} FC`:"—"]].map(([l,v])=>(
+              {/* Alan, 20 Aug 2026: an empty/unentered engine slot carries
+                  currentFH/currentFC as 0 rather than null — 0 is a real value
+                  elsewhere, but "0:00"/"0" here reads as real data for an engine
+                  that hasn't actually been entered, so treat 0 as empty. */}
+              {[["TSN",eng.currentFH?fmtHHMM(eng.currentFH):"—"],["CSN",eng.currentFC?eng.currentFC.toLocaleString():"—"],["FH/FC",eng.currentFH&&eng.currentFC?(eng.currentFH/eng.currentFC).toFixed(2):"—"],["Lowest LLP",ll!==null?`${ll.toLocaleString()} FC`:"—"]].map(([l,v])=>(
                 <div key={l} style={{background:"var(--color-technical-grey)",borderRadius:6,padding:"8px 10px"}}>
                   <div style={{fontSize:9,fontWeight:500,letterSpacing:"0.06em",color:"var(--color-graphite)",textTransform:"uppercase"}}>{l}</div>
                   <div style={{fontSize:14,fontWeight:700,fontFamily:"var(--font-data)",color:l==="Lowest LLP"?(ll===null?"var(--color-graphite)":ll<1000?"var(--color-critical)":ll<3000?"var(--color-attention)":"var(--color-positive)"):"var(--color-carbon)"}}>{v}</div>

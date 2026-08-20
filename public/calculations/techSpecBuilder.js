@@ -474,8 +474,11 @@ ${(()=>{
     else if(hasRefPair){curFC=g.refLegFC+((af.currentFC||0)-g.refAirframeFC);curFH=(g.refLegFH||0)+((af.currentFH||0)-(g.refAirframeFH||0));}
     const intervalCycles=g?.overhaulIntervalCycles||20000;
     const cycRem=(g?.lastOverhaulFC!=null&&curFC!=null)?(g.lastOverhaulFC+intervalCycles)-curFC:null;
-    const tsnVal=curFH!=null?`${fmtHHMM(curFH)} FH`:"—";
-    const csnVal=curFC!=null?`${Math.round(curFC).toLocaleString()} FC`:"—";
+    // Alan, 20 Aug 2026: same convention as the in-app Status Summary and
+    // Check History — an unentered gear leg carries curFH/curFC as 0, not
+    // null, but 0 reads as real data here, so treat it as empty too.
+    const tsnVal=curFH?`${fmtHHMM(curFH)} FH`:"—";
+    const csnVal=curFC?`${Math.round(curFC).toLocaleString()} FC`:"—";
     // `style` is applied to the value <td> itself, not embedded in `v` —
     // `v` always stays plain text so escapeHtml(v) below is a real escape,
     // not a double-escape of pre-built HTML (that bug turned TSN/CSN into
