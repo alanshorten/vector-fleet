@@ -844,6 +844,21 @@ const db = {
     });
   },
 
+  // Every finding across the whole tenant, regardless of asset — powers
+  // the four fleet-dashboard summary cards (Dashboard.jsx's
+  // FleetFindingsCards). Same Timestamp -> millis conversion as
+  // getAssetFindings above.
+  async getAllFindings() {
+    const { db: fs, collection, getDocs } = getFS();
+    const tenantId = await getTenantId();
+    const snap = await getDocs(collection(fs, "tenants", tenantId, "findings"));
+    const toMillis = (t) => (t && typeof t.toMillis === "function") ? t.toMillis() : (t ? new Date(t).getTime() : null);
+    return snap.docs.map(d => {
+      const data = d.data();
+      return { id: d.id, ...data, createdAt: toMillis(data.createdAt), statusChangedAt: toMillis(data.statusChangedAt), resolvedAt: toMillis(data.resolvedAt), acceptedAt: toMillis(data.acceptedAt) };
+    });
+  },
+
   // Sets the one-time baseline (findingsEngine.js's "critical design
   // constraint") — after this, the trigger engine compares every future
   // recompute against these bands instead of creating findings from the

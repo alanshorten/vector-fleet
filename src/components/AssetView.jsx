@@ -87,7 +87,7 @@ function LLPExtractor({kind,label,onApply,notify}){
 };
 
 function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,initialLayer,
-  layer,setLayer,shareOpen,setShareOpen,genSpecRef}){
+  layer,setLayer,shareOpen,setShareOpen,genSpecRef,focusPotCode,clearFocusPotCode}){
   const[tab,setTab]=useState("overview");
   const[showEOLPosition,setShowEOLPosition]=useState(false);
   const[showAssumptions,setShowAssumptions]=useState(false);
@@ -193,7 +193,7 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
         </>
       )}
       {layer==="calendar"&&canSeeAdvanced&&<MaintenanceCalendarView asset={asset} notify={notify} canEnterCosts={canEnterLeaseData} isAdmin={isAdmin} showSeasonality={showSeasonality} setShowSeasonality={setShowSeasonality}/>}
-      {layer==="financials"&&canSeeAdvanced&&<FlyForward asset={asset} saveAsset={saveAsset} notify={notify} canEnterLeaseData={canEnterLeaseData} userRole={userRole} showEOLPosition={showEOLPosition} setShowEOLPosition={setShowEOLPosition} showAssumptions={showAssumptions} leaseWizardOpen={leaseWizardOpen} setLeaseWizardOpen={setLeaseWizardOpen}/>}
+      {layer==="financials"&&canSeeAdvanced&&<FlyForward asset={asset} saveAsset={saveAsset} notify={notify} canEnterLeaseData={canEnterLeaseData} userRole={userRole} showEOLPosition={showEOLPosition} setShowEOLPosition={setShowEOLPosition} showAssumptions={showAssumptions} leaseWizardOpen={leaseWizardOpen} setLeaseWizardOpen={setLeaseWizardOpen} focusPotCode={focusPotCode} clearFocusPotCode={clearFocusPotCode}/>}
       {layer==="scenarios"&&canSeeAdvanced&&<Scenarios asset={asset}/>}
       {shareOpen&&<ShareModal asset={asset} notify={notify} onClose={()=>setShareOpen(false)}/>}
     </div>

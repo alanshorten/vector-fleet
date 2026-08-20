@@ -7,6 +7,7 @@ import { FF_COLORS, buildAssetMaintenanceCalendar, buildFlyForwardProjection } f
 import { buildPotDefsForActivation } from '../lib/pots';
 import { useLayoutMode } from '../lib/layoutMode';
 import { getEndOfLeaseTermsDefaults } from '../lib/knowledgeBase';
+import { AcceptedPositionsSection, FindingTriageControl } from './Findings';
 
 const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -661,14 +662,17 @@ function EOLPhysicalCard({ physical }) {
   );
 }
 
-function EndOfLeasePositionView({ asset, lease, projections, rate, engineFamily, onClose }) {
+// Factored out of EndOfLeasePositionView so the Fleet Findings sync
+// (Category 3, lease-end proximity — findingsEngine.js Brain 10) can read
+// the exact same per-engine EOL money figures the UI shows, rather than a
+// second parallel calculation that could quietly drift from it.
+function computeEngineEOLResults(asset, lease, projections, rate, engineFamily) {
   const terms = lease.endOfLeaseTerms || getEndOfLeaseTermsDefaults();
   const expiryDate = new Date(lease.leaseEnd);
   const escalationPctPerYr = window.LLP_CATALOGUE_PRICES?.[engineFamily]?.escalationPctPerYr ?? null;
   const engines = (asset.engines || []).filter(e => e.sn && e.llps && e.llps.length);
   const moneyApplies = !!terms.applies && (terms.componentsCovered || []).includes("ENGINE_LLP");
-
-  const engineResults = engines.map(eng => {
+  return engines.map(eng => {
     const { engineParts, moneyCtx } = buildEOLMoneyInputs(eng, {
       rate, expiryDate, engineFamily, projections,
       bDenominatorPct: terms.bDenominatorPct,
@@ -681,8 +685,26 @@ function EndOfLeasePositionView({ asset, lease, projections, rate, engineFamily,
       : { uncomputable: true, message: "This lease's endOfLeaseTerms marks no EOL adjustment as applicable for Engine LLPs — confirm against the lease schedule before assuming this is correct." };
     return { position: eng.position, ...result };
   });
+}
 
+// Asset-level summary for the Fleet Findings trigger (Category 3) — sums
+// netPayableByLessee across engines when every one is computable. If any
+// engine result is uncomputable, the whole asset-level figure is too
+// ("no number is safer than a confident wrong one" — endOfLeasePosition.js
+// — applied here at the asset-aggregate level as well).
+function summariseAssetEOLPosition(engineResults) {
+  if (!engineResults.length) return { uncomputable: true };
+  if (engineResults.some(r => r.uncomputable)) return { uncomputable: true };
+  const netPayableByLessee = engineResults.reduce((sum, r) => sum + (r.netPayableByLessee || 0), 0);
+  return { uncomputable: false, netPayableByLessee };
+}
+
+function EndOfLeasePositionView({ asset, lease, projections, rate, engineFamily, onClose }) {
+  const expiryDate = new Date(lease.leaseEnd);
+  const engines = (asset.engines || []).filter(e => e.sn && e.llps && e.llps.length);
+  const engineResults = computeEngineEOLResults(asset, lease, projections, rate, engineFamily);
   const physicalInputs = buildEOLPhysicalInputs(asset, engines, projections, { rate, expiryDate });
+  const terms = lease.endOfLeaseTerms || getEndOfLeaseTermsDefaults();
   const physical = window.buildPhysicalPositionChecks(terms.margins, physicalInputs);
 
   return (
@@ -784,7 +806,7 @@ function ForwardExposureCard({ exposure, lease, inLeaseShortfallLow, inLeaseShor
   );
 }
 
-function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, showEOLPosition, setShowEOLPosition, showAssumptions, leaseWizardOpen, setLeaseWizardOpen }) {
+function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, showEOLPosition, setShowEOLPosition, showAssumptions, leaseWizardOpen, setLeaseWizardOpen, focusPotCode, clearFocusPotCode }) {
   const [loading, setLoading] = useState(true);
   const [lease, setLease] = useState(null);
   const [reserveDocs, setReserveDocs] = useState([]);
@@ -793,8 +815,18 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
   const [seasonalityProfile, setSeasonalityProfile] = useState(null);
   const [costProjections, setCostProjections] = useState([]);
   const [loadError, setLoadError] = useState(null);
+  const [assetFindings, setAssetFindings] = useState([]);
   const { mode: layoutMode, width: layoutWidth } = useLayoutMode();
   const engineFamily = isCFM(asset) ? "CFM" : "V2500";
+
+  // Findings for THIS asset — read-side only here (the sync effect below
+  // is what writes them). Reloaded once per asset load, and again right
+  // after the sync effect runs so a fresh create/resolve/resurface shows
+  // up without needing a manual refresh.
+  const refreshFindings = useCallback(() => {
+    db.getAssetFindings(asset.id).then(setAssetFindings).catch(() => {});
+  }, [asset.id]);
+  useEffect(() => { refreshFindings(); }, [refreshFindings]);
 
   useEffect(() => {
     let cancelled = false;
@@ -864,6 +896,70 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, asset.id, lease?.id]);
+
+  // Fleet Findings trigger (claude_ui-p2-build-handoff.md Item 1, Session B
+  // — findingsEngine.js / Brain 10 was built Session A but nothing called
+  // it yet). Runs once per data-load, same shape as the shopVisitProjections
+  // effect above — recomputes its own Brain 3/6/7 inputs independently
+  // rather than reading render-scope values, so it isn't tied to how often
+  // FlyForward itself re-renders.
+  //
+  // Deliberately scoped to THIS call site only, not also wired into the
+  // Upload/LeaseWizard/CompletedEvent save flows directly — those all
+  // trigger a real Firestore write, but Brain 5/6/7's inputs (lease,
+  // reserves, scheduled events, seasonality, cost projections, KB) are
+  // only ever fully assembled together here, inside Fly-Forward's own load
+  // effect. Duplicating that assembly at every other save site risked a
+  // second parallel computation quietly drifting from what this tab
+  // actually shows. Practical effect: a finding is (re)computed whenever
+  // this asset's Financials tab is opened or reloaded — not the instant an
+  // upload/lease/completed-event save happens somewhere else in the app
+  // without this tab being open. Flagged plainly, not left implicit.
+  useEffect(() => {
+    if (loading || loadError || !lease) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!window.evaluateAssetFindings) return; // findingsEngine.js not loaded
+        const { rate: findingsRate, projections: findingsProjections, maintenanceCal: findingsMaintCal, projectionError: findingsError } =
+          buildFlyForwardProjection({ asset, lease, reserveDocs, utilRate, scheduledEvents, seasonalityProfile, costProjections });
+        if (cancelled || findingsError) return;
+        const terms = lease.endOfLeaseTerms || getEndOfLeaseTermsDefaults();
+        const eolPositionSummary = terms.applies
+          ? summariseAssetEOLPosition(computeEngineEOLResults(asset, lease, findingsProjections, findingsRate, engineFamily))
+          : { uncomputable: true };
+        await db.syncAssetFindings(asset, {
+          potProjections: findingsProjections,
+          maintenanceEvents: findingsMaintCal?.events || [],
+          leaseEndDate: lease.leaseEnd ? new Date(lease.leaseEnd) : null,
+          eolPosition: eolPositionSummary
+        });
+        if (!cancelled) refreshFindings();
+      } catch (e) {
+        console.warn("Findings sync failed:", e);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, asset.id, lease?.id]);
+
+  // Deep-link scroll (claude_ui-p2-build-handoff.md Item 1: "Deep link →
+  // navigates to asset's financials tab, scrolled/focused on the relevant
+  // pot"). focusPotCode is set by App.jsx when a finding row is opened
+  // from the fleet dashboard cards; cleared here once acted on so it
+  // doesn't re-fire on an unrelated re-render.
+  useEffect(() => {
+    if (!focusPotCode || loading) return;
+    const el = document.getElementById(`pot-${focusPotCode}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.style.outline = "2px solid var(--color-teal)";
+      el.style.outlineOffset = "2px";
+      setTimeout(() => { el.style.outline = ""; el.style.outlineOffset = ""; }, 2500);
+    }
+    clearFocusPotCode && clearFocusPotCode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusPotCode, loading]);
 
   if (loading) {
     return <div style={{ padding: 40, textAlign: "center", color: "var(--color-graphite)" }}>Loading Fly-Forward projection for MSN {asset.msn}…</div>;
@@ -998,9 +1094,26 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
       <div style={layoutMode === "landscape" ? { display: "grid", gridTemplateColumns: `repeat(${layoutWidth >= 1700 ? 4 : layoutWidth >= 1300 ? 3 : 2}, 1fr)`, columnGap: 16 } : undefined}>
         {projections.map((p, i) => {
           const anchoredPot = anchoredPots.find(ap => ap.code === p.code);
-          return <FFPotCard key={p.code} projection={p} color={colorList[i % colorList.length]} anchored={!!anchoredPot?.firstEventOverrideDate}/>;
+          // Most recent open (non-resolved, non-accepted) finding for this
+          // pot, if any — surfaces the Accept control right on the pot
+          // card that triggered it, rather than sending Editor/Admin back
+          // to the fleet dashboard to triage.
+          const potFinding = assetFindings
+            .filter(f => f.source?.pot === p.code && f.status !== "resolved" && f.status !== "accepted")
+            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0] || null;
+          return (
+            <div key={p.code} id={`pot-${p.code}`}>
+              <FFPotCard projection={p} color={colorList[i % colorList.length]} anchored={!!anchoredPot?.firstEventOverrideDate}/>
+              {potFinding && (
+                <div style={{ marginTop: -8, marginBottom: 14, paddingLeft: 4 }}>
+                  <FindingTriageControl finding={potFinding} userRole={userRole} onChanged={refreshFindings}/>
+                </div>
+              )}
+            </div>
+          );
         })}
       </div>
+      <AcceptedPositionsSection assetId={asset.id} userRole={userRole}/>
     </div>
   );
 };

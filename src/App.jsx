@@ -180,6 +180,11 @@ function AppInner(){
   const[selectedId,setSelectedId]=useState(null);
   const[assetInitialLayer,setAssetInitialLayer]=useState("details");
   const[assetLayer,setAssetLayer]=useState("details");
+  // Fleet Findings deep link (claude_ui-p2-build-handoff.md Item 1, Session
+  // B) — set when a finding row on the fleet dashboard is opened, so
+  // FlyForward can scroll/focus the relevant pot card once it renders.
+  // Cleared by FlyForward itself once it's acted on (see focusPotCode prop).
+  const[focusPotCode,setFocusPotCode]=useState(null);
   const[assetShareOpen,setAssetShareOpen]=useState(false);
   const genSpecRef=useRef(null);
   const[userRole,setUserRole]=useState(null);
@@ -449,8 +454,8 @@ function AppInner(){
       )}
 
       <main style={{padding:"20px 22px",maxWidth: layoutMode==="landscape" ? 1900 : 1480,margin:"0 auto"}}>
-        {view==="dashboard"&&!selectedId&&<Dashboard assets={liveAssets} onSelect={id=>{setSelectedId(id);setAssetLayer("details");setView("asset");}} saveAsset={saveAsset} notify={notify}/>}
-        {view==="asset"&&selectedId&&selectedAsset&&<AssetView asset={selectedAsset} saveAsset={saveAsset} isAdmin={userRole==='admin'||userRole==='editor'} userRole={userRole} notify={notify} onBack={()=>{setView("dashboard");setSelectedId(null);}} loadAssets={loadAssets} initialLayer={assetInitialLayer} layer={assetLayer} setLayer={setAssetLayer} shareOpen={assetShareOpen} setShareOpen={setAssetShareOpen} genSpecRef={genSpecRef}/>}
+        {view==="dashboard"&&!selectedId&&<Dashboard assets={liveAssets} onSelect={id=>{setSelectedId(id);setAssetLayer("details");setView("asset");}} onOpenFinding={f=>{setSelectedId(f.assetId);setAssetLayer("financials");setFocusPotCode(f.source?.pot||null);setView("asset");}} saveAsset={saveAsset} notify={notify}/>}
+        {view==="asset"&&selectedId&&selectedAsset&&<AssetView asset={selectedAsset} saveAsset={saveAsset} isAdmin={userRole==='admin'||userRole==='editor'} userRole={userRole} notify={notify} onBack={()=>{setView("dashboard");setSelectedId(null);}} loadAssets={loadAssets} initialLayer={assetInitialLayer} layer={assetLayer} setLayer={setAssetLayer} shareOpen={assetShareOpen} setShareOpen={setAssetShareOpen} genSpecRef={genSpecRef} focusPotCode={focusPotCode} clearFocusPotCode={()=>setFocusPotCode(null)}/>}
         {view==="upload"&&canUpload&&<UploadView assets={liveAssets} saveAsset={saveAsset} notify={notify}/>}
         {view==="guide"&&<GuideView userRole={userRole}/>}
         {view==="iq"&&userRole==='admin'&&<IQView assets={liveAssets}/>}
