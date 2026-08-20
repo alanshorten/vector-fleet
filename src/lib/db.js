@@ -885,6 +885,13 @@ const db = {
       source: {
         pot: finding.pot || null,
         eventType: finding.eventType || null,
+        // 20 Aug 2026 root-cause fix — this was never persisted before,
+        // so findingsEngine.js's own dedup key for unfunded_event findings
+        // (pot + eventDate) could never match an existing doc on a later
+        // run. That's what caused the same near-term-event finding to be
+        // re-created on every Financials tab reopen, regardless of its
+        // status (open or already accepted).
+        eventDate: finding.eventDate || null,
         description: finding.description
       },
       bandAtCreation: finding.bandAtCreation,
@@ -1011,21 +1018,6 @@ const db = {
         openFindings
       });
 
-      // TEMPORARY diagnostic (20 Aug 2026) — an accepted finding is being
-      // re-created as "New" on every Financials tab reopen with, per Alan's
-      // report, no actual band change. Static review of findingsEngine.js's
-      // activeFindingByPot matching didn't turn up the mismatch; logging
-      // the actual inputs/outputs here so the next reproduction gives real
-      // evidence instead of another guess. Safe to remove once diagnosed —
-      // harmless if left in, but should come out once resolved.
-      console.log("[findings-sync]", asset.id, {
-        baselineSet: !!asset.findingsBaselineSet,
-        baselineBands: asset.findingsBaseline?.bands || null,
-        openFindings: openFindings.map(f => ({ id: f.id, type: f.type, status: f.status, pot: f.source?.pot, bandAtCreation: f.bandAtCreation, bandAtAcceptance: f.bandAtAcceptance, createdAt: f.createdAt })),
-        currentPotBands: (window.computePotBands ? window.computePotBands(window.summarisePortfolioShortfall(computed.potProjections || []).pots) : null),
-        findingActions: result.findingActions
-      });
-
       if (result.setBaseline) {
         await this.setFindingsBaseline(asset.id, result.setBaseline);
         return;
@@ -1058,12 +1050,24 @@ const db = {
           // a new alert anymore" after accepting a test finding. Only
           // still-open, un-triaged findings (new/action_required/
           // monitoring) should suppress a duplicate create.
-          const duplicate = openFindings.some(f =>
-            f.status !== "accepted" &&
-            f.type === action.type &&
-            (f.source?.pot || null) === (action.pot || null) &&
-            f.bandAtCreation === action.bandAtCreation
-          );
+          //
+          // 20 Aug 2026 — root cause found via live diagnostic: Category 2
+          // (unfunded_event) findings never carried an eventDate in their
+          // stored `source`, so findingsEngine.js's own dedup key (pot +
+          // eventDate) could never match an existing doc — every sync run
+          // treated the same near-term event as brand new, regardless of
+          // status (open OR accepted). Fixed at the source (findingsEngine.js
+          // + createFinding now both carry eventDate). This guard is
+          // updated to match: for a dated event, the SAME event should
+          // never re-create regardless of accepted status (no
+          // "resurface on further deterioration" concept for this
+          // category); for Category 1/3 band transitions, accepted
+          // findings still don't block a genuinely fresh create.
+          const duplicate = openFindings.some(f => {
+            if (f.type !== action.type || (f.source?.pot || null) !== (action.pot || null)) return false;
+            if (action.eventDate) return f.source?.eventDate === action.eventDate;
+            return f.status !== "accepted" && f.bandAtCreation === action.bandAtCreation;
+          });
           if (duplicate) continue;
           await this.createFinding(asset.id, action);
         } else if (action.action === "resolve") {

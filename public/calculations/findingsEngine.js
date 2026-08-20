@@ -167,7 +167,19 @@ function evaluateUnfundedEvents({ potBands, maintenanceEvents, today, openFindin
     const pot = potByCode[evt.code];
     if (!pot || pot.band === "green") continue;
     if (!evt.date || evt.date > horizon) continue;
-    const key = `${evt.code}:${evt.date.toISOString().slice(0, 10)}`;
+    // 20 Aug 2026 live-test fix: this eventDate value is the dedup key
+    // below AND (bug) used to be the only thing missing from the actual
+    // created finding — db.js's createFinding never had an eventDate field
+    // to persist, so this same event was never recognised as "already
+    // flagged" on any later run. Every reopen of the Financials tab
+    // re-created it from scratch, regardless of whether the existing one
+    // was open or already accepted — reported live as "every time I reopen
+    // the asset financials it still creates as new... even though I
+    // accepted this." Now carried through into the action object so
+    // db.js/createFinding can store it on source.eventDate, which is what
+    // openFindingsByEventKey (built from f.source.eventDate) actually keys on.
+    const eventDate = evt.date.toISOString().slice(0, 10);
+    const key = `${evt.code}:${eventDate}`;
     stillNearTermKeys.add(key);
     if (openFindingsByEventKey[key]) continue; // already flagged, nothing new
     actions.push({
@@ -175,7 +187,8 @@ function evaluateUnfundedEvents({ potBands, maintenanceEvents, today, openFindin
       type: FINDING_TYPES.UNFUNDED_EVENT,
       pot: evt.code,
       eventType: evt.label || evt.code,
-      description: `${evt.label || evt.code} due ${evt.date.toISOString().slice(0, 10)} — ${pot.label} pot in ${pot.band}`,
+      eventDate,
+      description: `${evt.label || evt.code} due ${eventDate} — ${pot.label} pot in ${pot.band}`,
       bandAtCreation: pot.band,
       shortfallLow: pot.shortfallLow,
       shortfallHigh: pot.shortfallHigh
