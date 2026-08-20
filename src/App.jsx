@@ -452,7 +452,7 @@ function AppInner(){
         {view==="dashboard"&&!selectedId&&<Dashboard assets={liveAssets} onSelect={id=>{setSelectedId(id);setAssetLayer("details");setView("asset");}} saveAsset={saveAsset} notify={notify}/>}
         {view==="asset"&&selectedId&&selectedAsset&&<AssetView asset={selectedAsset} saveAsset={saveAsset} isAdmin={userRole==='admin'||userRole==='editor'} userRole={userRole} notify={notify} onBack={()=>{setView("dashboard");setSelectedId(null);}} loadAssets={loadAssets} initialLayer={assetInitialLayer} layer={assetLayer} setLayer={setAssetLayer} shareOpen={assetShareOpen} setShareOpen={setAssetShareOpen} genSpecRef={genSpecRef}/>}
         {view==="upload"&&canUpload&&<UploadView assets={liveAssets} saveAsset={saveAsset} notify={notify}/>}
-        {view==="guide"&&<GuideView/>}
+        {view==="guide"&&<GuideView userRole={userRole}/>}
         {view==="iq"&&userRole==='admin'&&<IQView assets={liveAssets}/>}
         {view==="portfolio"&&canSeeAdvanced&&<PortfolioView assets={liveAssets} notify={notify} onSelect={(id)=>{setSelectedId(id);setAssetLayer("details");setView("asset");}} onFlyForward={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>}
         {view==="fleetexposure"&&canSeeAdvanced&&<FleetExposureView assets={liveAssets} onSelectAsset={(id)=>{setSelectedId(id);setAssetLayer("financials");setView("asset");}}/>}
