@@ -454,7 +454,7 @@ function AppInner(){
       )}
 
       <main style={{padding:"20px 22px",maxWidth: layoutMode==="landscape" ? 1900 : 1480,margin:"0 auto"}}>
-        {view==="dashboard"&&!selectedId&&<Dashboard assets={liveAssets} onSelect={id=>{setSelectedId(id);setAssetLayer("details");setView("asset");}} onOpenFinding={f=>{setSelectedId(f.assetId);setAssetLayer("financials");setFocusPotCode(f.source?.pot||null);setView("asset");}} saveAsset={saveAsset} notify={notify}/>}
+        {view==="dashboard"&&!selectedId&&<Dashboard assets={liveAssets} onSelect={id=>{setSelectedId(id);setAssetLayer("details");setView("asset");}} onOpenFinding={f=>{setSelectedId(f.assetId);setAssetLayer("financials");setFocusPotCode(f.source?.pot||null);setView("asset");}} saveAsset={saveAsset} notify={notify} userRole={userRole}/>}
         {view==="asset"&&selectedId&&selectedAsset&&<AssetView asset={selectedAsset} saveAsset={saveAsset} isAdmin={userRole==='admin'||userRole==='editor'} userRole={userRole} notify={notify} onBack={()=>{setView("dashboard");setSelectedId(null);}} loadAssets={loadAssets} initialLayer={assetInitialLayer} layer={assetLayer} setLayer={setAssetLayer} shareOpen={assetShareOpen} setShareOpen={setAssetShareOpen} genSpecRef={genSpecRef} focusPotCode={focusPotCode} clearFocusPotCode={()=>setFocusPotCode(null)}/>}
         {view==="upload"&&canUpload&&<UploadView assets={liveAssets} saveAsset={saveAsset} notify={notify}/>}
         {view==="guide"&&<GuideView userRole={userRole}/>}

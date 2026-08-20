@@ -64,7 +64,7 @@ function ReviewQueueBanner({saveAsset,notify}){
   );
 };
 
-function Dashboard({assets,onSelect,saveAsset,notify,onOpenFinding}){
+function Dashboard({assets,onSelect,saveAsset,notify,onOpenFinding,userRole}){
   const[viewMode,setViewMode]=useState("list");
   const[filter,setFilter]=useState("");
   const[sortCol,setSortCol]=useState("msn");
@@ -107,7 +107,7 @@ function Dashboard({assets,onSelect,saveAsset,notify,onOpenFinding}){
   return(
     <div style={{animation:"fadeIn 0.2s ease"}}>
       <ReviewQueueBanner saveAsset={saveAsset} notify={notify}/>
-      {onOpenFinding&&<FleetFindingsCards assets={assets} onOpenFinding={onOpenFinding}/>}
+      {onOpenFinding&&<FleetFindingsCards assets={assets} onOpenFinding={onOpenFinding} userRole={userRole}/>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,gap:8,flexWrap:"wrap"}}>
         <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0}}>
           <input placeholder="Search MSN, reg, operator…" value={filter} onChange={e=>setFilter(e.target.value)} style={{minWidth:0,flex:1}}/>

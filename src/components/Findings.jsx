@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { db } from '../lib/db';
 
 // Fleet Findings Workflow — Session B UI (claude_ui-p2-build-handoff.md
@@ -27,7 +27,7 @@ function findingLabel(f) {
 // to asset's financials tab, scrolled/focused on the relevant pot" — the
 // pot code (when the finding has one) is passed up so App.jsx can hand it
 // to FlyForward as focusPotCode.
-function FindingRow({ finding, asset, onOpen }) {
+function FindingRow({ finding, asset, onOpen, onDelete }) {
   return (
     <div
       onClick={() => onOpen(finding)}
@@ -43,8 +43,22 @@ function FindingRow({ finding, asset, onOpen }) {
           {finding.source?.pot || finding.source?.eventType || "—"} · {findingLabel(finding)}
         </div>
       </div>
-      <div style={{ fontSize: 11, color: "var(--color-graphite)", flexShrink: 0, marginLeft: 12, textAlign: "right" }}>
-        {fmtDateShort(finding.createdAt)}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, marginLeft: 12 }}>
+        <div style={{ fontSize: 11, color: "var(--color-graphite)", textAlign: "right" }}>
+          {fmtDateShort(finding.createdAt)}
+        </div>
+        {onDelete && (
+          // Admin-only hard delete — 20 Aug 2026, added so test/duplicate
+          // findings created during live testing can be cleaned up from
+          // inside the app rather than needing the Firebase Console.
+          <button
+            title="Delete this finding (admin only)"
+            onClick={e => { e.stopPropagation(); onDelete(finding); }}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--color-graphite)", padding: 2, lineHeight: 1 }}
+          >
+            🗑
+          </button>
+        )}
       </div>
     </div>
   );
@@ -54,15 +68,21 @@ function FindingRow({ finding, asset, onOpen }) {
 // Resolved), each expanding independently downward — multiple can be open
 // at once, per the handoff's interaction spec. Sits above the fleet table
 // on Dashboard.jsx.
-function FleetFindingsCards({ assets, onOpenFinding }) {
+function FleetFindingsCards({ assets, onOpenFinding, userRole }) {
   const [findings, setFindings] = useState(null); // null = loading
   const [expanded, setExpanded] = useState({});
 
-  useEffect(() => {
-    let cancelled = false;
-    db.getAllFindings().then(f => { if (!cancelled) setFindings(f); }).catch(() => { if (!cancelled) setFindings([]); });
-    return () => { cancelled = true; };
+  const load = useCallback(() => {
+    db.getAllFindings().then(setFindings).catch(() => setFindings([]));
   }, []);
+  useEffect(() => { load(); }, [load]);
+
+  // Admin-only delete — 20 Aug 2026, cleanup escape hatch for test/duplicate
+  // findings (mirrors the firestore.rules admin-only delete gate).
+  const handleDelete = (finding) => {
+    if (!window.confirm(`Delete this finding (${finding.source?.pot || finding.type})? This can't be undone.`)) return;
+    db.deleteFinding(finding.id).then(load).catch(() => {});
+  };
 
   if (findings === null) return null; // no layout flash while loading
   if (!findings.length) return null; // nothing to show — don't take up space with four empty cards
@@ -92,7 +112,7 @@ function FleetFindingsCards({ assets, onOpenFinding }) {
             {isOpen && rows.length > 0 && (
               <div>
                 {rows.map(f => (
-                  <FindingRow key={f.id} finding={f} asset={assetById[f.assetId]} onOpen={onOpenFinding}/>
+                  <FindingRow key={f.id} finding={f} asset={assetById[f.assetId]} onOpen={onOpenFinding} onDelete={userRole === "admin" ? handleDelete : null}/>
                 ))}
               </div>
             )}
@@ -116,8 +136,15 @@ function FleetFindingsCards({ assets, onOpenFinding }) {
 // just happened elsewhere on the same page (20 Aug 2026 live-test fix —
 // "accepted the position but... not showing on the financials tab as
 // accepted").
-function AcceptedPositionsSection({ findings }) {
+function AcceptedPositionsSection({ findings, userRole, onDeleted }) {
   if (!findings || !findings.length) return null;
+
+  // Admin-only delete — 20 Aug 2026, cleanup escape hatch for test/duplicate
+  // accepted findings, alongside the same affordance on the fleet cards.
+  const handleDelete = (f) => {
+    if (!window.confirm(`Delete this accepted finding (${f.source?.pot || f.type})? This can't be undone.`)) return;
+    db.deleteFinding(f.id).then(() => onDeleted && onDeleted()).catch(() => {});
+  };
 
   return (
     <div className="card" style={{ padding: 16, marginBottom: 16 }}>
@@ -129,7 +156,18 @@ function AcceptedPositionsSection({ findings }) {
         <div key={f.id} style={{ padding: "8px 0", borderTop: "1px solid var(--color-divider-inner)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
             <div style={{ fontSize: 12, color: "var(--color-carbon)" }}>{f.source?.pot || f.source?.eventType || "—"} — {findingLabel(f)}</div>
-            <div style={{ fontSize: 11, color: "var(--color-graphite)", whiteSpace: "nowrap" }}>Accepted {fmtDateShort(f.acceptedAt)}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <div style={{ fontSize: 11, color: "var(--color-graphite)", whiteSpace: "nowrap" }}>Accepted {fmtDateShort(f.acceptedAt)}</div>
+              {userRole === "admin" && (
+                <button
+                  title="Delete this finding (admin only)"
+                  onClick={() => handleDelete(f)}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--color-graphite)", padding: 2, lineHeight: 1 }}
+                >
+                  🗑
+                </button>
+              )}
+            </div>
           </div>
           {(f.notes || []).filter(n => n.by !== "system").slice(-1).map((n, i) => (
             <div key={i} style={{ fontSize: 11, color: "var(--color-graphite)", marginTop: 4, fontStyle: "italic" }}>“{n.text}”</div>
@@ -167,12 +205,38 @@ function FindingTriageControl({ finding, userRole, onChanged, notify }) {
     }
   };
 
+  // Admin-only hard delete — 20 Aug 2026, cleanup escape hatch for
+  // test/duplicate findings still open (not yet accepted).
+  const del = async () => {
+    if (!window.confirm(`Delete this finding (${finding.source?.pot || finding.type})? This can't be undone.`)) return;
+    setBusy(true);
+    try {
+      await db.deleteFinding(finding.id);
+      onChanged && onChanged();
+    } catch (e) {
+      if (notify) notify("Failed to delete: " + (e.message || "please try again"), "error");
+      else console.warn("Failed to delete finding:", e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8 }}>
       <input placeholder="Optional note" value={note} onChange={e => setNote(e.target.value)} style={{ fontSize: 11, padding: "5px 8px" }}/>
       <button className="btn btn-ghost" style={{ fontSize: 11, padding: "5px 10px", whiteSpace: "nowrap" }} disabled={busy} onClick={accept}>
         {busy ? "Accepting…" : "Accept position"}
       </button>
+      {userRole === "admin" && (
+        <button
+          title="Delete this finding (admin only)"
+          disabled={busy}
+          onClick={del}
+          style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--color-graphite)", padding: 2, lineHeight: 1 }}
+        >
+          🗑
+        </button>
+      )}
     </div>
   );
 }

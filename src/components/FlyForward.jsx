@@ -1113,7 +1113,7 @@ function FlyForward({ asset, saveAsset, notify, canEnterLeaseData, userRole, sho
           );
         })}
       </div>
-      <AcceptedPositionsSection findings={assetFindings.filter(f => f.status === "accepted")}/>
+      <AcceptedPositionsSection findings={assetFindings.filter(f => f.status === "accepted")} userRole={userRole} onDeleted={refreshFindings}/>
     </div>
   );
 };

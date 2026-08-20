@@ -958,6 +958,18 @@ const db = {
     }, { merge: true });
   },
 
+  // Admin-only hard delete — added 20 Aug 2026 alongside the firestore.rules
+  // `allow delete` change, specifically so test/duplicate findings created
+  // during live testing can be cleaned up from inside the app instead of
+  // needing the Firebase Console. Mirrors the rules' admin-only gate;
+  // client-side callers additionally check userRole==='admin' before even
+  // showing the control (see Findings.jsx).
+  async deleteFinding(findingId) {
+    const { db: fs, doc, deleteDoc } = getFS();
+    const tenantId = await getTenantId();
+    await deleteDoc(doc(fs, "tenants", tenantId, "findings", findingId));
+  },
+
   async addFindingNote(findingId, text) {
     const { db: fs, doc, getDoc, setDoc, serverTimestamp } = getFS();
     const tenantId = await getTenantId();
@@ -1016,7 +1028,23 @@ const db = {
           // regardless of why the engine thought a fresh one was needed.
           // Belt-and-suspenders: even if the engine-side matching has (or
           // develops) an edge case, this can't produce a duplicate.
+          //
+          // 20 Aug 2026 correction: the first cut of this guard matched
+          // against EVERY non-resolved finding, including ones already
+          // "accepted". That's wrong — an accepted finding is exactly the
+          // case where the engine may legitimately need to create a FRESH
+          // finding later (e.g. it degraded again after being accepted, or
+          // a new independent occurrence at the same band shows up), and
+          // findingsEngine.js's own transitionAction logic already decides
+          // "resurface" vs "create" using bandAtAcceptance for that specific
+          // case. Leaving accepted findings in this duplicate check silently
+          // ate every subsequent "create" action once anything at a given
+          // band had ever been accepted — live-tested as "it won't trigger
+          // a new alert anymore" after accepting a test finding. Only
+          // still-open, un-triaged findings (new/action_required/
+          // monitoring) should suppress a duplicate create.
           const duplicate = openFindings.some(f =>
+            f.status !== "accepted" &&
             f.type === action.type &&
             (f.source?.pot || null) === (action.pot || null) &&
             f.bandAtCreation === action.bandAtCreation
