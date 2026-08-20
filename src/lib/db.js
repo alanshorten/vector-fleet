@@ -1011,6 +1011,21 @@ const db = {
         openFindings
       });
 
+      // TEMPORARY diagnostic (20 Aug 2026) — an accepted finding is being
+      // re-created as "New" on every Financials tab reopen with, per Alan's
+      // report, no actual band change. Static review of findingsEngine.js's
+      // activeFindingByPot matching didn't turn up the mismatch; logging
+      // the actual inputs/outputs here so the next reproduction gives real
+      // evidence instead of another guess. Safe to remove once diagnosed —
+      // harmless if left in, but should come out once resolved.
+      console.log("[findings-sync]", asset.id, {
+        baselineSet: !!asset.findingsBaselineSet,
+        baselineBands: asset.findingsBaseline?.bands || null,
+        openFindings: openFindings.map(f => ({ id: f.id, type: f.type, status: f.status, pot: f.source?.pot, bandAtCreation: f.bandAtCreation, bandAtAcceptance: f.bandAtAcceptance, createdAt: f.createdAt })),
+        currentPotBands: (window.computePotBands ? window.computePotBands(window.summarisePortfolioShortfall(computed.potProjections || []).pots) : null),
+        findingActions: result.findingActions
+      });
+
       if (result.setBaseline) {
         await this.setFindingsBaseline(asset.id, result.setBaseline);
         return;
