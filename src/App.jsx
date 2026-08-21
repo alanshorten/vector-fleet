@@ -11,6 +11,7 @@ import { bootstrapKnowledgeBaseGlobals } from './lib/knowledgeBase';
 import { HEADER_LOGO_NAVY } from './lib/techSpec';
 import { LayoutModeProvider, useLayoutMode } from './lib/layoutMode';
 import { IQView } from './components/IQView';
+import { PlatformView } from './components/PlatformView';
 
 // ---------------------------------------------------------------------
 // HamburgerMenu — low-frequency items off the main nav bar.
@@ -26,7 +27,7 @@ import { IQView } from './components/IQView';
 //
 // Scoping: hamburger-menu-build-handoff.md
 // ---------------------------------------------------------------------
-function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, isAdmin, isPortfolio }) {
+function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, isAdmin, isSuperAdmin, isPortfolio }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -158,6 +159,7 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
           {/* Account */}
           <GroupLabel>Account</GroupLabel>
           <Item value="settings" label="Settings"/>
+          {isSuperAdmin && <Item value="platform" label="Platform"/>}
           <Item value="signout" label="⎋ Sign Out"/>
         </div>
       )}
@@ -188,6 +190,13 @@ function AppInner(){
   const[assetShareOpen,setAssetShareOpen]=useState(false);
   const genSpecRef=useRef(null);
   const[userRole,setUserRole]=useState(null);
+  // Platform-level flag (claude_security-review-20260818-handoff.md Build
+  // Group A) — separate from and above the tenant-scoped userRole model.
+  // Set from the superAdmin:true custom claim, resolved alongside role/
+  // tenantId below. Gates the Platform nav entry and the /platform view;
+  // the real enforcement is the Firestore rule + create-tenant.js's own
+  // server-side check, this is just visibility.
+  const[isSuperAdmin,setIsSuperAdmin]=useState(false);
   const[notification,setNotification]=useState(null);
   const { mode: layoutMode } = useLayoutMode();
 
@@ -254,10 +263,12 @@ function AppInner(){
           tenantId=tokenResult?.claims?.tenantId;
         }
         setUserRole(role||'viewer');
+        setIsSuperAdmin(tokenResult?.claims?.superAdmin===true);
         if((role||'viewer')==='viewer') setView('portfolio');
       }catch(e){
         console.error('Role resolution failed',e);
         setUserRole('viewer');
+        setIsSuperAdmin(false);
       }
     };
     resolveRole();
@@ -387,7 +398,7 @@ function AppInner(){
                  branch below; confirmed by Alan). */
               <>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
-                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
+                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isSuperAdmin={isSuperAdmin} isPortfolio={false}/>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   {(()=>{
@@ -402,7 +413,7 @@ function AppInner(){
                  Upload stays inside the hamburger's Tools group on mobile —
                  confirmed by Alan, not anchored as its own row here. */
               <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
-                <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
+                <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isSuperAdmin={isSuperAdmin} isPortfolio={isPortfolio}/>
               </div>
             ) : view==="asset" && selectedAsset ? (
               /* Asset view (desktop) — single row: asset layer tabs +
@@ -418,7 +429,7 @@ function AppInner(){
                     style={{padding:"8px 16px",borderRadius:"var(--radius-button)",border:view==="upload"?"1px solid var(--color-teal)":"1px solid var(--color-divider)",background:view==="upload"?"var(--color-teal)":"transparent",color:view==="upload"?"var(--color-soft-white)":"var(--color-carbon)",fontFamily:"var(--font-interface)",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
                     Upload
                   </button>}
-                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
+                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isSuperAdmin={isSuperAdmin} isPortfolio={false}/>
                 </div>
               </div>
             ) : (
@@ -435,7 +446,7 @@ function AppInner(){
                     style={{padding:"8px 16px",borderRadius:"var(--radius-button)",border:view==="upload"?"1px solid var(--color-teal)":"1px solid var(--color-divider)",background:view==="upload"?"var(--color-teal)":"transparent",color:view==="upload"?"var(--color-soft-white)":"var(--color-carbon)",fontFamily:"var(--font-interface)",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
                     Upload
                   </button>}
-                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
+                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isSuperAdmin={isSuperAdmin} isPortfolio={isPortfolio}/>
                 </div>
               </div>
             )}
@@ -477,6 +488,7 @@ function AppInner(){
         {view==="prospects"&&<ProspectListView assets={prospectAssets} saveAsset={saveAsset} notify={notify} userRole={userRole} onSelect={id=>{setSelectedId(id);setView("prospect-editor");}} loadAssets={loadAssets}/>}
         {view==="prospect-editor"&&selectedId&&assets.find(a=>a.id===selectedId)&&<ProspectEditor asset={assets.find(a=>a.id===selectedId)} saveAsset={saveAsset} notify={notify} onBack={()=>{setView("prospects");setSelectedId(null);}}/>}
         {view==="settings"&&<AdminView assets={liveAssets} saveAsset={saveAsset} notify={notify} loadAssets={loadAssets} userRole={userRole}/>}
+        {view==="platform"&&isSuperAdmin&&<PlatformView notify={notify}/>}
       </main>
     </div>
   );

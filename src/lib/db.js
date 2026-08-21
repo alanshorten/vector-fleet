@@ -1143,6 +1143,19 @@ const db = {
     const { db: fs, doc, deleteDoc } = getFS();
     const tenantId = await getTenantId();
     await deleteDoc(doc(fs, "tenants", tenantId, "pendingReports", id));
+  },
+  // Platform admin (claude_security-review-20260818-handoff.md Build Group
+  // A). Reads the top-level tenants collection directly — no tenantId
+  // scoping, since this is the one place in the app that legitimately spans
+  // every tenant. Firestore rule (`tenants/{tenantId}`) already restricts
+  // read to accounts carrying the superAdmin:true custom claim, so no
+  // additional client-side gate is needed here; the caller (PlatformView)
+  // is only ever rendered for a superAdmin session regardless.
+  async getAllTenants() {
+    const { db: fs, collection, getDocs } = getFS();
+    const snap = await getDocs(collection(fs, "tenants"));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   }
 };
 
