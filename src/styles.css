@@ -87,6 +87,16 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--color-carbon-ti
     .asset-header-row{flex-wrap:wrap!important}
     .asset-header-top{flex:1 1 100%!important}
     .asset-header-actions{flex:1 1 100%!important;flex-wrap:wrap!important}
+    /* Details layer only (Alan, 21 Aug 2026) — Share/Tech Spec shrank to a
+       single 🔗 icon and short "Tech Spec" text on mobile (AssetView.jsx),
+       which leaves enough room for them to sit on the same line as the
+       back button + title instead of wrapping to a row of their own. Only
+       this layer's row gets the override — Financials/Calendar still carry
+       longer, un-shrunk action buttons that genuinely need to wrap, so the
+       plain .asset-header-row/.asset-header-top rules above stay as the
+       default for those. */
+    .asset-header-row-compact{flex-wrap:nowrap!important}
+    .asset-header-row-compact .asset-header-top{flex:1 1 auto!important;min-width:0!important}
   }
   @media(max-width:480px){.grid4{grid-template-columns:1fr!important}.nav-btn{padding:4px 5px!important;font-size:10px!important}}
   /* Header: stack and shrink so nothing requires horizontal scrolling on mobile */

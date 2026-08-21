@@ -145,12 +145,12 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
           Share/Generate Tech Spec live here, Details layer only (they used to
           sit in the App.jsx header trailing pill on every layer; that slot is
           now Upload, matching the fleet header's trailing pill). */}
-      <div className="flab g12 asset-header-row" style={{marginBottom:24,flexWrap:"nowrap"}}>
+      <div className={`flab g12 asset-header-row${layer==="details"?" asset-header-row-compact":""}`} style={{marginBottom:24,flexWrap:"nowrap"}}>
         <div className="flab g12 asset-header-top" style={{flexShrink:0,minWidth:0,overflow:"hidden"}}>
           <button className="btn btn-ghost" style={{flexShrink:0}} onClick={onBack}>← Fleet</button>
           <div style={{minWidth:0}}>
             <h1 style={{fontSize:18,color:"var(--color-carbon)",fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>MSN {asset.msn} — {asset.registration||"—"}</h1>
-            <p style={{color:"var(--color-graphite)",fontSize:12,whiteSpace:"nowrap"}}>{asset.model} · {asset.operator||"—"}</p>
+            <p style={{color:"var(--color-graphite)",fontSize:12,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{asset.model} · {asset.operator||"—"}</p>
           </div>
         </div>
         {layer==="details"&&(
