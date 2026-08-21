@@ -1,21 +1,32 @@
-// TailiQ — Role management (Admin only)
-// GET  /api/set-role  -> { users: [{uid, email, role}] }
-// POST /api/set-role  { uid, role } -> { ok: true }
+// TailiQ — User removal API (Admin only)
+// DELETE /api/remove-user  { uid } -> { ok: true }
 //
-// Caller must be a signed-in user with role=admin custom claim.
-// Role may only be set to 'editor', 'viewer', or 'dataEntry' via this
-// endpoint — admin role is bootstrap-only (see /api/bootstrap-admin).
+// Caller must be a signed-in user with role=admin custom claim, scoped to
+// their own tenant. Admin accounts cannot be removed via this endpoint
+// (mirrors the "Protected" state AdminPanelView.jsx already shows in the
+// UI for role==='admin' rows), and a caller cannot remove themselves.
 //
-// security-remediation-roadmap.md Phase 3, Session 1: setCustomUserClaims
-// REPLACES the whole claims object, it doesn't merge — so this must always
-// re-stamp tenantId alongside role, or a role change would silently wipe a
-// user's tenant access.
+// Security review 20260820, F-03: this file was previously a byte-for-byte
+// copy of set-role.js — GET/POST only, role-management logic, no deleteUser
+// call — so every DELETE request from AdminPanelView.jsx's removeUser()
+// 405'd and offboarding silently did nothing. This is a dedicated DELETE
+// handler that actually removes the target account.
 //
-// Build Group A (tenant onboarding, 19 Aug 2026): the tenantId to re-stamp
-// is no longer a hardcoded constant — it's resolved per-request from the
-// calling admin's own tenantId claim (decoded.tenantId, set below after the
-// token is verified). An admin can only ever change roles within their own
-// tenant this way; there's no client input path to name a different tenant.
+// Ordering follows the same fail-safe direction as set-role.js's M-02 fix:
+// the tenantMembers doc (what firestore.rules actually consults for write
+// access) is removed FIRST and must succeed before anything in Auth is
+// touched. If that fails, the request aborts and the user keeps their
+// current access everywhere — a safe, consistent failure rather than a
+// partial removal that revokes Auth but leaves Firestore write access
+// live under a stale membership doc. Refresh-token revocation and the
+// Auth record deletion happen after, in that order, since killing the
+// live session matters more than the account record disappearing a beat
+// later.
+//
+// Idempotent: removing a uid that's already gone (membership doc absent
+// and/or Auth record absent) returns ok:true rather than erroring, so a
+// retried or double-clicked removal is a controlled no-op, per the
+// review's acceptance test.
 
 const admin = require('firebase-admin');
 const { writeAuditLog } = require('./_lib/auditLog');
@@ -41,10 +52,10 @@ module.exports = async (req, res) => {
   if (ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (!['GET', 'POST'].includes(req.method)) return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'DELETE') return res.status(405).json({ error: 'Method not allowed' });
 
   const authHeader = req.headers.authorization || '';
   const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -57,21 +68,21 @@ module.exports = async (req, res) => {
 
   let decoded;
   try {
-    // security-remediation-roadmap.md Phase 3 Session 6 (3C / M-01, Layer 1):
-    // checkRevoked=true rejects a token invalidated by a prior
-    // revokeRefreshTokens() call, closing the up-to-an-hour stale-token gap.
+    // Same checkRevoked=true as set-role.js (3C / M-01, Layer 1) — rejects a
+    // token invalidated by a prior revokeRefreshTokens() call.
     decoded = await admin.auth(app).verifyIdToken(idToken, true);
   } catch (e) {
     return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
   }
 
-  // Enforce admin-only access
   if (decoded.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required.' });
   }
 
+  const auth = admin.auth(app);
+
   try {
-    const callerRecord = await admin.auth(app).getUser(decoded.uid);
+    const callerRecord = await auth.getUser(decoded.uid);
     if (callerRecord.disabled) {
       return res.status(403).json({ error: 'Your account has been disabled. Contact an admin.' });
     }
@@ -79,135 +90,97 @@ module.exports = async (req, res) => {
     return res.status(401).json({ error: 'Your account could not be verified. Please sign in again.' });
   }
 
-  const auth = admin.auth(app);
-
-  // GET — list users with their role claims, scoped to the caller's own tenant
-  if (req.method === 'GET') {
-    try {
-      // Build Group A (19 Aug 2026): listUsers(1000) previously returned
-      // every account platform-wide with no tenant filter — harmless when
-      // 'maverick' was the only tenant, but a real cross-tenant user-list
-      // disclosure once a second tenant exists. Filtered to accounts whose
-      // tenantId claim matches the caller's own; a super-admin account (no
-      // tenantId, platform-level only) never appears in any tenant's list.
-      const listResult = await auth.listUsers(1000);
-      const users = listResult.users
-        .filter(u => u.customClaims?.tenantId === decoded.tenantId)
-        .map(u => ({
-          uid: u.uid,
-          email: u.email || '',
-          role: u.customClaims?.role || null,
-        }));
-      // Sort: admin first, then editor, then viewer, then dataEntry, then unset; alphabetical within group
-      const order = { admin: 0, editor: 1, viewer: 2, dataEntry: 3 };
-      users.sort((a, b) => {
-        const oa = order[a.role] ?? 3;
-        const ob = order[b.role] ?? 3;
-        if (oa !== ob) return oa - ob;
-        return (a.email || '').localeCompare(b.email || '');
-      });
-      return res.status(200).json({ users });
-    } catch (e) {
-      console.error('set-role GET: listUsers failed', e);
-      return res.status(500).json({ error: 'Could not retrieve users' });
-    }
-  }
-
-  // POST — change a user's role
-  const { uid, role } = req.body || {};
+  const { uid } = req.body || {};
   if (!uid || typeof uid !== 'string') {
     return res.status(400).json({ error: 'uid is required' });
   }
-  if (!['editor', 'viewer', 'dataEntry'].includes(role)) {
-    return res.status(400).json({ error: 'Role must be editor, viewer, or dataEntry. Admin role cannot be set via this endpoint.' });
+  if (uid === decoded.uid) {
+    return res.status(400).json({ error: 'You cannot remove your own account.' });
+  }
+
+  const fs = admin.firestore(app);
+  const memberRef = fs.collection('tenants').doc(decoded.tenantId).collection('tenantMembers').doc(uid);
+
+  // Look up the target via Auth first, purely to scope/validate the request
+  // and capture details for the audit log — the actual access-revoking
+  // writes below don't depend on this succeeding.
+  let targetUser = null;
+  try {
+    targetUser = await auth.getUser(uid);
+  } catch (e) {
+    if (e.code !== 'auth/user-not-found') {
+      console.error('remove-user: getUser failed', { uid, err: e });
+      return res.status(500).json({ error: 'Could not look up user' });
+    }
+    // Auth record already gone. Fall through — still attempt to clean up
+    // the tenantMembers doc below so a half-removed user (e.g. from a
+    // previous failed attempt) can be retried and converges to fully gone.
+  }
+
+  if (targetUser && targetUser.customClaims?.tenantId !== decoded.tenantId) {
+    // Mirrors set-role.js: don't reveal that a uid exists in another
+    // tenant, and never let an admin act outside their own tenant.
+    return res.status(404).json({ error: 'User not found.' });
+  }
+  if (targetUser?.customClaims?.role === 'admin') {
+    return res.status(403).json({ error: 'Admin accounts cannot be removed via this endpoint.' });
+  }
+
+  // Step 1 — tenantMembers doc. This is the control Firestore write rules
+  // actually consult; removing it is what actually cuts off write access.
+  // Must succeed before anything below runs.
+  try {
+    await memberRef.delete();
+  } catch (e) {
+    console.error('remove-user: tenantMembers delete failed — aborting, target retains current access', { uid, tenantId: decoded.tenantId, err: e });
+    return res.status(500).json({ error: 'Could not remove user. Please try again.' });
+  }
+
+  // Step 2 — revoke refresh tokens so any live session dies immediately
+  // instead of riding out its cached ID token (up to ~1hr). Non-fatal if
+  // the Auth record is already gone.
+  let tokenRevokeFailed = false;
+  if (targetUser) {
+    try {
+      await auth.revokeRefreshTokens(uid);
+    } catch (e) {
+      tokenRevokeFailed = true;
+      console.error('remove-user: revokeRefreshTokens failed — membership already removed, operator should verify session is dead', { uid, err: e });
+    }
+  }
+
+  // Step 3 — delete the Auth record itself. Non-fatal if it's already
+  // gone (idempotent retry) or if this specific step fails: the user has
+  // no tenantMembers doc and no valid refresh token either way, so they
+  // have no path back into tenant data even if the Auth record lingers.
+  let authDeleteFailed = false;
+  if (targetUser) {
+    try {
+      await auth.deleteUser(uid);
+    } catch (e) {
+      if (e.code !== 'auth/user-not-found') {
+        authDeleteFailed = true;
+        console.error('remove-user: deleteUser failed — access is already revoked (membership + tokens), operator should retry to clean up the Auth record', { uid, err: e });
+      }
+    }
   }
 
   try {
-    // Fetch the target user BEFORE overwriting claims, so we can capture the
-    // previous role for audit logging. This getUser call used to live after
-    // setCustomUserClaims (for the tenantMembers sync) — moved up so the old
-    // claims are still readable. The same targetUser object is reused below.
-    const targetUser = await auth.getUser(uid);
-    const oldRole = targetUser.customClaims?.role || 'none';
-
-    // Build Group A (19 Aug 2026): the tenantId re-stamped below is now
-    // resolved from the caller's own claim rather than a shared hardcoded
-    // constant — which means an admin from tenant A calling this with a
-    // tenant B user's uid would otherwise silently REASSIGN that user into
-    // tenant A. Reject outright unless the target already belongs to the
-    // caller's own tenant. This mirrors the same ownership check
-    // api/share/create.js already does for assets.
-    if (targetUser.customClaims?.tenantId !== decoded.tenantId) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    // M-02 fix: this used to write the Auth custom claim FIRST and treat
-    // the tenantMembers sync as non-fatal afterwards. Firestore WRITE
-    // rules consult the tenantMembers doc's role, not the token claim
-    // (see memberHasRole() in firestore.rules) — so a failed sync left the
-    // user's PREVIOUS, higher role live in the one place that actually
-    // gates writes, for as long as the sync stayed broken, with the claim
-    // change and even the revoked refresh token doing nothing to close
-    // that gap. Order is now flipped: write tenantMembers to the NEW
-    // (lower/target) role first and require it to succeed — that's the
-    // change that actually reduces write access — before touching Auth at
-    // all. If this fails, the request aborts here: the user keeps their
-    // old role everywhere (claim untouched, membership doc untouched), a
-    // safe, consistent failure rather than a partial downgrade with a
-    // stale-but-more-privileged membership doc.
-    const fs = admin.firestore(app);
-    const memberRef = fs.collection('tenants').doc(decoded.tenantId).collection('tenantMembers').doc(uid);
-    const memberSnap = await memberRef.get();
-    const nowIso = new Date().toISOString();
-    await memberRef.set({
-      role,
-      email: targetUser.email || null,
-      status: targetUser.disabled ? 'disabled' : 'active',
-      createdAt: memberSnap.exists ? memberSnap.data().createdAt : nowIso,
-      updatedAt: nowIso,
-    }, { merge: true });
-
-    // Membership state (the actual write-access gate) is now downgraded
-    // and committed. Auth claim + token revocation follow — if either of
-    // these fails partway, the worst case is a stale but MORE restrictive
-    // claim/token than the membership doc, which is the safe direction to
-    // fail in (never the reverse).
-    try {
-      await auth.setCustomUserClaims(uid, { role, tenantId: decoded.tenantId });
-      // Revoke existing refresh tokens so the change takes effect promptly
-      // — without this, a signed-in user's cached ID token (and the role
-      // claim baked into it) stays valid for up to an hour regardless of
-      // what an admin just changed. The client periodically force-refreshes
-      // its token and detects/reacts to this revocation (see App.jsx).
-      await auth.revokeRefreshTokens(uid);
-    } catch (claimErr) {
-      // Logged for visibility and for the operator-recovery step M-02
-      // recommends, but NOT re-thrown — the membership doc (the control
-      // that actually matters for Firestore writes) is already correctly
-      // downgraded above, so the user is not over-privileged even if this
-      // step didn't complete. A stale Auth claim just means their client
-      // still SHOWS the old role/UI until their token naturally refreshes
-      // or an admin retries this endpoint — a UX gap, not an authorization
-      // gap.
-      console.error('set-role POST: Auth claim update failed after tenantMembers was already downgraded — operator should retry for this uid', { uid, tenantId: decoded.tenantId, targetRole: role, err: claimErr });
-    }
-
-    // Audit log — server-side privilege action (Session A, 19 Aug 2026).
-    // Non-fatal: a failed audit write should never block the role change itself.
-    try {
-      const fs = admin.firestore(app);
-      await writeAuditLog(fs, decoded.tenantId, {
-        userId:    decoded.uid,
-        userEmail: decoded.email,
-        action:    `Changed role for ${targetUser.email || uid} from ${oldRole} to ${role}`,
-      });
-    } catch (auditErr) {
-      console.error('set-role POST: audit log write failed', auditErr);
-    }
-
-    return res.status(200).json({ ok: true });
-  } catch (e) {
-    console.error('set-role POST: setCustomUserClaims failed', e);
-    return res.status(500).json({ error: 'Could not update role' });
+    await writeAuditLog(fs, decoded.tenantId, {
+      userId: decoded.uid,
+      userEmail: decoded.email,
+      action: `Removed user ${targetUser?.email || uid}${tokenRevokeFailed || authDeleteFailed ? ' (partial: see server logs)' : ''}`,
+    });
+  } catch (auditErr) {
+    console.error('remove-user: audit log write failed', auditErr);
   }
+
+  if (tokenRevokeFailed || authDeleteFailed) {
+    // Access is already cut off (tenantMembers gone); surface the partial
+    // failure so an operator knows to check logs and retry rather than
+    // assuming full cleanup happened.
+    return res.status(200).json({ ok: true, warning: 'User access was revoked, but cleanup did not fully complete. Check server logs.' });
+  }
+
+  return res.status(200).json({ ok: true });
 };

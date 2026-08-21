@@ -245,7 +245,7 @@ ${col2(
       ${kvR("Flight Hours Since New",`${fmtHHMM(eng.currentFH)} FH`)}
       ${kvR("Flight Cycles Since New",`${fmtNum(eng.currentFC||0)} FC`)}
     </table>
-    ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#687078;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
+    ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#687078;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${escapeHtml(llDesc)}</div>`:""):""}
   </td>`,
   svRecent.length
     ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svRecent,eng.currentFH,eng.currentFC)}</tbody></table>`,svCards(svRecent,eng.currentFH,eng.currentFC))}</td>`
@@ -449,7 +449,7 @@ ${col2(
       ${kvR("Flight Hours Since New",`${fmtHHMM(eng.currentFH)} FH`)}
       ${kvR("Flight Cycles Since New",`${fmtNum(eng.currentFC||0)} FC`)}
     </table>
-    ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#687078;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${llDesc}</div>`:""):""}
+    ${ll!==null?progBar(ll)+(llDesc?`<div style="font-size:8.5px;color:#687078;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${escapeHtml(llDesc)}</div>`:""):""}
   </td>`,
   svList.length
     ? `<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,eng.currentFH,eng.currentFC)}</tbody></table>`,svCards(svList,eng.currentFH,eng.currentFC))}</td>`
@@ -518,7 +518,7 @@ ${col2(
       ${kvR("Time Since New",fmtHHMM(apu.currentFH)+" FH")}
       ${kvR("Cycles Since New",fmtNum(apu.currentFC||0)+" FC")}
     </table>
-    ${(()=>{const ll=lowestLimiter(apu);const desc=lowestLLPDesc(apu);return ll!==null?progBar(ll)+(desc?`<div style="font-size:8.5px;color:#687078;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${desc}</div>`:""):"";})()}
+    ${(()=>{const ll=lowestLimiter(apu);const desc=lowestLLPDesc(apu);return ll!==null?progBar(ll)+(desc?`<div style="font-size:8.5px;color:#687078;margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">First Impact: ${escapeHtml(desc)}</div>`:""):"";})()}
   </td>`,
   (()=>{const svList=[...(apu.shopVisits||[])].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return new Date(a.date)-new Date(b.date);}).slice(-1);return svList.length
     ?`<td style="${CS}">${IH("Most Recent Shop Visit",svgCal)}${dualRender(`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0"><thead><tr><th style="${TH}">Details</th><th style="${TH}">Date / MRO</th><th style="${TH}">TSN</th><th style="${TH}">CSN</th></tr></thead><tbody>${svRows(svList,apu.currentFH,apu.currentFC)}</tbody></table>`,svCards(svList,apu.currentFH,apu.currentFC))}</td>`
