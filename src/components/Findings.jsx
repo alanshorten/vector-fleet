@@ -107,7 +107,7 @@ function FleetFindingsCards({ assets, onOpenFinding, userRole }) {
   if (!Object.values(byStatus).some(rows => rows.length)) return null;
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 14 }}>
+    <div className="findings-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 14 }}>
       {CARD_STATUSES.map(status => {
         const meta = STATUS_META[status];
         const rows = byStatus[status];
@@ -115,6 +115,7 @@ function FleetFindingsCards({ assets, onOpenFinding, userRole }) {
         return (
           <div key={status} className="card" style={{ overflow: "hidden" }}>
             <button
+              className="findings-card-header"
               onClick={() => setExpanded(e => ({ ...e, [status]: !e[status] }))}
               style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}
             >

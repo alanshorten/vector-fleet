@@ -99,6 +99,12 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--color-carbon-ti
     .app-nav-btn{padding:7px 6px!important;font-size:12px!important}
     .app-nav-tools-row{flex-wrap:wrap!important;white-space:normal!important;justify-content:flex-start!important}
     .asset-header-actions{flex-wrap:wrap!important}
+    /* Fleet Findings cards (Alan, 21 Aug 2026) — the auto-fit grid collapses
+       to one column on a phone width, stacking all four status cards
+       full-height; a fixed 2-column grid plus tighter header padding halves
+       that stack instead. */
+    .findings-grid{grid-template-columns:repeat(2,1fr)!important;gap:8px!important}
+    .findings-card-header{padding:8px 10px!important}
   }
   @media(max-width:420px){
     .header-logo{height:26px!important;max-width:58vw!important}

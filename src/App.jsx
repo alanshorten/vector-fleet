@@ -432,75 +432,67 @@ function AppInner(){
             style={{height:44,maxWidth:"55vw",objectFit:"contain",objectPosition:"left center",borderRadius:0,cursor:"pointer"}}
             className="header-logo"/>
 
-          {/* Right side — single row (desktop): tabs + Upload + ☰ inline.
-              Portrait stays two-row (☰ row, then tabs below) since there
-              isn't width for everything on one line at that size.
-              Both fleet and asset pills render here — same DOM context =
-              guaranteed pixel-perfect alignment. Asset pills replace fleet
-              pills when in asset view. */}
-          <div className="app-header-right" style={{display:"flex",flexDirection:"column",gap:5,alignItems:"stretch",flexShrink:0}}>
-
-            {isMobile && view==="asset" && selectedAsset ? (
-              /* Portrait + asset view — ☰ row, then asset layer pill below.
-                 Upload stays inside the hamburger's Tools group on mobile —
-                 not anchored as its own row here (matches the mobile/fleet
-                 branch below; confirmed by Alan). */
-              <>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
-                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
+          {isMobile ? (
+            /* Mobile (Alan, 21 Aug 2026): ☰ always sits directly beside the
+               logo on this same row, on every mobile view — previously
+               app-header-right was forced to width:100% below 680px, which
+               pushed ☰ onto its own row even when nothing else was in it.
+               The asset-layer pills (Details/Calendar/Financials/Scenarios)
+               still get their own full-width row below when in asset view —
+               that part's unchanged, just no longer bundled with ☰. */
+            <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
+          ) : (
+            /* Desktop — single row: tabs + Upload + ☰ inline, unchanged.
+               Both fleet and asset pills render here — same DOM context =
+               guaranteed pixel-perfect alignment. Asset pills replace fleet
+               pills when in asset view. */
+            <div className="app-header-right" style={{display:"flex",alignItems:"center",gap:20,flexShrink:0}}>
+              {view==="asset" && selectedAsset ? (
+                <>
                   {(()=>{
                     const canSeeAdv=!!userRole&&userRole!=='dataEntry';
                     const LAYERS=[["details","Details"],...(canSeeAdv?[["calendar","Calendar"],["financials","Financials"],["scenarios","Scenarios"]]:[])];
                     return <NavPill items={LAYERS} activeValue={assetLayer} onSelect={setAssetLayer} theme="light"/>;
                   })()}
-                </div>
-              </>
-            ) : isMobile ? (
-              /* Portrait + fleet view — ☰ only (logo is now Home/Portfolio).
-                 Upload stays inside the hamburger's Tools group on mobile —
-                 confirmed by Alan, not anchored as its own row here. */
-              <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
-                <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
-              </div>
-            ) : view==="asset" && selectedAsset ? (
-              /* Asset view (desktop) — single row: asset layer tabs +
-                 Upload + ☰, all inline, matching the mockup. */
-              <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:20,flexWrap:"nowrap"}}>
-                {(()=>{
-                  const canSeeAdv=!!userRole&&userRole!=='dataEntry';
-                  const LAYERS=[["details","Details"],...(canSeeAdv?[["calendar","Calendar"],["financials","Financials"],["scenarios","Scenarios"]]:[])];
-                  return <NavPill items={LAYERS} activeValue={assetLayer} onSelect={setAssetLayer} theme="light"/>;
-                })()}
-                <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  {canUpload&&<button onClick={()=>{setView("upload");setSelectedId(null);}}
-                    style={{padding:"8px 16px",borderRadius:"var(--radius-button)",border:view==="upload"?"1px solid var(--color-teal)":"1px solid var(--color-divider)",background:view==="upload"?"var(--color-teal)":"transparent",color:view==="upload"?"var(--color-soft-white)":"var(--color-carbon)",fontFamily:"var(--font-interface)",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
-                    Upload
-                  </button>}
-                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
-                </div>
-              </div>
-            ) : (
-              /* Fleet view (desktop) — single row: fleet tabs + Upload + ☰,
-                 all inline, matching the mockup. */
-              <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:20,flexWrap:"nowrap"}}>
-                <NavPill
-                  items={[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]}
-                  activeValue={view}
-                  onSelect={v=>{setView(v);setSelectedId(null);}}
-                  theme="light"/>
-                <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  {canUpload&&<button onClick={()=>{setView("upload");setSelectedId(null);}}
-                    style={{padding:"8px 16px",borderRadius:"var(--radius-button)",border:view==="upload"?"1px solid var(--color-teal)":"1px solid var(--color-divider)",background:view==="upload"?"var(--color-teal)":"transparent",color:view==="upload"?"var(--color-soft-white)":"var(--color-carbon)",fontFamily:"var(--font-interface)",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
-                    Upload
-                  </button>}
-                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
-                </div>
-              </div>
-            )}
-          </div>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    {canUpload&&<button onClick={()=>{setView("upload");setSelectedId(null);}}
+                      style={{padding:"8px 16px",borderRadius:"var(--radius-button)",border:view==="upload"?"1px solid var(--color-teal)":"1px solid var(--color-divider)",background:view==="upload"?"var(--color-teal)":"transparent",color:view==="upload"?"var(--color-soft-white)":"var(--color-carbon)",fontFamily:"var(--font-interface)",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                      Upload
+                    </button>}
+                    <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <NavPill
+                    items={[["dashboard","Details"],...(canSeeAdvanced?[["fleetcalendar","Calendar"],["fleetexposure","Financials"],["fleetscenarios","Scenarios"]]:[])]}
+                    activeValue={view}
+                    onSelect={v=>{setView(v);setSelectedId(null);}}
+                    theme="light"/>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    {canUpload&&<button onClick={()=>{setView("upload");setSelectedId(null);}}
+                      style={{padding:"8px 16px",borderRadius:"var(--radius-button)",border:view==="upload"?"1px solid var(--color-teal)":"1px solid var(--color-divider)",background:view==="upload"?"var(--color-teal)":"transparent",color:view==="upload"?"var(--color-soft-white)":"var(--color-carbon)",fontFamily:"var(--font-interface)",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                      Upload
+                    </button>}
+                    <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
+
+        {/* Mobile-only second row — asset layer pills, full width below the
+            logo+☰ row. Only case left that needs a second header row now. */}
+        {isMobile && view==="asset" && selectedAsset && (
+          <div style={{maxWidth:1480,margin:"0 auto",padding:"0 22px 8px",boxSizing:"border-box"}}>
+            {(()=>{
+              const canSeeAdv=!!userRole&&userRole!=='dataEntry';
+              const LAYERS=[["details","Details"],...(canSeeAdv?[["calendar","Calendar"],["financials","Financials"],["scenarios","Scenarios"]]:[])];
+              return <NavPill items={LAYERS} activeValue={assetLayer} onSelect={setAssetLayer} theme="light"/>;
+            })()}
+          </div>
+        )}
       </header>
 
       {notification&&(

@@ -8,6 +8,7 @@ import { assetEngineStockPhotoKey, airframeStockPhotoKey } from '../lib/assetHel
 import { db } from '../lib/db';
 import { extractLLPSheet } from '../lib/extraction';
 import { getDefaultDisclaimer, getTechSpecBrandingHidden, getTechSpecLogo } from '../lib/techSpec';
+import { useLayoutMode } from '../lib/layoutMode';
 
 // Shared fixed width for whatever sits to the right of the Details/Calendar/
 // Financials/Scenarios pill — the fleet-level tools pill (Prospects/Upload/
@@ -88,6 +89,8 @@ function LLPExtractor({kind,label,onApply,notify}){
 
 function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,initialLayer,
   layer,setLayer,shareOpen,setShareOpen,genSpecRef,focusPotCode,clearFocusPotCode}){
+  const { mode: layoutMode } = useLayoutMode();
+  const isMobile = layoutMode === "portrait";
   const[tab,setTab]=useState("overview");
   const[showEOLPosition,setShowEOLPosition]=useState(false);
   const[showAssumptions,setShowAssumptions]=useState(false);
@@ -156,8 +159,14 @@ function AssetView({asset,saveAsset,isAdmin,userRole,notify,onBack,loadAssets,in
                 tokens; Data Entry has no legitimate reason to see them, so hide the
                 entry point to ShareModal rather than let it open to an empty/erroring
                 list. Matches the read-rule narrowing in firestore.rules. */}
-            {canSeeAdvanced&&<button className="btn btn-ghost" onClick={()=>setShareOpen(true)}>🔗 Share</button>}
-            <button className="btn btn-gold" onClick={()=>genSpecRef.current&&genSpecRef.current()}>📋 Generate Tech Spec</button>
+            {/* Mobile (Alan, 21 Aug 2026): 🔗 alone reads as "share" without
+                needing the word, so the label drops on narrow screens; a
+                plain document icon doesn't read as clearly as "generate a
+                tech spec" though, so that button keeps text instead —
+                shortened to "Tech Spec" with the icon dropped, rather than
+                icon-only. Desktop keeps both full labels unchanged. */}
+            {canSeeAdvanced&&<button className="btn btn-ghost" onClick={()=>setShareOpen(true)} title="Share" aria-label="Share">{isMobile?"🔗":"🔗 Share"}</button>}
+            <button className="btn btn-gold" onClick={()=>genSpecRef.current&&genSpecRef.current()} title="Generate Tech Spec" aria-label="Generate Tech Spec">{isMobile?"Tech Spec":"📋 Generate Tech Spec"}</button>
           </div>
         )}
         {layer==="financials"&&canSeeAdvanced&&(
