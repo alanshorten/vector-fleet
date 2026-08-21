@@ -116,11 +116,9 @@ function InviteUserCard({notify}){
   const[email,setEmail]=useState("");
   const[role,setRole]=useState("editor");
   const[busy,setBusy]=useState(false);
-  const[inviteLink,setInviteLink]=useState(null);
-  const[copied,setCopied]=useState(false);
   const invite=async()=>{
     if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){notify("Enter a valid email address","error");return;}
-    setBusy(true);setInviteLink(null);setCopied(false);
+    setBusy(true);
     try{
       const idToken=await window._auth.getIdToken();
       const resp=await fetch("/api/invite-user",{
@@ -132,17 +130,20 @@ function InviteUserCard({notify}){
       if(!resp.ok||result.error){throw new Error(result.error||"Invite failed.");}
       await logAudit(null,null,`Invited user ${email} as ${role}`);
       notify(`Invite sent to ${email} as ${role}`);
-      if(result.inviteLink) setInviteLink(result.inviteLink);
       setEmail("");setRole("editor");
     }catch(e){
       notify(e.message||"Could not send invite.","error");
     }
     setBusy(false);
   };
-  const copyLink=()=>{
-    if(!inviteLink) return;
-    navigator.clipboard.writeText(inviteLink).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2500);});
-  };
+  // security review 20260820, F-08: /api/invite-user no longer returns the
+  // one-time reset link in its response (the resend path already never did
+  // this — see api/invite-user.js). Whoever reads that link can open it
+  // before the invitee does and set the invitee's password themselves,
+  // which is exactly the exposure this closes. The "copy link" fallback
+  // this card used to offer on send failure is gone with it — on a
+  // SendGrid failure the admin resends once it's fixed, same recovery path
+  // as an existing user's resend already used.
   return(
     <div style={{display:"flex",flexDirection:"column",gap:10}}>
       <div style={{display:"flex",gap:8}}>
@@ -154,12 +155,6 @@ function InviteUserCard({notify}){
         </select>
         <button className="btn btn-gold" onClick={invite} disabled={busy}>{busy?"Sending…":"Send Invite"}</button>
       </div>
-      {inviteLink&&(
-        <div style={{display:"flex",alignItems:"center",gap:8,background:"var(--color-technical-grey)",border:"1px solid var(--color-divider)",borderRadius:6,padding:"8px 12px"}}>
-          <span style={{fontSize:11,color:"var(--color-graphite)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{inviteLink}</span>
-          <button onClick={copyLink} style={{background:"none",border:"1px solid var(--color-divider)",color:copied?"var(--color-positive)":"var(--color-graphite)",borderRadius:4,padding:"4px 10px",fontSize:11,cursor:"pointer",flexShrink:0,transition:"color 0.2s"}}>{copied?"Copied ✓":"Copy link"}</button>
-        </div>
-      )}
       <p style={{fontSize:11,color:"var(--color-graphite)",margin:0}}>Editor — full access except user management. Viewer — sees everything including financials, edits nothing. Data Entry — uploads and lease/reserve entry only, no financial views.</p>
     </div>
   );

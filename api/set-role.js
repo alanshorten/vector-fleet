@@ -172,24 +172,40 @@ module.exports = async (req, res) => {
     // these fails partway, the worst case is a stale but MORE restrictive
     // claim/token than the membership doc, which is the safe direction to
     // fail in (never the reverse).
+    // security review 20260820, F-05: setCustomUserClaims and
+    // revokeRefreshTokens used to live in the SAME try block, so a claims
+    // failure meant revocation was never even attempted — the old,
+    // still-valid (not-revoked) token then kept working against every
+    // endpoint that authorizes off decoded.role directly (share/create.js,
+    // share/revoke.js, invite-user.js, this file's own admin-only gate)
+    // for up to ~1hr, since nothing forced re-authentication. Each step
+    // now gets its own independent attempt: revocation is always tried,
+    // even when the claim write failed, so a live session is cut as soon
+    // as possible regardless of which half of this succeeded. This does
+    // NOT fix a failed claim write on its own — the Auth record still
+    // carries the OLD role until an operator retries this endpoint for
+    // this uid — but it removes the window where an un-revoked token with
+    // the old role keeps authorizing API calls in the meantime.
+    let claimErr = null;
     try {
       await auth.setCustomUserClaims(uid, { role, tenantId: decoded.tenantId });
+    } catch (e) {
+      claimErr = e;
+      console.error('set-role POST: Auth claim update failed after tenantMembers was already downgraded — operator should retry for this uid', { uid, tenantId: decoded.tenantId, targetRole: role, err: e });
+    }
+
+    let revokeErr = null;
+    try {
       // Revoke existing refresh tokens so the change takes effect promptly
       // — without this, a signed-in user's cached ID token (and the role
       // claim baked into it) stays valid for up to an hour regardless of
       // what an admin just changed. The client periodically force-refreshes
       // its token and detects/reacts to this revocation (see App.jsx).
+      // Attempted even if the claim update above failed (see comment above).
       await auth.revokeRefreshTokens(uid);
-    } catch (claimErr) {
-      // Logged for visibility and for the operator-recovery step M-02
-      // recommends, but NOT re-thrown — the membership doc (the control
-      // that actually matters for Firestore writes) is already correctly
-      // downgraded above, so the user is not over-privileged even if this
-      // step didn't complete. A stale Auth claim just means their client
-      // still SHOWS the old role/UI until their token naturally refreshes
-      // or an admin retries this endpoint — a UX gap, not an authorization
-      // gap.
-      console.error('set-role POST: Auth claim update failed after tenantMembers was already downgraded — operator should retry for this uid', { uid, tenantId: decoded.tenantId, targetRole: role, err: claimErr });
+    } catch (e) {
+      revokeErr = e;
+      console.error('set-role POST: revokeRefreshTokens failed — old token may remain valid until natural expiry, operator should retry for this uid', { uid, err: e });
     }
 
     // Audit log — server-side privilege action (Session A, 19 Aug 2026).
@@ -199,12 +215,19 @@ module.exports = async (req, res) => {
       await writeAuditLog(fs, decoded.tenantId, {
         userId:    decoded.uid,
         userEmail: decoded.email,
-        action:    `Changed role for ${targetUser.email || uid} from ${oldRole} to ${role}`,
+        action:    `Changed role for ${targetUser.email || uid} from ${oldRole} to ${role}${(claimErr || revokeErr) ? ' (partial: see server logs)' : ''}`,
       });
     } catch (auditErr) {
       console.error('set-role POST: audit log write failed', auditErr);
     }
 
+    if (claimErr || revokeErr) {
+      // Firestore write access is already correctly downgraded (the step
+      // above this block, unconditional). Surface the partial failure so
+      // an operator knows to check logs and retry, rather than assuming
+      // full cleanup happened.
+      return res.status(200).json({ ok: true, warning: 'Role was updated for data access, but the account session/claim update did not fully complete. Check server logs.' });
+    }
     return res.status(200).json({ ok: true });
   } catch (e) {
     console.error('set-role POST: setCustomUserClaims failed', e);

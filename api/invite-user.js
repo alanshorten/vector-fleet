@@ -214,6 +214,22 @@ module.exports = async (req, res) => {
       console.error('invite-user: tenantMembers sync failed', memberErr);
     }
 
+    // security review 20260820, F-05: a resend that changes an EXISTING
+    // user's role (see comment above — this is a real, if uncommon, path)
+    // used to leave their current session's token untouched. That token's
+    // baked-in role claim stays valid for up to ~1hr regardless of what was
+    // just set above, including against other endpoints that authorize off
+    // decoded.role directly (share/create.js, share/revoke.js, this file's
+    // own admin gate). Only applies to a resend, not brand-new accounts —
+    // a user who has never signed in has no session to revoke.
+    if (isResend) {
+      try {
+        await auth.revokeRefreshTokens(newUser.uid);
+      } catch (revokeErr) {
+        console.error('invite-user: revokeRefreshTokens failed on resend role change — old token may remain valid until natural expiry', { uid: newUser.uid, err: revokeErr });
+      }
+    }
+
     const firebaseHostedLink = await auth.generatePasswordResetLink(normalizedEmail, {
       url: CONTINUE_URL,
     });
@@ -249,23 +265,28 @@ module.exports = async (req, res) => {
     if (!sgResp.ok) {
       const errText = await sgResp.text();
       console.error('invite-user: SendGrid send failed', sgResp.status, errText);
-      if (isResend) {
-        // Never surface the reset link for a resend, even when SendGrid
-        // fails — that's exactly the exposure this fix closes. The caller
-        // (an admin) can try resending again once SendGrid is fixed.
-        return res.status(502).json({
-          error: 'The account role was updated but the invite email could not be sent. Check SendGrid configuration and try resending the invite again.',
-        });
-      }
-      // Brand-new account, no prior owner — falling back to sharing the
-      // link manually is safe here since the inviting admin is the only
-      // person who has taken any action so far.
+      // security review 20260820, F-08: this used to embed the raw
+      // resetLink in the error response for a brand-new account (the
+      // resend path already never did this, as the comment previously
+      // here noted). That's the same exposure either way — whoever reads
+      // this response gets a one-time credential for an account that
+      // isn't theirs. An admin who sees "email failed" now has to resend
+      // (isResend path above, which likewise never returns the link) once
+      // SendGrid is fixed, same recovery path as the resend-failure case.
       return res.status(502).json({
-        error: 'The account was created but the invite email could not be sent. Check SendGrid configuration, or share this link with them directly: ' + resetLink,
+        error: isResend
+          ? 'The account role was updated but the invite email could not be sent. Check SendGrid configuration and try resending the invite again.'
+          : 'The account was created but the invite email could not be sent. Check SendGrid configuration, then use Resend Invite once it\'s fixed.',
       });
     }
 
-    return res.status(200).json(isResend ? { ok: true, resent: true } : { ok: true, inviteLink: resetLink });
+    // security review 20260820, F-08: previously returned inviteLink for a
+    // brand-new account on success — an administrator could open that
+    // one-time link themselves before the invitee did, setting the
+    // invitee's password and effectively taking over the account without
+    // the invitee ever knowing. The reset code is now only ever delivered
+    // to the address it was generated for.
+    return res.status(200).json(isResend ? { ok: true, resent: true } : { ok: true });
   } catch (err) {
     console.error('invite-user: failed', err);
     return res.status(500).json({ error: 'Something went wrong creating the invite. Please try again.' });
