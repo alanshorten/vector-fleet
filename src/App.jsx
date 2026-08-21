@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AdminView } from './components/AdminView';
+import { AdminPanelView } from './components/AdminPanelView';
 import { AssetView, NavPill } from './components/AssetView';
 import { SetPasswordScreen, SignInScreen } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
@@ -11,7 +12,6 @@ import { bootstrapKnowledgeBaseGlobals } from './lib/knowledgeBase';
 import { HEADER_LOGO_NAVY } from './lib/techSpec';
 import { LayoutModeProvider, useLayoutMode } from './lib/layoutMode';
 import { IQView } from './components/IQView';
-import { PlatformView } from './components/PlatformView';
 
 // ---------------------------------------------------------------------
 // HamburgerMenu — low-frequency items off the main nav bar.
@@ -27,9 +27,19 @@ import { PlatformView } from './components/PlatformView';
 //
 // Scoping: hamburger-menu-build-handoff.md
 // ---------------------------------------------------------------------
-function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, isAdmin, isSuperAdmin, isPortfolio }) {
+function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, isAdmin, isPortfolio }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  // Quick landscape/portrait toggle (Alan, 21 Aug 2026) — the full control
+  // already lives in Settings → Display (LayoutModeSettingsControl in
+  // AdminView.jsx), but that's buried for something people want to flip
+  // often. Text buttons, not an icon — an earlier icon-only version of
+  // this in the header was flagged "not very clear" and got replaced by
+  // Settings' labeled control; reusing plain text here avoids repeating
+  // that. Hidden below the width floor, same reasoning as everywhere else
+  // this hook's isWide gate is used — nothing to switch into on a narrow
+  // window regardless of saved preference.
+  const { rawMode, setMode, isWide } = useLayoutMode();
 
   // Close on outside click
   useEffect(() => {
@@ -156,10 +166,49 @@ function HamburgerMenu({ view, onSelect, isMobile, canSeeAdvanced, canUpload, is
           {isAdmin && <Item value="iq" label="iQ"/>}
           <Divider/>
 
+          {/* Display — quick landscape/portrait flip. Hidden entirely
+              below the width floor (isWide false) since there's nothing
+              to switch into on a narrow window regardless of preference. */}
+          {isWide && (
+            <>
+              <GroupLabel>Display</GroupLabel>
+              <div style={{display:'flex',gap:6,padding:'0 16px 8px'}}>
+                <button
+                  onClick={() => setMode('portrait')}
+                  style={{
+                    flex:1, padding:'6px 0', borderRadius:6,
+                    border: rawMode==='portrait' ? '1px solid var(--color-ochre)' : '1px solid var(--color-divider)',
+                    background: rawMode==='portrait' ? 'var(--color-carbon-tint-05)' : 'transparent',
+                    color: rawMode==='portrait' ? 'var(--color-ochre)' : 'var(--color-graphite)',
+                    fontSize:12, fontWeight: rawMode==='portrait' ? 700 : 500,
+                    cursor:'pointer', fontFamily:"'Barlow',inherit",
+                  }}>Portrait</button>
+                <button
+                  onClick={() => setMode('landscape')}
+                  style={{
+                    flex:1, padding:'6px 0', borderRadius:6,
+                    border: rawMode==='landscape' ? '1px solid var(--color-ochre)' : '1px solid var(--color-divider)',
+                    background: rawMode==='landscape' ? 'var(--color-carbon-tint-05)' : 'transparent',
+                    color: rawMode==='landscape' ? 'var(--color-ochre)' : 'var(--color-graphite)',
+                    fontSize:12, fontWeight: rawMode==='landscape' ? 700 : 500,
+                    cursor:'pointer', fontFamily:"'Barlow',inherit",
+                  }}>Landscape</button>
+              </div>
+              <Divider/>
+            </>
+          )}
+
           {/* Account */}
           <GroupLabel>Account</GroupLabel>
           <Item value="settings" label="Settings"/>
-          {isSuperAdmin && <Item value="platform" label="Platform"/>}
+          {/* Admin — separate from Settings (Alan, 21 Aug 2026): Admin
+              Panel (assets + users) and Platform (super-admin tenant
+              onboarding, tab hidden inside unless isSuperAdmin) used to be
+              tabs inside Settings; pulled into their own button instead.
+              Gated on isAdmin here — a plain admin still sees the button
+              and gets just the Admin Panel tab, Platform stays invisible
+              to them, same as everywhere else that gate is used. */}
+          {isAdmin && <Item value="admin" label="Admin"/>}
           <Item value="signout" label="⎋ Sign Out"/>
         </div>
       )}
@@ -398,7 +447,7 @@ function AppInner(){
                  branch below; confirmed by Alan). */
               <>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
-                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isSuperAdmin={isSuperAdmin} isPortfolio={false}/>
+                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   {(()=>{
@@ -413,7 +462,7 @@ function AppInner(){
                  Upload stays inside the hamburger's Tools group on mobile —
                  confirmed by Alan, not anchored as its own row here. */
               <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
-                <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isSuperAdmin={isSuperAdmin} isPortfolio={isPortfolio}/>
+                <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
               </div>
             ) : view==="asset" && selectedAsset ? (
               /* Asset view (desktop) — single row: asset layer tabs +
@@ -429,7 +478,7 @@ function AppInner(){
                     style={{padding:"8px 16px",borderRadius:"var(--radius-button)",border:view==="upload"?"1px solid var(--color-teal)":"1px solid var(--color-divider)",background:view==="upload"?"var(--color-teal)":"transparent",color:view==="upload"?"var(--color-soft-white)":"var(--color-carbon)",fontFamily:"var(--font-interface)",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
                     Upload
                   </button>}
-                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isSuperAdmin={isSuperAdmin} isPortfolio={false}/>
+                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={false}/>
                 </div>
               </div>
             ) : (
@@ -446,7 +495,7 @@ function AppInner(){
                     style={{padding:"8px 16px",borderRadius:"var(--radius-button)",border:view==="upload"?"1px solid var(--color-teal)":"1px solid var(--color-divider)",background:view==="upload"?"var(--color-teal)":"transparent",color:view==="upload"?"var(--color-soft-white)":"var(--color-carbon)",fontFamily:"var(--font-interface)",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
                     Upload
                   </button>}
-                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isSuperAdmin={isSuperAdmin} isPortfolio={isPortfolio}/>
+                  <HamburgerMenu view={view} onSelect={navigate} isMobile={isMobile} canSeeAdvanced={canSeeAdvanced} canUpload={canUpload} isAdmin={userRole==='admin'} isPortfolio={isPortfolio}/>
                 </div>
               </div>
             )}
@@ -487,8 +536,8 @@ function AppInner(){
         )}
         {view==="prospects"&&<ProspectListView assets={prospectAssets} saveAsset={saveAsset} notify={notify} userRole={userRole} onSelect={id=>{setSelectedId(id);setView("prospect-editor");}} loadAssets={loadAssets}/>}
         {view==="prospect-editor"&&selectedId&&assets.find(a=>a.id===selectedId)&&<ProspectEditor asset={assets.find(a=>a.id===selectedId)} saveAsset={saveAsset} notify={notify} onBack={()=>{setView("prospects");setSelectedId(null);}}/>}
-        {view==="settings"&&<AdminView assets={liveAssets} saveAsset={saveAsset} notify={notify} loadAssets={loadAssets} userRole={userRole}/>}
-        {view==="platform"&&isSuperAdmin&&<PlatformView notify={notify}/>}
+        {view==="settings"&&<AdminView assets={liveAssets} notify={notify} userRole={userRole}/>}
+        {view==="admin"&&userRole==='admin'&&<AdminPanelView assets={liveAssets} saveAsset={saveAsset} notify={notify} loadAssets={loadAssets} isAdmin={userRole==='admin'} isSuperAdmin={isSuperAdmin}/>}
       </main>
     </div>
   );

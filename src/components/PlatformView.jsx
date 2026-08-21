@@ -183,17 +183,18 @@ function TenantsListCard({ notify, refreshKey }) {
   );
 }
 
+// Folded into the Settings screen as its own tab (App.jsx no longer routes
+// to this as a standalone view) — see AdminView.jsx's TABS list, gated
+// show:isSuperAdmin. The tab label itself now carries what used to be
+// this component's own title, so no repeated heading here.
 function PlatformView({ notify }) {
   const [refreshKey, setRefreshKey] = useState(0);
 
   return (
     <div style={{ maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div>
-        <div className="section-title" style={{ fontSize: 18 }}>Platform Admin</div>
-        <p style={{ fontSize: 12, color: 'var(--color-graphite)', marginTop: 4 }}>
-          Provision new companies onto TailiQ. This screen is separate from — and above — the per-tenant Settings/Users screen; only super-admin accounts can see it.
-        </p>
-      </div>
+      <p style={{ fontSize: 12, color: 'var(--color-graphite)', margin: 0 }}>
+        Provision new companies onto TailiQ. Separate from — and above — the per-tenant Settings/Users screen; only super-admin accounts see this tab.
+      </p>
 
       <div className="card" style={{ padding: 20 }}>
         <div className="section-title">Create Tenant</div>
