@@ -35,6 +35,19 @@
 // as api/extract.js's extraction lock), so one user can't queue up
 // multiple in-flight parses.
 //
+// USAGE QUOTA (SR-02, TailiQ_Security_Release_Assessment_20260824.docx):
+// the concurrency lock above only stops simultaneous parses by the SAME
+// user — it does nothing to stop a user (or several users in one tenant,
+// since the lock is keyed per-uid) from sending expensive files
+// sequentially, one after another, all day. Added a Firestore-backed
+// per-user hourly + daily cap and a tenant-wide rolling hourly cap,
+// mirroring api/extract.js's 1B daily-usage-counter pattern (same
+// transaction-based increment-and-check shape, same UTC bucket-key
+// approach, extended here with an hourly bucket alongside the daily one
+// since a 50-file burst inside a single hour is the more realistic abuse
+// shape for a synchronous parse endpoint than a slow daily trickle).
+// Checked before ZIP/parse work begins, same as the concurrency lock.
+//
 // Parse and discard: the uploaded file is parsed in memory only and never
 // written anywhere — consistent with the app's parse-and-discard
 // commercial story.
@@ -112,6 +125,59 @@ async function releaseParseLock(fsdb, tenantId, uid) {
     // Non-fatal: worst case is the TTL fallback clears it later.
     console.error('parse-excel: failed to release concurrency lock', err);
   }
+}
+
+// ---- SR-02: usage quota (per-user hourly/daily + tenant-wide hourly) -------
+// Peak legitimate usage is a handful of catalogue/utilisation uploads per
+// session — these caps sit well above that (headroom for onboarding-style
+// bursts) while still stopping a sequential-request abuse pattern the
+// concurrency lock alone can't catch. Bucket keys reset naturally at the
+// UTC hour/day boundary, same pattern as api/extract.js's daily cap — no
+// cron/reaper needed for correctness, only for storage hygiene (expiresAt).
+const USER_HOURLY_CAP = 30;
+const USER_DAILY_CAP = 150;
+const TENANT_HOURLY_CAP = 200;
+
+function hourBucket(d) {
+  return d.toISOString().slice(0, 13); // UTC YYYY-MM-DDTHH
+}
+function dayBucket(d) {
+  return d.toISOString().slice(0, 10); // UTC YYYY-MM-DD
+}
+
+// Returns { ok: true } or { ok: false, reason } without throwing, so the
+// caller can map `reason` to a specific 429 message. All three counters are
+// read and (if under cap) incremented together in one transaction so the
+// check is atomic against concurrent requests.
+async function checkAndIncrementParseQuota(fsdb, tenantId, uid) {
+  const now = new Date();
+  const hourStr = hourBucket(now);
+  const dayStr = dayBucket(now);
+  const usageCol = fsdb.collection('tenants').doc(tenantId).collection('parseExcelUsage');
+  const userHourlyRef = usageCol.doc(`user_${uid}_${hourStr}`);
+  const userDailyRef = usageCol.doc(`user_${uid}_${dayStr}`);
+  const tenantHourlyRef = usageCol.doc(`tenant_${hourStr}`);
+
+  return fsdb.runTransaction(async (tx) => {
+    const [userHourlySnap, userDailySnap, tenantHourlySnap] = await Promise.all([
+      tx.get(userHourlyRef),
+      tx.get(userDailyRef),
+      tx.get(tenantHourlyRef),
+    ]);
+    const userHourlyCount = userHourlySnap.exists ? (userHourlySnap.data().count || 0) : 0;
+    const userDailyCount = userDailySnap.exists ? (userDailySnap.data().count || 0) : 0;
+    const tenantHourlyCount = tenantHourlySnap.exists ? (tenantHourlySnap.data().count || 0) : 0;
+
+    if (userHourlyCount >= USER_HOURLY_CAP) return { ok: false, reason: 'hourly_limit' };
+    if (userDailyCount >= USER_DAILY_CAP) return { ok: false, reason: 'daily_limit' };
+    if (tenantHourlyCount >= TENANT_HOURLY_CAP) return { ok: false, reason: 'tenant_limit' };
+
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    tx.set(userHourlyRef, { count: userHourlyCount + 1, uid, bucket: hourStr, expiresAt }, { merge: true });
+    tx.set(userDailyRef, { count: userDailyCount + 1, uid, bucket: dayStr, expiresAt }, { merge: true });
+    tx.set(tenantHourlyRef, { count: tenantHourlyCount + 1, bucket: hourStr, expiresAt }, { merge: true });
+    return { ok: true };
+  });
 }
 
 // ---- ExcelJS -> CSV / rows conversion ---------------------------------------
@@ -239,6 +305,27 @@ module.exports = async (req, res) => {
     console.error('parse-excel: Firestore init failed', err);
     return res.status(500).json({ error: 'Server configuration error.' });
   }
+  // ---- SR-02: usage quota (checked before the concurrency lock so a
+  // quota-exceeded caller never even takes the lock) ------------------------
+  let quotaResult;
+  try {
+    quotaResult = await checkAndIncrementParseQuota(fsdb, tenantId, decoded.uid);
+  } catch (err) {
+    console.error('parse-excel: usage quota check failed', err);
+    return res.status(500).json({ error: 'Server error while checking usage limits.' });
+  }
+  if (!quotaResult.ok) {
+    const messages = {
+      hourly_limit: "You've reached the hourly limit for Excel parsing. Please try again later.",
+      daily_limit: "You've reached the daily limit for Excel parsing. This resets at midnight UTC.",
+      tenant_limit: 'Your organisation has reached its hourly limit for Excel parsing. Please try again shortly.',
+    };
+    return res.status(429).json({
+      error: quotaResult.reason,
+      message: messages[quotaResult.reason] || 'Usage limit reached.',
+    });
+  }
+
   let lockAcquired;
   try {
     lockAcquired = await acquireParseLock(fsdb, tenantId, decoded.uid);

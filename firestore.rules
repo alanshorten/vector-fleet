@@ -12,10 +12,25 @@ service cloud.firestore {
     // tenantMembers document instead gives WRITE rules an instant,
     // rules-visible source of truth — updated the moment an admin changes a
     // role or removes a user, no token refresh or expiry window involved.
-    // READS still use the fast token-claim check only, unchanged from
-    // before this session — an extra document read on every read would be
-    // needless overhead for data that isn't itself a privilege-escalation
-    // risk, and the roadmap's own Layer 2 design note says as much.
+    // SR-01 (TailiQ_Security_Release_Assessment_20260824.docx, RELEASE
+    // BLOCKER): the paragraph above used to end here justifying a
+    // token-claim-only READ check as "needless overhead" — that reasoning
+    // was wrong. An offboarded user's already-issued ID token keeps its
+    // tenantId claim valid for up to ~an hour after removal, and Firestore
+    // Security Rules have no server-side revocation check of their own,
+    // so a token-only read condition let a removed/disabled user keep
+    // reading tenant data for the rest of that window even though writes
+    // (already gated on isActiveMember/memberHasRole) were cut off
+    // instantly. Every tenant-scoped READ rule in this file now also
+    // consults the live tenantMembers document via isActiveMember(),
+    // exactly like writes already did — the twelve affected collections
+    // were: assets, leases, reserves, scheduledEvents, seasonalityProfile,
+    // shopVisitProjections, knowledgeBase (+ its llpCatalogue
+    // subcollection), completedEvents, findings, utilisation, and
+    // pendingReports. The one deliberate exception is the platform-level
+    // tenants/{tenantId} super-admin read further down — a different trust
+    // model (superAdmin claim, not tenant membership), left as-is per the
+    // review's own note.
     function memberDoc(tenantId) {
       return get(/databases/$(database)/documents/tenants/$(tenantId)/tenantMembers/$(request.auth.uid));
     }
@@ -95,8 +110,7 @@ service cloud.firestore {
           && (!('currentFC' in d) || d.currentFC is number);
     }
     match /tenants/{tenantId}/assets/{assetId} {
-      allow read: if request.auth != null
-                  && request.auth.token.tenantId == tenantId;
+      allow read: if isActiveMember(tenantId);
       // Phase 3 Session 6 (3C / M-01): write now consults the tenantMembers
       // doc (memberHasRole above) instead of the token claim directly — see
       // the helper functions' comment for why.
@@ -107,13 +121,11 @@ service cloud.firestore {
     // same role gate as the flat rules below, just under the tenant path —
     // see the assets rule above for the reasoning on tenantId checks.
     match /tenants/{tenantId}/leases/{leaseId} {
-      allow read: if request.auth != null
-                  && request.auth.token.tenantId == tenantId;
+      allow read: if isActiveMember(tenantId);
       allow write: if memberHasRole(tenantId, ['admin', 'editor', 'dataEntry']);
     }
     match /tenants/{tenantId}/reserves/{reserveId} {
-      allow read: if request.auth != null
-                  && request.auth.token.tenantId == tenantId;
+      allow read: if isActiveMember(tenantId);
       allow write: if memberHasRole(tenantId, ['admin', 'editor', 'dataEntry']);
     }
     // Tenant-rooted scheduledEvents/seasonalityProfile (Phase 3, Session 3).
@@ -122,13 +134,11 @@ service cloud.firestore {
     // these are Calendar-tab-only, financial-projection-shaping edits that
     // Data Entry never sees in the nav.
     match /tenants/{tenantId}/scheduledEvents/{eventId} {
-      allow read: if request.auth != null
-                  && request.auth.token.tenantId == tenantId;
+      allow read: if isActiveMember(tenantId);
       allow write: if memberHasRole(tenantId, ['admin', 'editor']);
     }
     match /tenants/{tenantId}/seasonalityProfile/{assetId} {
-      allow read: if request.auth != null
-                  && request.auth.token.tenantId == tenantId;
+      allow read: if isActiveMember(tenantId);
       allow write: if memberHasRole(tenantId, ['admin', 'editor']);
     }
     // Tenant-rooted shopVisitProjections (second-reassessment-followup-
@@ -140,8 +150,7 @@ service cloud.firestore {
     // delete blocked outright — every recompute writes a new doc rather
     // than touching a prior one.
     match /tenants/{tenantId}/shopVisitProjections/{docId} {
-      allow read: if request.auth != null
-                  && request.auth.token.tenantId == tenantId;
+      allow read: if isActiveMember(tenantId);
       // Item 9 (18 Aug review): create was still using the plain token-claim
       // check instead of isActiveMember(tenantId), inconsistent with every
       // other tenant-rooted collection — a removed member's still-valid
@@ -159,12 +168,10 @@ service cloud.firestore {
     // legacy field, unrelated to tenantId, same pattern already used for
     // leases/reserves/etc.
     match /tenants/{tenantId}/knowledgeBase/{companyId} {
-      allow read: if request.auth != null
-                  && request.auth.token.tenantId == tenantId;
+      allow read: if isActiveMember(tenantId);
       allow write: if memberHasRole(tenantId, ['admin', 'editor']);
       match /llpCatalogue/{partNumber} {
-        allow read: if request.auth != null
-                    && request.auth.token.tenantId == tenantId;
+        allow read: if isActiveMember(tenantId);
         allow write: if memberHasRole(tenantId, ['admin', 'editor']);
       }
     }
@@ -178,8 +185,7 @@ service cloud.firestore {
     // confirmed broken in production by Alan 2026-08-17. This is the fix —
     // matches the role gate db.js's own comments already assumed was live.
     match /tenants/{tenantId}/completedEvents/{eventId} {
-      allow read: if request.auth != null
-                  && request.auth.token.tenantId == tenantId;
+      allow read: if isActiveMember(tenantId);
       allow write: if memberHasRole(tenantId, ['admin', 'editor']);
     }
     // Tenant-rooted findings (Fleet Findings Workflow, claude_ui-p2-build-
@@ -248,8 +254,7 @@ service cloud.firestore {
         && after.acceptedBy == before.acceptedBy;
     }
     match /tenants/{tenantId}/findings/{findingId} {
-      allow read: if request.auth != null
-                  && request.auth.token.tenantId == tenantId;
+      allow read: if isActiveMember(tenantId);
       allow create: if isActiveMember(tenantId)
                     && request.resource.data.tenantId == tenantId
                     && request.resource.data.assetId is string
@@ -435,15 +440,14 @@ service cloud.firestore {
     // permissive any-signed-in-user pattern on the flat rules below, just
     // narrowed to the caller's own tenant. Write now uses isActiveMember
     // (Phase 3 Session 6 — 3C / M-01) so a disabled/removed user's writes
-    // stop instantly rather than waiting on token expiry; read is unchanged.
+    // stop instantly rather than waiting on token expiry; read now uses the
+    // same isActiveMember() check (SR-01, 24 Aug 2026 review).
     match /tenants/{tenantId}/utilisation/{docId} {
-      allow read: if request.auth != null
-                  && request.auth.token.tenantId == tenantId;
+      allow read: if isActiveMember(tenantId);
       allow write: if isActiveMember(tenantId);
     }
     match /tenants/{tenantId}/pendingReports/{docId} {
-      allow read: if request.auth != null
-                  && request.auth.token.tenantId == tenantId;
+      allow read: if isActiveMember(tenantId);
       allow write: if isActiveMember(tenantId);
     }
     // shareTokens (Phase 3, Session 5 — 3B / H-02). Reads stay open to any

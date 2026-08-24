@@ -106,7 +106,12 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({ ok: true });
   } catch (e) {
-    console.error('share/revoke: failed', e);
-    return res.status(500).json({ error: 'Failed to revoke share link: ' + e.message });
+    // SR-04 (TailiQ_Security_Release_Assessment_20260824.docx): don't leak
+    // e.message to the client — see api/share/create.js's matching catch
+    // block for the full rationale. Full detail stays server-side, tagged
+    // with a correlation ID the client can quote back for support.
+    const correlationId = require('crypto').randomUUID();
+    console.error(`share/revoke: failed [${correlationId}]`, e);
+    return res.status(500).json({ error: 'Could not revoke share link.', correlationId });
   }
 };

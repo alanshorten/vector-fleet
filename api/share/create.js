@@ -200,7 +200,14 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({ token, ...data });
   } catch (e) {
-    console.error('share/create: failed', e);
-    return res.status(500).json({ error: 'Failed to create share link: ' + e.message });
+    // SR-04 (TailiQ_Security_Release_Assessment_20260824.docx): don't leak
+    // e.message to the client — Firebase/Firestore exceptions can expose
+    // implementation details, document/index hints, or project config
+    // clues. Full detail stays server-side, tagged with a correlation ID
+    // the client can quote back for support without exposing anything
+    // itself.
+    const correlationId = require('crypto').randomUUID();
+    console.error(`share/create: failed [${correlationId}]`, e);
+    return res.status(500).json({ error: 'Could not create share link.', correlationId });
   }
 };
