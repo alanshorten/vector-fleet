@@ -476,6 +476,7 @@ companies/
 ```
 
 ### Critical Schema Rules
+**⚠️ Note added 24 Aug 2026: the `companyId` rule below describes the originally-envisioned tenant-scoping mechanism. It was never built this way — real multi-tenancy shipped instead via `tenantId` custom claims + `tenants/{tenantId}/...`-rooted Firestore subcollections. See Section 14 for the corrected, as-built model. `companyId` as described in this schema section is legacy/unused.**
 - **Every document must have `companyId`** — non-negotiable, do not remove
 - **`confirmedBy` and `confirmedAt` on all financial inputs** — audit trail
 - **`shopVisitProjections` always creates new document** — never overwrites, preserves history
@@ -556,10 +557,13 @@ Lease Rates         → Manual/Parsed → Firestore
 1. Move Firebase config to Vercel environment variables — ✅ done
 2. Move Cloudinary credentials to Vercel environment variables — ✅ done
 3. Move Anthropic API key to Vercel environment variables — ✅ done
-4. Tighten Firestore security rules — ⚠️ **corrected July 2026: this line previously read "✅ done (scope by companyId)," which was not true.** The live rules file was a single wildcard (`match /{document=**} { allow read, write: if request.auth != null; }`) — any signed-in user, full read/write, zero companyId or role scoping, on every collection. Rewritten this session (`TECH_DEBT.md` 4.28) to explicit per-collection rules: `leases`/`reserves`/`assets` now require the `admin`/`editor` custom-claim role for writes, `auditLog` is now append-only. **companyId-based scoping still does not exist anywhere in the rules** — see Section 14, also corrected this session.
+4. Tighten Firestore security rules — ✅ **done, and further hardened since.** The original wildcard-everything rules were rewritten to explicit per-collection rules with role-gated writes (`TECH_DEBT.md` 4.28, July 2026). **⚠️ Corrected 24 Aug 2026: tenant-scoping is now real** — see Section 14, fully rewritten this sync. Every tenant-rooted collection's `allow read` was itself found to check only a cached token claim (`request.auth.token.tenantId == tenantId`), not live membership, meaning an offboarded user retained read access until their token happened to expire — fixed 24 Aug across all 12 tenant-scoped collections (`isActiveMember(tenantId)` live Firestore lookup instead of a token-claim check; see `TECH_DEBT.md` 4.147/SR-01). `auditLog` remains append-only.
 5. Decommission abandoned Supabase projects — ✅ done June 2026
-6. Firebase Auth — email/password + role-based access — ✅ done. Custom-claim roles (`admin`/`editor`/`viewer`, set via `/api/bootstrap-admin`, read client-side via `getIdTokenResult().claims.role`) are further along than this doc previously implied — the auth layer already supports real role-based access; it was the Firestore rules layer that hadn't caught up until this session.
-7. Secure new V1 surface area: share-token access scoping — ✅ done (allowlisted fields only, 7-day expiry, revoke support, public lookup via Firebase Admin SDK so Firestore rules stay untouched); email ingestion webhook validation — ✅ done (companyId validation via expected-slug check, and the Email Review Queue now holds back high-severity reports pending Apply/Discard — see Section 12a)
+6. Firebase Auth — email/password + role-based access — ✅ done. Custom-claim roles (`admin`/`editor`/`viewer`/`dataEntry`, set via tenant-scoped admin actions, read client-side via `getIdTokenResult().claims.role`) plus a `tenantId` claim per user (see Section 14) — the auth layer supports real per-tenant role-based access.
+7. Secure new V1 surface area: share-token access scoping — ✅ done (allowlisted fields only, 7-day expiry, revoke support, public lookup via Firebase Admin SDK so Firestore rules stay untouched; the create/revoke endpoints were also hardened 24 Aug to stop leaking raw exception text to the client on error — `TECH_DEBT.md` 4.147/SR-04); email ingestion webhook validation — ✅ done (tenant validation via recipient-slug + `approvedSenders` allowlist with SPF/DKIM domain-alignment checking, superseding the earlier companyId-slug check — see Section 14/`TECH_DEBT.md` 4.138 — and the Email Review Queue now holds back high-severity reports pending Apply/Discard — see Section 12a)
+8. Content-Security-Policy — ✅ **now enforcing, not report-only**, as of 24 Aug 2026 (`TECH_DEBT.md` 4.147/SR-03), after two prior reviews (4.136/L-02, 4.139/F-09) deliberately deferred the flip pending real violation data — that staging-data review step was ultimately skipped in favor of shipping the fix directly, so Alan should watch for any unexpected breakage on first real production traffic. `'unsafe-inline'` was already removed from `script-src` in favor of exact SHA-256 hashes.
+9. Sustained-abuse rate limiting on Excel parsing — ✅ done 24 Aug 2026 (30/hr + 150/day per-user, 200/hr per-tenant, Firestore transaction-backed counters — `TECH_DEBT.md` 4.147/SR-02), closing the gap left by the existing per-user concurrency lock alone.
+10. Dependency-vulnerability CI gate — ✅ done 24 Aug 2026 — `.github/workflows/dependency-audit.yml` (`npm audit --omit=dev --audit-level=high`) plus Dependabot weekly update PRs (`TECH_DEBT.md` 4.147/SR-05).
 
 ### Role Structure — REVISED July 2026 (Layer 3 scoping session, four roles — supersedes the three-role model below)
 **See `layer3-scenarios-build-handoff.md` §8 for full reasoning.** The three-role model couldn't cleanly serve two real use cases: C-suite needing full financial/scenario visibility without edit rights, and a data-entry person (intern/ops staff) needing Upload and Prospects without seeing financials. This resolves both, and closes the Fleet Exposure role-gating open item (`TECH_DEBT.md` 4.45).
@@ -598,7 +602,7 @@ Role naming ("Data Entry") is a working label — final naming deferred to a lat
 - Lease PDFs never stored — parse and discard only
 - Only confirmed figures written to Firestore
 - Full audit trail — confirmedBy/confirmedAt on all financial inputs; `auditLog` collection is now genuinely append-only (writes allowed, updates/deletes denied at the rules level) as of July 2026
-- companyId isolation — ⚠️ **corrected July 2026: not yet true.** `companyId` is written onto `leases`/`reserves` docs but has never been populated on any asset anywhere in the codebase, and no Firestore rule currently references it. See Section 14 and `TECH_DEBT.md` 4.29. Not urgent at current single-tenant scale, but this line should not claim isolation exists yet.
+- Tenant isolation — ✅ **corrected 24 Aug 2026: now true, via `tenantId`, not `companyId`.** `companyId` was the originally-envisioned field and was never populated (see Section 14 for its legacy status). Real tenant isolation shipped instead via `tenantId` custom claims plus tenant-rooted Firestore subcollections (`tenants/{tenantId}/...`), built in phases from mid-August through 21 Aug and further hardened 24 Aug when every tenant-scoped read rule was switched from a token-claim check to a live `isActiveMember(tenantId)` lookup. See Section 14 and `TECH_DEBT.md` 4.138/4.147.
 - SOC 2 — pursue if required in future
 
 ---
@@ -874,30 +878,31 @@ one implementation), read-only, with its own Print/Save PDF button
 - Copy Link: `navigator.clipboard.writeText()`
 - Both sit alongside the QR code in the same Share modal, all three pointing at the same URL
 
-### Email Ingestion — Option A + C (not yet built — last open V1 gate item)
-**Option A:** Each organisation gets unique address — `{company}@reports.vectoriq.app`
+### Email Ingestion — ✅ built, tested, and now multi-tenant (Option A + C)
+**Option A:** Each organisation gets unique address — `{tenant}@reports.tailiq.app`
 **Option C:** Lessor sets forwarding rule from existing inbox — airline changes nothing
 
 Both options process identically:
 ```
-Email arrives at {company}@reports.vectoriq.app
+Email arrives at {tenant}@reports.tailiq.app
       ↓
 SendGrid Inbound Parse fires webhook to Vercel function
       ↓
-Function identifies companyId from email address
+Function resolves tenant via recipient slug + live tenants/{id} doc +
+approvedSenders allowlist (SPF/DKIM domain-alignment checked)
       ↓
 PDF/Excel attachment extracted
       ↓
 Claude parses document
       ↓
-Data written to Firestore under correct companyId/assetId
+Data written to Firestore under correct tenantId/assetId
       ↓
 Notification sent to relevant users by role
 ```
 
-Build single-company first. Extend to multi-tenant when second organisation onboards.
+**Status: built and tested single-tenant (June 2026), then extended to real multi-tenant support (19 Aug 2026, Build Group A — `TECH_DEBT.md` 4.138).** `api/email-ingest.js` was originally validated end-to-end with two real emails at `maverick@reports.tailiq.app` (March report → new asset created; May report → merged, gap correctly detected by Brain 1) using a single hardcoded tenant and a recipient-slug check only. It now resolves the tenant per-recipient against a live `tenants/{id}` doc and only accepts senders on that tenant's `approvedSenders` allowlist, with SPF/DKIM domain-alignment verification — closing the "acceptable for one company, revisit if this scales" caveat this section used to carry. Every inbound email is still treated as a utilisation report (the recurring, airline-mailed case) — LLP/APU LLP sheets stay on the manual Upload flow since they're infrequent and MRO-issued, not a recurring mailbox pattern.
 
-**Status: built and tested (June 2026).** `api/email-ingest.js` live at `maverick@reports.tailiq.app`, validated end-to-end with two real emails (March report → new asset created; May report → merged, gap correctly detected by Brain 1). Every inbound email is treated as a utilisation report (the recurring, airline-mailed case) — LLP/APU LLP sheets stay on the manual Upload flow since they're infrequent and MRO-issued, not a recurring mailbox pattern. Trust boundary is the recipient local-part validated against `EXPECTED_COMPANY_SLUG` (an unguessable-address model, not cryptographic auth — acceptable for one company, revisit if this scales to multiple lessors with predictable address patterns).
+**Still pending, config only (not code):** SendGrid Inbound Parse's ECDSA webhook-signature verification has been in the code since 17–19 Aug but is inert until `SENDGRID_INBOUND_PARSE_PUBLIC_KEY` is set (SendGrid console security policy → generate key; Vercel env var). Flagged open across multiple review docs (`TECH_DEBT.md` 4.136/H-02, 4.139/F-07) with nothing since confirming it's done — the sender-allowlist/SPF/DKIM checks above provide meaningful protection in the meantime, but the cryptographic signature layer is the stronger guarantee once activated.
 
 ---
 
@@ -946,21 +951,33 @@ A QR code on the tech spec cover was built (June 2026, see `TECH_DEBT.md` 0a) bu
 
 ## 14. Multi-Tenancy
 
-### companyId — ⚠️ Corrected July 2026: Not Actually Implemented Yet
-This section previously read "Every Firestore document has `companyId`. Every query filters by `companyId`. Security rules make cross-tenant access physically impossible." **None of that is true.** Discovered and corrected during this session's Firestore rules work (`TECH_DEBT.md` 4.29): `companyId` is written as a field on `leases`/`reserves` documents (per the Section 5 schema), but **no asset has ever had `companyId` set**, in the Add Asset flow, the Prospect editor, or anywhere else — so it's `null`/`undefined` everywhere in practice. No query in the codebase filters by it. No Firestore rule references it. This was correctly reflected as not-yet-done in Section 17/19's checklists all along — Sections 7 and 14 were the stale/aspirational ones, now brought in line.
+### ✅ Corrected 24 Aug 2026: multi-tenancy is built and live — via `tenantId`, not `companyId`
+This section spent most of 2026 oscillating between "already done" (wrong, pre-July) and "not actually implemented yet" (correct, July–18 Aug). **As of 19 Aug 2026 it is genuinely built and live in production**, via a different mechanism than originally sketched: a `tenantId` custom claim on each user's Firebase Auth token, plus Firestore data rooted under `tenants/{tenantId}/...` subcollections, rather than a flat `companyId` field on each document. Full build history: `TECH_DEBT.md` 4.138 (backend, 19 Aug), 4.144/4.145 (Platform admin UI, 21 Aug), 4.147/SR-01 (24 Aug — closed a gap where reads still trusted a cached token claim instead of live membership).
 
-**Decision (Alan, July 2026):** leave `companyId` as `null` for now rather than inventing a placeholder value. TailiQ is genuinely single-tenant today (Maverick Horizon internal only); a placeholder invented now risks being the wrong shape once the real company model below is actually designed.
+**What actually shipped:**
+- **Auth:** each user carries a `tenantId` custom claim (alongside `role`), set at invite time and enforced server-side on every API endpoint.
+- **Data model:** tenant-scoped collections (`assets`, `leases`, `reserves`, `scheduledEvents`, `seasonalityProfile`, `shopVisitProjections`, `knowledgeBase`/`llpCatalogue`, `completedEvents`, `findings`, `utilisation`, `pendingReports`) live under `tenants/{tenantId}/...` rather than as flat top-level collections with a `companyId` field.
+- **Firestore rules:** writes and (as of 24 Aug) reads on all 12 tenant-rooted collections require `isActiveMember(tenantId)` — a live lookup against the `tenantMembers` doc, not just a token-claim match, closing the up-to-~1hr offboarding-lag gap a token-claim-only check would otherwise leave.
+- **Onboarding:** `api/create-tenant.js` provisions a new tenant (new `tenants/{tenantId}` doc, first admin user); a `/platform` super-admin UI (`PlatformView.jsx`, gated on a `superAdmin` claim, distinct from per-tenant `admin`) lets Alan create tenants and view the tenant list without touching Firestore directly — see `TECH_DEBT.md` 4.144/4.145 for its build and its final placement (pulled into a standalone Admin nav button, not a Settings tab).
+- **Email ingestion:** now resolves tenant per-recipient rather than via a single hardcoded slug — see Section 12 above.
 
-### Adding A Second Organisation (future — not yet built)
-1. Create Firebase Auth account for new organisation
-2. Assign `companyId`
-3. They log in to empty, isolated portfolio
-4. They onboard their own assets
-5. No code changes required — *once the above is actually implemented*
+**`companyId` status: legacy and unused, not the real mechanism.** The field described below (populated on `leases`/`reserves` docs, intended to also land on assets) was never actually populated anywhere and no Firestore rule ever came to reference it. It has been superseded by `tenantId`/tenant-rooted subcollections rather than completed — don't resurrect it as the tenant-scoping mechanism; treat any lingering `companyId` field in existing documents as dead data.
+
+**Known open items, not yet resolved by any later doc:**
+- One exposed Firebase service-account key from the 19 Aug build session — revocation status in GCP IAM was flagged "not confirmed done" and nothing since confirms it (`TECH_DEBT.md` 4.138).
+- One pre-14-Aug account (`dave.corri@...`) needed a one-off `tenantId` claim backfill after this shipped; whether any other similarly-stale accounts could hit the same gap was never resolved.
+- The Platform admin UI for creating tenants is build-verified but no doc confirms a real second tenant has actually been created through it end-to-end (`TECH_DEBT.md` 4.144).
+
+### Adding A Second Organisation (now a real, tested flow — not future work)
+1. Alan (super-admin) creates the tenant via the `/platform` Admin UI, or `api/create-tenant.js` directly
+2. First admin user for that tenant is invited, receiving a `tenantId` custom claim
+3. They log in to an empty, isolated portfolio — no other tenant's data is queryable or readable, enforced at the Firestore rules layer
+4. They onboard their own assets, normally
+5. No further code changes required — this is the live production path today, not a plan
 
 ### Future Architecture (When Needed)
-Current: Shared Firebase project, `companyId` field reserved on schema but not yet populated or enforced anywhere
-Future: Populate `companyId` on assets, filter queries by it, scope Firestore rules by it (Section 7) — then, if an enterprise client demands full isolation, schema-per-tenant or database-per-tenant
+Current: dedicated Firebase project, real per-tenant data isolation via `tenantId` claims + `tenants/{tenantId}/...` Firestore subcollections, enforced by rules on both reads and writes
+Future: if an enterprise client ever demands full physical isolation beyond logical tenant-rooting (e.g. dedicated infrastructure, data residency guarantees per tenant), schema-per-tenant or database-per-tenant remains the escalation path — not needed at current scale
 
 ---
 
@@ -1020,7 +1037,7 @@ See Section 3a for the full checklist — now a clean 7 of 7, no items remaining
 - [x] Add user-friendly error messages (no raw JSON errors) — confirmed non-issue on review (June 2026), stale entry
 - [x] Extract Brain 2 (`llpCalculator.js`) to `/calculations` — done, pure function, no UI/Firebase deps
 - [x] Extract Brain 1 (`utilisation.js`) to `/calculations` — done; covers delta verification (FC/FH), S/N change detection (engines, APU, landing gear), and merge logic; resolved a pre-existing falsy-zero CSN bug along the way; new behaviour added: out-of-order/duplicate-period uploads now save to history only (never overwrite live asset state), gap-month detection widens delta tolerance and surfaces an informational flag
-- [ ] Add companyId to all existing Firestore documents — **deliberately still open.** `companyId` has never been populated on any asset; it is `null` throughout. Left as `null` rather than inventing a single-tenant placeholder, pending the real Section 7 multi-tenancy design. See `TECH_DEBT.md` 4.29
+- [x] Multi-tenant data isolation — **done, but via `tenantId` custom claims + tenant-rooted Firestore subcollections, not the `companyId` field this line originally described.** `companyId` itself was never populated and remains dead/legacy. See Section 14, `TECH_DEBT.md` 4.138/4.147.
 - [ ] Harden delta verification edge cases
 - [ ] Verify S/N change detection across all component types
 - [ ] LLP extrapolation seasonal refinement
@@ -1049,7 +1066,7 @@ See Section 3a for the full checklist — now a clean 7 of 7, no items remaining
 - [x] Shareable read-only asset links (tokenised) — done June 2026
 - [x] QR code generation — done June 2026
 - [x] WhatsApp share integration — done June 2026
-- [ ] Email ingestion — single company first
+- [x] Email ingestion — built, tested, and extended to real multi-tenant resolution 19 Aug 2026. See Section 12.
 - [ ] Documents tab (Google Drive links per asset)
 - [ ] Incoming tech spec parser — onboarding accelerator (Step 0, parse and discard)
 
@@ -1092,8 +1109,8 @@ See Section 3a for the full checklist — now a clean 7 of 7, no items remaining
 
 ### Infrastructure / Product
 - [x] `APP_SURFACE` multi-entry-point split + four-domain Vercel/Cloudflare wiring — done July 2026; `app.tailiq.app`/`specs.tailiq.app`/`airframe.tailiq.app`/`engine.tailiq.app` all live over HTTPS, each its own Vercel project/bundle. TailiQ Specs/free airframe/free engine surfaces are stub-only ("Coming soon") — building their real UI is separate, unstarted work. See `TECH_DEBT.md` 4.58
-- [ ] Firebase Auth (email/password + roles)
-- [ ] Multi-tenant companyId implementation
+- [x] Firebase Auth (email/password + roles) — done, plus `tenantId` claim per user
+- [x] Multi-tenant implementation — done via `tenantId` claims + tenant-rooted Firestore, not `companyId`. See Section 14, `TECH_DEBT.md` 4.138/4.147
 - [ ] Next.js migration (if required for multi-user scale)
 - [ ] SOC 2 (if required in future)
 - [ ] Mobile app — React Native (requires human developer)
@@ -1115,7 +1132,7 @@ See Section 3a for the full checklist — now a clean 7 of 7, no items remaining
 | Decision | Rationale |
 |----------|-----------|
 | Parse and discard for lease PDFs | Lease rates are commercially sensitive — never persist documents |
-| companyId on every Firestore document | Future-proofing for multi-tenant SaaS — do not remove |
+| Tenant isolation on every tenant-scoped Firestore document | Multi-tenant SaaS requirement — do not remove. Implemented via `tenantId` custom claims + `tenants/{tenantId}/...` subcollections, not the originally-sketched `companyId` field (which is dead/unused — see Section 14) |
 | Firebase europe-west2 | GDPR compliance — do not migrate to US regions |
 | Firebase over Supabase | Supabase had persistent DNS issues — Firebase is permanent |
 | Brain/Body separation | Logic must be testable independently of UI — always maintain |
@@ -1140,6 +1157,22 @@ See Section 3a for the full checklist — now a clean 7 of 7, no items remaining
 
 | Item | Owner | Priority |
 |------|-------|----------|
+| Fourth security review / release assessment (SR-01–SR-05) — offboarded-user read access, Excel-parse quota, CSP enforcing, share-API error leakage, dependency-audit CI gate | Build session | ✅ Done and **live-verified** against production 24 Aug 2026 — see `TECH_DEBT.md` 4.147, Sections 7/14 |
+| SendGrid Inbound Parse ECDSA signature verification (H-02/F-07) — code shipped 17–19 Aug, still inert | Alan | 🟡 Open config action — set `SENDGRID_INBOUND_PARSE_PUBLIC_KEY` (SendGrid console + Vercel env var). Flagged across `TECH_DEBT.md` 4.136, 4.139; see Section 12 |
+| Exposed Firebase service-account key (19 Aug incident) — GCP IAM revocation of the original key | Alan | 🟡 Open — "not confirmed done" at the time, no later doc confirms it. See `TECH_DEBT.md` 4.138 |
+| `scripts/migrate-settings-to-tenant.js` — needs running once (M-01 fix from 4.136) | Alan | 🟡 Open — not confirmed done as of any later doc |
+| Firebase Console — confirm email/password self-registration disabled (H-03 follow-up from 4.136) | Alan | 🟡 Open — not confirmed done |
+| Second security review (19 Aug) — 8 findings, tech-spec stored XSS, email sender domain-alignment, settings tenant-scoping, role-downgrade fail-open, share-token read scoping, lockfile drift | Build session | ✅ Fixed same session, 2 config actions remain (see rows above) — see `TECH_DEBT.md` 4.136 |
+| Third security review (20 Aug) — 9 findings, stored XSS gap, broken user-delete endpoint, claims/token-revocation coupling, leaked one-time reset link | Build session | ✅ Closed 20 Aug 2026 — 5 fixed, 1 non-issue, 2 explicit keep-as-is decisions by Alan, 2 config items (see rows above) — see `TECH_DEBT.md` 4.139 |
+| Multi-tenancy — `tenantId` custom claims + tenant-rooted Firestore, tenant onboarding backend + Platform admin UI | Build session | ✅ Done — backend 19 Aug, admin UI 21 Aug, read-rule hardening 24 Aug. Corrects this doc's own Section 14, previously stale — see `TECH_DEBT.md` 4.138, 4.144, 4.147/SR-01, Section 14 |
+| Audit log scope expansion — server-side privilege actions + client-side financial/operational edits | Build session | ✅ Done and live-tested 19 Aug 2026 — see `TECH_DEBT.md` 4.137 |
+| Fleet Findings workflow (Brain 10) — dashboard alerts for unfunded events, S/N mismatches, etc. | Build session | ✅ Built and live 20 Aug 2026 through 11 bugfix rounds — one item (round 7's recovery-then-relapse fix) has unconfirmed rules-publish status, and 4 duplicate junk findings need manual admin cleanup. See `TECH_DEBT.md` 4.140 |
+| Guide restructure — `userRole` prop not passed, admin-only sections invisible to everyone including Admins | Build session | ✅ Fixed 20 Aug 2026 (one-line fix) — sign-in validation across all roles not yet confirmed. See `TECH_DEBT.md` 4.141 |
+| UI P2 batch — calendar horizon toggle, landing gear label fix, em-dash sweep, Fleet Scenarios reframe, scroll-reset | Build session | ✅ Built 20 Aug, confirmed deployed 21 Aug 2026 — AOG Window grouping question still open. See `TECH_DEBT.md` 4.142 |
+| Operator/landing-gear label standardization decision | Alan | ✅ Decided 19 Aug 2026 — operator cleanup dropped, landing gear label fix confirmed real and covered under the UI P2 batch above. See `TECH_DEBT.md` 4.143 |
+| Admin/Platform nav restructure — Admin Panel + Platform pulled out of Settings into a standalone Admin button | Build session | ✅ Built 21 Aug 2026 (final shape after three same-day iterations) — deploy/click-test status not confirmed by any later doc. See `TECH_DEBT.md` 4.145 |
+| Mobile header condensing — hamburger/logo alignment, Fleet Findings 2-column grid, asset-header button sizing | Build session | ✅ Built 21 Aug 2026 — not yet confirmed on an actual phone. See `TECH_DEBT.md` 4.146 |
+| Two dead duplicate files at repo root (`tailiq_landing.html`, `calculations/utilisation.js`) — unreferenced copies of files actually served from `public/` | Alan | 🟢 Flagged 24 Aug 2026, safe to delete, not yet actioned — awaiting Alan's go-ahead. See `TECH_DEBT.md` 4.148 |
 | End of Lease Position wired into Fly-Forward + TAC upload pipeline | Build session | ✅ Done July 2026 — see `TECH_DEBT.md` 4.88, 4.89, 4.90, Section 16 |
 | 4th demo asset — dedicated EOL adjustment showcase, real catalogue part numbers from `Engine_LLP_Escalation_Model.xlsx`, new MSN, clean computable net-payable figure | Alan + build session | ✅ Done July 2026 — MSN 5533 built, uploaded, live-tested ($505,132 combined). See `TECH_DEBT.md` 4.91, Section 16 |
 
@@ -1239,8 +1272,8 @@ See Section 3a for the full checklist — now a clean 7 of 7, no items remaining
 | Lease Data Input UI — Path 2 (Add Lease flow + pot checklist) | Build session | ✅ Done July 2026 — see `TECH_DEBT.md` 4.25–4.27, Section 9 |
 | Reserve pot AI validation — fail-open bug + wrong response envelope | Build session | ✅ Done July 2026 — see `TECH_DEBT.md` 4.26 |
 | Deterministic EN-LP catalogue-rate check | Build session | ✅ Done July 2026 — see `TECH_DEBT.md` 4.27 |
-| Firestore security rules — role-gated writes on leases/reserves/assets, immutable auditLog | Build session | ✅ Done July 2026 — tested and deployed by Alan; `companyId` scoping still open (4.29) — see `TECH_DEBT.md` 4.28, Section 7 |
-| companyId never populated on any asset (Sections 7/14 corrected) | Build session | 🟢 Roadmap-accuracy fix, not urgent — see `TECH_DEBT.md` 4.29, Section 14 |
+| Firestore security rules — role-gated writes on leases/reserves/assets, immutable auditLog | Build session | ✅ Done July 2026 — tested and deployed by Alan; real tenant scoping (via `tenantId`, not `companyId`) shipped later, 19–24 Aug 2026 — see `TECH_DEBT.md` 4.28, 4.138, 4.147, Section 7 |
+| companyId never populated on any asset (Sections 7/14 corrected) | Build session | ✅ Superseded, not just corrected — real multi-tenancy shipped 19 Aug 2026 via `tenantId`, `companyId` is dead/legacy — see `TECH_DEBT.md` 4.29, 4.138, Section 14 |
 | Fly-Forward Viewer role access | Build session | ✅ Done July 2026 — Fly-Forward wired to real data, Viewer role now has access — see `TECH_DEBT.md` 4.30/4.32 |
 | Pot row warning checkbox/message alignment | Build session | ✅ Done July 2026 — see `TECH_DEBT.md` 4.31 |
 | Fly-Forward wired to real leases/reserves data (Brains 3/4/5 off DEMO_LEASE_TERMS) | Build session | ✅ Done July 2026 — see `TECH_DEBT.md` 4.32, Section 4/17 |

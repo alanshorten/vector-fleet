@@ -2195,6 +2195,171 @@ Everything else checked (SendGrid API error text, Firestore write failures, HTTP
 
 ---
 
+### 4.136 Second Independent Security Review (19 Aug) — 8 Findings — ✅ FIXED, 2 config actions remain (19 August 2026)
+
+**Context.** `TailiQ_Security_Review_20260819.docx`, a static review of a stale nested zip (its own Verification Limitations section flags this). 8 findings, all addressed same session. Full detail: `claude/security-review-20260819-remediation-delivery.md`.
+
+| ID | Finding | Status |
+|----|---------|--------|
+| H-01 | Stored XSS in tech spec (colon-string/`toLocaleString()` passthrough) | ✅ Fixed — `fmtHHMM()`/`fmtNum()` strict Number coercion, ~15 call sites in `techSpecBuilder.js` |
+| H-02 | Email sender auth — SPF/DKIM checked "some signature passed" only, no domain alignment | ✅ Fixed — domain-alignment check added; rate limit/dedup now keys on authenticated envelope sender. Also added ECDSA Inbound Parse signature verification, **currently inert** — needs `SENDGRID_INBOUND_PARSE_PUBLIC_KEY` set (SendGrid console security policy + Vercel env var) |
+| H-03 | `bootstrap-admin.js` exposure | ✅ Already fixed live (deleted same day, before this session) — only remaining action: Alan confirm email/password self-registration is disabled in Firebase Console |
+| M-01 | Global settings cross-tenant | ✅ Fixed — moved to `tenants/{tenantId}/settings/{key}`. **`scripts/migrate-settings-to-tenant.js` needs running once** — not confirmed done as of any later doc |
+| M-02 | Role downgrade/removal fail-open | ✅ Fixed — `tenantMembers` write now happens before Auth claims/deletion |
+| M-03 | Viewers could read share tokens | ✅ Fixed — direct client reads denied; `api/share/list.js` is the only read path |
+| L-01 | Lockfile/manifest drift | ✅ Fixed — `package-lock.json` regenerated, dead `XLSX` global reference removed |
+| L-02 | CSP report-only | 🟡 Partially addressed — `'unsafe-inline'` removed from `script-src` (exact SHA-256 hashes used instead), but deliberately NOT flipped to enforcing this session pending real violation data. **Superseded 24 Aug — see 4.147, CSP is now enforcing.** |
+
+**Config actions for Alan, status as of this sync — none confirmed done in any later doc:** (1) run `scripts/migrate-settings-to-tenant.js`, (2) confirm self-registration disabled in Firebase Console, (3) set `SENDGRID_INBOUND_PARSE_PUBLIC_KEY` to activate H-02's signature layer (recurs at 4.140/F-07 below — still open as of this sync).
+
+---
+
+### 4.137 Audit Log Scope Expansion — ✅ DONE, live-tested (19 August 2026)
+
+**Context.** Audit trail previously covered four client-side actions only. Full detail: `claude/audit-log-expansion-delivery-20260819.md`.
+
+**Session A — server-side privilege actions.** New `api/_lib/auditLog.js`, wired into `set-role.js`, `remove-user.js`, `share/create.js`, `share/revoke.js` (Admin SDK, bypasses rules, non-fatal try/catch per call site). Verified live: a role change produced a correctly-shaped entry, confirmed directly in Firestore.
+
+**Session B — client-side financial/operational edits (level 2, before/after).** New `describeChanges()` helper in `src/lib/db.js`; wired into 9 functions (`saveReservePot`, `saveScheduledEventOverride`, `saveSeasonalityProfile`, `createLease`, `deleteLease`, `deleteScheduledEventOverride`, `saveTACSnapshot`, `saveKnowledgeBase`, `saveLLPCataloguePrices`). `firestore.rules`'s `auditLog` action-field cap raised 300→1000 chars. Tested live by Alan post-deploy, confirmed working.
+
+**Incidental, not a bug:** Lease Wizard's Accrual Rate field doesn't prefill from Knowledge Base — confirmed by design (accrual is lease-specific, not a fleet-wide KB assumption). Flagged as a possible future enhancement, not scoped.
+
+---
+
+### 4.138 Build Group A — Tenant Onboarding Backend — ✅ DONE, multi-tenancy is now real (19 August 2026)
+
+**Corrects Section 14/7 of `VECTORIQ_ROADMAP.md`, which through this point still claimed multi-tenancy was "not actually implemented yet."** That claim is now false — see the roadmap doc itself for the corrected Section 14. Full detail: `claude/build-group-a-tenant-onboarding-deploy-20260819.md`.
+
+**What shipped (backend only — the `/platform` UI was deferred, see 4.145):** new `api/create-tenant.js`; deleted `api/bootstrap-admin.js`; `email-ingest.js` now resolves tenant via recipient slug + live `tenants/{id}` doc + a new `approvedSenders` allowlist with SPF/DKIM verification; `invite-user.js`/`remove-user.js`/`set-role.js`/`share/create.js`/`share/[token].js` all moved off a hardcoded `TENANT_ID='maverick'` to per-caller tenant resolution; new `firestore.rules` `tenants/{tenantId}` doc rule gated on `superAdmin` claim. Deployed to production, rules published via Firebase Console, live-tested by Alan (sign-in, admin actions, share links, email ingestion — all passed).
+
+**Note: this is the actual multi-tenancy model — `tenantId` custom claim + tenant-rooted Firestore subcollections, NOT the `companyId` field the roadmap doc originally sketched.** `companyId` remains an unpopulated legacy field on `leases`/`reserves` docs (see 4.29) and should not be confused with the real tenant-scoping mechanism.
+
+**Incident — exposed Firebase service-account key.** While troubleshooting, Alan accidentally screenshotted the real private key into chat. Treated as compromised: fresh key generated and used correctly on the second attempt. **The original exposed key's revocation in GCP IAM was flagged as "not confirmed done" at the time and no later doc confirms it — still needs checking** (GCP Console → IAM & Admin → Service Accounts → `firebase-adminsdk-fbsvc@vector-fleet.iam.gserviceaccount.com` → Keys tab).
+
+**Bug found and fixed same session:** `set-role.js`'s user-list `GET` now correctly filters by tenant, which silently hid a pre-Phase-3 account (`dave.corri@...`, created before `tenantId` claims existed, never signed in since) that had a role but no `tenantId` claim. Fixed with a new one-off `backfill-missing-tenantid-claims.js` script (1 account fixed, 3 already correct). **Open question, never answered in any later doc:** could another similarly-stale pre-14-Aug account hit this same gap later? Worth deciding whether `invite-user.js` needs an expiry/reminder, or whether this is rare enough to ignore.
+
+**New one-time scripts** (`scripts/`, idempotent): `backfill-maverick-tenant-doc.js`, `seed-approved-sender-maverick.js`, `backfill-missing-tenantid-claims.js`.
+
+**Explicitly deferred:** the `/platform` super-admin UI (built later, see 4.145); setting `superAdmin: true` on Alan's own account (done later, since Platform UI work on 21 Aug required and used it successfully).
+
+---
+
+### 4.139 Third Independent Security Review (20 Aug) — 9 Findings — ✅ CLOSED (20 August 2026)
+
+**Context.** `TailiQ_Security_Code_Review_20260820.docx`. Full triage: `claude/security-review-20260820-discussion.md`; delivery: `claude/security-review-20260820-remediation-delivery.md`.
+
+| ID | Finding | Status |
+|----|---------|--------|
+| F-01 | Unescaped `llDesc`/`desc` interpolations in `techSpecBuilder.js` (stored XSS gap missed by 4.136/H-01) | ✅ Fixed, deployed |
+| F-02 | (claimed finding) | Non-issue — stale desktop-copy artifact, confirmed via SHA-256 + GitHub 404 |
+| F-03 | `api/remove-user.js` byte-identical to `set-role.js`, no actual delete logic — live-broken | ✅ Fixed, deployed — rewritten as a proper `DELETE` handler |
+| F-04 | Viewers can read other users' plaintext share tokens | **Decided keep-as-is by Alan** — documented deliberate behavior, not a bug |
+| F-05 | Claims-write/token-revocation failure coupling in `set-role.js`/`invite-user.js` | ✅ Fixed, deployed — decoupled into independent try/catches |
+| F-06 | Firestore reads check token claim only, not live membership | **Decided keep-as-is by Alan** — same tradeoff as before, up to ~1hr lag on read-access downgrade. **Superseded 24 Aug for reads specifically — see 4.147/SR-01, which did change this for 12 collections.** |
+| F-07 | Email signature verification optional | Config action, not code — same item as 4.136/H-02, still unset as of this sync |
+| F-08 | Invite path leaked one-time reset link in response/error body | ✅ Fixed, deployed — removed from both; dead "copy link" UI removed from `AdminPanelView.jsx` |
+| F-09 | CSP still report-only | Deliberately deferred pending violation data — **superseded 24 Aug, see 4.147** |
+
+**Status: closed** — 5 fixed and deployed, 1 non-issue, 2 explicit keep-as-is decisions, 2 remaining as Alan's own config/monitoring actions (both since partly overtaken by 24 Aug's SR-01/SR-03 — see 4.147).
+
+---
+
+### 4.140 Fleet Findings Workflow (Brain 10) — ✅ BUILT AND LIVE, one rules-publish status unconfirmed (20 August 2026)
+
+**Context.** New feature per `claude_ui-p2-build-handoff.md` Item 1. Session A (backend: `findingsEngine.js`, `firestore.rules`, `db.js` — `claude/fleet-findings-session-a-delivery-20260820.md`) + Session B (UI: `Findings.jsx`, dashboard cards, Accepted Positions section — `claude/fleet-findings-session-b-delivery-20260820.md`) + 11 live-test bugfix rounds same day (`claude/fleet-findings-live-test-bugfix-20260820.md`).
+
+**Rounds 1-2:** duplicate-finding-on-every-open fixed (idempotency guard); Accept action silent-failure fixed; admin-only Firestore delete escape hatch added; guard refined to exclude already-accepted findings from the duplicate check.
+
+**Round 3:** `leaseStart = new Date()` millisecond non-determinism truncated to start-of-day (real fix, but not the cause of the bug being chased).
+
+**Round 6 — actual root cause of "recreates on every reopen even though accepted":** the Category 2 (near-term unfunded event) dedup key never actually matched anything — `eventDate` was computed but never persisted to the Firestore doc. Fixed across `findingsEngine.js`/`db.js`. **Cleanup still needed, not done by anyone:** 4 duplicate junk `unfunded_event` findings for MSN 33552/EN-LP-1 from this bug won't clean themselves up — use the round-2 admin 🗑 delete.
+
+**Round 7 — recovery-then-relapse never resurfaced.** Accepted-at-red → improved-to-green → relapsed-to-red produced no new alert. Fixed via a new `improvedSinceAcceptance` flag and `markImproved` action; `firestore.rules`'s `findingSystemUpdate()` allowed-status list extended to include `'accepted'` for this. **Deploy status: "unconfirmed whether this has been published — check before relying on round 7's resurface-after-recovery fix in production," per the session's own closing note. No later doc confirms this was published.**
+
+**Round 8-9:** findings now also recompute on utilisation upload (3 call sites), not just on opening the Financials tab — new shared `src/lib/findingsSync.js`. Confirmed working end-to-end via a live diagnostic log, then removed (round 11).
+
+**Round 10:** manual triage buttons added (Mark Action Required / Mark Monitoring — `monitoring` had no code path anywhere before this) plus a 30-day display-only retention on the Resolved card.
+
+**Deliberately not built, confirmed acceptable tradeoffs:** lease-edit and completed-event save flows don't trigger a findings recompute (rare in practice, one-line addition if ever needed); the asset-view → fleet-dashboard navigation-flow friction Alan flagged is explicitly "for a separate build."
+
+**23 local commits from the 20 Aug session were delivered via manual paste (no push access this session) — later UI work (21 Aug) references this code as live, implying it landed, but no doc explicitly confirms the push.**
+
+---
+
+### 4.141 Guide Restructure Bugfix — ✅ DONE (20 August 2026)
+
+**Context.** `GuideView.jsx`'s content already matched `guide_restructure_build_spec.md` exactly — role-gating logic, terminology, Scenarios section all already correct. The bug: `App.jsx` never passed `userRole` to `GuideView`, so `canSeeAdminSections` was always falsy — **no one, including Admins, could ever see** Users & Access / Data Storage / Quick Reference. One-line fix: `<GuideView userRole={userRole}/>`. Build-verified. **Validation still needed, not confirmed done:** sign in as each role and confirm the three admin-only sections render/don't render correctly.
+
+---
+
+### 4.142 UI P2 Batch — ✅ BUILT (20 Aug), CONFIRMED DEPLOYED (21 August 2026), one question still open
+
+Fleet calendar 5y/10y/15y/All horizon toggle, landing gear label fix (`LLG`/`RLG` → `LH MLG`/`RH MLG`, correcting genuinely wrong terminology — see 4.143 below for the decision record), empty-state em-dash sweep, Fleet Scenarios reframe (Fleet Grounding rename + section groupings), scroll-reset-on-navigation. Built 20 Aug (`claude/ui-p2-items-and-scroll-reset-delivery-20260820.md`), confirmed pasted into GitHub and deployed by Alan 21 Aug (`claude/ui-p2-batch-confirmed-deployed-20260821.md`).
+
+**Still open, not yet answered by Alan:** the "AOG Window" grouping discrepancy — the spec's Fleet Scenarios grouping table lists AOG Window under Operational Disruption, but no fleet-level AOG control exists in the app today (asset-level only).
+
+---
+
+### 4.143 Operator / Landing-Gear Label Standardization — Decision Recorded (19 August 2026)
+
+Raised as an open P2 item in `ui-review-p2-scoping-session-handoff.md`. **Operator name cleanup: dropped entirely** — Alan's call, free text stays free text, not worth the engineering effort for a 15-asset boutique fleet where the user knows their own data (no canonical `operators` collection, no display-normalization lookup table). **Landing gear labels (`LLG`/`RLG` → `LH MLG`/`RH MLG`): confirmed genuinely wrong terminology, not a style choice** — mechanical find-and-replace, already covered under 4.142's UI P2 batch. Closed, no further backlog item.
+
+---
+
+### 4.144 Platform Admin UI — Tenant Onboarding Frontend — ✅ BUILT, deploy/live-test status unconfirmed (21 August 2026)
+
+Completes the `/platform` piece of Build Group A (4.138) deferred on 19 Aug. New `src/components/PlatformView.jsx` (Create Tenant form + read-only tenant list), new `db.getAllTenants()`, `App.jsx` gains `isSuperAdmin` state + a Platform hamburger item, double-gated (nav entry + render block both check the claim independently; real enforcement is still the Firestore rule + server-side check). Full detail: `claude/platform-admin-tenant-onboarding-ui-delivery-20260821.md`.
+
+**Not built, deliberately out of scope:** tenant suspend/usage management; ongoing approved-senders management after tenant creation (still a direct Firestore edit).
+
+**Superseded same day** by 4.146's final nav shape (Platform moved from a Settings tab into its own Admin button) — the tenant-onboarding logic described here is unchanged, only where it lives in the nav changed. **Verification status: build-verified only ("not tested against live Firestore/Firebase Auth... Alan's own first end-to-end test... is the real verification step") — no later doc confirms a real second tenant has actually been created through this UI.**
+
+---
+
+### 4.145 Admin / Platform Nav Restructure — Three Same-Day Iterations, Final Shape Shipped — ✅ BUILT, deploy/click-test status unconfirmed (21 August 2026)
+
+Same-day iteration: (1) original Platform UI as a Settings tab (4.144) → (2) briefly folded into Settings differently → (3) **final shape: both Admin Panel (assets+users) and Platform (tenant onboarding) pulled OUT of Settings entirely into a new dedicated "Admin" hamburger button.** Settings goes back to Guide/Settings/Knowledge Base only, no admin content. New `src/components/AdminPanelView.jsx` (two tabs, Admin Panel + Platform, tab bar only renders when both are visible). Full detail: `claude/admin-panel-pulled-out-of-settings-delivery-20260821.md` — **this doc supersedes both earlier same-day nav docs; work from those docs (`create-tenant.js`, the Firestore rule, the `superAdmin` claim) is unchanged, only the nav shape changed.**
+
+Build-verified (`npm run build` clean, Babel+`node --check` clean, grepped for dangling references after the `AdminView.jsx` trim — zero hits). **"Not tested against a live Firebase session — Alan's own click-through... is the real check." No later doc confirms this click-through happened or that this batch was deployed.**
+
+---
+
+### 4.146 Mobile Header Condensing — ✅ BUILT, phone-confirmation status unconfirmed (21 August 2026)
+
+Prompted by Alan's phone screenshots. Four fixes, same day: (1) hamburger now always inline with the logo on mobile (was forced onto its own row by dead CSS from before nav moved into the hamburger dropdown); (2) Fleet Findings cards forced to a 2-column grid on mobile instead of stacking 4 full-width; (3) asset-detail Share/Generate Tech Spec buttons shrunk on mobile (🔗 icon-only Share, "Tech Spec" text-only, no icon); (4) follow-up same day — those shrunk buttons were still wrapping to their own row, fixed with a new `.asset-header-row-compact` class (Details layer only) so back-button + title + Share + Tech Spec now sit on one row. Full detail: `claude/mobile-header-condensing-delivery-20260821.md`.
+
+Build-verified only. **"Not yet confirmed on an actual phone... this doc will need one more update once a screenshot confirms Share/Tech Spec now render inline with the title." No later doc provides that confirmation.**
+
+---
+
+### 4.147 Fourth Security Review / Release Assessment (SR-01–SR-05) — ✅ FIXED AND LIVE-VERIFIED (24 August 2026)
+
+**Context.** `TailiQ_Security_Release_Assessment_20260824.docx` — DO NOT RELEASE gate on SR-01 (HIGH). Full detail: `claude/security-review-20260824-remediation-delivery.md`, `claude/security-review-20260824-fixes-verification-report.md`.
+
+**Qualitatively different from the three reviews above: every behaviorally-testable finding was live-verified against production by Alan in the same session, not just build-verified.**
+
+| ID | Finding | Status |
+|----|---------|--------|
+| SR-01 | HIGH, release blocker — offboarded users retained read access via cached Firebase tokens (12 collections used a token-claim-only read check, never consulting live `tenantMembers` status) | ✅ Fixed (`isActiveMember(tenantId)` on all 12 read rules) and **live-verified**: a real test user showed 12/12 ALLOWED before removal, 12/12 DENIED after removal using the same cached token, same tab, no reload |
+| SR-02 | Excel parsing had no sustained-use quota beyond the existing per-user concurrency lock | ✅ Fixed (30/hr + 150/day per-user, 200/hr per-tenant, Firestore-backed) and **live-verified**: a 35-request burst returned 400 (bad payload, as intended) 30 times then 429/`hourly_limit` on attempt 31 |
+| SR-03 | CSP was report-only | ✅ Fixed (flipped to enforcing `Content-Security-Policy`) and **live-verified** via a direct fetch against `app.tailiq.app`. **Note: this closes the item left open at 4.136/L-02 and 4.139/F-09, but skips the "review real violation data in staging first" step both of those docs called for** — worth Alan watching for any unexpected breakage on first real traffic |
+| SR-04 | Share create/revoke APIs leaked raw exception text (`e.message`) to the client | ✅ Fixed (generic message + `crypto.randomUUID()` correlation ID, full detail server-logged) and **live-verified**: a forced error against production returned the generic message + a real correlation ID, no raw text |
+| SR-05 | No reproducible dependency-vulnerability CI gate | ✅ Fixed — new `.github/workflows/dependency-audit.yml` (`npm audit --omit=dev --audit-level=high`) + `.github/dependabot.yml`. Confirmed passing against the current lockfile (0 high/critical, 9 moderate, all in `firebase-admin`'s dependency chain) |
+
+**Unrelated, surfaced during SR-01 testing:** the SendGrid account's free trial had expired the day before, blocking all outbound mail (invite/reset emails, tenant onboarding, landing-page notifications) with a 401 unrelated to any API key issue. Resolved by Alan upgrading to SendGrid Essentials 50K ($19.95/mo), sized to the app's actual low-volume transactional usage.
+
+---
+
+### 4.148 Two Dead Duplicate Files Found at Repo Root — 🟡 FLAGGED, NOT YET DELETED (24 August 2026)
+
+Found during a stale-file sweep requested by Alan. `tailiq_landing.html` (92KB, repo root) and `calculations/utilisation.js` (30KB, repo root) are both unreferenced, near-identical duplicates of files that actually get served from `public/` — `middleware.js` and `index.html` both resolve their runtime URLs (`/tailiq_landing.html`, `/calculations/utilisation.js`) to the `public/` copies, since Vite only copies `public/*` and configured entry files into `dist/`. Both root-level copies appear to be leftovers from before each file was moved into `public/` (both added in the same commit, "fix 1", alongside their `public/` counterparts). Safe to delete — ~122KB of dead weight that also carries a real risk of a future edit landing on the wrong (unserved) copy. **Not deleted this session — Alan asked for the tech-debt/roadmap sync first; deletion offered, not yet actioned.**
+
+---
+
+*Last updated: 2026-08-24 — Full sync of the 19–24 Aug work backlog (13 new entries, 4.136–4.148): three further independent security reviews (4.136 second review 19 Aug, 4.139 third review 20 Aug, 4.147 fourth review/release assessment 24 Aug — the last one live-verified against production, not just build-verified); server- and client-side audit log expansion (4.137); real multi-tenancy shipped via `tenantId` custom claims + tenant-rooted Firestore, superseding the roadmap's old `companyId` plan (4.138, corrected further in `VECTORIQ_ROADMAP.md` Section 14 this same sync); the Fleet Findings workflow built and live-tested through 11 bugfix rounds, with one rules-publish status still unconfirmed (4.140); a guide-view role-gating bugfix (4.141); a UI P2 batch confirmed deployed (4.142) plus its related label-standardization decision record (4.143); the Platform admin tenant-onboarding UI (4.144), superseded same day by the final Admin/Platform nav shape (4.145); mobile header condensing (4.146); and two dead duplicate files found at the repo root, flagged but not yet deleted pending Alan's go-ahead (4.148). Recurring open items worth flagging together: the SendGrid Inbound Parse signature-verification env var (4.136/H-02, 4.139/F-07) remains unset; several build-only fixes (4.140 round 7, 4.144, 4.145, 4.146) still lack a later doc confirming their live/phone verification actually happened. `VECTORIQ_ROADMAP.md` Sections 7, 12, 14, 17, and 19 updated in the same sync to match.*
+
+---
+
 *Last updated: August 2026 — This session (Fly-Forward Financials summary split + app-wide Reserve Position sign-convention rollout, Sonnet build): Two related threads closed out. First, 4.126 — resolved the Forward Exposure Summary card question definitively: rather than reviving the expensive `buildFleetExposure`-based approach that crashed twice previously, split the existing "Portfolio Shortfall Summary" card into "Lease Shortfall Summary" + "Post-Lease Shortfall Summary," the latter a cheap aggregation of data (`partialFundedNote`) each pot's projection was already computing for its own card display. Second, 4.127 — live-testing that split against MSN 6014 surfaced a genuine UX problem (shortfall figures read as inverted — negative numbers in green, positive in red), scoped in conversation before any code was touched, then rolled out consistently across every screen carrying the same convention: `FlyForward.jsx` pot cards, `Scenarios.jsx` per-pot worst-case table, and `PortfolioView.jsx`'s Route Suitability Matcher table (which also had an unrelated colour bug — surplus showing grey instead of green — fixed in the same pass). Deliberately left alone: Fleet Exposure totals (already unambiguous) and EOL Position's contractual payment-adjustment figure (different formula, different — already correct — sign convention). Tech spec / design system merge (4.124's Opus scoping session) has also since been run and built — see 4.125; `VECTORIQ_ROADMAP.md` Section 19 rows for both threads updated in this sync. All three touched files passed Babel (`@babel/preset-react`) transform + `node --check` before delivery.*
 
 *Last updated: 2026-08-17 — Codex security assessment (12 findings) fully remediated across four phases (Phase 1 endpoint hardening, Phase 2 HTML sanitisation, Phase 3 tenant isolation, Phase 4 supply-chain hardening) — see 4.128 above. 11 of 12 findings closed and live-verified; M-04 deployed pending test. `SECURITY_ASSESSMENT.md` updated in the project docs with a per-finding status; this is the tech-debt-register summary of that work.*
