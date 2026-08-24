@@ -95,12 +95,12 @@ function buildTechSpecHTML(asset,engPhoto="",logoOverride=null,disclaimerOverrid
 @page{size:A4;margin:14mm 18mm}body{font-family:'Barlow',Arial,sans-serif;color:#151A1D;background:#FCFCF9;font-size:11px;line-height:1.45;margin:0;print-color-adjust:exact;-webkit-print-color-adjust:exact;color-adjust:exact}
 .cover{text-align:left;page-break-after:always;padding:0;box-sizing:border-box}
 @media print{html,body{height:100%}.cover{display:table;width:100%;height:100%}.cover-top{display:table-row}.cover-top>div{display:table-cell;vertical-align:top}.cover-bottom{display:table-row}.cover-bottom>div{display:table-cell;vertical-align:bottom;padding:0 30px 0}}
-.cov-hdr{background:#ffffff;border-bottom:2px solid #C9A84C;padding:9px 30px;text-align:left}
+.cov-hdr{background:#ffffff;border-bottom:2px solid #315D68;padding:9px 30px;text-align:left}
 .cov-hdr img{height:28px;width:auto;display:inline-block;vertical-align:middle}
-.hero{background:#111827;padding:40px 30px 38px;position:relative;overflow:hidden}
+.hero{background:#151A1D;padding:40px 30px 38px;position:relative;overflow:hidden}
 .hero-logo{text-align:center;margin-bottom:18px}
 .hero-logo img{height:60px;width:auto;display:inline-block}
-.hero-rule{width:44px;height:2px;background:#C9A84C;margin:0 auto 20px;border-radius:2px}
+.hero-rule{width:44px;height:2px;background:#315D68;margin:0 auto 20px;border-radius:2px}
 .hero-type{text-align:center;font-size:28px;font-weight:800;color:#f8fafc;letter-spacing:-0.02em;line-height:1;margin-bottom:8px}
 .hero-identity{text-align:center;font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:0.14em;text-transform:uppercase;font-weight:600;margin-bottom:24px}
 .hero-photo{width:80%;margin:0 auto;border-radius:12px;overflow:hidden}
