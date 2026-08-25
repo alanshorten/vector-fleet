@@ -101,35 +101,140 @@ function aggregateBalanceSeries(projections) {
 // box was replaced with structured controls; Alan flagged it missing —
 // it was never part of the chat box's AI translation, it's a separate,
 // always-available, zero-AI, zero-cost readout of numbers Brain 3
-// already computed). Builds a plain-English sentence from a pot's
-// earliest event: cost band, projected balance at that date, the
-// resulting gap — and the scenario's own delta, if one's active.
-function buildPotExplanation(row, scenarioActive) {
-  const { code, label, bEvt, sEvt, shiftMonths } = row;
+// already computed).
+//
+// v2 (Aug 2026): the original version just re-narrated the row's own
+// numbers back as a sentence — same date/cost/balance already visible
+// in the table, no new information, and it never said WHY anything
+// moved. This version leads with the active lever(s) causing the
+// change and states the resulting gap transition once. Cause phrasing
+// is built from the same lever state the component already threads
+// into buildFlyForwardProjection's scenarioModifiers — nothing new is
+// computed here, just described.
+
+function formatMoney(v) {
+  return "$" + Math.round(Math.abs(v)).toLocaleString();
+}
+
+// One phrase per active lever, lowercase, no trailing punctuation —
+// composed into a single subject noun-phrase by buildCauseClause.
+// Order: event-window levers first (AOG/lessee default), then rate
+// levers (utilisation/sector/lease extension), then the row-specific
+// cost overrun last, since it's the one lever tied to this pot alone
+// rather than applied fleet-of-pots-wide.
+function buildLeverCauses(levers) {
+  const causes = [];
+  if (levers.aog) {
+    const { startMonth, durationMonths } = levers.aog;
+    causes.push(`grounding the aircraft for ${durationMonths} month${durationMonths === 1 ? "" : "s"} starting month ${startMonth}`);
+  }
+  if (levers.lesseeDefault) {
+    const { startMonth, durationMonths } = levers.lesseeDefault;
+    causes.push(`a lessee default from month ${startMonth} for ${durationMonths} month${durationMonths === 1 ? "" : "s"}`);
+  }
+  if (levers.utilPct) {
+    causes.push(`a ${Math.abs(levers.utilPct)}% ${levers.utilPct > 0 ? "increase" : "cut"} in utilisation`);
+  }
+  if (levers.sectorPct) {
+    causes.push(`a ${Math.abs(levers.sectorPct)}% ${levers.sectorPct > 0 ? "increase" : "cut"} in average sector length`);
+  }
+  if (levers.leaseExtMonths) {
+    causes.push(`a ${levers.leaseExtMonths}-month lease extension`);
+  }
+  if (levers.costOverrunPct) {
+    causes.push(`a ${Math.abs(levers.costOverrunPct)}% cost ${levers.costOverrunPct > 0 ? "overrun" : "reduction"} on this event`);
+  }
+  return causes;
+}
+
+function joinWithAnd(items) {
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+// Always frames the subject as a single noun-phrase — either the one
+// active cause, capitalized, or "The combined effect of X, Y, and Z" —
+// so the sentence never needs to conjugate "moves"/"move" differently
+// depending on how many levers are active.
+function buildCauseClause(causes) {
+  if (causes.length === 1) {
+    return causes[0].charAt(0).toUpperCase() + causes[0].slice(1);
+  }
+  return `The combined effect of ${joinWithAnd(causes)}`;
+}
+
+// Describes the change in gap position between base and scenario for
+// an event present in both. Positive shortfallHigh = shortfall,
+// zero-or-negative = surplus (matches shortfall.js's convention).
+function describeGapTransition(baseGap, scenarioGap) {
+  const baseIsShortfall = baseGap > 0;
+  const scenarioIsShortfall = scenarioGap > 0;
+  if (baseIsShortfall && !scenarioIsShortfall) {
+    return `turns a ${formatMoney(baseGap)} shortfall into a ${formatMoney(scenarioGap)} surplus`;
+  }
+  if (!baseIsShortfall && scenarioIsShortfall) {
+    return `turns a ${formatMoney(baseGap)} surplus into a ${formatMoney(scenarioGap)} shortfall`;
+  }
+  if (baseIsShortfall && scenarioIsShortfall) {
+    if (scenarioGap > baseGap) return `widens the shortfall from ${formatMoney(baseGap)} to ${formatMoney(scenarioGap)}`;
+    if (scenarioGap < baseGap) return `narrows the shortfall from ${formatMoney(baseGap)} to ${formatMoney(scenarioGap)}`;
+    return `keeps the shortfall at ${formatMoney(baseGap)}`;
+  }
+  // both surplus
+  if (Math.abs(scenarioGap) > Math.abs(baseGap)) return `grows the surplus from ${formatMoney(baseGap)} to ${formatMoney(scenarioGap)}`;
+  if (Math.abs(scenarioGap) < Math.abs(baseGap)) return `shrinks the surplus from ${formatMoney(baseGap)} to ${formatMoney(scenarioGap)}`;
+  return `keeps the surplus at ${formatMoney(baseGap)}`;
+}
+
+function describeSingleEvent(evt) {
+  const date = (evt.dateWindow ? evt.dateWindow.start : evt.date).toISOString().slice(0, 7);
+  const gap = evt.shortfallHigh;
+  const gapText = gap > 0 ? `a ${formatMoney(gap)} shortfall` : `a ${formatMoney(gap)} surplus`;
+  return `Due ${date}: projected cost ${formatMoney(evt.costHigh)} against a ${formatMoney(evt.balanceAtEvent)} balance — ${gapText}.`;
+}
+
+function buildPotExplanation(row, scenarioActive, levers) {
+  const { code, bEvt, sEvt } = row;
   if (!bEvt && !sEvt) {
     return `No projected event for ${code} within the current horizon — nothing to explain yet.`;
   }
 
-  const describe = (evt, prefix) => {
-    if (!evt) return `${prefix}: no event within horizon.`;
-    const date = (evt.dateWindow ? evt.dateWindow.start : evt.date).toISOString().slice(0, 7);
-    const cost = Math.round(evt.costHigh).toLocaleString();
-    const balance = Math.round(evt.balanceAtEvent).toLocaleString();
-    const gap = evt.shortfallHigh;
-    const gapText = gap > 0
-      ? `a shortfall of $${Math.round(gap).toLocaleString()} (the pot doesn't cover the high-case cost)`
-      : `a surplus of $${Math.round(Math.abs(gap)).toLocaleString()} (the pot covers the high-case cost with room to spare)`;
-    return `${prefix}: due ${date}, projected high-case cost $${cost} against a projected pot balance of $${balance} — ${gapText}.`;
-  };
-
-  const lines = [describe(bEvt, "Base case")];
-  if (scenarioActive) {
-    lines.push(describe(sEvt, "Scenario"));
-    if (shiftMonths != null && shiftMonths !== 0) {
-      lines.push(`This scenario moves the event ${formatShift(shiftMonths)} compared to base case.`);
-    }
+  if (!scenarioActive) {
+    return describeSingleEvent(bEvt);
   }
-  return lines.join(" ");
+
+  const causes = buildLeverCauses(levers);
+  const causeClause = causes.length ? buildCauseClause(causes) : null;
+  const date = sEvt ? (sEvt.dateWindow ? sEvt.dateWindow.start : sEvt.date).toISOString().slice(0, 7) : null;
+
+  // Scenario pulled a new event within horizon that base case didn't have.
+  if (!bEvt && sEvt) {
+    const gapText = sEvt.shortfallHigh > 0 ? `a ${formatMoney(sEvt.shortfallHigh)} shortfall` : `a ${formatMoney(sEvt.shortfallHigh)} surplus`;
+    return causeClause
+      ? `${causeClause} pulls a new event into view at ${date}, projected as ${gapText}.`
+      : `A new event comes into view at ${date}, projected as ${gapText}.`;
+  }
+
+  // Scenario pushed the event beyond the current horizon entirely.
+  if (bEvt && !sEvt) {
+    return causeClause
+      ? `${causeClause} pushes this event beyond the current lease horizon — no shortfall or surplus projected within view.`
+      : `This event falls beyond the current lease horizon under the scenario — no shortfall or surplus projected within view.`;
+  }
+
+  // Event present in both — describe the transition.
+  const transition = describeGapTransition(bEvt.shortfallHigh, sEvt.shortfallHigh);
+  if (!causes.length) {
+    // Scenario is active (globally) but no lever actually touches this
+    // pot's own projection — flag that rather than imply a cause that
+    // isn't there.
+    return `${describeSingleEvent(bEvt)} No active scenario adjustment affects this pot directly.`;
+  }
+  const baseDate = (bEvt.dateWindow ? bEvt.dateWindow.start : bEvt.date).toISOString().slice(0, 7);
+  return date !== baseDate
+    ? `${causeClause} moves this event to ${date} — ${transition}.`
+    : `${causeClause} ${transition} — timing is unchanged at ${date}.`;
 }
 
 function ScenarioSlider({ label, value, onChange, min, max, step, format }) {
@@ -469,7 +574,14 @@ function Scenarios({ asset }) {
                   <tr>
                     <td colSpan={5} style={{ padding: "0 0 10px 0" }}>
                       <div style={{ background: "var(--color-teal-tint)", border: "1px solid var(--color-teal)", borderRadius: 8, padding: "10px 12px", fontSize: 11, color: "var(--color-graphite)", lineHeight: 1.6 }}>
-                        {buildPotExplanation(row, scenarioActive)}
+                        {buildPotExplanation(row, scenarioActive, {
+                          aog: scenarioModifiers.aogWindow,
+                          lesseeDefault: scenarioModifiers.lesseeDefaultWindow,
+                          utilPct,
+                          sectorPct,
+                          leaseExtMonths,
+                          costOverrunPct: costOverrunByCode[row.code] || 0
+                        })}
                       </div>
                     </td>
                   </tr>
